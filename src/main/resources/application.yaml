@@ -1,3 +1,15 @@
 spring:
   application:
     name: talex-server
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    username: postgres
+    password: 12345
+    url: jdbc:postgresql://localhost:5432/talex-db
+  jpa:
+    show-sql: true
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
