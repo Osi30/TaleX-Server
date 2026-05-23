@@ -1,0 +1,45 @@
+package com.talex.server.entities;
+import jakarta.persistence.*;
+import lombok.*;
+import java.time.LocalDate;
+
+@Entity
+@Table(name = "creator_identity")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class CreatorIdentity {
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(name = "creator_identity_id")
+    private String creatorIdentityId;
+
+    @Column(name = "id_number", length = 50, nullable = false)
+    private String idNumber;
+
+    @Column(name = "full_name", length = 150, nullable = false)
+    private String fullName;
+
+    private LocalDate dob;
+
+    @Column(length = 20)
+    private String sex;
+
+    @Column(columnDefinition = "TEXT")
+    private String address;
+
+    // Date of expiry
+    private LocalDate doe;
+
+    @Column(name = "tax_id", length = 50)
+    private String taxId;
+
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "kyc_session_id", unique = true)
+    private KycSession kycSession;
+
+//    @OneToOne(fetch = FetchType.LAZY)
+//    @JoinColumn(name = "creator_id", nullable = false, unique = true)
+//    private Creator creator;
+}
