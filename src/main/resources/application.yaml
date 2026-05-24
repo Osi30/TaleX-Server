@@ -16,8 +16,11 @@ spring:
   servlet:
     multipart:
       enabled: true
-      max-file-size: 30MB
-      max-request-size: 50MB
+      max-file-size: 500MB
+      max-request-size: 500MB
+  threads:
+    virtual:
+      enabled: true
 
 springdoc:
   api-docs:
@@ -35,3 +38,27 @@ integration:
 
 terms:
   version: v1
+
+eKYC:
+  id-recognition:
+    provider: fpt-ai
+
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 10             # Xét 10 request gần nhất
+        minimumNumberOfCalls: 5           # Cần tối thiểu 5 request để bắt đầu tính toán tỷ lệ lỗi
+        failureRateThreshold: 50          # Nếu 50% số request bị lỗi hoặc timeout (>15s), mạch sẽ NGẮT (Open)
+        slowCallRateThreshold: 50         # Nếu 50% số request chạy chậm hơn thời gian quy định
+        slowCallDurationThreshold: 10000ms # Định nghĩa request chậm là > 10 giây
+        waitDurationInOpenState: 30000ms  # Sau khi ngắt mạch, bắt buộc chờ 30 giây mới cho phép thử lại (Half-Open)
+        permittedNumberOfCallsInHalfOpenState: 3 # Cho phép 3 request đi thử nghiệm khi mạch đang Half-Open
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+    instances:
+      fptAiFrontOcr:
+        baseConfig: default
+      fptAiBackOcr:
+        baseConfig: default
+

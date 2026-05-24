@@ -22,6 +22,7 @@ public class KycSessionMapper implements IKycSessionMapper {
                 .status(kycSession.getStatus())
                 .startedAt(kycSession.getStartedAt())
                 .completedAt(kycSession.getCompletedAt())
+                .updatedAt(kycSession.getUpdatedAt())
                 .build();
     }
 

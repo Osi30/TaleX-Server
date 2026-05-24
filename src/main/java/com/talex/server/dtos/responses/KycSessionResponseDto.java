@@ -19,5 +19,6 @@ public class KycSessionResponseDto {
     private String termsVersion;
     private KycStatus status;
     private LocalDateTime startedAt;
+    private LocalDateTime updatedAt;
     private LocalDateTime completedAt;
 }

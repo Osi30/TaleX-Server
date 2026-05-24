@@ -6,7 +6,8 @@ import com.talex.server.dtos.responses.KycSessionPageResponseDto;
 import com.talex.server.dtos.responses.KycSessionResponseDto;
 import com.talex.server.entities.KycSession;
 import com.talex.server.enums.KycStatus;
-import com.talex.server.exceptions.details.KYCSessionException;
+import com.talex.server.exceptions.codes.KycSessionErrorCode;
+import com.talex.server.exceptions.details.KycSessionException;
 import com.talex.server.mappers.IKycSessionMapper;
 import com.talex.server.repositories.KycSessionRepository;
 import com.talex.server.services.IKycSessionService;
@@ -54,9 +55,7 @@ public class KycSessionService implements IKycSessionService {
     @Override
     @Transactional(readOnly = true)
     public KycSessionResponseDto getSessionById(String kycSessionId) {
-        KycSession kycSession = kycSessionRepository.findById(kycSessionId)
-                .orElseThrow(() -> new KYCSessionException("KYC Session not found with id: " + kycSessionId));
-        return kycSessionMapper.toResponseDto(kycSession);
+        return kycSessionMapper.toResponseDto(getById(kycSessionId));
     }
 
     @Override
@@ -70,10 +69,8 @@ public class KycSessionService implements IKycSessionService {
     }
 
     @Override
-    @Transactional
     public KycSessionResponseDto updateSession(String kycSessionId, KycSessionRequestDto requestDto) {
-        KycSession kycSession = kycSessionRepository.findById(kycSessionId)
-                .orElseThrow(() -> new KYCSessionException("KYC Session not found with id: " + kycSessionId));
+        KycSession kycSession = getById(kycSessionId);
 
         if (requestDto.getStatus() != null &&
                 kycSession.getStatus().equals(KycStatus.IN_PROGRESS)) {
@@ -82,6 +79,15 @@ public class KycSessionService implements IKycSessionService {
 
         KycSession updatedSession = kycSessionRepository.save(kycSession);
         return kycSessionMapper.toResponseDto(updatedSession);
+    }
+
+    @Override
+    public KycSession getById(String kycSessionId) {
+        return kycSessionRepository.findById(kycSessionId)
+                .orElseThrow(() -> new KycSessionException(
+                        KycSessionErrorCode.KYC_SESSION_NOT_FOUND,
+                        "KYC Session not found with id: " + kycSessionId)
+                );
     }
 
     private Map<String, Object> getCriteria(KycSessionFilterRequestDto filterRequest) {
@@ -98,7 +104,10 @@ public class KycSessionService implements IKycSessionService {
             try {
                 kycStatuses[i] = KycStatus.valueOf(statuses[i].toUpperCase());
             } catch (IllegalArgumentException e) {
-                throw new KYCSessionException("Invalid KYC status: " + statuses[i]);
+                throw new KycSessionException(
+                        KycSessionErrorCode.KYC_SESSION_STATUS_INVALID,
+                        "Invalid KYC status: " + statuses[i]
+                );
             }
         }
         return kycStatuses;
