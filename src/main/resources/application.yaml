@@ -32,7 +32,7 @@ integration:
   clients:
     fpt-ai:
       base-url: https://api.fpt.ai
-      api-key: gApfOz6B3r2Z0OK0JKqWvWfvhq1DC60O
+      api-key: dummy-api-key
       connection-timeout-ms: 5000
       read-timeout-ms: 30000
 

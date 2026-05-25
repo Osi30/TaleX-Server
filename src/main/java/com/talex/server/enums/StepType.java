@@ -8,8 +8,7 @@ import lombok.Getter;
 public enum StepType {
     FRONT_ID ("CCCD mặt trước"),
     BACK_ID ("CCCD mặt sau"),
-    LIVENESS_VIDEO ("Kiểm tra tính sống"),
-    FACE_MATCH ("Kiểm tra khớp khuôn mặt");
+    LIVENESS_FACEMATCH ("Kiểm tra tính sống và khớp khuôn mặt");
 
     private final String detail;
 }

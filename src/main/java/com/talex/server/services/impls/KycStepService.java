@@ -2,6 +2,7 @@ package com.talex.server.services.impls;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.talex.server.dtos.requests.KycStepRequestDto;
+import com.talex.server.dtos.responses.liveness.FptAiLivenessResponse;
 import com.talex.server.dtos.responses.KycStepResponseDto;
 import com.talex.server.dtos.responses.idrecognition.back.FptAiIdBackResponse;
 import com.talex.server.dtos.responses.idrecognition.front.FptAiIdFrontResponse;
@@ -9,7 +10,7 @@ import com.talex.server.entities.KycSession;
 import com.talex.server.entities.KycStep;
 import com.talex.server.enums.StepType;
 import com.talex.server.mappers.IKycStepMapper;
-import com.talex.server.records.OcrResult;
+import com.talex.server.records.EKycResult;
 import com.talex.server.repositories.KycStepRepository;
 import com.talex.server.services.IEKycService;
 import com.talex.server.services.IKycSessionService;
@@ -68,14 +69,14 @@ public class KycStepService implements IKycStepService {
 
         try {
             // Gọi dịch vụ OCR
-            OcrResult ocrResult = callOcrProviderApi(stepType, image);
+            EKycResult eKycResult = callOcrProviderApi(stepType, image);
 
             // Cập nhật dữ liệu (success)
-            applyOcrSuccessState(scanImage, ocrResult);
+            applySuccessState(scanImage, eKycResult);
 
         } catch (Exception exception) {
-            // ập nhật dữ liệu (fail)
-            applyOcrFailureState(scanImage, exception);
+            // Cập nhật dữ liệu (fail)
+            applyFailureState(scanImage, exception);
             throw exception;
 
         } finally {
@@ -84,6 +85,30 @@ public class KycStepService implements IKycStepService {
         }
 
         return kycStepMapper.toResponseDto(scanImage);
+    }
+
+    @Override
+    public KycStepResponseDto processLiveness(MultipartFile video, MultipartFile cmnd, String sessionId) {
+        // Khởi tạo Step
+        KycSession kycSession = kycSessionService.getById(sessionId);
+        KycStep kycStep = createKycStep(StepType.LIVENESS_FACEMATCH, kycSession);
+
+        try {
+            // Gọi dịch vụ Liveness - Facematch
+            EKycResult eKycResult = executeLiveness(video, cmnd);
+
+            // Cập nhật dữ liệu (success)
+            applySuccessState(kycStep, eKycResult);
+
+        } catch (Exception ex) {
+            // Cập nhật dữ liệu (fail)
+            applyFailureState(kycStep, ex);
+            throw ex;
+        } finally {
+            persistKycStepResult(kycStep);
+        }
+
+        return kycStepMapper.toResponseDto(kycStep);
     }
 
     @Override
@@ -100,7 +125,7 @@ public class KycStepService implements IKycStepService {
         }
     }
 
-    private OcrResult callOcrProviderApi(StepType stepType, MultipartFile image) {
+    private EKycResult callOcrProviderApi(StepType stepType, MultipartFile image) {
         return switch (stepType) {
             case FRONT_ID -> executeFrontIdOcr(image);
             case BACK_ID -> executeBackIdOcr(image);
@@ -108,27 +133,55 @@ public class KycStepService implements IKycStepService {
         };
     }
 
-    private OcrResult executeFrontIdOcr(MultipartFile image) {
+    private EKycResult executeFrontIdOcr(MultipartFile image) {
         FptAiIdFrontResponse response = eKycService.processFrontSide(image);
         boolean isSuccess = (response.getErrorCode() == 0);
         String message = isSuccess ? "Nhận diện mặt trước CCCD thành công!" : response.getErrorMessage();
-        return new OcrResult(isSuccess, message, objectMapper.valueToTree(response));
+        return new EKycResult(isSuccess, message, objectMapper.valueToTree(response));
     }
 
-    private OcrResult executeBackIdOcr(MultipartFile image) {
+    private EKycResult executeBackIdOcr(MultipartFile image) {
         FptAiIdBackResponse response = eKycService.processBackSide(image);
         boolean isSuccess = (response.getErrorCode() == 0);
         String message = isSuccess ? "Nhận diện mặt sau CCCD thành công!" : response.getErrorMessage();
-        return new OcrResult(isSuccess, message, objectMapper.valueToTree(response));
+        return new EKycResult(isSuccess, message, objectMapper.valueToTree(response));
     }
 
-    private void applyOcrSuccessState(KycStep kycStep, OcrResult ocrResult) {
-        kycStep.setIsSuccess(ocrResult.isSuccess());
-        kycStep.setMessage(ocrResult.message());
-        kycStep.setRawResponse(ocrResult.rawResponse());
+    private EKycResult executeLiveness(MultipartFile video, MultipartFile cmnd) {
+        FptAiLivenessResponse response = eKycService.checkLiveness(video, cmnd);
+
+        boolean hasLiveness = response != null && "200".equals(response.getCode()) && response.getLiveness() != null;
+        boolean hasFaceMatch = response != null && response.getFaceMatch() != null;
+
+        boolean isLive = hasLiveness && "true".equalsIgnoreCase(response.getLiveness().getIsLive());
+        boolean isDeepfake = hasLiveness && "true".equalsIgnoreCase(response.getLiveness().getIsDeepfake());
+        boolean isMatch = hasFaceMatch && "true".equalsIgnoreCase(response.getFaceMatch().getIsMatch());
+
+        // Có đủ dữ liệu, là người thật, không phải deepfake, khuôn mặt trùng khớp
+        boolean isSuccess = hasLiveness && hasFaceMatch && isLive && !isDeepfake && isMatch;
+
+        // Phân tách thông báo lỗi chi tiết ra màn hình dựa trên kết quả thực tế
+        String message = "Xác thực thành công!";
+        if (!hasLiveness || !hasFaceMatch) {
+            message = "Thất bại: Phản hồi hệ thống eKYC không đúng cấu trúc phân tích.";
+        } else if (!isLive) {
+            message = "Thất bại: Phát hiện thực thể sống không hợp lệ (Yêu cầu quay video trực tiếp).";
+        } else if (isDeepfake) {
+            message = "Thất bại: Hệ thống phát hiện dấu hiệu giả mạo khuôn mặt kĩ thuật số (Deepfake).";
+        } else if (!isMatch) {
+            message = "Thất bại: Khuôn mặt trong video không trùng khớp với ảnh chân dung trên CCCD (Độ khớp: " + response.getFaceMatch().getSimilarity() + "%).";
+        }
+
+        return new EKycResult(isSuccess, message, objectMapper.valueToTree(response));
     }
 
-    private void applyOcrFailureState(KycStep kycStep, Exception exception) {
+    private void applySuccessState(KycStep kycStep, EKycResult eKycResult) {
+        kycStep.setIsSuccess(eKycResult.isSuccess());
+        kycStep.setMessage(eKycResult.message());
+        kycStep.setRawResponse(eKycResult.rawResponse());
+    }
+
+    private void applyFailureState(KycStep kycStep, Exception exception) {
         kycStep.setIsSuccess(false);
         kycStep.setMessage("Thất bại: " + exception.getMessage());
     }

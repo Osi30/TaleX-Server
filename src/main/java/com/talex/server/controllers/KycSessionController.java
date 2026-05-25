@@ -133,4 +133,26 @@ public class KycSessionController {
                         .build()
         );
     }
+
+    @PostMapping(
+            value = "/{kycSessionId}/liveness",
+            consumes = MediaType.MULTIPART_FORM_DATA_VALUE
+    )
+    public ResponseEntity<BaseResponse> verifyLiveness(
+            @PathVariable
+            String kycSessionId,
+            @RequestParam("video") @ValidFile(policy = FilePolicy.KYC_VIDEO)
+            MultipartFile video,
+            @RequestParam("cmnd") @ValidFile(policy = FilePolicy.KYC_IMAGE)
+            MultipartFile image
+    ) {
+        KycStepResponseDto stepResult = kycStepService.processLiveness(video, image, kycSessionId);
+
+        return ResponseEntity.ok(
+                new BaseResponse(
+                        200,
+                        "Kiểm tra thực thể sống hoàn tất!",
+                        stepResult)
+        );
+    }
 }

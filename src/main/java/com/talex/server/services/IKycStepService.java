@@ -17,5 +17,7 @@ public interface IKycStepService {
 
     KycStepResponseDto scanID(MultipartFile image, StepType stepType, String sessionId);
 
+    KycStepResponseDto processLiveness(MultipartFile video, MultipartFile cmnd, String sessionId);
+
     List<KycStepResponseDto> filterKycSteps(Map<String, Object> params);
 }

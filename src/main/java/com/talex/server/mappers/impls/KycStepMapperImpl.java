@@ -23,7 +23,7 @@ public class KycStepMapperImpl implements IKycStepMapper {
                 .isSuccess(kycStep.getIsSuccess())
                 .message(kycStep.getMessage())
                 .provider(kycStep.getProvider())
-                .rawResponse(kycStep.getRawResponse().toString())
+                .rawResponse(kycStep.getRawResponse() != null ? kycStep.getRawResponse().toString() : null)
                 .sessionId(kycStep.getKycSession() != null ? kycStep.getKycSession().getKycSessionId() : null)
                 .createdAt(kycStep.getCreatedAt())
                 .updatedAt(kycStep.getUpdatedAt())

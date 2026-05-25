@@ -2,10 +2,10 @@ package com.talex.server.services.impls;
 
 import com.talex.server.dtos.responses.idrecognition.back.FptAiIdBackResponse;
 import com.talex.server.dtos.responses.idrecognition.front.FptAiIdFrontResponse;
+import com.talex.server.dtos.responses.liveness.FptAiLivenessResponse;
 import com.talex.server.exceptions.details.FptAIIDRecognitionException;
 import com.talex.server.services.IEKycService;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.MediaType;
@@ -29,13 +29,43 @@ public class EKycService implements IEKycService {
     @CircuitBreaker(name = "fptAiFrontOcr", fallbackMethod = "fallbackFrontOcr")
     @Override
     public FptAiIdFrontResponse processFrontSide(MultipartFile file) {
-        return sendOcrRequest("vision/idr/vnm", file, FptAiIdFrontResponse.class);
+        return sendMultipartfileRequest(
+                "vision/idr/vnm", file,
+                "image", FptAiIdFrontResponse.class
+        );
     }
 
     @CircuitBreaker(name = "fptAiBackOcr", fallbackMethod = "fallbackBackOcr")
     @Override
     public FptAiIdBackResponse processBackSide(MultipartFile file) {
-        return sendOcrRequest("vision/idr/vnm", file, FptAiIdBackResponse.class);
+        return sendMultipartfileRequest(
+                "vision/idr/vnm", file,
+                "image", FptAiIdBackResponse.class
+        );
+    }
+
+    @CircuitBreaker(name = "fptAiLiveness", fallbackMethod = "fallbackLiveness")
+    @Override
+    public FptAiLivenessResponse checkLiveness(MultipartFile videoFile, MultipartFile cmndFile) {
+        try {
+            MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+
+            // Đóng gói phần tệp tin Video
+            body.add("video", createInputStreamResource(videoFile));
+
+            // Đóng gói phần tệp tin Ảnh CMND/CCCD
+            body.add("cmnd", createInputStreamResource(cmndFile));
+
+            return restClient.post()
+                    .uri("/dmp/liveness/v3")
+                    .contentType(MediaType.MULTIPART_FORM_DATA)
+                    .body(body)
+                    .retrieve()
+                    .body(FptAiLivenessResponse.class);
+
+        } catch (IOException e) {
+            throw new FptAIIDRecognitionException("Lỗi cấu trúc khi xử lý luồng tệp tin Liveness: " + e.getMessage());
+        }
     }
 
     public FptAiIdFrontResponse fallbackFrontOcr(MultipartFile file, Throwable throwable) {
@@ -46,9 +76,14 @@ public class EKycService implements IEKycService {
         throw new FptAIIDRecognitionException("Hệ thống nhận diện mặt sau CCCD đang gặp sự cố: " + throwable.getMessage());
     }
 
-    private <T> T sendOcrRequest(String uri, MultipartFile file, Class<T> responseType) {
+    public FptAiLivenessResponse fallbackLiveness(MultipartFile videoFile, MultipartFile cmndFile, Throwable throwable) {
+        throw new FptAIIDRecognitionException("Hệ thống kiểm tra tích hợp Liveness & FaceMatch đang gặp sự cố: " + throwable.getMessage());
+    }
+
+    private <T> T sendMultipartfileRequest(String uri, MultipartFile file, String paraName, Class<T> responseType) {
         try {
-            MultiValueMap<String, Object> body = getStringObjectMultiValueMap(file);
+            MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+            body.add(paraName, createInputStreamResource(file));
 
             return restClient.post()
                     .uri(uri)
@@ -62,22 +97,14 @@ public class EKycService implements IEKycService {
         }
     }
 
-    @NotNull
-    private static MultiValueMap<String, Object> getStringObjectMultiValueMap(MultipartFile file) throws IOException {
-        InputStreamResource inputStreamResource = new InputStreamResource(file.getInputStream()) {
+    private InputStreamResource createInputStreamResource(MultipartFile file) throws IOException {
+        return new InputStreamResource(file.getInputStream()) {
             @Override
-            public long contentLength() {
-                return file.getSize();
-            }
-
+            public long contentLength() { return file.getSize(); }
             @Override
             public String getFilename() {
-                return file.getOriginalFilename() != null ? file.getOriginalFilename() : "image.jpg";
+                return file.getOriginalFilename() != null ? file.getOriginalFilename() : "blob";
             }
         };
-
-        MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
-        body.add("image", inputStreamResource);
-        return body;
     }
 }
