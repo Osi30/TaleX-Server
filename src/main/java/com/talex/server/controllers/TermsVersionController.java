@@ -69,7 +69,7 @@ public class TermsVersionController {
 
         @GetMapping("/active/{type}")
         public ResponseEntity<BaseResponse> getActiveByType(@PathVariable TermsType type) {
-                var resp = termsService.getActiveByType(type);
+                TermsVersionResponseDto resp = termsService.getActiveByType(type);
                 return ResponseEntity.ok(BaseResponse.builder()
                                 .code(200)
                                 .message("OK")

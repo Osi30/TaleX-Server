@@ -4,10 +4,11 @@ import com.talex.server.dtos.requests.filters.KycSessionFilterRequestDto;
 import com.talex.server.dtos.requests.KycSessionRequestDto;
 import com.talex.server.dtos.responses.KycSessionPageResponseDto;
 import com.talex.server.dtos.responses.KycSessionResponseDto;
+import com.talex.server.entities.Creator;
 import com.talex.server.entities.KycSession;
 
 public interface IKycSessionService {
-    KycSessionResponseDto createSession();
+    String createSession(Creator creator);
 
     KycSessionResponseDto getSessionById(String kycSessionId);
 

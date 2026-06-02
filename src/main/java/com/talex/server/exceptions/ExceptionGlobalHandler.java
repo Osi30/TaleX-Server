@@ -2,10 +2,14 @@ package com.talex.server.exceptions;
 
 import com.talex.server.dtos.BaseResponse;
 import com.talex.server.exceptions.codes.KycSessionErrorCode;
+import com.talex.server.exceptions.details.CreatorException;
+import com.talex.server.exceptions.details.CreatorTermsLogException;
 import com.talex.server.exceptions.details.FptAIIDRecognitionException;
 import com.talex.server.exceptions.details.KycSessionException;
+import com.talex.server.exceptions.details.KycStepException;
 import com.talex.server.exceptions.details.ResourceNotFoundException;
 import com.talex.server.exceptions.details.TermVersionException;
+import com.talex.server.exceptions.details.CreatorIdentityException;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import org.springframework.http.HttpStatus;
@@ -22,10 +26,41 @@ public class ExceptionGlobalHandler {
             WebRequest request) {
         BaseResponse exceptionResponse = BaseResponse.builder()
                 .message(ex.getMessage())
-                .code(HttpStatus.BAD_REQUEST.value())
+                .code(ex.getErrorCode().getCode())
                 .data(request.getDescription(false))
                 .build();
-        return new ResponseEntity<>(exceptionResponse, HttpStatus.BAD_REQUEST);
+        return new ResponseEntity<>(exceptionResponse, ex.getErrorCode().getHttpStatus());
+    }
+
+    @ExceptionHandler(CreatorException.class)
+    public ResponseEntity<BaseResponse> handleCreatorException(CreatorException ex, WebRequest request) {
+        BaseResponse exceptionResponse = BaseResponse.builder()
+                .message(ex.getMessage())
+                .code(ex.getErrorCode().getCode())
+                .data(request.getDescription(false))
+                .build();
+        return new ResponseEntity<>(exceptionResponse, ex.getErrorCode().getHttpStatus());
+    }
+
+    @ExceptionHandler(CreatorTermsLogException.class)
+    public ResponseEntity<BaseResponse> handleCreatorTermsLogException(CreatorTermsLogException ex,
+            WebRequest request) {
+        BaseResponse exceptionResponse = BaseResponse.builder()
+                .message(ex.getMessage())
+                .code(ex.getErrorCode().getCode())
+                .data(request.getDescription(false))
+                .build();
+        return new ResponseEntity<>(exceptionResponse, ex.getErrorCode().getHttpStatus());
+    }
+
+    @ExceptionHandler(KycStepException.class)
+    public ResponseEntity<BaseResponse> handleKycStepException(KycStepException ex, WebRequest request) {
+        BaseResponse exceptionResponse = BaseResponse.builder()
+                .message(ex.getMessage())
+                .code(ex.getErrorCode().getCode())
+                .data(request.getDescription(false))
+                .build();
+        return new ResponseEntity<>(exceptionResponse, ex.getErrorCode().getHttpStatus());
     }
 
     @ExceptionHandler(KycSessionException.class)
@@ -77,5 +112,17 @@ public class ExceptionGlobalHandler {
                 .build();
 
         return new ResponseEntity<>(exceptionResponse, HttpStatus.NOT_FOUND);
+    }
+
+    @ExceptionHandler(CreatorIdentityException.class)
+    public ResponseEntity<BaseResponse> handleCreatorIdentityException(CreatorIdentityException ex,
+            WebRequest request) {
+        BaseResponse exceptionResponse = BaseResponse.builder()
+                .message(ex.getMessage())
+                .code(ex.getErrorCode().getCode())
+                .data(request.getDescription(false))
+                .build();
+
+        return new ResponseEntity<>(exceptionResponse, ex.getErrorCode().getHttpStatus());
     }
 }

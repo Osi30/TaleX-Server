@@ -16,8 +16,6 @@ public class CreatorMapperImpl implements ICreatorMapper {
 
         return CreatorResponseDto.builder()
                 .creatorId(creator.getCreatorId())
-                .isVerified(creator.getIsVerified())
-                .verificationTime(creator.getVerificationTime())
                 .nickname(creator.getNickname())
                 .bio(creator.getBio())
                 .createdAt(creator.getCreatedAt())
@@ -31,8 +29,6 @@ public class CreatorMapperImpl implements ICreatorMapper {
             return null;
 
         return Creator.builder()
-                .isVerified(dto.getIsVerified())
-                .verificationTime(dto.getVerificationTime())
                 .nickname(dto.getNickname())
                 .bio(dto.getBio())
                 .build();

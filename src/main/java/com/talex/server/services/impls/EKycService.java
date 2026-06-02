@@ -3,6 +3,7 @@ package com.talex.server.services.impls;
 import com.talex.server.dtos.responses.idrecognition.back.FptAiIdBackResponse;
 import com.talex.server.dtos.responses.idrecognition.front.FptAiIdFrontResponse;
 import com.talex.server.dtos.responses.liveness.FptAiLivenessResponse;
+import com.talex.server.exceptions.codes.FptAIIDRecognitionErrorCode;
 import com.talex.server.exceptions.details.FptAIIDRecognitionException;
 import com.talex.server.services.IEKycService;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
@@ -64,20 +65,32 @@ public class EKycService implements IEKycService {
                     .body(FptAiLivenessResponse.class);
 
         } catch (IOException e) {
-            throw new FptAIIDRecognitionException("Lỗi cấu trúc khi xử lý luồng tệp tin Liveness: " + e.getMessage());
+            throw new FptAIIDRecognitionException(
+                    FptAIIDRecognitionErrorCode.FPT_AI_OCR_STRUCTURE_ERROR,
+                    "Lỗi cấu trúc khi xử lý luồng tệp tin Liveness: " + e.getMessage(),
+                    e);
         }
     }
 
     public FptAiIdFrontResponse fallbackFrontOcr(MultipartFile file, Throwable throwable) {
-        throw new FptAIIDRecognitionException("Hệ thống nhận diện mặt trước CCCD đang gặp sự cố: " + throwable.getMessage());
+        throw new FptAIIDRecognitionException(
+                FptAIIDRecognitionErrorCode.FPT_AI_FRONT_RECOGNITION_ERROR,
+                "Hệ thống nhận diện mặt trước CCCD đang gặp sự cố: " + throwable.getMessage(),
+                throwable);
     }
 
     public FptAiIdBackResponse fallbackBackOcr(MultipartFile file, Throwable throwable) {
-        throw new FptAIIDRecognitionException("Hệ thống nhận diện mặt sau CCCD đang gặp sự cố: " + throwable.getMessage());
+        throw new FptAIIDRecognitionException(
+                FptAIIDRecognitionErrorCode.FPT_AI_BACK_RECOGNITION_ERROR,
+                "Hệ thống nhận diện mặt sau CCCD đang gặp sự cố: " + throwable.getMessage(),
+                throwable);
     }
 
     public FptAiLivenessResponse fallbackLiveness(MultipartFile videoFile, MultipartFile cmndFile, Throwable throwable) {
-        throw new FptAIIDRecognitionException("Hệ thống kiểm tra tích hợp Liveness & FaceMatch đang gặp sự cố: " + throwable.getMessage());
+        throw new FptAIIDRecognitionException(
+                FptAIIDRecognitionErrorCode.FPT_AI_LIVENESS_ERROR,
+                "Hệ thống kiểm tra tích hợp Liveness & FaceMatch đang gặp sự cố: " + throwable.getMessage(),
+                throwable);
     }
 
     private <T> T sendMultipartfileRequest(String uri, MultipartFile file, String paraName, Class<T> responseType) {
@@ -93,7 +106,10 @@ public class EKycService implements IEKycService {
                     .body(responseType);
 
         } catch (IOException e) {
-            throw new FptAIIDRecognitionException("Lỗi cấu trúc luồng đọc dữ liệu ảnh: " + e.getMessage());
+            throw new FptAIIDRecognitionException(
+                    FptAIIDRecognitionErrorCode.FPT_AI_OCR_STRUCTURE_ERROR,
+                    "Lỗi cấu trúc luồng đọc dữ liệu ảnh: " + e.getMessage(),
+                    e);
         }
     }
 

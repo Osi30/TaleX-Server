@@ -2,6 +2,7 @@ package com.talex.server.controllers;
 
 import com.talex.server.dtos.BaseResponse;
 import com.talex.server.dtos.requests.CreatorTermsLogRequestDto;
+import com.talex.server.dtos.responses.CreatorTermsLogResponseDto;
 import com.talex.server.services.ICreatorTermsLogService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -18,15 +19,25 @@ public class CreatorTermsLogController {
 
     @PostMapping
     public ResponseEntity<BaseResponse> create(@RequestBody CreatorTermsLogRequestDto dto) {
-        var resp = service.create(dto);
+        service.create(dto);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(BaseResponse.builder().code(201).message("Created").data(resp).build());
+                .body(BaseResponse.builder()
+                        .code(201)
+                        .message("Created")
+                        .data(null)
+                        .build()
+                );
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<BaseResponse> getById(@PathVariable String id) {
-        var resp = service.getById(id);
-        return ResponseEntity.ok(BaseResponse.builder().code(200).message("OK").data(resp).build());
+        CreatorTermsLogResponseDto resp = service.getById(id);
+        return ResponseEntity.ok(BaseResponse.builder()
+                .code(200)
+                .message("OK")
+                .data(resp)
+                .build()
+        );
     }
 
     @GetMapping("/by-creator/{creatorId}")
@@ -38,6 +49,11 @@ public class CreatorTermsLogController {
     @DeleteMapping("/{id}")
     public ResponseEntity<BaseResponse> delete(@PathVariable String id) {
         service.delete(id);
-        return ResponseEntity.ok(BaseResponse.builder().code(200).message("Deleted").data(null).build());
+        return ResponseEntity.ok(BaseResponse.builder()
+                .code(200)
+                .message("Deleted")
+                .data(null)
+                .build()
+        );
     }
 }

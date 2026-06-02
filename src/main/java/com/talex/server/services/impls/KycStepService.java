@@ -9,6 +9,8 @@ import com.talex.server.dtos.responses.idrecognition.front.FptAiIdFrontResponse;
 import com.talex.server.entities.KycSession;
 import com.talex.server.entities.KycStep;
 import com.talex.server.enums.StepType;
+import com.talex.server.exceptions.codes.KycStepErrorCode;
+import com.talex.server.exceptions.details.KycStepException;
 import com.talex.server.mappers.IKycStepMapper;
 import com.talex.server.records.EKycResult;
 import com.talex.server.repositories.KycStepRepository;
@@ -54,7 +56,9 @@ public class KycStepService implements IKycStepService {
     @Transactional(readOnly = true)
     public KycStepResponseDto getKycStepById(String kycStepId) {
         KycStep kycStep = kycStepRepository.findById(kycStepId)
-                .orElseThrow(() -> new RuntimeException("KycStep not found with id: " + kycStepId));
+                .orElseThrow(() -> new KycStepException(
+                        KycStepErrorCode.KYC_STEP_NOT_FOUND,
+                        "KycStep không tồn tại với id: " + kycStepId));
 
         return kycStepMapper.toResponseDto(kycStep);
     }
@@ -77,7 +81,11 @@ public class KycStepService implements IKycStepService {
         } catch (Exception exception) {
             // Cập nhật dữ liệu (fail)
             applyFailureState(scanImage, exception);
-            throw exception;
+            if (exception instanceof KycStepException) {
+                throw exception;
+            }
+            throw new KycStepException(KycStepErrorCode.KYC_STEP_PROCESSING_FAILED,
+                    "Xử lý scan ID thất bại: " + exception.getMessage(), exception);
 
         } finally {
             // Ghi vết trạng thái cuối cùng
@@ -103,7 +111,11 @@ public class KycStepService implements IKycStepService {
         } catch (Exception ex) {
             // Cập nhật dữ liệu (fail)
             applyFailureState(kycStep, ex);
-            throw ex;
+            if (ex instanceof KycStepException) {
+                throw ex;
+            }
+            throw new KycStepException(KycStepErrorCode.KYC_STEP_PROCESSING_FAILED,
+                    "Xử lý Liveness thất bại: " + ex.getMessage(), ex);
         } finally {
             persistKycStepResult(kycStep);
         }
@@ -121,7 +133,8 @@ public class KycStepService implements IKycStepService {
 
     private void validateStepType(StepType stepType) {
         if (stepType != StepType.FRONT_ID && stepType != StepType.BACK_ID) {
-            throw new IllegalArgumentException("Loại bước KYC chưa được hỗ trợ hoặc không hợp lệ.");
+            throw new KycStepException(KycStepErrorCode.INVALID_STEP_TYPE,
+                    "Loại bước KYC chưa được hỗ trợ hoặc không hợp lệ: " + stepType);
         }
     }
 
@@ -129,7 +142,8 @@ public class KycStepService implements IKycStepService {
         return switch (stepType) {
             case FRONT_ID -> executeFrontIdOcr(image);
             case BACK_ID -> executeBackIdOcr(image);
-            default -> throw new IllegalStateException("Chưa cấu hình xử lý cho bước: " + stepType);
+            default -> throw new KycStepException(KycStepErrorCode.KYC_STEP_NOT_SUPPORTED,
+                    "Chưa cấu hình xử lý cho bước KYC: " + stepType);
         };
     }
 

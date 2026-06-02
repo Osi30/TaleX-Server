@@ -2,8 +2,8 @@ package com.talex.server.controllers;
 
 import com.talex.server.annotations.ValidFile;
 import com.talex.server.dtos.BaseResponse;
-import com.talex.server.dtos.requests.filters.KycSessionFilterRequestDto;
 import com.talex.server.dtos.requests.KycSessionRequestDto;
+import com.talex.server.dtos.requests.filters.KycSessionFilterRequestDto;
 import com.talex.server.dtos.responses.KycSessionPageResponseDto;
 import com.talex.server.dtos.responses.KycSessionResponseDto;
 import com.talex.server.dtos.responses.KycStepResponseDto;
@@ -12,7 +12,6 @@ import com.talex.server.policies.FilePolicy;
 import com.talex.server.services.IKycSessionService;
 import com.talex.server.services.IKycStepService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
@@ -28,17 +27,6 @@ import java.util.Map;
 public class KycSessionController {
     private final IKycSessionService kycSessionService;
     private final IKycStepService kycStepService;
-
-    @PostMapping
-    public ResponseEntity<BaseResponse> createSession() {
-        KycSessionResponseDto responseDto = kycSessionService.createSession();
-        return ResponseEntity.status(HttpStatus.CREATED).body(
-                BaseResponse.builder()
-                        .code(201)
-                        .message("Tạo phiên KYC thành công!")
-                        .data(responseDto)
-                        .build());
-    }
 
     @GetMapping("/{kycSessionId}")
     public ResponseEntity<BaseResponse> getSessionById(

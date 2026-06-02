@@ -43,9 +43,9 @@ public class KycSession {
     @Column(name = "completed_at")
     private LocalDateTime completedAt;
 
-//    @ManyToOne(fetch = FetchType.LAZY)
-//    @JoinColumn(name = "creator_id", nullable = false)
-//    private Creator creator;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "creator_id", nullable = false)
+    private Creator creator;
 
     @OneToMany(mappedBy = "kycSession", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default

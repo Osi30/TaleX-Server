@@ -96,7 +96,7 @@ public class TermsVersionService implements ITermsVersionService {
                         "Active TermsVersion not found for type: " + type));
     }
 
-    private TermsVersion findById(String id) {
+    public TermsVersion findById(String id) {
         return repository.findById(id)
                 .orElseThrow(() -> new TermVersionException(
                         TermsVersionErrorCode.NOT_FOUND,

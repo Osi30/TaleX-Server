@@ -4,6 +4,7 @@ import com.talex.server.dtos.requests.KycSessionRequestDto;
 import com.talex.server.dtos.requests.filters.KycSessionFilterRequestDto;
 import com.talex.server.dtos.responses.KycSessionPageResponseDto;
 import com.talex.server.dtos.responses.KycSessionResponseDto;
+import com.talex.server.entities.Creator;
 import com.talex.server.entities.KycSession;
 import com.talex.server.enums.KycStatus;
 import com.talex.server.exceptions.codes.KycSessionErrorCode;
@@ -37,7 +38,7 @@ public class KycSessionService implements IKycSessionService {
 
     @Override
     @Transactional
-    public KycSessionResponseDto createSession() {
+    public String createSession(Creator creator) {
         // Sau này nhó thêm creator Id
         kycSessionRepository.bulkUpdateStatus(KycStatus.IN_PROGRESS, KycStatus.OUT_OF_TIME);
 
@@ -45,10 +46,11 @@ public class KycSessionService implements IKycSessionService {
                 .isTermsAccepted(Boolean.TRUE)
                 .status(KycStatus.IN_PROGRESS)
                 .startedAt(LocalDateTime.now())
+                .creator(creator)
                 .build();
 
         KycSession savedSession = kycSessionRepository.save(kycSession);
-        return kycSessionMapper.toResponseDto(savedSession);
+        return savedSession.getKycSessionId();
     }
 
     @Override

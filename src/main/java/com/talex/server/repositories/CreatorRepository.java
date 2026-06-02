@@ -6,4 +6,5 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface CreatorRepository extends JpaRepository<Creator, String> {
+//    Creator findByAccount_Id(String accountId);
 }

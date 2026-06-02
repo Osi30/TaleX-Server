@@ -1,6 +1,5 @@
 package com.talex.server.dtos.requests;
 
-import com.talex.server.entities.Creator;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -10,7 +9,8 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class CreatorTermsLogRequestDto {
-    private Creator creator;
-    private String versionId;
+public class CreatorRegisterDto {
+    private String termsId;
+    private String accountId;
+    private Boolean isAcceptTermAlready;
 }

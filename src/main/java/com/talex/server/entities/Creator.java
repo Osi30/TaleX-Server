@@ -19,12 +19,6 @@ public class Creator {
     @Column(name = "creator_id")
     private String creatorId;
 
-    @Column(name = "is_verified")
-    private Boolean isVerified;
-
-    @Column(name = "verification_time")
-    private LocalDateTime verificationTime;
-
     @Column(name = "nickname", length = 100)
     private String nickname;
 

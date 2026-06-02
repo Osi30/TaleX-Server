@@ -18,6 +18,10 @@ public class CreatorTermsLog {
     @Column(name = "id")
     private String id;
 
+    @CreationTimestamp
+    @Column(name = "accepted_at", updatable = false)
+    private LocalDateTime acceptedAt;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "creator_id", nullable = false)
     private Creator creator;
@@ -25,8 +29,4 @@ public class CreatorTermsLog {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "version_id", nullable = false)
     private TermsVersion version;
-
-    @CreationTimestamp
-    @Column(name = "accepted_at", updatable = false)
-    private LocalDateTime acceptedAt;
 }
