@@ -4,6 +4,8 @@ import com.talex.server.dtos.BaseResponse;
 import com.talex.server.exceptions.codes.KycSessionErrorCode;
 import com.talex.server.exceptions.details.FptAIIDRecognitionException;
 import com.talex.server.exceptions.details.KycSessionException;
+import com.talex.server.exceptions.details.ResourceNotFoundException;
+import com.talex.server.exceptions.details.TermVersionException;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import org.springframework.http.HttpStatus;
@@ -16,7 +18,8 @@ import org.springframework.web.multipart.MaxUploadSizeExceededException;
 @RestControllerAdvice
 public class ExceptionGlobalHandler {
     @ExceptionHandler(FptAIIDRecognitionException.class)
-    public ResponseEntity<BaseResponse> handleFptAIIDRecognitionException(FptAIIDRecognitionException ex, WebRequest request) {
+    public ResponseEntity<BaseResponse> handleFptAIIDRecognitionException(FptAIIDRecognitionException ex,
+            WebRequest request) {
         BaseResponse exceptionResponse = BaseResponse.builder()
                 .message(ex.getMessage())
                 .code(HttpStatus.BAD_REQUEST.value())
@@ -38,6 +41,17 @@ public class ExceptionGlobalHandler {
         return new ResponseEntity<>(exceptionResponse, errorCode.getHttpStatus());
     }
 
+    @ExceptionHandler(TermVersionException.class)
+    public ResponseEntity<BaseResponse> handleTermVersionException(TermVersionException ex, WebRequest request) {
+        BaseResponse exceptionResponse = BaseResponse.builder()
+                .message(ex.getMessage())
+                .code(ex.getErrorCode().getCode())
+                .data(request.getDescription(false))
+                .build();
+
+        return new ResponseEntity<>(exceptionResponse, ex.getErrorCode().getHttpStatus());
+    }
+
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     public ResponseEntity<BaseResponse> handleMaxSizeException(MaxUploadSizeExceededException exc) {
         return ResponseEntity.status(HttpStatus.CONTENT_TOO_LARGE)
@@ -52,5 +66,16 @@ public class ExceptionGlobalHandler {
                 .orElse("File không hợp lệ!");
 
         return ResponseEntity.badRequest().body(new BaseResponse(400, errorMsg, null));
+    }
+
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<BaseResponse> handleResourceNotFound(ResourceNotFoundException ex, WebRequest request) {
+        BaseResponse exceptionResponse = BaseResponse.builder()
+                .message(ex.getMessage())
+                .code(HttpStatus.NOT_FOUND.value())
+                .data(request.getDescription(false))
+                .build();
+
+        return new ResponseEntity<>(exceptionResponse, HttpStatus.NOT_FOUND);
     }
 }

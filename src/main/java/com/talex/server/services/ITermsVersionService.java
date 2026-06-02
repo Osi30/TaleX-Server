@@ -1,0 +1,22 @@
+package com.talex.server.services;
+
+import com.talex.server.dtos.BaseFilterRequestDto;
+import com.talex.server.dtos.BasePageResponse;
+import com.talex.server.dtos.requests.TermsVersionRequestDto;
+import com.talex.server.dtos.requests.filters.TermVersionFilterRequestDto;
+import com.talex.server.dtos.responses.TermsVersionResponseDto;
+import com.talex.server.enums.TermsType;
+
+public interface ITermsVersionService {
+    TermsVersionResponseDto create(TermsVersionRequestDto dto);
+
+    TermsVersionResponseDto getById(String id);
+
+    TermsVersionResponseDto update(String id, TermsVersionRequestDto dto);
+
+    void delete(String id);
+
+    BasePageResponse<TermsVersionResponseDto> list(TermVersionFilterRequestDto filterRequest);
+
+    TermsVersionResponseDto getActiveByType(TermsType type);
+}

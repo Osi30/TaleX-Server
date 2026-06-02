@@ -28,9 +28,6 @@ public class KycSession {
     @Column(name = "is_terms_accepted")
     private Boolean isTermsAccepted;
 
-    @Column(name = "terms_version")
-    private String termsVersion;
-
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 50)
     private KycStatus status;

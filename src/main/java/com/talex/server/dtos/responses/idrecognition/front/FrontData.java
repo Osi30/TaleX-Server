@@ -40,5 +40,14 @@ public class FrontData {
     @JsonProperty("doe_prob")
     private String doeProb;
 
+    @JsonProperty("overall_score")
+    private String overallScore;
+
+    @JsonProperty("number_of_name_lines")
+    private String numberOfNameLines;
+
+    @JsonProperty("type_new")
+    private String typeNew;
+
     private String type;
 }

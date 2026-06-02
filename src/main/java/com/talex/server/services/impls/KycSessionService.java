@@ -1,7 +1,7 @@
 package com.talex.server.services.impls;
 
-import com.talex.server.dtos.requests.KycSessionFilterRequestDto;
 import com.talex.server.dtos.requests.KycSessionRequestDto;
+import com.talex.server.dtos.requests.filters.KycSessionFilterRequestDto;
 import com.talex.server.dtos.responses.KycSessionPageResponseDto;
 import com.talex.server.dtos.responses.KycSessionResponseDto;
 import com.talex.server.entities.KycSession;
@@ -43,7 +43,6 @@ public class KycSessionService implements IKycSessionService {
 
         KycSession kycSession = KycSession.builder()
                 .isTermsAccepted(Boolean.TRUE)
-                .termsVersion(termsVersion)
                 .status(KycStatus.IN_PROGRESS)
                 .startedAt(LocalDateTime.now())
                 .build();

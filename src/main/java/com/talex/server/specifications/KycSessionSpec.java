@@ -19,12 +19,6 @@ public class KycSessionSpec {
         return (root, query, criteriaBuilder) -> {
             List<Predicate> predicateList = new ArrayList<>();
 
-            // Terms Version
-            String termsVersion = (String) criteria.get("termsVersion");
-            if (!ValidationUtils.isNullOrEmpty(termsVersion)) {
-                predicateList.add(criteriaBuilder.like(root.get("termsVersion"), "%" + termsVersion + "%"));
-            }
-
             // KYC Status
             if (statuses != null && statuses.length > 0) {
                 predicateList.add(root.get("status").in((Object[]) statuses));
@@ -56,7 +50,7 @@ public class KycSessionSpec {
 
             // Creator ID (for N-1 relationship with Creator)
             String creatorId = (String) criteria.get("creatorId");
-            if (!ValidationUtils.isNullOrEmpty(termsVersion)) {
+            if (!ValidationUtils.isNullOrEmpty(creatorId)) {
                 predicateList.add(criteriaBuilder.equal(root.get("creator").get("id"), creatorId));
             }
 

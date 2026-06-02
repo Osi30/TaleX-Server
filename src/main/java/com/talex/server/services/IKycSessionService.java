@@ -1,6 +1,6 @@
 package com.talex.server.services;
 
-import com.talex.server.dtos.requests.KycSessionFilterRequestDto;
+import com.talex.server.dtos.requests.filters.KycSessionFilterRequestDto;
 import com.talex.server.dtos.requests.KycSessionRequestDto;
 import com.talex.server.dtos.responses.KycSessionPageResponseDto;
 import com.talex.server.dtos.responses.KycSessionResponseDto;

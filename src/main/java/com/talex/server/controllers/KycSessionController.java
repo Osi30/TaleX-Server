@@ -2,7 +2,7 @@ package com.talex.server.controllers;
 
 import com.talex.server.annotations.ValidFile;
 import com.talex.server.dtos.BaseResponse;
-import com.talex.server.dtos.requests.KycSessionFilterRequestDto;
+import com.talex.server.dtos.requests.filters.KycSessionFilterRequestDto;
 import com.talex.server.dtos.requests.KycSessionRequestDto;
 import com.talex.server.dtos.responses.KycSessionPageResponseDto;
 import com.talex.server.dtos.responses.KycSessionResponseDto;
