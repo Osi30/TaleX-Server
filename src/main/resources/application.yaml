@@ -19,6 +19,15 @@ spring:
       enabled: true
       max-file-size: 500MB
       max-request-size: 500MB
+  data:
+    redis:
+      host: ${REDIS_HOST:station-empowering-kiss-54115.db.redis.io}
+      port: ${REDIS_PORT:15883}
+      username: ${REDIS_USERNAME:default}
+      password: ${REDIS_PASSWORD:}
+      ssl:
+        enabled: true
+      timeout: 5000ms
   threads:
     virtual:
       enabled: true
@@ -80,7 +89,10 @@ jwt:
   refresh-token-expiration: 604800000
 
 google:
-  client-id: ${GOOGLE_CLIENT_ID:}
+  client-id:
+    web: ${GOOGLE_CLIENT_ID_WEB:}
+    android: ${GOOGLE_CLIENT_ID_ANDROID:}
+    ios: ${GOOGLE_CLIENT_ID_IOS:}
 
 otp:
   expiration-minutes: 10
