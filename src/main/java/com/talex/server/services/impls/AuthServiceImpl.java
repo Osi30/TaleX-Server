@@ -1,6 +1,7 @@
 package com.talex.server.services.impls;
 
 import com.talex.server.configs.JwtTokenProvider;
+import com.talex.server.dtos.requests.CompleteRegistrationRequest;
 import com.talex.server.dtos.requests.GoogleLoginRequest;
 import com.talex.server.dtos.requests.LoginRequest;
 import com.talex.server.dtos.requests.RefreshTokenRequest;
@@ -10,7 +11,6 @@ import com.talex.server.dtos.requests.VerifyOtpRequest;
 import com.talex.server.dtos.responses.AuthResponse;
 import com.talex.server.dtos.responses.GoogleUserInfo;
 import com.talex.server.entities.Account;
-import com.talex.server.entities.RefreshToken;
 import com.talex.server.entities.Role;
 import com.talex.server.enums.AccountStatus;
 import com.talex.server.exceptions.BadRequestException;
@@ -19,11 +19,12 @@ import com.talex.server.exceptions.ResourceNotFoundException;
 import com.talex.server.exceptions.UnauthorizedException;
 import com.talex.server.mappers.AccountMapper;
 import com.talex.server.repositories.AccountRepository;
+import java.util.UUID;
 import com.talex.server.repositories.RoleRepository;
 import com.talex.server.services.AuthService;
 import com.talex.server.services.GoogleAuthService;
 import com.talex.server.services.OtpService;
-import com.talex.server.services.RefreshTokenService;
+import com.talex.server.services.TokenFamilyService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -41,7 +42,7 @@ public class AuthServiceImpl implements AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
     private final OtpService otpService;
-    private final RefreshTokenService refreshTokenService;
+    private final TokenFamilyService tokenFamilyService;
     private final GoogleAuthService googleAuthService;
     private final AccountMapper accountMapper;
 
@@ -65,6 +66,9 @@ public class AuthServiceImpl implements AuthService {
                 .username(request.getUsername())
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
+                .fullName(request.getFullName())
+                .dateOfBirth(request.getDateOfBirth())
+                .phone(request.getPhone())
                 .role(viewerRole)
                 .build();
 
@@ -99,10 +103,7 @@ public class AuthServiceImpl implements AuthService {
     public AuthResponse login(LoginRequest request) {
         Account account = findAccountByEmail(request.getEmail());
 
-        if (account.getStatus() != AccountStatus.ACTIVE) {
-            log.warn("Login failed: {}", request.getEmail());
-            throw new UnauthorizedException("Account is not active");
-        }
+        validateAccountStatus(account);
 
         if (account.getPassword() == null
                 || !passwordEncoder.matches(request.getPassword(), account.getPassword())) {
@@ -122,32 +123,37 @@ public class AuthServiceImpl implements AuthService {
         Account account = accountRepository.findByGoogleSubId(googleInfo.getGoogleSubId())
                 .orElseGet(() -> findOrCreateGoogleAccount(googleInfo));
 
+        validateAccountStatus(account);
+
         log.info("Google login: {}", account.getEmail());
         return generateAuthResponse(account);
     }
 
     @Override
-    @Transactional
     public AuthResponse refreshToken(RefreshTokenRequest request) {
-        RefreshToken rotatedToken = refreshTokenService.validateAndRotate(
+        String newRefreshToken = tokenFamilyService.validateAndRotate(
                 request.getRefreshToken());
 
-        Account account = rotatedToken.getAccount();
+        UUID accountId = tokenFamilyService.extractAccountId(newRefreshToken);
+        Account account = accountRepository.findById(accountId)
+                .orElseThrow(() -> new ResourceNotFoundException("Account not found"));
+
+        // Block refresh if account is no longer active
+        validateAccountStatus(account);
+
         String accessToken = jwtTokenProvider.generateAccessToken(account);
 
         return accountMapper.toAuthResponse(
-                account, accessToken, rotatedToken.getToken(),
+                account, accessToken, newRefreshToken,
                 accessTokenExpirationMs / 1000);
     }
 
     @Override
-    @Transactional
     public void logout(RefreshTokenRequest request) {
-        RefreshToken token = refreshTokenService.findValidToken(
+        UUID accountId = tokenFamilyService.extractAccountId(
                 request.getRefreshToken());
-        refreshTokenService.revokeAllByAccount(
-                token.getAccount().getAccountId());
-        log.info("User logged out: {}", token.getAccount().getAccountId());
+        tokenFamilyService.deleteFamily(request.getRefreshToken());
+        log.info("User logged out: {}", accountId);
     }
 
     @Override
@@ -161,6 +167,35 @@ public class AuthServiceImpl implements AuthService {
 
         otpService.generateAndSend(account);
         return "OTP mới đã gửi tới email " + request.getEmail();
+    }
+
+    @Override
+    @Transactional
+    public AuthResponse completeRegistration(UUID accountId,
+                                             CompleteRegistrationRequest request) {
+        Account account = accountRepository.findById(accountId)
+                .orElseThrow(() -> new ResourceNotFoundException("Account not found"));
+
+        if (account.getStatus() != AccountStatus.INCOMPLETE) {
+            throw new BadRequestException("Account registration is already complete");
+        }
+
+        account.setDateOfBirth(request.getDateOfBirth());
+        account.setPhone(request.getPhone());
+        account.setStatus(AccountStatus.ACTIVE);
+        accountRepository.save(account);
+
+        log.info("Registration completed for account: {}", accountId);
+        return generateAuthResponse(account);
+    }
+
+    private void validateAccountStatus(Account account) {
+        switch (account.getStatus()) {
+            case ACTIVE, INCOMPLETE -> { /* OK — AccountStatusFilter restricts INCOMPLETE */ }
+            case VERIFYING -> throw new UnauthorizedException("Please verify your email first");
+            case BANNED -> throw new UnauthorizedException("Account has been banned");
+            case DELETED -> throw new UnauthorizedException("Account has been deleted");
+        }
     }
 
     private Account findAccountByEmail(String email) {
@@ -191,7 +226,8 @@ public class AuthServiceImpl implements AuthService {
                 .username(username)
                 .email(googleInfo.getEmail())
                 .googleSubId(googleInfo.getGoogleSubId())
-                .status(AccountStatus.ACTIVE)
+                .fullName(googleInfo.getName())
+                .status(AccountStatus.INCOMPLETE)
                 .role(viewerRole)
                 .build();
 
@@ -209,7 +245,7 @@ public class AuthServiceImpl implements AuthService {
 
     private AuthResponse generateAuthResponse(Account account) {
         String accessToken = jwtTokenProvider.generateAccessToken(account);
-        String refreshToken = refreshTokenService.createRefreshToken(account);
+        String refreshToken = tokenFamilyService.createFamily(account.getAccountId());
         return accountMapper.toAuthResponse(
                 account, accessToken, refreshToken,
                 accessTokenExpirationMs / 1000);

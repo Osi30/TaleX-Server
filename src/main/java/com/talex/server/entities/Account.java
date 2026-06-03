@@ -19,6 +19,7 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -46,6 +47,12 @@ public class Account {
 
     @Column(name = "phone")
     private String phone;
+
+    @Column(name = "full_name")
+    private String fullName;
+
+    @Column(name = "date_of_birth")
+    private LocalDate dateOfBirth;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
