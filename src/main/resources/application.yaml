@@ -48,9 +48,6 @@ integration:
       connection-timeout-ms: 5000
       read-timeout-ms: 30000
 
-terms:
-  version: v1
-
 eKYC:
   id-recognition:
     provider: fpt-ai

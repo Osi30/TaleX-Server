@@ -11,7 +11,7 @@ import com.talex.server.mappers.ICreatorMapper;
 import com.talex.server.repositories.CreatorRepository;
 import com.talex.server.services.ICreatorIdentityService;
 import com.talex.server.services.ICreatorService;
-import com.talex.server.services.ICreatorTermsLogService;
+import com.talex.server.services.ITermsLogService;
 import com.talex.server.services.IKycSessionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -20,7 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 public class CreatorService implements ICreatorService {
-    private final ICreatorTermsLogService creatorTermsLogService;
+    private final ITermsLogService creatorTermsLogService;
     private final ICreatorIdentityService creatorIdentityService;
     private final IKycSessionService kycSessionService;
     private final CreatorRepository creatorRepository;
@@ -29,12 +29,11 @@ public class CreatorService implements ICreatorService {
     @Override
     @Transactional
     public String createCreator(CreatorRegisterDto dto) {
-//        Creator creator = findCreatorByAccountId(dto.getAccountId());
         Creator creator;
 
         // Đã đồng ý điều khoản
         if (Boolean.TRUE.equals(dto.getIsAcceptTermAlready())) {
-            creator = findById(dto.getAccountId());
+            creator = findCreatorByAccountId(dto.getAccountId());
         }
         // Chưa đồng ý điều khoản
         else {
@@ -86,8 +85,9 @@ public class CreatorService implements ICreatorService {
                         "Creator không tồn tại với id: " + id));
     }
 
-//    private Creator findCreatorByAccountId(String id) {
-//        return creatorRepository.findById(id)
-//                .orElseThrow(() -> new ResourceNotFoundException("Creator not found with id: " + id));
-//    }
+    private Creator findCreatorByAccountId(String id) {
+        return creatorRepository.findById(id)
+                .orElseThrow(() -> new CreatorException(CreatorErrorCode.CREATOR_NOT_FOUND,
+                        "Creator không tồn tại với account id: " + id));
+    }
 }

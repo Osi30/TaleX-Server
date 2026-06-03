@@ -7,12 +7,12 @@ import org.hibernate.annotations.CreationTimestamp;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "creator_terms_logs")
+@Table(name = "terms_logs")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class CreatorTermsLog {
+public class TermsLog {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     @Column(name = "id")
@@ -23,8 +23,8 @@ public class CreatorTermsLog {
     private LocalDateTime acceptedAt;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "creator_id", nullable = false)
-    private Creator creator;
+    @JoinColumn(name = "account_id", nullable = false)
+    private Account account;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "version_id", nullable = false)

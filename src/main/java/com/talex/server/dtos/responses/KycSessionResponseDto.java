@@ -2,7 +2,6 @@ package com.talex.server.dtos.responses;
 
 import com.talex.server.enums.KycStatus;
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
@@ -15,7 +14,6 @@ import java.time.LocalDateTime;
 @SuperBuilder
 public class KycSessionResponseDto {
     private String kycSessionId;
-    private Boolean isTermsAccepted;
     private String termsVersion;
     private KycStatus status;
     private LocalDateTime startedAt;

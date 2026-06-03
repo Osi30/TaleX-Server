@@ -25,9 +25,6 @@ public class KycSession {
     @Column(name = "kyc_session_id")
     private String kycSessionId;
 
-    @Column(name = "is_terms_accepted")
-    private Boolean isTermsAccepted;
-
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 50)
     private KycStatus status;

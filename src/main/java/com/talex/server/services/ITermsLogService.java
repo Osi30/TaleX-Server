@@ -5,12 +5,10 @@ import com.talex.server.dtos.responses.CreatorTermsLogResponseDto;
 
 import java.util.List;
 
-public interface ICreatorTermsLogService {
+public interface ITermsLogService {
     void create(CreatorTermsLogRequestDto dto);
 
     CreatorTermsLogResponseDto getById(String id);
 
-    void delete(String id);
-
-    List<CreatorTermsLogResponseDto> listByCreator(String creatorId);
+    List<CreatorTermsLogResponseDto> listByAccount(String creatorId);
 }

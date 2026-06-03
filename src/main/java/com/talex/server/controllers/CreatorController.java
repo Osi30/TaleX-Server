@@ -40,7 +40,10 @@ public class CreatorController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<BaseResponse> update(@PathVariable String id, @RequestBody CreatorRequestDto dto) {
+    public ResponseEntity<BaseResponse> update(
+            @PathVariable String id,
+            @RequestBody CreatorRequestDto dto
+    ) {
         CreatorResponseDto resp = creatorService.updateCreator(id, dto);
         return ResponseEntity.ok(BaseResponse.builder()
                 .code(200)

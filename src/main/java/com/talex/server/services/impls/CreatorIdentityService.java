@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -45,12 +46,12 @@ public class CreatorIdentityService implements ICreatorIdentityService {
 
     @Override
     @Transactional(readOnly = true)
-    public CreatorIdentityResponseDto getByCreatorId(String creatorId) {
-        CreatorIdentity entity = repository.findByCreator_CreatorId(creatorId)
+    public CreatorIdentityResponseDto getByAccountId(String accountId) {
+        CreatorIdentity entity = repository.findByCreator_Account_AccountId(UUID.fromString(accountId))
                 .orElseThrow(
                         () -> new CreatorIdentityException(
                                 CreatorIdentityErrorCode.CREATOR_IDENTITY_NOT_FOUND,
-                                "CreatorIdentity not found for creator: " + creatorId)
+                                "CreatorIdentity not found for account: " + accountId)
                 );
         return mapper.toResponseDto(entity);
     }

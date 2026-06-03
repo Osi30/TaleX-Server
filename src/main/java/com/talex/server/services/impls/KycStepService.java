@@ -2,32 +2,38 @@ package com.talex.server.services.impls;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.talex.server.dtos.requests.KycStepRequestDto;
-import com.talex.server.dtos.responses.liveness.FptAiLivenessResponse;
 import com.talex.server.dtos.responses.KycStepResponseDto;
 import com.talex.server.dtos.responses.idrecognition.back.FptAiIdBackResponse;
 import com.talex.server.dtos.responses.idrecognition.front.FptAiIdFrontResponse;
+import com.talex.server.dtos.responses.idrecognition.front.FrontData;
+import com.talex.server.dtos.responses.liveness.FptAiLivenessResponse;
+import com.talex.server.entities.CreatorIdentity;
 import com.talex.server.entities.KycSession;
 import com.talex.server.entities.KycStep;
+import com.talex.server.enums.KycStatus;
 import com.talex.server.enums.StepType;
 import com.talex.server.exceptions.codes.KycStepErrorCode;
 import com.talex.server.exceptions.details.KycStepException;
 import com.talex.server.mappers.IKycStepMapper;
 import com.talex.server.records.EKycResult;
+import com.talex.server.repositories.CreatorIdentityRepository;
+import com.talex.server.repositories.KycSessionRepository;
 import com.talex.server.repositories.KycStepRepository;
 import com.talex.server.services.IEKycService;
 import com.talex.server.services.IKycSessionService;
 import com.talex.server.services.IKycStepService;
+import com.talex.server.specifications.KycStepSpec;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
-
-import com.talex.server.specifications.KycStepSpec;
-import org.springframework.data.jpa.domain.Specification;
 
 @Service
 @RequiredArgsConstructor
@@ -36,6 +42,8 @@ public class KycStepService implements IKycStepService {
     private String provider;
 
     private final KycStepRepository kycStepRepository;
+    private final KycSessionRepository kycSessionRepository;
+    private final CreatorIdentityRepository creatorIdentityRepository;
     private final IKycSessionService kycSessionService;
     private final IEKycService eKycService;
     private final IKycStepMapper kycStepMapper;
@@ -70,10 +78,11 @@ public class KycStepService implements IKycStepService {
         // Khởi tạo Step
         KycSession kycSession = kycSessionService.getById(sessionId);
         KycStep scanImage = createKycStep(stepType, kycSession);
+        CreatorIdentity identity = kycSession.getCreator().getCreatorIdentity();
 
         try {
             // Gọi dịch vụ OCR
-            EKycResult eKycResult = callOcrProviderApi(stepType, image);
+            EKycResult eKycResult = callOcrProviderApi(stepType, image, identity);
 
             // Cập nhật dữ liệu (success)
             applySuccessState(scanImage, eKycResult);
@@ -81,9 +90,6 @@ public class KycStepService implements IKycStepService {
         } catch (Exception exception) {
             // Cập nhật dữ liệu (fail)
             applyFailureState(scanImage, exception);
-            if (exception instanceof KycStepException) {
-                throw exception;
-            }
             throw new KycStepException(KycStepErrorCode.KYC_STEP_PROCESSING_FAILED,
                     "Xử lý scan ID thất bại: " + exception.getMessage(), exception);
 
@@ -107,13 +113,19 @@ public class KycStepService implements IKycStepService {
 
             // Cập nhật dữ liệu (success)
             applySuccessState(kycStep, eKycResult);
+            if (eKycResult.isSuccess()){
+                kycSession.setCompletedAt(LocalDateTime.now());
+                kycSession.setStatus(KycStatus.SUCCESS);
+                kycSessionRepository.save(kycSession);
+
+                CreatorIdentity identity = kycSession.getCreator().getCreatorIdentity();
+                identity.setKycSession(kycSession);
+                creatorIdentityRepository.save(identity);
+            }
 
         } catch (Exception ex) {
             // Cập nhật dữ liệu (fail)
             applyFailureState(kycStep, ex);
-            if (ex instanceof KycStepException) {
-                throw ex;
-            }
             throw new KycStepException(KycStepErrorCode.KYC_STEP_PROCESSING_FAILED,
                     "Xử lý Liveness thất bại: " + ex.getMessage(), ex);
         } finally {
@@ -138,19 +150,30 @@ public class KycStepService implements IKycStepService {
         }
     }
 
-    private EKycResult callOcrProviderApi(StepType stepType, MultipartFile image) {
+    private EKycResult callOcrProviderApi(StepType stepType, MultipartFile image, CreatorIdentity identity) {
         return switch (stepType) {
-            case FRONT_ID -> executeFrontIdOcr(image);
+            case FRONT_ID -> executeFrontIdOcr(image, identity);
             case BACK_ID -> executeBackIdOcr(image);
             default -> throw new KycStepException(KycStepErrorCode.KYC_STEP_NOT_SUPPORTED,
                     "Chưa cấu hình xử lý cho bước KYC: " + stepType);
         };
     }
 
-    private EKycResult executeFrontIdOcr(MultipartFile image) {
+    private EKycResult executeFrontIdOcr(MultipartFile image, CreatorIdentity identity) {
         FptAiIdFrontResponse response = eKycService.processFrontSide(image);
         boolean isSuccess = (response.getErrorCode() == 0);
         String message = isSuccess ? "Nhận diện mặt trước CCCD thành công!" : response.getErrorMessage();
+
+        // Update Creator Identity Info
+        FrontData data = response.getData().getFirst();
+        identity.setAddress(data.getAddress());
+        identity.setSex(data.getSex());
+        identity.setDob(LocalDate.parse(data.getDob()));
+        identity.setDoe(LocalDate.parse(data.getDoe()));
+        identity.setIdNumber(data.getId());
+        identity.setFullName(data.getName());
+        creatorIdentityRepository.save(identity);
+
         return new EKycResult(isSuccess, message, objectMapper.valueToTree(response));
     }
 

@@ -9,7 +9,7 @@ public interface ICreatorIdentityService {
 
     CreatorIdentityResponseDto getById(String id);
 
-    CreatorIdentityResponseDto getByCreatorId(String creatorId);
+    CreatorIdentityResponseDto getByAccountId(String creatorId);
 
     CreatorIdentityResponseDto update(String id, CreatorIdentityRequestDto dto);
 

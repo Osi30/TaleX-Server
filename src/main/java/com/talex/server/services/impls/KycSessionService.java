@@ -14,7 +14,6 @@ import com.talex.server.repositories.KycSessionRepository;
 import com.talex.server.services.IKycSessionService;
 import com.talex.server.specifications.KycSessionSpec;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -30,20 +29,19 @@ import java.util.Map;
 @Service
 @RequiredArgsConstructor
 public class KycSessionService implements IKycSessionService {
-    @Value("${terms.version}")
-    private String termsVersion;
-
     private final KycSessionRepository kycSessionRepository;
     private final IKycSessionMapper kycSessionMapper;
 
     @Override
     @Transactional
     public String createSession(Creator creator) {
-        // Sau này nhó thêm creator Id
-        kycSessionRepository.bulkUpdateStatus(KycStatus.IN_PROGRESS, KycStatus.OUT_OF_TIME);
+        kycSessionRepository.bulkUpdateStatus(
+                creator.getCreatorId(),
+                KycStatus.IN_PROGRESS,
+                KycStatus.OUT_OF_TIME
+        );
 
         KycSession kycSession = KycSession.builder()
-                .isTermsAccepted(Boolean.TRUE)
                 .status(KycStatus.IN_PROGRESS)
                 .startedAt(LocalDateTime.now())
                 .creator(creator)

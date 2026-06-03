@@ -14,11 +14,6 @@ import java.time.LocalDateTime;
 @Builder
 public class CreatorResponseDto {
     private String creatorId;
-    private Boolean isVerified;
-
-    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss")
-    private LocalDateTime verificationTime;
-
     private String nickname;
     private String bio;
 

@@ -5,7 +5,6 @@ import com.talex.server.dtos.requests.CreatorIdentityRequestDto;
 import com.talex.server.dtos.responses.CreatorIdentityResponseDto;
 import com.talex.server.services.ICreatorIdentityService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -25,9 +24,9 @@ public class CreatorIdentityController {
                 .build());
     }
 
-    @GetMapping("/by-creator/{creatorId}")
-    public ResponseEntity<BaseResponse> getByCreatorId(@PathVariable String creatorId) {
-        CreatorIdentityResponseDto resp = creatorIdentityService.getByCreatorId(creatorId);
+    @GetMapping("/accounts/{account_id}")
+    public ResponseEntity<BaseResponse> getAccountCreatorIdentity(@PathVariable String account_id) {
+        CreatorIdentityResponseDto resp = creatorIdentityService.getByAccountId(account_id);
         return ResponseEntity.ok(BaseResponse.builder()
                 .code(200)
                 .message("OK")

@@ -17,7 +17,6 @@ public class KycSessionMapper implements IKycSessionMapper {
 
         return KycSessionResponseDto.builder()
                 .kycSessionId(kycSession.getKycSessionId())
-                .isTermsAccepted(kycSession.getIsTermsAccepted())
                 .status(kycSession.getStatus())
                 .startedAt(kycSession.getStartedAt())
                 .completedAt(kycSession.getCompletedAt())
