@@ -1,5 +1,6 @@
 package com.talex.server.controllers;
 
+import com.talex.server.dtos.requests.CompleteRegistrationRequest;
 import com.talex.server.dtos.requests.GoogleLoginRequest;
 import com.talex.server.dtos.requests.LoginRequest;
 import com.talex.server.dtos.requests.RefreshTokenRequest;
@@ -8,6 +9,7 @@ import com.talex.server.dtos.requests.ResendOtpRequest;
 import com.talex.server.dtos.requests.VerifyOtpRequest;
 import com.talex.server.dtos.responses.ApiResponse;
 import com.talex.server.dtos.responses.AuthResponse;
+import com.talex.server.exceptions.UnauthorizedException;
 import com.talex.server.services.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -15,10 +17,13 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -75,5 +80,18 @@ public class AuthController {
     public ResponseEntity<ApiResponse<Void>> resendOtp(@Valid @RequestBody ResendOtpRequest request) {
         String message = authService.resendOtp(request);
         return ResponseEntity.ok(ApiResponse.ok(message));
+    }
+
+    @PostMapping("/complete-registration")
+    @Operation(summary = "Complete registration for Google OAuth accounts (provide dateOfBirth and phone)")
+    public ResponseEntity<ApiResponse<AuthResponse>> completeRegistration(
+            Authentication authentication,
+            @Valid @RequestBody CompleteRegistrationRequest request) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            throw new UnauthorizedException("Authentication required");
+        }
+        UUID accountId = UUID.fromString(authentication.getName());
+        AuthResponse data = authService.completeRegistration(accountId, request);
+        return ResponseEntity.ok(ApiResponse.ok("Registration completed successfully", data));
     }
 }

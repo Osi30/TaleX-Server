@@ -20,6 +20,7 @@ public class AccountMapperImpl implements AccountMapper {
                 .username(account.getUsername())
                 .email(account.getEmail())
                 .role(account.getRole().getCode())
+                .status(account.getStatus().name())
                 .build();
     }
 }
