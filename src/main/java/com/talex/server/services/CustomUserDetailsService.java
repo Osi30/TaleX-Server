@@ -13,6 +13,7 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -23,19 +24,33 @@ public class CustomUserDetailsService implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
-        log.debug("Loading user: {}", email);
+        log.debug("Loading user by email: {}", email);
 
         Account account = accountRepository.findByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException(
                         "Account not found with email: " + email));
 
+        return buildUserDetails(account);
+    }
+
+    public UserDetails loadByAccountId(UUID accountId) throws UsernameNotFoundException {
+        log.debug("Loading user by accountId: {}", accountId);
+
+        Account account = accountRepository.findById(accountId)
+                .orElseThrow(() -> new UsernameNotFoundException(
+                        "Account not found with id: " + accountId));
+
+        return buildUserDetails(account);
+    }
+
+    private UserDetails buildUserDetails(Account account) {
         if (account.getStatus() != AccountStatus.ACTIVE) {
             throw new UsernameNotFoundException(
-                    "Account is not active: " + email);
+                    "Account is not active: " + account.getEmail());
         }
 
         return User.builder()
-                .username(account.getEmail())
+                .username(account.getAccountId().toString())
                 .password(account.getPassword() != null ? account.getPassword() : "")
                 .authorities(List.of(
                         new SimpleGrantedAuthority("ROLE_" + account.getRole().getCode())))

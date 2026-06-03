@@ -4,11 +4,26 @@ services:
     ports:
       - "8080:8080"
     environment:
+      # Database
       - DB_HOST=db
       - DB_PORT=5432
       - DB_NAME=talex-db
       - DB_USERNAME=postgres
       - DB_PASSWORD=12345
+      # Redis (Redis Cloud)
+      - REDIS_HOST=${REDIS_HOST:-station-empowering-kiss-54115.db.redis.io}
+      - REDIS_PORT=${REDIS_PORT:-15883}
+      - REDIS_USERNAME=${REDIS_USERNAME:-default}
+      - REDIS_PASSWORD=${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+      # JWT
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET is required}
+      # Google OAuth2
+      - GOOGLE_CLIENT_ID_WEB=${GOOGLE_CLIENT_ID_WEB:-}
+      - GOOGLE_CLIENT_ID_ANDROID=${GOOGLE_CLIENT_ID_ANDROID:-}
+      - GOOGLE_CLIENT_ID_IOS=${GOOGLE_CLIENT_ID_IOS:-}
+      # Mail (Gmail SMTP)
+      - MAIL_USERNAME=${MAIL_USERNAME:-}
+      - MAIL_PASSWORD=${MAIL_PASSWORD:-}
     depends_on:
       db:
         condition: service_healthy
