@@ -1,6 +1,7 @@
 package com.talex.server.services.impls;
 
 import com.talex.server.configs.JwtTokenProvider;
+import com.talex.server.dtos.requests.CompleteRegistrationRequest;
 import com.talex.server.dtos.requests.GoogleLoginRequest;
 import com.talex.server.dtos.requests.LoginRequest;
 import com.talex.server.dtos.requests.RefreshTokenRequest;
@@ -65,6 +66,9 @@ public class AuthServiceImpl implements AuthService {
                 .username(request.getUsername())
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
+                .fullName(request.getFullName())
+                .dateOfBirth(request.getDateOfBirth())
+                .phone(request.getPhone())
                 .role(viewerRole)
                 .build();
 
@@ -165,9 +169,29 @@ public class AuthServiceImpl implements AuthService {
         return "OTP mới đã gửi tới email " + request.getEmail();
     }
 
+    @Override
+    @Transactional
+    public AuthResponse completeRegistration(UUID accountId,
+                                             CompleteRegistrationRequest request) {
+        Account account = accountRepository.findById(accountId)
+                .orElseThrow(() -> new ResourceNotFoundException("Account not found"));
+
+        if (account.getStatus() != AccountStatus.INCOMPLETE) {
+            throw new BadRequestException("Account registration is already complete");
+        }
+
+        account.setDateOfBirth(request.getDateOfBirth());
+        account.setPhone(request.getPhone());
+        account.setStatus(AccountStatus.ACTIVE);
+        accountRepository.save(account);
+
+        log.info("Registration completed for account: {}", accountId);
+        return generateAuthResponse(account);
+    }
+
     private void validateAccountStatus(Account account) {
         switch (account.getStatus()) {
-            case ACTIVE -> { /* OK */ }
+            case ACTIVE, INCOMPLETE -> { /* OK — AccountStatusFilter restricts INCOMPLETE */ }
             case VERIFYING -> throw new UnauthorizedException("Please verify your email first");
             case BANNED -> throw new UnauthorizedException("Account has been banned");
             case DELETED -> throw new UnauthorizedException("Account has been deleted");
@@ -202,7 +226,8 @@ public class AuthServiceImpl implements AuthService {
                 .username(username)
                 .email(googleInfo.getEmail())
                 .googleSubId(googleInfo.getGoogleSubId())
-                .status(AccountStatus.ACTIVE)
+                .fullName(googleInfo.getName())
+                .status(AccountStatus.INCOMPLETE)
                 .role(viewerRole)
                 .build();
 
