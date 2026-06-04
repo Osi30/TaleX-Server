@@ -408,6 +408,6 @@ flowchart TD
 - Comic pages are returned and reorderable by `display_order`.
 - Cloudinary upload is not used by the episode media API.
 - Video episodes accept one active video media. `display_order` is not used for video media.
-- Comic episodes can submit multiple image page URLs in one request using `pages`; `displayOrder` can be supplied for every page or omitted for every page to auto-generate order.
+- Comic episodes can submit multiple image page URLs in one request using `pages`; `displayOrder` is required for every page and is used for reading order.
 - Account/user tables are intentionally not referenced by FK. Actor fields are nullable strings.
 - Future modules can attach real account, permission, censorship, copyright, and payment logic without changing the content hierarchy.

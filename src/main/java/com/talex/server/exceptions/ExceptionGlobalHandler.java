@@ -23,6 +23,7 @@ import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.multipart.support.MissingServletRequestPartException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
+
 @RestControllerAdvice
 public class ExceptionGlobalHandler {
     @ExceptionHandler(ContentModuleException.class)

@@ -44,8 +44,8 @@ public class Media extends BaseAudit {
     @Column(name = "file_url", nullable = false, columnDefinition = "TEXT")
     private String fileUrl;
 
-    @Column(name = "cloudinary_public_id")
-    private String cloudinaryPublicId;
+    @Column(name = "external_public_id")
+    private String externalPublicId;
 
     @Column(name = "storage_provider", length = 50)
     private String storageProvider;

@@ -19,7 +19,7 @@ public class MediaResponseDto {
     private MediaType mediaType;
     private String mimeType;
     private String fileUrl;
-    private String cloudinaryPublicId;
+    private String externalPublicId;
     private String storageProvider;
     private Long fileSize;
     private String checksum;

@@ -32,10 +32,12 @@ import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 @Service
 @RequiredArgsConstructor
 public class MediaServiceImpl implements MediaService {
+    private static final Pattern SHA256_PATTERN = Pattern.compile("^[a-fA-F0-9]{64}$");
     private static final String URL_STORAGE_PROVIDER = "URL";
 
     private final MediaRepository mediaRepository;
@@ -45,6 +47,9 @@ public class MediaServiceImpl implements MediaService {
     @Override
     public MediaResponseDto createFromUrl(String episodeId, MediaMetadataRequestDto request) {
         Episode episode = episodeService.findActiveEntity(episodeId);
+        if (request == null) {
+            throw ContentModuleException.badRequest("Media URL request is required");
+        }
         MediaType mediaType = resolveMediaType(episode, request != null ? request.getMediaType() : null);
         return createOneFromUrl(episode, request, mediaType, request != null ? request.getDisplayOrder() : null);
     }
@@ -71,6 +76,11 @@ public class MediaServiceImpl implements MediaService {
             metadata.setFileUrl(page.getFileUrl());
             metadata.setMediaType(MediaType.IMAGE);
             metadata.setDisplayOrder(resolvedOrders.get(i));
+            metadata.setMimeType(page.getMimeType());
+            metadata.setFileSize(page.getFileSize());
+            metadata.setChecksum(page.getChecksum());
+            metadata.setExternalPublicId(page.getExternalPublicId());
+            metadata.setStorageProvider(page.getStorageProvider());
             metadata.setWidth(page.getWidth());
             metadata.setHeight(page.getHeight());
             metadata.setResolution(page.getResolution());
@@ -243,7 +253,7 @@ public class MediaServiceImpl implements MediaService {
                 .mediaType(media.getMediaType())
                 .mimeType(media.getMimeType())
                 .fileUrl(media.getFileUrl())
-                .cloudinaryPublicId(media.getCloudinaryPublicId())
+                .externalPublicId(media.getExternalPublicId())
                 .storageProvider(media.getStorageProvider())
                 .fileSize(media.getFileSize())
                 .checksum(media.getChecksum())
@@ -287,15 +297,15 @@ public class MediaServiceImpl implements MediaService {
         }
 
         String fileUrl = normalizeFileUrl(request.getFileUrl());
-        String checksum = checksum(fileUrl);
+        String checksum = normalizeChecksum(request.getChecksum(), fileUrl);
         rejectDuplicate(checksum, media.getMediaId());
 
         media.setFileUrl(fileUrl);
         media.setChecksum(checksum);
-        media.setMimeType(resolveMimeType(fileUrl, mediaType));
-        media.setFileSize(0L);
-        media.setCloudinaryPublicId(null);
-        media.setStorageProvider(URL_STORAGE_PROVIDER);
+        media.setMimeType(validateMimeType(request.getMimeType(), mediaType));
+        media.setFileSize(validateFileSize(request.getFileSize()));
+        media.setExternalPublicId(blankToNull(request.getExternalPublicId()));
+        media.setStorageProvider(normalizeStorageProvider(request.getStorageProvider()));
         media.setStatus(MediaStatus.ACTIVE);
         applyMetadata(media, request, mediaType);
     }
@@ -368,42 +378,33 @@ public class MediaServiceImpl implements MediaService {
         }
     }
 
-    private String resolveMimeType(String fileUrl, MediaType mediaType) {
-        String lowerUrl = fileUrl.toLowerCase(Locale.ROOT);
-        int queryStart = lowerUrl.indexOf('?');
-        if (queryStart >= 0) {
-            lowerUrl = lowerUrl.substring(0, queryStart);
+    private String validateMimeType(String mimeType, MediaType mediaType) {
+        if (mimeType == null || mimeType.isBlank()) {
+            throw ContentModuleException.badRequest("mimeType is required");
         }
-
+        String normalizedMimeType = mimeType.trim().toLowerCase(Locale.ROOT);
         if (mediaType == MediaType.VIDEO) {
-            if (lowerUrl.endsWith(".mp4")) {
-                return "video/mp4";
+            if (!normalizedMimeType.startsWith("video/")
+                    && !"application/vnd.apple.mpegurl".equals(normalizedMimeType)) {
+                throw ContentModuleException.badRequest("mimeType must be a video MIME type");
             }
-            if (lowerUrl.endsWith(".webm")) {
-                return "video/webm";
-            }
-            if (lowerUrl.endsWith(".mov")) {
-                return "video/quicktime";
-            }
-            if (lowerUrl.endsWith(".m3u8")) {
-                return "application/vnd.apple.mpegurl";
-            }
-            return "video/url";
+            return normalizedMimeType;
         }
 
-        if (lowerUrl.endsWith(".jpg") || lowerUrl.endsWith(".jpeg")) {
-            return "image/jpeg";
+        if (!normalizedMimeType.startsWith("image/")) {
+            throw ContentModuleException.badRequest("mimeType must be an image MIME type");
         }
-        if (lowerUrl.endsWith(".png")) {
-            return "image/png";
+        return normalizedMimeType;
+    }
+
+    private Long validateFileSize(Long fileSize) {
+        if (fileSize == null) {
+            throw ContentModuleException.badRequest("fileSize is required");
         }
-        if (lowerUrl.endsWith(".webp")) {
-            return "image/webp";
+        if (fileSize < 0) {
+            throw ContentModuleException.badRequest("fileSize must be zero or positive");
         }
-        if (lowerUrl.endsWith(".gif")) {
-            return "image/gif";
-        }
-        return "image/url";
+        return fileSize;
     }
 
     private void rejectDuplicate(String checksum, String currentMediaId) {
@@ -428,6 +429,18 @@ public class MediaServiceImpl implements MediaService {
         }
     }
 
+    private String normalizeChecksum(String providedChecksum, String fallbackValue) {
+        if (providedChecksum == null || providedChecksum.isBlank()) {
+            return checksum(fallbackValue);
+        }
+
+        String normalizedChecksum = providedChecksum.trim().toLowerCase(Locale.ROOT);
+        if (!SHA256_PATTERN.matcher(normalizedChecksum).matches()) {
+            throw ContentModuleException.badRequest("checksum must be a SHA-256 hex string");
+        }
+        return normalizedChecksum;
+    }
+
     private Integer resolveDisplayOrder(String episodeId, MediaType mediaType, Integer requestedDisplayOrder) {
         if (mediaType == MediaType.VIDEO) {
             return null;
@@ -436,18 +449,8 @@ public class MediaServiceImpl implements MediaService {
     }
 
     private List<Integer> resolveComicDisplayOrders(String episodeId, List<MediaComicPageRequestDto> pages) {
-        boolean hasProvidedOrder = pages.stream().anyMatch(page -> page.getDisplayOrder() != null);
-        if (!hasProvidedOrder) {
-            int nextOrder = nextDisplayOrder(episodeId);
-            List<Integer> generatedOrders = new ArrayList<>();
-            for (int i = 0; i < pages.size(); i++) {
-                generatedOrders.add(nextOrder + i);
-            }
-            return generatedOrders;
-        }
-
         if (pages.stream().anyMatch(page -> page.getDisplayOrder() == null)) {
-            throw ContentModuleException.badRequest("displayOrder must be provided for every page, or omitted for every page");
+            throw ContentModuleException.badRequest("displayOrder is required for every comic page");
         }
 
         List<Integer> displayOrders = pages.stream()
@@ -486,5 +489,16 @@ public class MediaServiceImpl implements MediaService {
                 .filter(order -> order != null)
                 .max(Integer::compareTo)
                 .orElse(0) + 1;
+    }
+
+    private String normalizeStorageProvider(String storageProvider) {
+        if (storageProvider == null || storageProvider.isBlank()) {
+            return URL_STORAGE_PROVIDER;
+        }
+        return storageProvider.trim().toUpperCase(Locale.ROOT);
+    }
+
+    private String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 }

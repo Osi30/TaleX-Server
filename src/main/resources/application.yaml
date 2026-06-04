@@ -58,12 +58,6 @@ springdoc:
   swagger-ui:
     path: /swagger-ui.html
 
-cloudinary:
-  cloud-name: ddv56hqyk
-  api-key: 664295132441982
-  api-secret: GjuxRTIlE3urSqFtY_OeA1ojNWs
-  folder: talex
-
 integration:
   clients:
     fpt-ai:

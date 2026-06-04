@@ -29,7 +29,7 @@ public class MediaController {
     @PostMapping("/api/v1/episodes/{episodeId}/media")
     public ResponseEntity<BaseResponse> createFromUrl(
             @PathVariable String episodeId,
-            @Valid @RequestBody MediaMetadataRequestDto request) {
+            @RequestBody MediaMetadataRequestDto request) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(response(201, "Media URL created", mediaService.createFromUrl(episodeId, request)));
     }
@@ -37,7 +37,7 @@ public class MediaController {
     @PostMapping("/api/v1/episodes/{episodeId}/media/comic-pages")
     public ResponseEntity<BaseResponse> createComicPagesFromUrls(
             @PathVariable String episodeId,
-            @Valid @RequestBody MediaComicPagesRequestDto request) {
+            @RequestBody MediaComicPagesRequestDto request) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(response(201, "Comic page URLs created",
                         mediaService.createComicPagesFromUrls(episodeId, request)));
@@ -63,7 +63,7 @@ public class MediaController {
     @PutMapping("/api/v1/media/{id}/url")
     public ResponseEntity<BaseResponse> replaceUrl(
             @PathVariable String id,
-            @Valid @RequestBody MediaMetadataRequestDto request) {
+            @RequestBody MediaMetadataRequestDto request) {
         return ResponseEntity.ok(response(200, "Media URL replaced", mediaService.replaceUrl(id, request)));
     }
 
