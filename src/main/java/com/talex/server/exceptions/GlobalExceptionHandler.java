@@ -1,6 +1,8 @@
 package com.talex.server.exceptions;
 
 import com.talex.server.dtos.responses.ApiResponse;
+import com.talex.server.exceptions.codes.AuthErrorCode;
+import com.talex.server.exceptions.details.AuthException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -16,6 +18,14 @@ import java.util.stream.Collectors;
 @RestControllerAdvice
 @Slf4j
 public class GlobalExceptionHandler {
+
+    @ExceptionHandler(AuthException.class)
+    public ResponseEntity<ApiResponse<Void>> handleAuthException(AuthException ex) {
+        AuthErrorCode errorCode = ex.getErrorCode();
+        log.warn("Auth error [{}]: {}", errorCode.getCode(), ex.getMessage());
+        return ResponseEntity.status(errorCode.getHttpStatus())
+                .body(ApiResponse.error(ex.getMessage()));
+    }
 
     @ExceptionHandler(BadRequestException.class)
     public ResponseEntity<ApiResponse<Void>> handleBadRequest(BadRequestException ex) {
