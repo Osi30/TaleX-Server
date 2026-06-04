@@ -1,18 +1,18 @@
 package com.talex.server.services.impls;
 
 import com.talex.server.entities.Account;
-import com.talex.server.entities.OtpVerification;
-import com.talex.server.repositories.OtpVerificationRepository;
+import com.talex.server.exceptions.codes.AuthErrorCode;
+import com.talex.server.exceptions.details.AuthException;
 import com.talex.server.services.EmailService;
 import com.talex.server.services.OtpService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
-import java.time.LocalDateTime;
+import java.time.Duration;
 import java.util.UUID;
 
 @Service
@@ -20,10 +20,12 @@ import java.util.UUID;
 @Slf4j
 public class OtpServiceImpl implements OtpService {
 
-    private final OtpVerificationRepository otpVerificationRepository;
+    private final StringRedisTemplate redisTemplate;
     private final EmailService emailService;
 
     private static final SecureRandom RANDOM = new SecureRandom();
+    private static final String OTP_KEY_PREFIX = "otp:";
+    private static final String RESEND_COOLDOWN_PREFIX = "resend_cooldown:";
 
     @Value("${otp.expiration-minutes}")
     private int otpExpirationMinutes;
@@ -31,39 +33,41 @@ public class OtpServiceImpl implements OtpService {
     @Value("${otp.length}")
     private int otpLength;
 
+    @Value("${otp.resend-cooldown-minutes:2}")
+    private int resendCooldownMinutes;
+
     @Override
-    @Transactional
     public void generateAndSend(Account account) {
-        otpVerificationRepository.invalidatePreviousOtps(account.getAccountId());
-
         String code = generateOtpCode();
+        String key = OTP_KEY_PREFIX + account.getAccountId();
 
-        OtpVerification otp = OtpVerification.builder()
-                .account(account)
-                .code(code)
-                .expiresAt(LocalDateTime.now().plusMinutes(otpExpirationMinutes))
-                .build();
-
-        otpVerificationRepository.save(otp);
-        emailService.sendOtpEmail(account.getEmail(), code);
-        log.info("OTP sent to: {}", account.getEmail());
+        redisTemplate.opsForValue().set(key, code, Duration.ofMinutes(otpExpirationMinutes));
+        emailService.sendOtpEmailAsync(account.getEmail(), code);
+        log.info("OTP generated for accountId: {}", account.getAccountId());
     }
 
     @Override
-    @Transactional
-    public boolean verify(UUID accountId, String code) {
-        OtpVerification otp = otpVerificationRepository
-                .findLatestActiveOtp(accountId)
-                .orElse(null);
+    public void verify(UUID accountId, String code) {
+        String key = OTP_KEY_PREFIX + accountId;
+        String storedCode = redisTemplate.opsForValue().get(key);
 
-        if (otp == null || !otp.getCode().equals(code)) {
+        if (storedCode == null || !storedCode.equals(code)) {
             log.warn("OTP verify failed for accountId: {}", accountId);
-            return false;
+            throw new AuthException(AuthErrorCode.INVALID_OTP);
         }
 
-        otp.setUsed(true);
-        otpVerificationRepository.save(otp);
-        return true;
+        redisTemplate.delete(key);
+    }
+
+    @Override
+    public void enforceResendCooldown(UUID accountId) {
+        String key = RESEND_COOLDOWN_PREFIX + accountId;
+        Boolean wasAbsent = redisTemplate.opsForValue()
+                .setIfAbsent(key, "1", Duration.ofMinutes(resendCooldownMinutes));
+
+        if (Boolean.FALSE.equals(wasAbsent)) {
+            throw new AuthException(AuthErrorCode.OTP_RATE_LIMITED);
+        }
     }
 
     private String generateOtpCode() {

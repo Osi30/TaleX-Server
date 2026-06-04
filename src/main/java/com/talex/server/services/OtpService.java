@@ -8,5 +8,7 @@ public interface OtpService {
 
     void generateAndSend(Account account);
 
-    boolean verify(UUID accountId, String code);
+    void verify(UUID accountId, String code);
+
+    void enforceResendCooldown(UUID accountId);
 }
