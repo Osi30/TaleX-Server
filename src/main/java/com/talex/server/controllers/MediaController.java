@@ -1,6 +1,7 @@
 package com.talex.server.controllers;
 
 import com.talex.server.dtos.BaseResponse;
+import com.talex.server.dtos.requests.MediaComicPagesRequestDto;
 import com.talex.server.dtos.requests.MediaMetadataRequestDto;
 import com.talex.server.dtos.requests.MediaReorderRequestDto;
 import com.talex.server.dtos.requests.MediaStatusRequestDto;
@@ -9,11 +10,9 @@ import com.talex.server.services.MediaService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -21,33 +20,27 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.multipart.MultipartFile;
-
-import java.util.List;
 
 @RestController
 @RequiredArgsConstructor
 public class MediaController {
     private final MediaService mediaService;
 
-    @PostMapping(value = "/api/v1/episodes/{episodeId}/media", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<BaseResponse> upload(
+    @PostMapping("/api/v1/episodes/{episodeId}/media")
+    public ResponseEntity<BaseResponse> createFromUrl(
             @PathVariable String episodeId,
-            @RequestParam("file") MultipartFile file,
-            @ModelAttribute MediaMetadataRequestDto request) {
+            @Valid @RequestBody MediaMetadataRequestDto request) {
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(response(201, "Media uploaded", mediaService.upload(episodeId, file, request)));
+                .body(response(201, "Media URL created", mediaService.createFromUrl(episodeId, request)));
     }
 
-    @PostMapping(value = "/api/v1/episodes/{episodeId}/media/comic-pages", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<BaseResponse> uploadComicPages(
+    @PostMapping("/api/v1/episodes/{episodeId}/media/comic-pages")
+    public ResponseEntity<BaseResponse> createComicPagesFromUrls(
             @PathVariable String episodeId,
-            @RequestParam("files") List<MultipartFile> files,
-            @RequestParam("displayOrders") List<Integer> displayOrders,
-            @RequestParam(required = false) String actorId) {
+            @Valid @RequestBody MediaComicPagesRequestDto request) {
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(response(201, "Comic pages uploaded",
-                        mediaService.uploadComicPages(episodeId, files, displayOrders, actorId)));
+                .body(response(201, "Comic page URLs created",
+                        mediaService.createComicPagesFromUrls(episodeId, request)));
     }
 
     @GetMapping("/api/v1/episodes/{episodeId}/media")
@@ -67,12 +60,11 @@ public class MediaController {
         return ResponseEntity.ok(response(200, "Media updated", mediaService.update(id, request)));
     }
 
-    @PutMapping(value = "/api/v1/media/{id}/file", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<BaseResponse> replaceFile(
+    @PutMapping("/api/v1/media/{id}/url")
+    public ResponseEntity<BaseResponse> replaceUrl(
             @PathVariable String id,
-            @RequestParam("file") MultipartFile file,
-            @ModelAttribute MediaMetadataRequestDto request) {
-        return ResponseEntity.ok(response(200, "Media file replaced", mediaService.replaceFile(id, file, request)));
+            @Valid @RequestBody MediaMetadataRequestDto request) {
+        return ResponseEntity.ok(response(200, "Media URL replaced", mediaService.replaceUrl(id, request)));
     }
 
     @PutMapping("/api/v1/episodes/{episodeId}/media/reorder")

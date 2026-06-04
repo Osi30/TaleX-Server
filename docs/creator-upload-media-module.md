@@ -102,11 +102,11 @@ Relations: many-to-one Episode.
 2. Creator assigns active categories and tags.
 3. Creator creates a season.
 4. Creator creates a VIDEO episode.
-5. Creator uploads one video media file.
-6. System validates MIME type and size.
-7. System generates SHA-256 checksum and rejects duplicates.
-8. System stores the file and metadata.
-9. System changes media status from PROCESSING to ACTIVE, or FAILED on upload error.
+5. Creator submits one video media URL.
+6. System validates that the URL is HTTP/HTTPS.
+7. System generates a SHA-256 checksum from the URL and rejects duplicates.
+8. System stores the URL and metadata.
+9. System marks media status ACTIVE.
 10. Creator publishes the episode.
 11. User views the public published episode and active video media.
 
@@ -116,10 +116,10 @@ Relations: many-to-one Episode.
 2. Creator assigns active categories and tags.
 3. Creator creates a season.
 4. Creator creates a COMIC episode.
-5. Creator uploads multiple image media files.
-6. System validates each image MIME type and size.
-7. System generates checksum and rejects duplicate files.
-8. System stores metadata for each image page.
+5. Creator submits multiple image page URLs.
+6. System validates that each URL is HTTP/HTTPS.
+7. System generates checksums from URLs and rejects duplicate URLs.
+8. System stores metadata for each image page URL.
 9. Creator reorders pages by display_order when needed.
 10. Creator publishes the episode.
 11. User views active image pages in display_order.
@@ -187,7 +187,7 @@ Relations: many-to-one Episode.
 - GET `/api/v1/episodes/{episodeId}/media`
 - GET `/api/v1/media/{id}`
 - PUT `/api/v1/media/{id}`
-- PUT `/api/v1/media/{id}/file`
+- PUT `/api/v1/media/{id}/url`
 - PUT `/api/v1/episodes/{episodeId}/media/reorder`
 - PATCH `/api/v1/media/{id}/hide`
 - PATCH `/api/v1/media/{id}/unhide`
@@ -403,10 +403,11 @@ flowchart TD
 - Soft delete is implemented with `is_deleted`, `deleted_at`, and `deleted_by`.
 - Hide keeps records restorable; delete marks status DELETED and soft-deletes.
 - Draft content is creator/admin-visible only; public APIs require published/public status.
-- File validation checks MIME type and max size using the existing `FilePolicy`.
+- Media creation stores external HTTP/HTTPS URLs; the Java backend no longer uploads episode media files.
+- URL checksums are generated with SHA-256 to reject duplicate media URLs.
 - Comic pages are returned and reorderable by `display_order`.
-- Media files are uploaded to Cloudinary by the Java backend. Set `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`, and optionally `CLOUDINARY_FOLDER`.
+- Cloudinary upload is not used by the episode media API.
 - Video episodes accept one active video media. `display_order` is not used for video media.
-- Comic episodes can upload multiple image pages in one request using repeated `files` and optional repeated `displayOrders`.
+- Comic episodes can submit multiple image page URLs in one request using `pages`; `displayOrder` can be supplied for every page or omitted for every page to auto-generate order.
 - Account/user tables are intentionally not referenced by FK. Actor fields are nullable strings.
 - Future modules can attach real account, permission, censorship, copyright, and payment logic without changing the content hierarchy.

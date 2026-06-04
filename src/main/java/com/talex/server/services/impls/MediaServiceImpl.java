@@ -1,5 +1,7 @@
 package com.talex.server.services.impls;
 
+import com.talex.server.dtos.requests.MediaComicPageRequestDto;
+import com.talex.server.dtos.requests.MediaComicPagesRequestDto;
 import com.talex.server.dtos.requests.MediaMetadataRequestDto;
 import com.talex.server.dtos.requests.MediaReorderRequestDto;
 import com.talex.server.dtos.requests.MediaStatusRequestDto;
@@ -11,70 +13,69 @@ import com.talex.server.enums.ContentType;
 import com.talex.server.enums.MediaStatus;
 import com.talex.server.enums.MediaType;
 import com.talex.server.exceptions.details.ContentModuleException;
-import com.talex.server.policies.FilePolicy;
-import com.talex.server.records.CloudinaryUploadResult;
 import com.talex.server.repositories.MediaRepository;
-import com.talex.server.services.CloudinaryStorageService;
 import com.talex.server.services.EpisodeService;
 import com.talex.server.services.MediaService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.multipart.MultipartFile;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.security.DigestInputStream;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
 public class MediaServiceImpl implements MediaService {
-    private static final String CLOUDINARY_PROVIDER = "CLOUDINARY";
+    private static final String URL_STORAGE_PROVIDER = "URL";
 
     private final MediaRepository mediaRepository;
     private final EpisodeService episodeService;
-    private final CloudinaryStorageService cloudinaryStorageService;
 
-    @Transactional(noRollbackFor = ContentModuleException.class)
+    @Transactional
     @Override
-    public MediaResponseDto upload(String episodeId, MultipartFile file, MediaMetadataRequestDto request) {
+    public MediaResponseDto createFromUrl(String episodeId, MediaMetadataRequestDto request) {
         Episode episode = episodeService.findActiveEntity(episodeId);
-        return uploadOne(episode, file, request, request.getMediaType(), request.getDisplayOrder());
+        MediaType mediaType = resolveMediaType(episode, request != null ? request.getMediaType() : null);
+        return createOneFromUrl(episode, request, mediaType, request != null ? request.getDisplayOrder() : null);
     }
 
-    @Transactional(noRollbackFor = ContentModuleException.class)
+    @Transactional
     @Override
-    public List<MediaResponseDto> uploadComicPages(
-            String episodeId,
-            List<MultipartFile> files,
-            List<Integer> displayOrders,
-            String actorId) {
-
+    public List<MediaResponseDto> createComicPagesFromUrls(String episodeId, MediaComicPagesRequestDto request) {
         Episode episode = episodeService.findActiveEntity(episodeId);
         if (episode.getContentType() != ContentType.COMIC) {
-            throw ContentModuleException.badRequest("Batch media upload is only supported for comic episodes");
+            throw ContentModuleException.badRequest("Batch media URL creation is only supported for comic episodes");
         }
-        if (files == null || files.isEmpty()) {
-            throw ContentModuleException.badRequest("At least one image file is required");
+        if (request == null || request.getPages() == null || request.getPages().isEmpty()) {
+            throw ContentModuleException.badRequest("At least one comic page URL is required");
+        }
+        if (request.getPages().stream().anyMatch(page -> page == null)) {
+            throw ContentModuleException.badRequest("Comic page item must not be null");
         }
 
-        List<Integer> resolvedOrders = resolveComicDisplayOrders(episodeId, files.size(), displayOrders);
+        List<Integer> resolvedOrders = resolveComicDisplayOrders(episodeId, request.getPages());
         List<MediaResponseDto> responses = new ArrayList<>();
-        for (int i = 0; i < files.size(); i++) {
+        for (int i = 0; i < request.getPages().size(); i++) {
+            MediaComicPageRequestDto page = request.getPages().get(i);
             MediaMetadataRequestDto metadata = new MediaMetadataRequestDto();
+            metadata.setFileUrl(page.getFileUrl());
             metadata.setMediaType(MediaType.IMAGE);
             metadata.setDisplayOrder(resolvedOrders.get(i));
-            metadata.setActorId(actorId);
-            responses.add(uploadOne(episode, files.get(i), metadata, MediaType.IMAGE, resolvedOrders.get(i)));
+            metadata.setWidth(page.getWidth());
+            metadata.setHeight(page.getHeight());
+            metadata.setResolution(page.getResolution());
+            metadata.setActorId(request.getActorId());
+            responses.add(createOneFromUrl(episode, metadata, MediaType.IMAGE, resolvedOrders.get(i)));
         }
 
         return responses;
@@ -148,38 +149,21 @@ public class MediaServiceImpl implements MediaService {
         return toResponse(mediaRepository.save(media));
     }
 
-    @Transactional(noRollbackFor = ContentModuleException.class)
+    @Transactional
     @Override
-    public MediaResponseDto replaceFile(String id, MultipartFile file, MediaMetadataRequestDto request) {
+    public MediaResponseDto replaceUrl(String id, MediaMetadataRequestDto request) {
         Media media = findActiveEntity(id);
-        MediaType mediaType = resolveMediaType(file, request.getMediaType() != null ? request.getMediaType() : media.getMediaType());
+        MediaType mediaType = resolveMediaType(
+                media.getEpisode(),
+                request != null && request.getMediaType() != null ? request.getMediaType() : media.getMediaType());
         if (media.getMediaType() != mediaType) {
-            throw ContentModuleException.badRequest("Replacement file type must match existing media type");
+            throw ContentModuleException.badRequest("Replacement URL type must match existing media type");
         }
+
         validateMediaForEpisode(media.getEpisode(), mediaType, media.getMediaId());
-        validateFile(file, mediaType);
-
-        String checksum = checksum(file);
-        rejectDuplicate(checksum, media.getMediaId());
-
-        media.setStatus(MediaStatus.PROCESSING);
+        applyUrl(media, request, mediaType);
         media.markUpdatedBy(request.getActorId());
-        mediaRepository.save(media);
-
-        try {
-            CloudinaryUploadResult uploadResult = cloudinaryStorageService.upload(file, mediaType);
-            applyCloudinaryUpload(media, uploadResult, file);
-            media.setChecksum(checksum);
-            applyMetadata(media, request, mediaType);
-            media.setStatus(MediaStatus.ACTIVE);
-            media.markUpdatedBy(request.getActorId());
-            return toResponse(mediaRepository.save(media));
-        } catch (ContentModuleException exception) {
-            media.setStatus(MediaStatus.FAILED);
-            media.markUpdatedBy(request.getActorId());
-            mediaRepository.save(media);
-            throw exception;
-        }
+        return toResponse(mediaRepository.save(media));
     }
 
     @Transactional
@@ -279,63 +263,41 @@ public class MediaServiceImpl implements MediaService {
                 .build();
     }
 
-    private MediaResponseDto uploadOne(
+    private MediaResponseDto createOneFromUrl(
             Episode episode,
-            MultipartFile file,
             MediaMetadataRequestDto request,
-            MediaType requestedType,
+            MediaType mediaType,
             Integer requestedDisplayOrder) {
 
-        MediaType mediaType = resolveMediaType(file, requestedType);
         validateMediaForEpisode(episode, mediaType, null);
-        validateFile(file, mediaType);
-
-        String checksum = checksum(file);
-        rejectDuplicate(checksum, null);
 
         Media media = new Media();
         media.setEpisode(episode);
         media.setMediaType(mediaType);
-        media.setMimeType(file.getContentType());
-        media.setFileSize(file.getSize());
-        media.setChecksum(checksum);
-        media.setFileUrl("");
-        media.setStatus(MediaStatus.PROCESSING);
         media.setDisplayOrder(resolveDisplayOrder(episode.getEpisodeId(), mediaType, requestedDisplayOrder));
-        applyMetadata(media, request, mediaType);
+        applyUrl(media, request, mediaType);
         media.markCreatedBy(request.getActorId());
-        media = mediaRepository.save(media);
 
-        try {
-            CloudinaryUploadResult uploadResult = cloudinaryStorageService.upload(file, mediaType);
-            applyCloudinaryUpload(media, uploadResult, file);
-            media.setStatus(MediaStatus.ACTIVE);
-            media.markUpdatedBy(request.getActorId());
-            return toResponse(mediaRepository.save(media));
-        } catch (ContentModuleException exception) {
-            media.setStatus(MediaStatus.FAILED);
-            media.markUpdatedBy(request.getActorId());
-            mediaRepository.save(media);
-            throw exception;
-        }
+        return toResponse(mediaRepository.save(media));
     }
 
-    private void applyCloudinaryUpload(Media media, CloudinaryUploadResult uploadResult, MultipartFile file) {
-        media.setFileUrl(uploadResult.secureUrl());
-        media.setCloudinaryPublicId(uploadResult.publicId());
-        media.setStorageProvider(CLOUDINARY_PROVIDER);
-        media.setMimeType(file.getContentType());
-        media.setFileSize(uploadResult.bytes() != null ? uploadResult.bytes() : file.getSize());
+    private void applyUrl(Media media, MediaMetadataRequestDto request, MediaType mediaType) {
+        if (request == null) {
+            throw ContentModuleException.badRequest("Media URL request is required");
+        }
 
-        if (media.getWidth() == null) {
-            media.setWidth(uploadResult.width());
-        }
-        if (media.getHeight() == null) {
-            media.setHeight(uploadResult.height());
-        }
-        if (media.getDuration() == null) {
-            media.setDuration(uploadResult.duration());
-        }
+        String fileUrl = normalizeFileUrl(request.getFileUrl());
+        String checksum = checksum(fileUrl);
+        rejectDuplicate(checksum, media.getMediaId());
+
+        media.setFileUrl(fileUrl);
+        media.setChecksum(checksum);
+        media.setMimeType(resolveMimeType(fileUrl, mediaType));
+        media.setFileSize(0L);
+        media.setCloudinaryPublicId(null);
+        media.setStorageProvider(URL_STORAGE_PROVIDER);
+        media.setStatus(MediaStatus.ACTIVE);
+        applyMetadata(media, request, mediaType);
     }
 
     private void applyMetadata(Media media, MediaMetadataRequestDto request, MediaType mediaType) {
@@ -356,28 +318,23 @@ public class MediaServiceImpl implements MediaService {
         }
     }
 
-    private MediaType resolveMediaType(MultipartFile file, MediaType requestedType) {
-        if (requestedType != null) {
-            return requestedType;
+    private MediaType resolveMediaType(Episode episode, MediaType requestedType) {
+        MediaType mediaType = requestedType;
+        if (mediaType == null) {
+            mediaType = episode.getContentType() == ContentType.VIDEO ? MediaType.VIDEO : MediaType.IMAGE;
         }
 
-        String contentType = file.getContentType();
-        if (contentType != null && contentType.startsWith("video/")) {
-            return MediaType.VIDEO;
+        if (episode.getContentType() == ContentType.VIDEO && mediaType != MediaType.VIDEO) {
+            throw ContentModuleException.badRequest("Video episode only accepts video media URL");
         }
-        if (contentType != null && contentType.startsWith("image/")) {
-            return MediaType.IMAGE;
+        if (episode.getContentType() == ContentType.COMIC && mediaType != MediaType.IMAGE) {
+            throw ContentModuleException.badRequest("Comic episode only accepts image media URLs");
         }
-        throw ContentModuleException.badRequest("Cannot detect media type from file content type");
+        return mediaType;
     }
 
     private void validateMediaForEpisode(Episode episode, MediaType mediaType, String currentMediaId) {
-        if (episode.getContentType() == ContentType.VIDEO && mediaType != MediaType.VIDEO) {
-            throw ContentModuleException.badRequest("Video episode only accepts video media");
-        }
-        if (episode.getContentType() == ContentType.COMIC && mediaType != MediaType.IMAGE) {
-            throw ContentModuleException.badRequest("Comic episode only accepts image media");
-        }
+        resolveMediaType(episode, mediaType);
         if (episode.getContentType() == ContentType.VIDEO) {
             boolean hasAnotherActiveVideo = mediaRepository
                     .findAllByEpisode_EpisodeIdAndStatusAndIsDeletedFalseOrderByDisplayOrderAsc(
@@ -391,47 +348,82 @@ public class MediaServiceImpl implements MediaService {
         }
     }
 
-    private void validateFile(MultipartFile file, MediaType mediaType) {
-        if (file == null || file.isEmpty()) {
-            throw ContentModuleException.badRequest("File is required");
+    private String normalizeFileUrl(String fileUrl) {
+        if (fileUrl == null || fileUrl.isBlank()) {
+            throw ContentModuleException.badRequest("fileUrl is required");
         }
 
-        FilePolicy policy = mediaType == MediaType.VIDEO ? FilePolicy.CONTENT_VIDEO : FilePolicy.CONTENT_IMAGE;
-        if (file.getSize() > policy.getMaxSizeBytes()) {
-            throw ContentModuleException.badRequest("File exceeds max size: " + policy.getMaxSizeLabel());
+        String normalizedUrl = fileUrl.trim();
+        try {
+            URI uri = new URI(normalizedUrl);
+            String scheme = uri.getScheme();
+            if (scheme == null
+                    || (!scheme.equalsIgnoreCase("http") && !scheme.equalsIgnoreCase("https"))
+                    || uri.getHost() == null) {
+                throw ContentModuleException.badRequest("fileUrl must be a valid HTTP or HTTPS URL");
+            }
+            return normalizedUrl;
+        } catch (URISyntaxException exception) {
+            throw ContentModuleException.badRequest("fileUrl must be a valid HTTP or HTTPS URL");
+        }
+    }
+
+    private String resolveMimeType(String fileUrl, MediaType mediaType) {
+        String lowerUrl = fileUrl.toLowerCase(Locale.ROOT);
+        int queryStart = lowerUrl.indexOf('?');
+        if (queryStart >= 0) {
+            lowerUrl = lowerUrl.substring(0, queryStart);
         }
 
-        String contentType = file.getContentType();
-        boolean allowed = contentType != null && Arrays.asList(policy.getAllowedContentTypes()).contains(contentType);
-        if (!allowed) {
-            throw ContentModuleException.badRequest("Invalid file type. Allowed: " + policy.getAllowedExtensionsLabel());
+        if (mediaType == MediaType.VIDEO) {
+            if (lowerUrl.endsWith(".mp4")) {
+                return "video/mp4";
+            }
+            if (lowerUrl.endsWith(".webm")) {
+                return "video/webm";
+            }
+            if (lowerUrl.endsWith(".mov")) {
+                return "video/quicktime";
+            }
+            if (lowerUrl.endsWith(".m3u8")) {
+                return "application/vnd.apple.mpegurl";
+            }
+            return "video/url";
         }
+
+        if (lowerUrl.endsWith(".jpg") || lowerUrl.endsWith(".jpeg")) {
+            return "image/jpeg";
+        }
+        if (lowerUrl.endsWith(".png")) {
+            return "image/png";
+        }
+        if (lowerUrl.endsWith(".webp")) {
+            return "image/webp";
+        }
+        if (lowerUrl.endsWith(".gif")) {
+            return "image/gif";
+        }
+        return "image/url";
     }
 
     private void rejectDuplicate(String checksum, String currentMediaId) {
         mediaRepository.findFirstByChecksumAndIsDeletedFalse(checksum)
                 .filter(existing -> currentMediaId == null || !existing.getMediaId().equals(currentMediaId))
                 .ifPresent(existing -> {
-                    throw ContentModuleException.conflict("Duplicate media file detected by checksum");
+                    throw ContentModuleException.conflict("Duplicate media URL detected");
                 });
     }
 
-    private String checksum(MultipartFile file) {
+    private String checksum(String value) {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            try (InputStream inputStream = file.getInputStream();
-                 DigestInputStream digestInputStream = new DigestInputStream(inputStream, digest)) {
-                byte[] buffer = new byte[8192];
-                while (digestInputStream.read(buffer) != -1) {
-                    // DigestInputStream updates the digest while the stream is consumed.
-                }
-            }
-            return HexFormat.of().formatHex(digest.digest());
-        } catch (IOException | NoSuchAlgorithmException exception) {
+            byte[] bytes = digest.digest(value.getBytes(StandardCharsets.UTF_8));
+            return HexFormat.of().formatHex(bytes);
+        } catch (NoSuchAlgorithmException exception) {
             throw new ContentModuleException(
                     4301,
                     org.springframework.http.HttpStatus.BAD_REQUEST,
-                    "Cannot generate file checksum",
+                    "Cannot generate URL checksum",
                     exception);
         }
     }
@@ -443,21 +435,30 @@ public class MediaServiceImpl implements MediaService {
         return requestedDisplayOrder != null ? requestedDisplayOrder : nextDisplayOrder(episodeId);
     }
 
-    private List<Integer> resolveComicDisplayOrders(String episodeId, int fileCount, List<Integer> displayOrders) {
-        if (displayOrders == null || displayOrders.isEmpty()) {
-            throw ContentModuleException.badRequest("displayOrders is required for comic page upload");
+    private List<Integer> resolveComicDisplayOrders(String episodeId, List<MediaComicPageRequestDto> pages) {
+        boolean hasProvidedOrder = pages.stream().anyMatch(page -> page.getDisplayOrder() != null);
+        if (!hasProvidedOrder) {
+            int nextOrder = nextDisplayOrder(episodeId);
+            List<Integer> generatedOrders = new ArrayList<>();
+            for (int i = 0; i < pages.size(); i++) {
+                generatedOrders.add(nextOrder + i);
+            }
+            return generatedOrders;
         }
 
-        if (displayOrders.size() != fileCount) {
-            throw ContentModuleException.badRequest("displayOrders size must match files size");
+        if (pages.stream().anyMatch(page -> page.getDisplayOrder() == null)) {
+            throw ContentModuleException.badRequest("displayOrder must be provided for every page, or omitted for every page");
         }
 
+        List<Integer> displayOrders = pages.stream()
+                .map(MediaComicPageRequestDto::getDisplayOrder)
+                .toList();
         Set<Integer> uniqueOrders = new HashSet<>(displayOrders);
         if (uniqueOrders.size() != displayOrders.size()) {
-            throw ContentModuleException.badRequest("displayOrders must not contain duplicates");
+            throw ContentModuleException.badRequest("displayOrder must not contain duplicates");
         }
-        if (displayOrders.stream().anyMatch(order -> order == null || order < 1)) {
-            throw ContentModuleException.badRequest("displayOrders must be positive numbers");
+        if (displayOrders.stream().anyMatch(order -> order < 1)) {
+            throw ContentModuleException.badRequest("displayOrder must be positive numbers");
         }
 
         Set<Integer> existingOrders = mediaRepository
@@ -467,7 +468,7 @@ public class MediaServiceImpl implements MediaService {
                 .filter(order -> order != null)
                 .collect(java.util.stream.Collectors.toSet());
         if (displayOrders.stream().anyMatch(existingOrders::contains)) {
-            throw ContentModuleException.conflict("displayOrders already exist in this episode");
+            throw ContentModuleException.conflict("displayOrder already exists in this episode");
         }
         return displayOrders;
     }
