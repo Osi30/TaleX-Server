@@ -44,8 +44,7 @@ public class CustomUserDetailsService implements UserDetailsService {
     }
 
     private UserDetails buildUserDetails(Account account) {
-        if (account.getStatus() != AccountStatus.ACTIVE
-                && account.getStatus() != AccountStatus.INCOMPLETE) {
+        if (account.getStatus() != AccountStatus.ACTIVE) {
             throw new UsernameNotFoundException(
                     "Account is not active: " + account.getEmail());
         }
