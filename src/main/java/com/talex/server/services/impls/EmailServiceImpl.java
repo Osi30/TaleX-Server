@@ -11,6 +11,7 @@ import org.springframework.mail.MailException;
 import org.springframework.mail.MailSendException;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -39,6 +40,23 @@ public class EmailServiceImpl implements EmailService {
         } catch (MailException | MessagingException e) {
             log.error("Email send failed to: {}", to, e);
             throw new MailSendException("Failed to send OTP email", e);
+        }
+    }
+
+    @Async
+    @Override
+    public void sendOtpEmailAsync(String to, String otpCode) {
+        int maxRetries = 3;
+        for (int attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                sendOtpEmail(to, otpCode);
+                return;
+            } catch (Exception e) {
+                log.warn("Async email attempt {}/{} failed for: {}", attempt, maxRetries, to, e);
+                if (attempt == maxRetries) {
+                    log.error("All {} email attempts failed for: {}", maxRetries, to, e);
+                }
+            }
         }
     }
 }

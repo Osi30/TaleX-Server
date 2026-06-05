@@ -1,6 +1,7 @@
 package com.talex.server.services.impls;
 
-import com.talex.server.exceptions.UnauthorizedException;
+import com.talex.server.exceptions.codes.AuthErrorCode;
+import com.talex.server.exceptions.details.AuthException;
 import com.talex.server.services.TokenFamilyService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -65,7 +66,7 @@ public class TokenFamilyServiceImpl implements TokenFamilyService {
         // Family not found → session expired
         if (familyData.isEmpty()) {
             log.warn("Token family not found (expired): {}", familyId);
-            throw new UnauthorizedException("Session expired, please login again");
+            throw new AuthException(AuthErrorCode.SESSION_EXPIRED);
         }
 
         String activeToken = (String) familyData.get(FIELD_ACTIVE_TOKEN);
@@ -90,7 +91,7 @@ public class TokenFamilyServiceImpl implements TokenFamilyService {
         redisTemplate.delete(familyKey);
         cleanFamilyFromIndex(UUID.fromString(accountId), familyId);
 
-        throw new UnauthorizedException("Token reuse detected, session destroyed for security");
+        throw new AuthException(AuthErrorCode.TOKEN_REUSE_DETECTED);
     }
 
     @Override
@@ -100,7 +101,7 @@ public class TokenFamilyServiceImpl implements TokenFamilyService {
 
         String accountId = (String) redisTemplate.opsForHash().get(familyKey, FIELD_ACCOUNT_ID);
         if (accountId == null) {
-            throw new UnauthorizedException("Session expired, please login again");
+            throw new AuthException(AuthErrorCode.SESSION_EXPIRED);
         }
 
         return UUID.fromString(accountId);
@@ -142,7 +143,8 @@ public class TokenFamilyServiceImpl implements TokenFamilyService {
 
     private String extractFamilyId(String refreshToken) {
         if (refreshToken == null || !refreshToken.contains(".")) {
-            throw new UnauthorizedException("Invalid refresh token format");
+            throw new AuthException(AuthErrorCode.SESSION_EXPIRED,
+                    "Invalid refresh token format");
         }
         return refreshToken.substring(0, refreshToken.indexOf('.'));
     }
