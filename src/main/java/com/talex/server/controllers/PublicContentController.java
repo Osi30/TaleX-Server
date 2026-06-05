@@ -3,10 +3,12 @@ package com.talex.server.controllers;
 import com.talex.server.dtos.BaseResponse;
 import com.talex.server.services.CategoryService;
 import com.talex.server.services.EpisodeService;
+import com.talex.server.services.MediaPlaybackSecurityService;
 import com.talex.server.services.MediaService;
 import com.talex.server.services.SeasonService;
 import com.talex.server.services.SeriesService;
 import com.talex.server.services.TagService;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -25,6 +27,7 @@ public class PublicContentController {
     private final SeasonService seasonService;
     private final EpisodeService episodeService;
     private final MediaService mediaService;
+    private final MediaPlaybackSecurityService mediaPlaybackSecurityService;
 
     @GetMapping("/categories")
     public ResponseEntity<BaseResponse> listCategories(
@@ -75,6 +78,19 @@ public class PublicContentController {
     @GetMapping("/episodes/{episodeId}/media")
     public ResponseEntity<BaseResponse> listMedia(@PathVariable String episodeId) {
         return ResponseEntity.ok(response(200, "OK", mediaService.listPublicByEpisode(episodeId)));
+    }
+
+    @GetMapping("/episodes/{episodeId}/playback")
+    public ResponseEntity<BaseResponse> getEpisodePlayback(
+            @PathVariable String episodeId,
+            @RequestParam(required = false) String viewerId,
+            HttpServletRequest request) {
+        return ResponseEntity.ok(response(200, "OK",
+                mediaPlaybackSecurityService.getEpisodePlayback(
+                        episodeId,
+                        viewerId,
+                        request.getRemoteAddr(),
+                        request.getHeader("User-Agent"))));
     }
 
     @GetMapping("/media/{mediaId}")

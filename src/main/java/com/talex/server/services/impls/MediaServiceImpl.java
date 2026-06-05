@@ -10,12 +10,17 @@ import com.talex.server.dtos.responses.MediaResponseDto;
 import com.talex.server.entities.Episode;
 import com.talex.server.entities.Media;
 import com.talex.server.enums.ContentType;
+import com.talex.server.enums.MediaPlaybackPolicy;
+import com.talex.server.enums.MediaProtectionType;
+import com.talex.server.enums.MediaProvider;
 import com.talex.server.enums.MediaStatus;
 import com.talex.server.enums.MediaType;
 import com.talex.server.exceptions.details.ContentModuleException;
 import com.talex.server.repositories.MediaRepository;
 import com.talex.server.services.EpisodeService;
+import com.talex.server.services.MediaPlaybackSecurityService;
 import com.talex.server.services.MediaService;
+import com.talex.server.services.media.MediaProviderService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -42,6 +47,8 @@ public class MediaServiceImpl implements MediaService {
 
     private final MediaRepository mediaRepository;
     private final EpisodeService episodeService;
+    private final MediaProviderService mediaProviderService;
+    private final MediaPlaybackSecurityService playbackSecurityService;
 
     @Transactional
     @Override
@@ -50,8 +57,8 @@ public class MediaServiceImpl implements MediaService {
         if (request == null) {
             throw ContentModuleException.badRequest("Media URL request is required");
         }
-        MediaType mediaType = resolveMediaType(episode, request != null ? request.getMediaType() : null);
-        return createOneFromUrl(episode, request, mediaType, request != null ? request.getDisplayOrder() : null);
+        MediaType mediaType = resolveMediaType(episode, request.getMediaType());
+        return createOneFromUrl(episode, request, mediaType, request.getDisplayOrder());
     }
 
     @Transactional
@@ -105,7 +112,7 @@ public class MediaServiceImpl implements MediaService {
             throw ContentModuleException.notFound("Public media not found: " + id);
         }
         episodeService.findPublicEntity(media.getEpisode().getEpisodeId());
-        return toResponse(media);
+        return toPublicResponse(media);
     }
 
     @Transactional(readOnly = true)
@@ -127,7 +134,7 @@ public class MediaServiceImpl implements MediaService {
                         episodeId,
                         MediaStatus.ACTIVE)
                 .stream()
-                .map(this::toResponse)
+                .map(this::toPublicResponse)
                 .sorted(Comparator.comparing(MediaResponseDto::getDisplayOrder, Comparator.nullsLast(Integer::compareTo)))
                 .toList();
     }
@@ -204,6 +211,7 @@ public class MediaServiceImpl implements MediaService {
         Media media = findActiveEntity(id);
         media.setStatus(MediaStatus.HIDDEN);
         media.markUpdatedBy(actorId);
+        playbackSecurityService.revokeActiveSessions(media);
         return toResponse(mediaRepository.save(media));
     }
 
@@ -223,6 +231,7 @@ public class MediaServiceImpl implements MediaService {
         if (request.getStatus() == MediaStatus.DELETED) {
             media.setStatus(MediaStatus.DELETED);
             media.softDelete(request.getActorId());
+            playbackSecurityService.revokeActiveSessions(media);
         } else {
             media.setStatus(request.getStatus());
             media.markUpdatedBy(request.getActorId());
@@ -236,6 +245,10 @@ public class MediaServiceImpl implements MediaService {
         Media media = findActiveEntity(id);
         media.setStatus(MediaStatus.DELETED);
         media.softDelete(actorId);
+        playbackSecurityService.revokeActiveSessions(media);
+        if (media.getMediaType() == MediaType.VIDEO && media.getProviderPublicId() != null) {
+            mediaProviderService.deleteAsset(media);
+        }
         mediaRepository.save(media);
     }
 
@@ -247,6 +260,25 @@ public class MediaServiceImpl implements MediaService {
 
     @Override
     public MediaResponseDto toResponse(Media media) {
+        return baseResponse(media).build();
+    }
+
+    private MediaResponseDto toPublicResponse(Media media) {
+        MediaResponseDto.MediaResponseDtoBuilder builder = baseResponse(media);
+        boolean protectedVideo = media.getMediaType() == MediaType.VIDEO
+                && media.getProtectionType() != MediaProtectionType.NONE
+                && media.getPlaybackPolicy() != MediaPlaybackPolicy.PUBLIC;
+        if (protectedVideo) {
+            builder.fileUrl(null)
+                    .originalUrl(null)
+                    .hlsUrl(null)
+                    .playbackUrl(null)
+                    .signedPlaybackUrl(null);
+        }
+        return builder.build();
+    }
+
+    private MediaResponseDto.MediaResponseDtoBuilder baseResponse(Media media) {
         return MediaResponseDto.builder()
                 .mediaId(media.getMediaId())
                 .episodeId(media.getEpisode().getEpisodeId())
@@ -255,6 +287,26 @@ public class MediaServiceImpl implements MediaService {
                 .fileUrl(media.getFileUrl())
                 .externalPublicId(media.getExternalPublicId())
                 .storageProvider(media.getStorageProvider())
+                .provider(media.getProvider())
+                .providerAssetId(media.getProviderAssetId())
+                .providerPublicId(media.getProviderPublicId())
+                .providerDeliveryType(media.getProviderDeliveryType())
+                .originalUrl(media.getOriginalUrl())
+                .playbackUrl(media.getPlaybackUrl())
+                .hlsUrl(media.getHlsUrl())
+                .signedPlaybackUrl(media.getSignedPlaybackUrl())
+                .thumbnailUrl(media.getThumbnailUrl())
+                .previewUrl(media.getPreviewUrl())
+                .format(media.getFormat())
+                .protectionType(media.getProtectionType())
+                .playbackPolicy(media.getPlaybackPolicy())
+                .drmProvider(media.getDrmProvider())
+                .drmKeyId(media.getDrmKeyId())
+                .drmLicenseUrl(media.getDrmLicenseUrl())
+                .drmCertificateUrl(media.getDrmCertificateUrl())
+                .tokenTtlSeconds(media.getTokenTtlSeconds())
+                .errorMessage(media.getErrorMessage())
+                .pendingDelete(media.getPendingDelete())
                 .fileSize(media.getFileSize())
                 .checksum(media.getChecksum())
                 .width(media.getWidth())
@@ -269,8 +321,7 @@ public class MediaServiceImpl implements MediaService {
                 .createdBy(media.getCreatedBy())
                 .updatedBy(media.getUpdatedBy())
                 .deletedBy(media.getDeletedBy())
-                .isDeleted(media.getIsDeleted())
-                .build();
+                .isDeleted(media.getIsDeleted());
     }
 
     private MediaResponseDto createOneFromUrl(
@@ -301,11 +352,23 @@ public class MediaServiceImpl implements MediaService {
         rejectDuplicate(checksum, media.getMediaId());
 
         media.setFileUrl(fileUrl);
+        media.setOriginalUrl(firstNonBlank(request.getOriginalUrl(), fileUrl));
+        media.setPlaybackUrl(firstNonBlank(request.getPlaybackUrl(), request.getHlsUrl(), fileUrl));
+        media.setHlsUrl(request.getHlsUrl());
+        media.setThumbnailUrl(request.getThumbnailUrl());
+        media.setPreviewUrl(request.getPreviewUrl());
         media.setChecksum(checksum);
         media.setMimeType(validateMimeType(request.getMimeType(), mediaType));
         media.setFileSize(validateFileSize(request.getFileSize()));
         media.setExternalPublicId(blankToNull(request.getExternalPublicId()));
         media.setStorageProvider(normalizeStorageProvider(request.getStorageProvider()));
+        media.setProvider(request.getProvider() != null ? request.getProvider() : resolveProvider(request.getStorageProvider()));
+        media.setProviderAssetId(blankToNull(request.getProviderAssetId()));
+        media.setProviderPublicId(firstNonBlank(request.getProviderPublicId(), request.getExternalPublicId()));
+        media.setProviderDeliveryType(blankToNull(request.getProviderDeliveryType()));
+        media.setFormat(blankToNull(request.getFormat()));
+        media.setProtectionType(request.getProtectionType() != null ? request.getProtectionType() : MediaProtectionType.NONE);
+        media.setPlaybackPolicy(request.getPlaybackPolicy() != null ? request.getPlaybackPolicy() : MediaPlaybackPolicy.PUBLIC);
         media.setStatus(MediaStatus.ACTIVE);
         applyMetadata(media, request, mediaType);
     }
@@ -496,6 +559,26 @@ public class MediaServiceImpl implements MediaService {
             return URL_STORAGE_PROVIDER;
         }
         return storageProvider.trim().toUpperCase(Locale.ROOT);
+    }
+
+    private MediaProvider resolveProvider(String storageProvider) {
+        if (storageProvider == null || storageProvider.isBlank()) {
+            return MediaProvider.URL;
+        }
+        try {
+            return MediaProvider.valueOf(storageProvider.trim().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException ex) {
+            return MediaProvider.URL;
+        }
+    }
+
+    private String firstNonBlank(String... values) {
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value.trim();
+            }
+        }
+        return null;
     }
 
     private String blankToNull(String value) {

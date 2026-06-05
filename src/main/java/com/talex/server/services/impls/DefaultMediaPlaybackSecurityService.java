@@ -1,0 +1,208 @@
+package com.talex.server.services.impls;
+
+import com.talex.server.configs.properties.MediaProperties;
+import com.talex.server.dtos.responses.DrmPlaybackConfigDto;
+import com.talex.server.dtos.responses.EpisodePlaybackResponseDto;
+import com.talex.server.entities.Episode;
+import com.talex.server.entities.Media;
+import com.talex.server.entities.MediaPlaybackSession;
+import com.talex.server.enums.MediaPlaybackPolicy;
+import com.talex.server.enums.MediaPlaybackSessionStatus;
+import com.talex.server.enums.MediaProtectionType;
+import com.talex.server.enums.MediaStatus;
+import com.talex.server.enums.MediaType;
+import com.talex.server.exceptions.details.ContentModuleException;
+import com.talex.server.repositories.MediaPlaybackSessionRepository;
+import com.talex.server.repositories.MediaRepository;
+import com.talex.server.services.EpisodeService;
+import com.talex.server.services.MediaPlaybackSecurityService;
+import com.talex.server.services.PlaybackAuthorizationService;
+import com.talex.server.services.media.DrmLicenseService;
+import com.talex.server.services.media.MediaProtectionService;
+import com.talex.server.services.media.MediaProviderService;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.time.LocalDateTime;
+import java.util.HexFormat;
+import java.util.UUID;
+
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class DefaultMediaPlaybackSecurityService implements MediaPlaybackSecurityService, MediaProtectionService {
+    private final EpisodeService episodeService;
+    private final MediaRepository mediaRepository;
+    private final MediaPlaybackSessionRepository playbackSessionRepository;
+    private final PlaybackAuthorizationService playbackAuthorizationService;
+    private final MediaProviderService mediaProviderService;
+    private final DrmLicenseService drmLicenseService;
+    private final MediaProperties mediaProperties;
+
+    @Transactional
+    @Override
+    public EpisodePlaybackResponseDto getEpisodePlayback(String episodeId, String viewerId, String ipAddress, String userAgent) {
+        Episode episode = episodeService.findPublicEntity(episodeId);
+        if (!playbackAuthorizationService.canViewEpisode(viewerId, episodeId)) {
+            throw ContentModuleException.badRequest("PLAYBACK_NOT_AUTHORIZED");
+        }
+
+        Media media = mediaRepository
+                .findFirstByEpisode_EpisodeIdAndMediaTypeAndStatusAndIsDeletedFalseOrderByCreatedAtDesc(
+                        episodeId,
+                        MediaType.VIDEO,
+                        MediaStatus.ACTIVE)
+                .orElseThrow(() -> ContentModuleException.notFound("Playable video media not found for episode: " + episodeId));
+
+        if (media.getStatus() == MediaStatus.HIDDEN || media.getStatus() == MediaStatus.DELETED || media.getStatus() == MediaStatus.FAILED) {
+            throw ContentModuleException.notFound("Playable media not found");
+        }
+
+        MediaProtectionType protectionType = getProtectionType(media);
+        LocalDateTime expiresAt = LocalDateTime.now().plusSeconds(resolveTtl(media));
+
+        if (protectionType == MediaProtectionType.DRM_MULTI || media.getPlaybackPolicy() == MediaPlaybackPolicy.DRM_REQUIRED) {
+            if (!Boolean.TRUE.equals(mediaProperties.getEnableDrm())) {
+                log.warn("DRM playback requested but DRM is disabled. mediaId={}", media.getMediaId());
+                throw ContentModuleException.badRequest("DRM_NOT_CONFIGURED");
+            }
+            DrmPlaybackConfigDto drm = generateDrmPlaybackConfig(media, viewerId);
+            return EpisodePlaybackResponseDto.builder()
+                    .episodeId(episodeId)
+                    .mediaId(media.getMediaId())
+                    .mediaType(media.getMediaType())
+                    .playbackType("HLS_OR_DASH")
+                    .provider(media.getProvider())
+                    .protectionType(protectionType)
+                    .manifestUrl(media.getPlaybackUrl())
+                    .thumbnailUrl(media.getThumbnailUrl())
+                    .duration(media.getDuration())
+                    .expiresAt(expiresAt)
+                    .drm(drm)
+                    .token(drmLicenseService.generateLicenseToken(media, viewerId))
+                    .build();
+        }
+
+        String playbackUrl = protectionType == MediaProtectionType.NONE || media.getPlaybackPolicy() == MediaPlaybackPolicy.PUBLIC
+                ? firstNonBlank(media.getHlsUrl(), media.getPlaybackUrl(), media.getFileUrl())
+                : generateSignedPlayback(media, expiresAt);
+
+        MediaPlaybackSession session = new MediaPlaybackSession();
+        session.setPlaybackSessionId(UUID.randomUUID().toString());
+        session.setMedia(media);
+        session.setEpisode(episode);
+        session.setViewerId(blankToNull(viewerId));
+        session.setProvider(media.getProvider());
+        session.setProtectionType(protectionType);
+        session.setPlaybackUrl(playbackUrl);
+        session.setTokenId(UUID.randomUUID().toString());
+        session.setExpiresAt(expiresAt);
+        session.setIpAddressHash(hashNullable(ipAddress));
+        session.setUserAgentHash(hashNullable(userAgent));
+        session.setStatus(MediaPlaybackSessionStatus.ACTIVE);
+        playbackSessionRepository.save(session);
+
+        log.info("Playback URL issued. episodeId={} mediaId={} protectionType={} expiresAt={}",
+                episodeId, media.getMediaId(), protectionType, expiresAt);
+
+        return EpisodePlaybackResponseDto.builder()
+                .episodeId(episodeId)
+                .mediaId(media.getMediaId())
+                .mediaType(media.getMediaType())
+                .playbackType("HLS")
+                .provider(media.getProvider())
+                .protectionType(protectionType)
+                .hlsUrl(playbackUrl)
+                .playbackUrl(playbackUrl)
+                .thumbnailUrl(media.getThumbnailUrl())
+                .duration(media.getDuration())
+                .expiresAt(expiresAt)
+                .build();
+    }
+
+    @Override
+    public MediaProtectionType getProtectionType(Media media) {
+        return media.getProtectionType() == null ? MediaProtectionType.NONE : media.getProtectionType();
+    }
+
+    @Override
+    public String generateSignedPlayback(Media media, LocalDateTime expiresAt) {
+        return mediaProviderService.buildSignedHlsUrl(media, expiresAt);
+    }
+
+    @Override
+    public DrmPlaybackConfigDto generateDrmPlaybackConfig(Media media, String viewerId) {
+        return drmLicenseService.getLicenseUrls(media, viewerId);
+    }
+
+    @Transactional
+    @Override
+    public void revokeActiveSessions(Media media) {
+        playbackSessionRepository
+                .findAllByMedia_MediaIdAndStatusAndIsDeletedFalse(media.getMediaId(), MediaPlaybackSessionStatus.ACTIVE)
+                .forEach(session -> {
+                    session.setStatus(MediaPlaybackSessionStatus.REVOKED);
+                    playbackSessionRepository.save(session);
+                });
+        log.info("Playback sessions revoked. mediaId={}", media.getMediaId());
+    }
+
+    @Transactional
+    @Override
+    public void revokePlayback(Media media) {
+        revokeActiveSessions(media);
+    }
+
+    @Transactional
+    @Override
+    public int expireOldSessions() {
+        var sessions = playbackSessionRepository.findAllByStatusAndExpiresAtBeforeAndIsDeletedFalse(
+                MediaPlaybackSessionStatus.ACTIVE,
+                LocalDateTime.now());
+        sessions.forEach(session -> {
+            session.setStatus(MediaPlaybackSessionStatus.EXPIRED);
+            playbackSessionRepository.save(session);
+        });
+        if (!sessions.isEmpty()) {
+            log.info("Expired playback sessions. count={}", sessions.size());
+        }
+        return sessions.size();
+    }
+
+    private long resolveTtl(Media media) {
+        if (media.getTokenTtlSeconds() != null && media.getTokenTtlSeconds() > 0) {
+            return media.getTokenTtlSeconds();
+        }
+        return mediaProperties.getSignedPlaybackTtlSeconds();
+    }
+
+    private String firstNonBlank(String... values) {
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value;
+            }
+        }
+        throw ContentModuleException.notFound("Playback URL is not available yet");
+    }
+
+    private String hashNullable(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        try {
+            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
+                    .digest(value.getBytes(StandardCharsets.UTF_8)));
+        } catch (NoSuchAlgorithmException ex) {
+            return null;
+        }
+    }
+
+    private String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
+    }
+}

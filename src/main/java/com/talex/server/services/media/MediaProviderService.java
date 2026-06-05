@@ -1,0 +1,23 @@
+package com.talex.server.services.media;
+
+import com.talex.server.dtos.requests.MediaUploadCompleteRequestDto;
+import com.talex.server.entities.Media;
+import com.talex.server.entities.MediaUploadSession;
+
+import java.time.LocalDateTime;
+
+public interface MediaProviderService {
+    SignedUploadParams createSignedUploadParams(String providerPublicId, String providerDeliveryType);
+
+    String buildVideoPublicId(String episodeId, String mediaId);
+
+    void applyCompletedUpload(Media media, MediaUploadSession session, MediaUploadCompleteRequestDto request);
+
+    String buildHlsUrl(Media media);
+
+    String buildSignedHlsUrl(Media media, LocalDateTime expiresAt);
+
+    String buildThumbnailUrl(Media media);
+
+    void deleteAsset(Media media);
+}

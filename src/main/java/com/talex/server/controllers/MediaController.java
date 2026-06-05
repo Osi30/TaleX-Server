@@ -6,7 +6,12 @@ import com.talex.server.dtos.requests.MediaMetadataRequestDto;
 import com.talex.server.dtos.requests.MediaReorderRequestDto;
 import com.talex.server.dtos.requests.MediaStatusRequestDto;
 import com.talex.server.dtos.requests.MediaUpdateRequestDto;
+import com.talex.server.dtos.requests.MediaUploadCompleteRequestDto;
+import com.talex.server.dtos.requests.MediaUploadFailRequestDto;
+import com.talex.server.dtos.requests.MediaUploadProgressRequestDto;
+import com.talex.server.dtos.requests.VideoUploadSessionRequestDto;
 import com.talex.server.services.MediaService;
+import com.talex.server.services.MediaUploadSessionService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -25,6 +30,61 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class MediaController {
     private final MediaService mediaService;
+    private final MediaUploadSessionService mediaUploadSessionService;
+
+    @PostMapping("/api/v1/episodes/{episodeId}/media/video/upload-session")
+    public ResponseEntity<BaseResponse> createVideoUploadSession(
+            @PathVariable String episodeId,
+            @Valid @RequestBody VideoUploadSessionRequestDto request) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(response(201, "Video upload session created",
+                        mediaUploadSessionService.createVideoUploadSession(episodeId, request)));
+    }
+
+    @GetMapping("/api/v1/media/upload-sessions/{uploadSessionId}")
+    public ResponseEntity<BaseResponse> getUploadSession(@PathVariable String uploadSessionId) {
+        return ResponseEntity.ok(response(200, "OK", mediaUploadSessionService.getSession(uploadSessionId)));
+    }
+
+    @PatchMapping("/api/v1/media/upload-sessions/{uploadSessionId}/progress")
+    public ResponseEntity<BaseResponse> updateUploadProgress(
+            @PathVariable String uploadSessionId,
+            @Valid @RequestBody MediaUploadProgressRequestDto request) {
+        return ResponseEntity.ok(response(200, "Upload progress updated",
+                mediaUploadSessionService.updateProgress(uploadSessionId, request)));
+    }
+
+    @PatchMapping("/api/v1/media/upload-sessions/{uploadSessionId}/pause")
+    public ResponseEntity<BaseResponse> pauseUpload(
+            @PathVariable String uploadSessionId,
+            @RequestParam(required = false) String actorId) {
+        return ResponseEntity.ok(response(200, "Upload paused",
+                mediaUploadSessionService.pause(uploadSessionId, actorId)));
+    }
+
+    @PatchMapping("/api/v1/media/upload-sessions/{uploadSessionId}/fail")
+    public ResponseEntity<BaseResponse> failUpload(
+            @PathVariable String uploadSessionId,
+            @RequestBody(required = false) MediaUploadFailRequestDto request) {
+        return ResponseEntity.ok(response(200, "Upload failed",
+                mediaUploadSessionService.fail(uploadSessionId, request)));
+    }
+
+    @PatchMapping("/api/v1/media/upload-sessions/{uploadSessionId}/cancel")
+    public ResponseEntity<BaseResponse> cancelUpload(
+            @PathVariable String uploadSessionId,
+            @RequestParam(required = false) String actorId) {
+        return ResponseEntity.ok(response(200, "Upload cancelled",
+                mediaUploadSessionService.cancel(uploadSessionId, actorId)));
+    }
+
+    @PostMapping("/api/v1/media/upload-sessions/{uploadSessionId}/complete")
+    public ResponseEntity<BaseResponse> completeUpload(
+            @PathVariable String uploadSessionId,
+            @Valid @RequestBody MediaUploadCompleteRequestDto request) {
+        return ResponseEntity.ok(response(200, "Upload completed",
+                mediaUploadSessionService.complete(uploadSessionId, request)));
+    }
 
     @PostMapping("/api/v1/episodes/{episodeId}/media")
     public ResponseEntity<BaseResponse> createFromUrl(
