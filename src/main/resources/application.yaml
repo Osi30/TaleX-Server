@@ -3,11 +3,18 @@ spring:
     active: ${SPRING_PROFILES_ACTIVE:local}
   application:
     name: talex-server
+  # datasource:
+  #   driver-class-name: org.postgresql.Driver
+  #   username: ${DB_USERNAME:postgres}
+  #   password: ${DB_PASSWORD:12345}
+  #   url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:talex-db}
+
   datasource:
     driver-class-name: org.postgresql.Driver
-    username: ${DB_USERNAME:postgres}
-    password: ${DB_PASSWORD:12345}
-    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:talex-db}
+    username: neondb_owner
+    password: npg_zEU3djeluHX7
+    url: jdbc:postgresql://ep-long-silence-ao009tbp.c-2.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require
+
   jpa:
     show-sql: true
     hibernate:
@@ -28,7 +35,7 @@ spring:
       username: ${REDIS_USERNAME:default}
       password: ${REDIS_PASSWORD:}
       ssl:
-        enabled: true
+        enabled: ${REDIS_SSL:false}
       timeout: 5000ms
   threads:
     virtual:

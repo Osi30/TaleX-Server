@@ -1,6 +1,8 @@
 package com.talex.server.configs;
 
 import com.talex.server.entities.Account;
+import com.talex.server.exceptions.codes.AuthErrorCode;
+import com.talex.server.exceptions.details.AuthException;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
@@ -34,7 +36,6 @@ public class JwtTokenProvider {
 
         return Jwts.builder()
                 .subject(account.getAccountId().toString())
-                .claim("email", account.getEmail())
                 .claim("role", account.getRole().getCode())
                 .issuedAt(now)
                 .expiration(expiry)
@@ -47,9 +48,31 @@ public class JwtTokenProvider {
         return UUID.fromString(claims.getSubject());
     }
 
-    public String extractEmail(String token) {
-        Claims claims = extractClaims(token);
-        return claims.get("email", String.class);
+    public String generateVerificationToken(UUID accountId) {
+        Date now = new Date();
+        Date expiry = new Date(now.getTime() + accessTokenExpiration);
+
+        return Jwts.builder()
+                .subject(accountId.toString())
+                .claim("type", "verification")
+                .issuedAt(now)
+                .expiration(expiry)
+                .signWith(key)
+                .compact();
+    }
+
+    public UUID extractVerificationAccountId(String token) {
+        try {
+            Claims claims = extractClaims(token);
+            String type = claims.get("type", String.class);
+            if (!"verification".equals(type)) {
+                throw new AuthException(AuthErrorCode.INVALID_VERIFICATION_TOKEN);
+            }
+            return UUID.fromString(claims.getSubject());
+        } catch (JwtException | IllegalArgumentException e) {
+            throw new AuthException(AuthErrorCode.INVALID_VERIFICATION_TOKEN,
+                    "Token xác minh không hợp lệ hoặc đã hết hạn", e);
+        }
     }
 
     public boolean validateToken(String token) {

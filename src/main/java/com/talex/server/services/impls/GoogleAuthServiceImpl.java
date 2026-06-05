@@ -3,7 +3,8 @@ package com.talex.server.services.impls;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
 import com.talex.server.dtos.responses.GoogleUserInfo;
-import com.talex.server.exceptions.UnauthorizedException;
+import com.talex.server.exceptions.codes.AuthErrorCode;
+import com.talex.server.exceptions.details.AuthException;
 import com.talex.server.services.GoogleAuthService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,7 +27,7 @@ public class GoogleAuthServiceImpl implements GoogleAuthService {
 
             if (token == null) {
                 log.warn("Google token verification failed");
-                throw new UnauthorizedException("Invalid Google ID token");
+                throw new AuthException(AuthErrorCode.INVALID_GOOGLE_TOKEN);
             }
 
             GoogleIdToken.Payload payload = token.getPayload();
@@ -43,7 +44,8 @@ public class GoogleAuthServiceImpl implements GoogleAuthService {
 
         } catch (GeneralSecurityException | IOException e) {
             log.error("Google token verification error", e);
-            throw new UnauthorizedException("Failed to verify Google token");
+            throw new AuthException(AuthErrorCode.INVALID_GOOGLE_TOKEN,
+                    "Failed to verify Google token", e);
         }
     }
 }
