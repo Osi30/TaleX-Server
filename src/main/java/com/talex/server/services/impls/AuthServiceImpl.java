@@ -20,6 +20,7 @@ import com.talex.server.services.AuthService;
 import com.talex.server.services.GoogleAuthService;
 import com.talex.server.services.OtpService;
 import com.talex.server.services.TokenFamilyService;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -41,6 +42,14 @@ public class AuthServiceImpl implements AuthService {
     private final TokenFamilyService tokenFamilyService;
     private final GoogleAuthService googleAuthService;
 
+    private Role viewerRole;
+
+    @PostConstruct
+    void initRoles() {
+        viewerRole = roleRepository.findByCode("VIEWER")
+                .orElseThrow(() -> new RuntimeException("VIEWER role not found in database"));
+    }
+
     @Override
     @Transactional
     public String register(RegisterRequest request) {
@@ -61,9 +70,6 @@ public class AuthServiceImpl implements AuthService {
         if (accountRepository.existsByUsername(request.getUsername())) {
             throw new AuthException(AuthErrorCode.USERNAME_ALREADY_EXISTS);
         }
-
-        Role viewerRole = roleRepository.findByCode("VIEWER")
-                .orElseThrow(() -> new AuthException(AuthErrorCode.ROLE_NOT_FOUND));
 
         Account account = Account.builder()
                 .username(request.getUsername())
@@ -153,9 +159,6 @@ public class AuthServiceImpl implements AuthService {
         }
 
         // New Google account — create as VERIFYING
-        Role viewerRole = roleRepository.findByCode("VIEWER")
-                .orElseThrow(() -> new AuthException(AuthErrorCode.ROLE_NOT_FOUND));
-
         String username = generateUsernameFromEmail(googleInfo.getEmail());
 
         Account newAccount = Account.builder()
