@@ -1,4 +1,4 @@
-package com.talex.server.services;
+package com.talex.server.services.impls;
 
 import com.talex.server.entities.Account;
 import com.talex.server.enums.AccountStatus;
