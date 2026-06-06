@@ -13,9 +13,13 @@ services:
       - DB_PASSWORD=${DB_PASSWORD:-12345}
       - DB_OPTIONS=
       - SPRING_PROFILES_ACTIVE=prod
+      - QUESTDB_HOST=questdb
+      - QUESTDB_PORT=8812
     depends_on:
       db:
         condition: service_healthy
+      questdb:
+        condition: service_started
     restart: always
 
   db:
@@ -35,5 +39,19 @@ services:
       retries: 5
     restart: always
 
+  questdb:
+    image: questdb/questdb:8.2.3
+    ports:
+      - "127.0.0.1:8812:8812"
+      - "9000:9000"
+      - "127.0.0.1:9009:9009"
+    environment:
+      - QDB_PG_USER=${QUESTDB_USER:-admin}
+      - QDB_PG_PASSWORD=${QUESTDB_PASSWORD:-quest}
+    volumes:
+      - questdb-data:/var/lib/questdb
+    restart: always
+
 volumes:
   pgdata:
+  questdb-data:

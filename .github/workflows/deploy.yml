@@ -40,6 +40,8 @@ jobs:
             CLOUDINARY_API_KEY=${{ secrets.CLOUDINARY_API_KEY }}
             CLOUDINARY_API_SECRET=${{ secrets.CLOUDINARY_API_SECRET }}
             CLOUDINARY_AUTH_TOKEN_KEY=${{ secrets.CLOUDINARY_AUTH_TOKEN_KEY }}
+            QUESTDB_USER=${{ secrets.QUESTDB_USER }}
+            QUESTDB_PASSWORD=${{ secrets.QUESTDB_PASSWORD }}
             ENVEOF
 
             # Remove leading whitespace from .env lines

@@ -48,6 +48,12 @@
           starttls:
             enable: true
 
+questdb:
+  host: ${QUESTDB_HOST:localhost}
+  port: ${QUESTDB_PORT:8812}
+  username: ${QUESTDB_USER:admin}
+  password: ${QUESTDB_PASSWORD:quest}
+
 springdoc:
   api-docs:
     path: /api-docs
