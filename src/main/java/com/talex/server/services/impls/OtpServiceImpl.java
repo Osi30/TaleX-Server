@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.security.SecureRandom;
@@ -36,6 +37,7 @@ public class OtpServiceImpl implements OtpService {
     @Value("${otp.resend-cooldown-minutes:2}")
     private int resendCooldownMinutes;
 
+    @Async("emailExecutor")
     @Override
     public void generateAndSend(Account account) {
         String code = generateOtpCode();
