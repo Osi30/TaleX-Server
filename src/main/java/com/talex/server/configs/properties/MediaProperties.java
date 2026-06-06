@@ -34,9 +34,11 @@ public class MediaProperties {
         private String apiSecret = "";
         private String videoFolder = "talex";
         private String imageFolder = "talex";
-        private String hlsStreamingProfile = "sp_auto";
+        private String hlsStreamingProfile = "sp_hd";
         private String providerDeliveryType = "authenticated";
         private String authTokenKey = "";
+        private String webhookUrl = "";
+        private String webhookSigningSecret = "";
         private String apiBaseUrl = "https://api.cloudinary.com";
         private String deliveryBaseUrl = "https://res.cloudinary.com";
     }

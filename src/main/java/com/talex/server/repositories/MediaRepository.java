@@ -16,6 +16,8 @@ public interface MediaRepository extends JpaRepository<Media, String> {
 
     Optional<Media> findFirstByChecksumAndIsDeletedFalse(String checksum);
 
+    Optional<Media> findFirstByProviderPublicIdAndIsDeletedFalse(String providerPublicId);
+
     boolean existsByChecksumAndIsDeletedFalse(String checksum);
 
     List<Media> findAllByEpisode_EpisodeIdAndIsDeletedFalseOrderByDisplayOrderAsc(String episodeId);
@@ -24,7 +26,16 @@ public interface MediaRepository extends JpaRepository<Media, String> {
             String episodeId,
             MediaStatus status);
 
+    List<Media> findAllByEpisode_EpisodeIdAndStatusInAndIsDeletedFalseOrderByDisplayOrderAsc(
+            String episodeId,
+            Collection<MediaStatus> statuses);
+
     List<Media> findAllByEpisode_EpisodeIdAndMediaTypeAndStatusInAndIsDeletedFalse(
+            String episodeId,
+            MediaType mediaType,
+            Collection<MediaStatus> statuses);
+
+    Optional<Media> findFirstByEpisode_EpisodeIdAndMediaTypeAndStatusInAndIsDeletedFalseOrderByCreatedAtDesc(
             String episodeId,
             MediaType mediaType,
             Collection<MediaStatus> statuses);

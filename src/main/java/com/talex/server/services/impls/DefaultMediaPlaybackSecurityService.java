@@ -29,6 +29,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.HexFormat;
 import java.util.UUID;
 
@@ -36,6 +37,13 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @Slf4j
 public class DefaultMediaPlaybackSecurityService implements MediaPlaybackSecurityService, MediaProtectionService {
+    private static final List<MediaStatus> PLAYBACK_VIDEO_STATUSES = List.of(
+            MediaStatus.PROCESSING,
+            MediaStatus.HLS_PROCESSING,
+            MediaStatus.HLS_READY,
+            MediaStatus.ACTIVE,
+            MediaStatus.FAILED);
+
     private final EpisodeService episodeService;
     private final MediaRepository mediaRepository;
     private final MediaPlaybackSessionRepository playbackSessionRepository;
@@ -53,14 +61,26 @@ public class DefaultMediaPlaybackSecurityService implements MediaPlaybackSecurit
         }
 
         Media media = mediaRepository
-                .findFirstByEpisode_EpisodeIdAndMediaTypeAndStatusAndIsDeletedFalseOrderByCreatedAtDesc(
+                .findFirstByEpisode_EpisodeIdAndMediaTypeAndStatusInAndIsDeletedFalseOrderByCreatedAtDesc(
                         episodeId,
                         MediaType.VIDEO,
-                        MediaStatus.ACTIVE)
+                        PLAYBACK_VIDEO_STATUSES)
                 .orElseThrow(() -> ContentModuleException.notFound("Playable video media not found for episode: " + episodeId));
 
-        if (media.getStatus() == MediaStatus.HIDDEN || media.getStatus() == MediaStatus.DELETED || media.getStatus() == MediaStatus.FAILED) {
-            throw ContentModuleException.notFound("Playable media not found");
+        if (media.getStatus() == MediaStatus.FAILED) {
+            log.warn("PLAYBACK_REQUESTED_BEFORE_READY episodeId={} mediaId={} status={} error={}",
+                    episodeId, media.getMediaId(), media.getStatus(), media.getErrorMessage());
+            throw ContentModuleException.badRequest("VIDEO_FAILED");
+        }
+        if (media.getStatus() == MediaStatus.PROCESSING || media.getStatus() == MediaStatus.HLS_PROCESSING) {
+            log.info("PLAYBACK_REQUESTED_BEFORE_READY episodeId={} mediaId={} status={}",
+                    episodeId, media.getMediaId(), media.getStatus());
+            throw ContentModuleException.badRequest("VIDEO_PROCESSING");
+        }
+        if (media.getStatus() != MediaStatus.HLS_READY && media.getStatus() != MediaStatus.ACTIVE) {
+            log.info("PLAYBACK_REQUESTED_BEFORE_READY episodeId={} mediaId={} status={}",
+                    episodeId, media.getMediaId(), media.getStatus());
+            throw ContentModuleException.badRequest("VIDEO_NOT_READY");
         }
 
         MediaProtectionType protectionType = getProtectionType(media);
@@ -88,9 +108,16 @@ public class DefaultMediaPlaybackSecurityService implements MediaPlaybackSecurit
                     .build();
         }
 
-        String playbackUrl = protectionType == MediaProtectionType.NONE || media.getPlaybackPolicy() == MediaPlaybackPolicy.PUBLIC
-                ? firstNonBlank(media.getHlsUrl(), media.getPlaybackUrl(), media.getFileUrl())
-                : generateSignedPlayback(media, expiresAt);
+        String playbackUrl;
+        try {
+            playbackUrl = protectionType == MediaProtectionType.NONE || media.getPlaybackPolicy() == MediaPlaybackPolicy.PUBLIC
+                    ? firstNonBlank(media.getHlsUrl(), media.getPlaybackUrl(), media.getFileUrl())
+                    : generateSignedPlayback(media, expiresAt);
+        } catch (ContentModuleException ex) {
+            log.info("PLAYBACK_REQUESTED_BEFORE_READY episodeId={} mediaId={} status={} reason={}",
+                    episodeId, media.getMediaId(), media.getStatus(), ex.getMessage());
+            throw ContentModuleException.badRequest("VIDEO_NOT_READY");
+        }
 
         MediaPlaybackSession session = new MediaPlaybackSession();
         session.setPlaybackSessionId(UUID.randomUUID().toString());

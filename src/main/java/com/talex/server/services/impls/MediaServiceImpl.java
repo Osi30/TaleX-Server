@@ -44,6 +44,11 @@ import java.util.regex.Pattern;
 public class MediaServiceImpl implements MediaService {
     private static final Pattern SHA256_PATTERN = Pattern.compile("^[a-fA-F0-9]{64}$");
     private static final String URL_STORAGE_PROVIDER = "URL";
+    private static final List<MediaStatus> PUBLIC_READY_STATUSES = List.of(MediaStatus.ACTIVE, MediaStatus.HLS_READY);
+    private static final List<MediaStatus> VIDEO_REPLACEMENT_BLOCKING_STATUSES = List.of(
+            MediaStatus.ACTIVE,
+            MediaStatus.HLS_READY,
+            MediaStatus.HLS_PROCESSING);
 
     private final MediaRepository mediaRepository;
     private final EpisodeService episodeService;
@@ -108,7 +113,7 @@ public class MediaServiceImpl implements MediaService {
     @Override
     public MediaResponseDto getPublicById(String id) {
         Media media = findActiveEntity(id);
-        if (media.getStatus() != MediaStatus.ACTIVE) {
+        if (!PUBLIC_READY_STATUSES.contains(media.getStatus())) {
             throw ContentModuleException.notFound("Public media not found: " + id);
         }
         episodeService.findPublicEntity(media.getEpisode().getEpisodeId());
@@ -130,9 +135,9 @@ public class MediaServiceImpl implements MediaService {
     public List<MediaResponseDto> listPublicByEpisode(String episodeId) {
         episodeService.findPublicEntity(episodeId);
         return mediaRepository
-                .findAllByEpisode_EpisodeIdAndStatusAndIsDeletedFalseOrderByDisplayOrderAsc(
+                .findAllByEpisode_EpisodeIdAndStatusInAndIsDeletedFalseOrderByDisplayOrderAsc(
                         episodeId,
-                        MediaStatus.ACTIVE)
+                        PUBLIC_READY_STATUSES)
                 .stream()
                 .map(this::toPublicResponse)
                 .sorted(Comparator.comparing(MediaResponseDto::getDisplayOrder, Comparator.nullsLast(Integer::compareTo)))
@@ -409,14 +414,15 @@ public class MediaServiceImpl implements MediaService {
     private void validateMediaForEpisode(Episode episode, MediaType mediaType, String currentMediaId) {
         resolveMediaType(episode, mediaType);
         if (episode.getContentType() == ContentType.VIDEO) {
-            boolean hasAnotherActiveVideo = mediaRepository
-                    .findAllByEpisode_EpisodeIdAndStatusAndIsDeletedFalseOrderByDisplayOrderAsc(
+            boolean hasAnotherReadyVideo = mediaRepository
+                    .findAllByEpisode_EpisodeIdAndMediaTypeAndStatusInAndIsDeletedFalse(
                             episode.getEpisodeId(),
-                            MediaStatus.ACTIVE)
+                            MediaType.VIDEO,
+                            VIDEO_REPLACEMENT_BLOCKING_STATUSES)
                     .stream()
                     .anyMatch(media -> currentMediaId == null || !media.getMediaId().equals(currentMediaId));
-            if (hasAnotherActiveVideo) {
-                throw ContentModuleException.conflict("Video episode already has an active video media");
+            if (hasAnotherReadyVideo) {
+                throw ContentModuleException.conflict("Video episode already has a video media or HLS processing is still running");
             }
         }
     }

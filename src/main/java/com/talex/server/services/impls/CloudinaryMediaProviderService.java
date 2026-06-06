@@ -47,15 +47,24 @@ public class CloudinaryMediaProviderService implements MediaProviderService, Med
         uploadParams.put("public_id", providerPublicId);
         uploadParams.put("timestamp", String.valueOf(timestamp));
         uploadParams.put("type", providerDeliveryType);
-        uploadParams.put("eager", mediaProperties.getCloudinary().getHlsStreamingProfile());
+        uploadParams.put("eager", buildHlsTransformation());
         uploadParams.put("eager_async", "true");
         uploadParams.put("overwrite", "true");
+        if (!mediaProperties.getCloudinary().getWebhookUrl().isBlank()) {
+            uploadParams.put("eager_notification_url", mediaProperties.getCloudinary().getWebhookUrl());
+        }
 
         String signature = signApiParams(uploadParams);
         String uploadUrl = "%s/v1_1/%s/%s/upload".formatted(
                 mediaProperties.getCloudinary().getApiBaseUrl(),
                 mediaProperties.getCloudinary().getCloudName(),
                 RESOURCE_TYPE_VIDEO);
+
+        log.info("Cloudinary signed video upload params created. publicId={} deliveryType={} eager={} webhookConfigured={}",
+                providerPublicId,
+                providerDeliveryType,
+                uploadParams.get("eager"),
+                uploadParams.containsKey("eager_notification_url"));
 
         return SignedUploadParams.builder()
                 .cloudName(mediaProperties.getCloudinary().getCloudName())
@@ -101,7 +110,7 @@ public class CloudinaryMediaProviderService implements MediaProviderService, Med
                 : null);
         media.setChecksum(sha256(request.getPublicId() + ":" + request.getBytes()));
         media.setMediaType(MediaType.VIDEO);
-        media.setStatus(MediaStatus.ACTIVE);
+        media.setStatus(MediaStatus.HLS_PROCESSING);
         media.setErrorMessage(null);
         media.setPendingDelete(false);
     }
@@ -114,13 +123,13 @@ public class CloudinaryMediaProviderService implements MediaProviderService, Med
                 mediaProperties.getCloudinary().getCloudName(),
                 RESOURCE_TYPE_VIDEO,
                 deliveryType,
-                mediaProperties.getCloudinary().getHlsStreamingProfile() + "/" + media.getProviderPublicId());
+                buildHlsTransformation() + "/" + media.getProviderPublicId());
     }
 
     @Override
     public String buildSignedHlsUrl(Media media, LocalDateTime expiresAt) {
         String deliveryType = normalizeDeliveryType(media.getProviderDeliveryType());
-        String transformationAndAsset = mediaProperties.getCloudinary().getHlsStreamingProfile()
+        String transformationAndAsset = buildHlsTransformation()
                 + "/" + media.getProviderPublicId() + ".m3u8";
         String signature = signDeliveryPath(transformationAndAsset);
         String url = "%s/%s/%s/%s/s--%s--/%s".formatted(
@@ -220,6 +229,29 @@ public class CloudinaryMediaProviderService implements MediaProviderService, Med
                 || mediaProperties.getCloudinary().getApiSecret().isBlank()) {
             throw ContentModuleException.badRequest("Cloudinary signed upload is not configured");
         }
+    }
+
+    private String buildHlsTransformation() {
+        String profile = trimSlashes(mediaProperties.getCloudinary().getHlsStreamingProfile());
+        if (profile.isBlank()) {
+            profile = "sp_hd";
+        }
+
+        if (profile.toLowerCase(Locale.ROOT).startsWith("sp_auto")) {
+            log.warn("Cloudinary sp_auto cannot be used for eager HLS webhook processing. Using sp_hd/f_m3u8 instead. Set CLOUDINARY_HLS_STREAMING_PROFILE to sp_hd, sp_full_hd, or sp_sd for explicit control.");
+            profile = "sp_hd";
+        }
+
+        String normalized = profile
+                .replace(",f_m3u8", "/f_m3u8")
+                .replace("f_m3u8,", "f_m3u8/")
+                .replaceAll("/+", "/");
+
+        if (normalized.contains("f_m3u8")) {
+            return normalized;
+        }
+
+        return normalized + "/f_m3u8";
     }
 
     private String signApiParams(Map<String, String> params) {
