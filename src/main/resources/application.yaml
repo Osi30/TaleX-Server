@@ -5,17 +5,11 @@
     active: ${SPRING_PROFILES_ACTIVE:local}
   application:
     name: talex-server
-  # datasource:
-  #   driver-class-name: org.postgresql.Driver
-  #   username: ${DB_USERNAME:postgres}
-  #   password: ${DB_PASSWORD:12345}
-  #   url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:talex-db}
-
   datasource:
     driver-class-name: org.postgresql.Driver
-    username: neondb_owner
-    password: npg_zEU3djeluHX7
-    url: jdbc:postgresql://ep-long-silence-ao009tbp.c-2.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:12345}
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:talex-db}${DB_OPTIONS:}
 
   jpa:
     show-sql: true
@@ -64,7 +58,7 @@ integration:
   clients:
     fpt-ai:
       base-url: https://api.fpt.ai
-      api-key: JKqZ83MbT68ELOzCZLEDVw9MdCIyUkPI
+      api-key: ${FPT_AI_API_KEY:}
       connection-timeout-ms: 5000
       read-timeout-ms: 30000
 
