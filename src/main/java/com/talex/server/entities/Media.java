@@ -1,5 +1,8 @@
 package com.talex.server.entities;
 
+import com.talex.server.enums.MediaPlaybackPolicy;
+import com.talex.server.enums.MediaProtectionType;
+import com.talex.server.enums.MediaProvider;
 import com.talex.server.enums.MediaStatus;
 import com.talex.server.enums.MediaType;
 import jakarta.persistence.Column;
@@ -41,7 +44,7 @@ public class Media extends BaseAudit {
     @Column(name = "mime_type", nullable = false, length = 120)
     private String mimeType;
 
-    @Column(name = "file_url", nullable = false, columnDefinition = "TEXT")
+    @Column(name = "file_url", columnDefinition = "TEXT")
     private String fileUrl;
 
     @Column(name = "external_public_id")
@@ -53,8 +56,71 @@ public class Media extends BaseAudit {
     @Column(name = "file_size", nullable = false)
     private Long fileSize;
 
-    @Column(nullable = false, length = 128)
+    @Column(length = 128)
     private String checksum;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 40)
+    private MediaProvider provider = MediaProvider.URL;
+
+    @Column(name = "provider_asset_id")
+    private String providerAssetId;
+
+    @Column(name = "provider_public_id")
+    private String providerPublicId;
+
+    @Column(name = "provider_delivery_type", length = 40)
+    private String providerDeliveryType;
+
+    @Column(name = "original_url", columnDefinition = "TEXT")
+    private String originalUrl;
+
+    @Column(name = "playback_url", columnDefinition = "TEXT")
+    private String playbackUrl;
+
+    @Column(name = "hls_url", columnDefinition = "TEXT")
+    private String hlsUrl;
+
+    @Column(name = "signed_playback_url", columnDefinition = "TEXT")
+    private String signedPlaybackUrl;
+
+    @Column(name = "thumbnail_url", columnDefinition = "TEXT")
+    private String thumbnailUrl;
+
+    @Column(name = "preview_url", columnDefinition = "TEXT")
+    private String previewUrl;
+
+    @Column(length = 30)
+    private String format;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "protection_type", nullable = false, length = 40)
+    private MediaProtectionType protectionType = MediaProtectionType.NONE;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "playback_policy", nullable = false, length = 40)
+    private MediaPlaybackPolicy playbackPolicy = MediaPlaybackPolicy.PUBLIC;
+
+    @Column(name = "drm_provider")
+    private String drmProvider;
+
+    @Column(name = "drm_key_id")
+    private String drmKeyId;
+
+    @Column(name = "drm_license_url", columnDefinition = "TEXT")
+    private String drmLicenseUrl;
+
+    @Column(name = "drm_certificate_url", columnDefinition = "TEXT")
+    private String drmCertificateUrl;
+
+    @Column(name = "token_ttl_seconds")
+    private Integer tokenTtlSeconds;
+
+    @Column(name = "error_message", columnDefinition = "TEXT")
+    private String errorMessage;
+
+    @Column(name = "pending_delete", nullable = false)
+    private Boolean pendingDelete = false;
 
     private Integer width;
 

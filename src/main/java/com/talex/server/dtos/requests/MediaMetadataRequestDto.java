@@ -1,5 +1,8 @@
 package com.talex.server.dtos.requests;
 
+import com.talex.server.enums.MediaPlaybackPolicy;
+import com.talex.server.enums.MediaProtectionType;
+import com.talex.server.enums.MediaProvider;
 import com.talex.server.enums.MediaType;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -26,20 +29,24 @@ public class MediaMetadataRequestDto {
     private Long fileSize;
 
     private String checksum;
-
     private String externalPublicId;
-
     private String storageProvider;
-
+    private MediaProvider provider;
+    private String providerAssetId;
+    private String providerPublicId;
+    private String providerDeliveryType;
+    private String originalUrl;
+    private String playbackUrl;
+    private String hlsUrl;
+    private String thumbnailUrl;
+    private String previewUrl;
+    private String format;
+    private MediaProtectionType protectionType;
+    private MediaPlaybackPolicy playbackPolicy;
     private Integer width;
-
     private Integer height;
-
     private String resolution;
-
     private Long duration;
-
     private Integer displayOrder;
-
     private String actorId;
 }

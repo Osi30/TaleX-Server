@@ -1,0 +1,57 @@
+services:
+  app:
+    build: .
+    ports:
+      - "8080:8080"
+    env_file: .env
+    environment:
+      # Override DB to use local PostgreSQL container
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_NAME=talex-db
+      - DB_USERNAME=${DB_USERNAME:-postgres}
+      - DB_PASSWORD=${DB_PASSWORD:-12345}
+      - DB_OPTIONS=
+      - SPRING_PROFILES_ACTIVE=prod
+      - QUESTDB_HOST=questdb
+      - QUESTDB_PORT=8812
+    depends_on:
+      db:
+        condition: service_healthy
+      questdb:
+        condition: service_started
+    restart: always
+
+  db:
+    image: postgres:16
+    ports:
+      - "127.0.0.1:5432:5432"
+    environment:
+      - POSTGRES_DB=talex-db
+      - POSTGRES_USER=${DB_USERNAME:-postgres}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-12345}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: always
+
+  questdb:
+    image: questdb/questdb:8.2.3
+    ports:
+      - "8812:8812"
+      - "9000:9000"
+      - "127.0.0.1:9009:9009"
+    environment:
+      - QDB_PG_USER=${QUESTDB_USER:-admin}
+      - QDB_PG_PASSWORD=${QUESTDB_PASSWORD:-quest}
+    volumes:
+      - questdb-data:/var/lib/questdb
+    restart: always
+
+volumes:
+  pgdata:
+  questdb-data:

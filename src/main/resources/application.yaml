@@ -1,4 +1,6 @@
-spring:
+﻿spring:
+  config:
+    import: optional:file:.env[.properties]
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:local}
   application:
@@ -7,13 +9,14 @@ spring:
     driver-class-name: org.postgresql.Driver
     username: ${DB_USERNAME:postgres}
     password: ${DB_PASSWORD:12345}
-    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:talex-db}
+#    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:talex-db}
 
   #  datasource:
   #    driver-class-name: org.postgresql.Driver
   #    username: neondb_owner
   #    password: npg_zEU3djeluHX7
   #    url: jdbc:postgresql://ep-long-silence-ao009tbp.c-2.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:talex-db}${DB_OPTIONS:}
 
   jpa:
     show-sql: true
@@ -62,7 +65,7 @@ integration:
   clients:
     fpt-ai:
       base-url: https://api.fpt.ai
-      api-key: JKqZ83MbT68ELOzCZLEDVw9MdCIyUkPI
+      api-key: ${FPT_AI_API_KEY:}
       connection-timeout-ms: 5000
       read-timeout-ms: 30000
 
@@ -75,13 +78,13 @@ resilience4j:
     configs:
       default:
         slidingWindowType: COUNT_BASED
-        slidingWindowSize: 10             # Xét 10 request gần nhất
-        minimumNumberOfCalls: 5           # Cần tối thiểu 5 request để bắt đầu tính toán tỷ lệ lỗi
-        failureRateThreshold: 50          # Nếu 50% số request bị lỗi hoặc timeout (>15s), mạch sẽ NGẮT (Open)
-        slowCallRateThreshold: 50         # Nếu 50% số request chạy chậm hơn thời gian quy định
-        slowCallDurationThreshold: 10000ms # Định nghĩa request chậm là > 10 giây
-        waitDurationInOpenState: 30000ms  # Sau khi ngắt mạch, bắt buộc chờ 30 giây mới cho phép thử lại (Half-Open)
-        permittedNumberOfCallsInHalfOpenState: 3 # Cho phép 3 request đi thử nghiệm khi mạch đang Half-Open
+        slidingWindowSize: 10             # Last 10 requests
+        minimumNumberOfCalls: 5           # Start calculating after at least 5 requests
+        failureRateThreshold: 50          # Open circuit when 50% of calls fail or time out
+        slowCallRateThreshold: 50         # Open circuit when 50% of calls are slow
+        slowCallDurationThreshold: 10000ms # Slow call threshold: 10 seconds
+        waitDurationInOpenState: 30000ms  # Wait 30 seconds before half-open
+        permittedNumberOfCallsInHalfOpenState: 3 # Probe calls in half-open state
         automaticTransitionFromOpenToHalfOpenEnabled: true
     instances:
       fptAiFrontOcr:
@@ -103,3 +106,32 @@ google:
 otp:
   expiration-minutes: 10
   length: 6
+
+app:
+  env: ${APP_ENV:${SPRING_PROFILES_ACTIVE:local}}
+
+media:
+  app-env: ${APP_ENV:${SPRING_PROFILES_ACTIVE:local}}
+  max-video-size-mb: ${MAX_VIDEO_SIZE_MB:2048}
+  video-upload-chunk-size-mb: ${VIDEO_UPLOAD_CHUNK_SIZE_MB:10}
+  min-video-upload-chunk-size-mb: 5
+  allowed-video-mime-types: ${ALLOWED_VIDEO_MIME_TYPES:video/mp4,video/quicktime,video/webm,video/x-matroska}
+  default-video-protection-type: ${DEFAULT_VIDEO_PROTECTION_TYPE:SIGNED_URL}
+  playback-signing-secret: ${MEDIA_PLAYBACK_SIGNING_SECRET:}
+  signed-playback-ttl-seconds: ${SIGNED_PLAYBACK_TTL_SECONDS:300}
+  enable-drm: ${ENABLE_DRM:false}
+  drm-provider: ${DRM_PROVIDER:NONE}
+  drm-license-server-url: ${DRM_LICENSE_SERVER_URL:}
+  drm-certificate-url: ${DRM_CERTIFICATE_URL:}
+  cloudinary:
+    cloud-name: ${CLOUDINARY_CLOUD_NAME:}
+    api-key: ${CLOUDINARY_API_KEY:}
+    api-secret: ${CLOUDINARY_API_SECRET:}
+    video-folder: ${CLOUDINARY_VIDEO_FOLDER:talex}
+    image-folder: ${CLOUDINARY_IMAGE_FOLDER:talex}
+    hls-streaming-profile: ${CLOUDINARY_HLS_STREAMING_PROFILE:sp_auto}
+    provider-delivery-type: ${CLOUDINARY_PROVIDER_DELIVERY_TYPE:authenticated}
+    auth-token-key: ${CLOUDINARY_AUTH_TOKEN_KEY:}
+    api-base-url: ${CLOUDINARY_API_BASE_URL:https://api.cloudinary.com}
+    delivery-base-url: ${CLOUDINARY_DELIVERY_BASE_URL:https://res.cloudinary.com}
+
