@@ -6,8 +6,6 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 
-import javax.sql.DataSource;
-
 @Configuration
 public class QuestDbConfig {
 
@@ -23,18 +21,13 @@ public class QuestDbConfig {
     @Value("${questdb.password}")
     private String password;
 
-    @Bean(name = "questDbDataSource")
-    public DataSource questDbDataSource() {
+    @Bean(name = "questDbJdbcTemplate")
+    public JdbcTemplate questDbJdbcTemplate() {
         var dataSource = new DriverManagerDataSource();
         dataSource.setDriverClassName("org.postgresql.Driver");
         dataSource.setUrl("jdbc:postgresql://" + host + ":" + port + "/qdb");
         dataSource.setUsername(username);
         dataSource.setPassword(password);
-        return dataSource;
-    }
-
-    @Bean(name = "questDbJdbcTemplate")
-    public JdbcTemplate questDbJdbcTemplate() {
-        return new JdbcTemplate(questDbDataSource());
+        return new JdbcTemplate(dataSource);
     }
 }
