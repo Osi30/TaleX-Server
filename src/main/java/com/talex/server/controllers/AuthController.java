@@ -1,5 +1,6 @@
 package com.talex.server.controllers;
 
+import com.talex.server.dtos.requests.CompleteProfileRequest;
 import com.talex.server.dtos.requests.GoogleLoginRequest;
 import com.talex.server.dtos.requests.LoginRequest;
 import com.talex.server.dtos.requests.RefreshTokenRequest;
@@ -57,7 +58,14 @@ public class AuthController {
         if (result instanceof AuthResponse auth) {
             return ResponseEntity.ok(ApiResponse.ok("Google login successful", auth));
         }
-        return ResponseEntity.ok(ApiResponse.ok("OTP đã gửi tới email của bạn", (String) result));
+        return ResponseEntity.ok(ApiResponse.ok("Vui lòng hoàn tất thông tin cá nhân", (String) result));
+    }
+
+    @PostMapping("/complete-profile")
+    @Operation(summary = "Complete profile after Google signup — provide phone and date of birth")
+    public ResponseEntity<ApiResponse<AuthResponse>> completeProfile(@Valid @RequestBody CompleteProfileRequest request) {
+        AuthResponse data = authService.completeProfile(request);
+        return ResponseEntity.ok(ApiResponse.ok("Profile completed successfully", data));
     }
 
     @PostMapping("/refresh-token")

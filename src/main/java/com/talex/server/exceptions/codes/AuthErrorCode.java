@@ -17,6 +17,7 @@ public enum AuthErrorCode {
     TOKEN_REUSE_DETECTED(4017, HttpStatus.UNAUTHORIZED, "Phát hiện sử dụng lại token — tất cả phiên đã bị thu hồi"),
     INVALID_OTP(4018, HttpStatus.BAD_REQUEST, "Mã OTP không đúng"),
     OTP_RATE_LIMITED(4019, HttpStatus.TOO_MANY_REQUESTS, "Vui lòng chờ trước khi gửi lại OTP"),
+    PROFILE_INCOMPLETE(4020, HttpStatus.FORBIDDEN, "Vui lòng hoàn tất thông tin cá nhân"),
     EMAIL_ALREADY_EXISTS(4090, HttpStatus.CONFLICT, "Email đã được sử dụng"),
     USERNAME_ALREADY_EXISTS(4091, HttpStatus.CONFLICT, "Username đã được sử dụng"),
     ROLE_NOT_FOUND(5001, HttpStatus.INTERNAL_SERVER_ERROR, "Không tìm thấy role"),

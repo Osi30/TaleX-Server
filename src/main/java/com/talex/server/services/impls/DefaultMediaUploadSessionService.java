@@ -41,7 +41,11 @@ import java.util.UUID;
 @Slf4j
 public class DefaultMediaUploadSessionService implements MediaUploadSessionService {
     private static final long MB = 1024L * 1024L;
-    private static final List<MediaStatus> BLOCKING_VIDEO_STATUSES = List.of(MediaStatus.PROCESSING, MediaStatus.ACTIVE);
+    private static final List<MediaStatus> VIDEO_REPLACEMENT_CHECK_STATUSES = List.of(
+            MediaStatus.PROCESSING,
+            MediaStatus.HLS_PROCESSING,
+            MediaStatus.HLS_READY,
+            MediaStatus.ACTIVE);
 
     private final MediaUploadSessionRepository uploadSessionRepository;
     private final MediaRepository mediaRepository;
@@ -219,6 +223,8 @@ public class DefaultMediaUploadSessionService implements MediaUploadSessionServi
                 : MediaPlaybackPolicy.SIGNED);
         media.markUpdatedBy(request.getActorId());
         media = mediaRepository.save(media);
+        log.info("HLS_PROCESSING_STARTED upload completed; waiting for Cloudinary eager webhook. mediaId={} providerPublicId={}",
+                media.getMediaId(), media.getProviderPublicId());
 
         session.setUploadedBytes(request.getBytes());
         session.setLastUploadedChunkIndex(session.getTotalChunks() == null ? null : session.getTotalChunks() - 1);
@@ -237,11 +243,13 @@ public class DefaultMediaUploadSessionService implements MediaUploadSessionServi
                 .findAllByEpisode_EpisodeIdAndMediaTypeAndStatusInAndIsDeletedFalse(
                         episodeId,
                         MediaType.VIDEO,
-                        BLOCKING_VIDEO_STATUSES);
+                        VIDEO_REPLACEMENT_CHECK_STATUSES);
 
         for (Media media : existingVideos) {
-            if (media.getStatus() == MediaStatus.ACTIVE) {
-                throw ContentModuleException.conflict("Video episode already has an active video media. Delete it before uploading a replacement.");
+            if (media.getStatus() == MediaStatus.ACTIVE
+                    || media.getStatus() == MediaStatus.HLS_READY
+                    || media.getStatus() == MediaStatus.HLS_PROCESSING) {
+                throw ContentModuleException.conflict("Video episode already has a video media or HLS processing is still running. Delete it before uploading a replacement.");
             }
 
             var sessions = uploadSessionRepository.findAllByMedia_MediaIdAndIsDeletedFalse(media.getMediaId());

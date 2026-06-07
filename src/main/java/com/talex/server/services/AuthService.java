@@ -1,5 +1,6 @@
 package com.talex.server.services;
 
+import com.talex.server.dtos.requests.CompleteProfileRequest;
 import com.talex.server.dtos.requests.GoogleLoginRequest;
 import com.talex.server.dtos.requests.LoginRequest;
 import com.talex.server.dtos.requests.RefreshTokenRequest;
@@ -17,6 +18,8 @@ public interface AuthService {
     AuthResponse login(LoginRequest request);
 
     Object googleLogin(GoogleLoginRequest request);
+
+    AuthResponse completeProfile(CompleteProfileRequest request);
 
     AuthResponse refreshToken(RefreshTokenRequest request);
 

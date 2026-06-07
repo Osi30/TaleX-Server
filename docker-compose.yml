@@ -44,5 +44,18 @@ services:
       timeout: 5s
       retries: 5
 
+  questdb:
+    image: questdb/questdb:8.2.3
+    ports:
+      - "8812:8812"
+      - "9000:9000"
+      - "9009:9009"
+    environment:
+      - QDB_PG_USER=admin
+      - QDB_PG_PASSWORD=quest
+    volumes:
+      - questdb-data:/var/lib/questdb
+
 volumes:
   pgdata:
+  questdb-data:

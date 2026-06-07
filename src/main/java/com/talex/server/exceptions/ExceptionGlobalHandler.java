@@ -30,6 +30,7 @@ import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.multipart.support.MissingServletRequestPartException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
+import java.util.Locale;
 import java.util.stream.Collectors;
 
 @RestControllerAdvice
@@ -174,9 +175,11 @@ public class ExceptionGlobalHandler {
 
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<BaseResponse> handleDataIntegrity(DataIntegrityViolationException ex) {
-        log.warn("Client error [409]: Data integrity violation - {}", ex.getMostSpecificCause().getMessage());
+        String detail = ex.getMostSpecificCause() == null ? "" : ex.getMostSpecificCause().getMessage();
+        String message = resolveDataIntegrityMessage(detail);
+        log.warn("Client error [409]: Data integrity violation - {}", detail);
         return ResponseEntity.status(HttpStatus.CONFLICT)
-                .body(new BaseResponse(409, "Data conflict - resource already exists", null));
+                .body(new BaseResponse(409, message, null));
     }
 
     @ExceptionHandler(MailException.class)
@@ -218,5 +221,32 @@ public class ExceptionGlobalHandler {
                 .data(request.getDescription(false))
                 .build();
         return new ResponseEntity<>(exceptionResponse, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
+    private String resolveDataIntegrityMessage(String detail) {
+        String normalized = detail == null ? "" : detail.toLowerCase(Locale.ROOT);
+
+        if (normalized.contains("media_status")
+                || (normalized.contains("media") && normalized.contains("status") && normalized.contains("check constraint"))) {
+            return "Media status is not allowed by the current database constraint. Update the media status constraint to include HLS_PROCESSING and HLS_READY.";
+        }
+
+        if (normalized.contains("duplicate key") || normalized.contains("unique constraint")) {
+            return "Data conflict - resource already exists";
+        }
+
+        if (normalized.contains("not-null constraint") || normalized.contains("null value in column")) {
+            return "Data conflict - required database field is missing";
+        }
+
+        if (normalized.contains("foreign key constraint")) {
+            return "Data conflict - referenced resource does not exist";
+        }
+
+        if (normalized.contains("check constraint")) {
+            return "Data conflict - value violates a database check constraint";
+        }
+
+        return "Data conflict - database constraint violation";
     }
 }

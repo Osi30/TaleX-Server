@@ -1,6 +1,7 @@
 package com.talex.server.services.impls;
 
 import com.talex.server.configs.JwtTokenProvider;
+import com.talex.server.dtos.requests.CompleteProfileRequest;
 import com.talex.server.dtos.requests.GoogleLoginRequest;
 import com.talex.server.dtos.requests.LoginRequest;
 import com.talex.server.dtos.requests.RefreshTokenRequest;
@@ -20,6 +21,7 @@ import com.talex.server.services.AuthService;
 import com.talex.server.services.GoogleAuthService;
 import com.talex.server.services.OtpService;
 import com.talex.server.services.TokenFamilyService;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -41,6 +43,14 @@ public class AuthServiceImpl implements AuthService {
     private final TokenFamilyService tokenFamilyService;
     private final GoogleAuthService googleAuthService;
 
+    private Role viewerRole;
+
+    @PostConstruct
+    void initRoles() {
+        viewerRole = roleRepository.findByCode("VIEWER")
+                .orElseThrow(() -> new RuntimeException("VIEWER role not found in database"));
+    }
+
     @Override
     @Transactional
     public String register(RegisterRequest request) {
@@ -61,9 +71,6 @@ public class AuthServiceImpl implements AuthService {
         if (accountRepository.existsByUsername(request.getUsername())) {
             throw new AuthException(AuthErrorCode.USERNAME_ALREADY_EXISTS);
         }
-
-        Role viewerRole = roleRepository.findByCode("VIEWER")
-                .orElseThrow(() -> new AuthException(AuthErrorCode.ROLE_NOT_FOUND));
 
         Account account = Account.builder()
                 .username(request.getUsername())
@@ -143,6 +150,7 @@ public class AuthServiceImpl implements AuthService {
 
             return switch (account.getStatus()) {
                 case ACTIVE -> generateAuthResponse(account);
+                case ONBOARDING -> jwtTokenProvider.generateVerificationToken(account.getAccountId());
                 case VERIFYING -> {
                     otpService.generateAndSend(account);
                     yield jwtTokenProvider.generateVerificationToken(account.getAccountId());
@@ -152,10 +160,7 @@ public class AuthServiceImpl implements AuthService {
             };
         }
 
-        // New Google account — create as VERIFYING
-        Role viewerRole = roleRepository.findByCode("VIEWER")
-                .orElseThrow(() -> new AuthException(AuthErrorCode.ROLE_NOT_FOUND));
-
+        // New Google account — create as ONBOARDING (no OTP needed, email verified by Google)
         String username = generateUsernameFromEmail(googleInfo.getEmail());
 
         Account newAccount = Account.builder()
@@ -163,15 +168,37 @@ public class AuthServiceImpl implements AuthService {
                 .email(googleInfo.getEmail())
                 .googleSubId(googleInfo.getGoogleSubId())
                 .fullName(googleInfo.getName())
-                .status(AccountStatus.VERIFYING)
+                .status(AccountStatus.ONBOARDING)
                 .role(viewerRole)
                 .build();
 
         accountRepository.save(newAccount);
-        otpService.generateAndSend(newAccount);
 
-        log.info("New Google account (VERIFYING): {}", googleInfo.getEmail());
+        log.info("New Google account (ONBOARDING): {}", googleInfo.getEmail());
         return jwtTokenProvider.generateVerificationToken(newAccount.getAccountId());
+    }
+
+    @Override
+    @Transactional
+    public AuthResponse completeProfile(CompleteProfileRequest request) {
+        UUID accountId = jwtTokenProvider.extractVerificationAccountId(
+                request.getVerificationToken());
+
+        Account account = accountRepository.findById(accountId)
+                .orElseThrow(() -> new AuthException(AuthErrorCode.INVALID_VERIFICATION_TOKEN));
+
+        if (account.getStatus() != AccountStatus.ONBOARDING) {
+            throw new AuthException(AuthErrorCode.PROFILE_INCOMPLETE,
+                    "Account is not in onboarding state");
+        }
+
+        account.setPhone(request.getPhone());
+        account.setDateOfBirth(request.getDateOfBirth());
+        account.setStatus(AccountStatus.ACTIVE);
+        accountRepository.save(account);
+
+        log.info("Profile completed for accountId: {}", accountId);
+        return generateAuthResponse(account);
     }
 
     @Override
@@ -223,6 +250,7 @@ public class AuthServiceImpl implements AuthService {
         switch (account.getStatus()) {
             case ACTIVE -> { /* OK */ }
             case VERIFYING -> throw new AuthException(AuthErrorCode.ACCOUNT_NOT_VERIFIED);
+            case ONBOARDING -> throw new AuthException(AuthErrorCode.PROFILE_INCOMPLETE);
             case BANNED -> throw new AuthException(AuthErrorCode.ACCOUNT_BANNED);
             case DELETED -> throw new AuthException(AuthErrorCode.ACCOUNT_DELETED);
         }

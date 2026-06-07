@@ -111,13 +111,18 @@ public class EpisodeServiceImpl implements EpisodeService {
     @Override
     public EpisodeResponseDto publish(String id, String actorId) {
         Episode episode = findActiveEntity(id);
-        boolean hasActiveMedia = !mediaRepository
-                .findAllByEpisode_EpisodeIdAndStatusAndIsDeletedFalseOrderByDisplayOrderAsc(
+        boolean hasReadyMedia = !mediaRepository
+                .findAllByEpisode_EpisodeIdAndMediaTypeAndStatusInAndIsDeletedFalse(
                         id,
-                        MediaStatus.ACTIVE)
+                        episode.getContentType() == ContentType.VIDEO
+                                ? com.talex.server.enums.MediaType.VIDEO
+                                : com.talex.server.enums.MediaType.IMAGE,
+                        episode.getContentType() == ContentType.VIDEO
+                                ? List.of(MediaStatus.HLS_READY, MediaStatus.ACTIVE)
+                                : List.of(MediaStatus.ACTIVE))
                 .isEmpty();
-        if (!hasActiveMedia) {
-            throw ContentModuleException.badRequest("Episode must have at least one active media before publishing");
+        if (!hasReadyMedia) {
+            throw ContentModuleException.badRequest("Episode must have at least one ready media before publishing");
         }
 
         episode.setStatus(EpisodeStatus.PUBLISHED);
