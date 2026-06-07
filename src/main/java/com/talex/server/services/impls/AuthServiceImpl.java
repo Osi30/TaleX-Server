@@ -1,17 +1,10 @@
 package com.talex.server.services.impls;
 
 import com.talex.server.configs.JwtTokenProvider;
-import com.talex.server.dtos.requests.CompleteProfileRequest;
-import com.talex.server.dtos.requests.GoogleLoginRequest;
-import com.talex.server.dtos.requests.LoginRequest;
-import com.talex.server.dtos.requests.RefreshTokenRequest;
-import com.talex.server.dtos.requests.RegisterRequest;
-import com.talex.server.dtos.requests.ResendOtpRequest;
-import com.talex.server.dtos.requests.VerifyOtpRequest;
+import com.talex.server.dtos.requests.*;
 import com.talex.server.dtos.responses.AuthResponse;
 import com.talex.server.dtos.responses.GoogleUserInfo;
 import com.talex.server.entities.Account;
-import com.talex.server.entities.Role;
 import com.talex.server.enums.AccountStatus;
 import com.talex.server.exceptions.codes.AuthErrorCode;
 import com.talex.server.exceptions.details.AuthException;
@@ -21,7 +14,6 @@ import com.talex.server.services.AuthService;
 import com.talex.server.services.GoogleAuthService;
 import com.talex.server.services.OtpService;
 import com.talex.server.services.TokenFamilyService;
-import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -42,14 +34,6 @@ public class AuthServiceImpl implements AuthService {
     private final OtpService otpService;
     private final TokenFamilyService tokenFamilyService;
     private final GoogleAuthService googleAuthService;
-
-    private Role viewerRole;
-
-    @PostConstruct
-    void initRoles() {
-        viewerRole = roleRepository.findByCode("VIEWER")
-                .orElseThrow(() -> new RuntimeException("VIEWER role not found in database"));
-    }
 
     @Override
     @Transactional
@@ -79,7 +63,8 @@ public class AuthServiceImpl implements AuthService {
                 .fullName(request.getFullName())
                 .dateOfBirth(request.getDateOfBirth())
                 .phone(request.getPhone())
-                .role(viewerRole)
+                .role(roleRepository.findByCode("VIEWER")
+                        .orElseThrow(() -> new AuthException(AuthErrorCode.ROLE_NOT_FOUND)))
                 .build();
 
         accountRepository.save(account);
@@ -169,7 +154,8 @@ public class AuthServiceImpl implements AuthService {
                 .googleSubId(googleInfo.getGoogleSubId())
                 .fullName(googleInfo.getName())
                 .status(AccountStatus.ONBOARDING)
-                .role(viewerRole)
+                .role(roleRepository.findByCode("VIEWER")
+                        .orElseThrow(() -> new AuthException(AuthErrorCode.ROLE_NOT_FOUND)))
                 .build();
 
         accountRepository.save(newAccount);

@@ -54,7 +54,7 @@ public class SeasonServiceImpl implements SeasonService {
     @Transactional(readOnly = true)
     @Override
     public List<SeasonResponseDto> listBySeries(String seriesId) {
-        seriesService.findActiveEntity(seriesId);
+//        seriesService.findActiveEntity(seriesId);
         return seasonRepository.findAllBySeries_SeriesIdAndIsDeletedFalseOrderBySeasonNumberAsc(seriesId)
                 .stream()
                 .map(this::toResponse)
@@ -64,7 +64,7 @@ public class SeasonServiceImpl implements SeasonService {
     @Transactional(readOnly = true)
     @Override
     public List<SeasonResponseDto> listPublicBySeries(String seriesId) {
-        seriesService.findPublicEntity(seriesId);
+//        seriesService.findPublicEntity(seriesId);
         return seasonRepository
                 .findAllBySeries_SeriesIdAndStatusAndIsDeletedFalseOrderBySeasonNumberAsc(
                         seriesId,

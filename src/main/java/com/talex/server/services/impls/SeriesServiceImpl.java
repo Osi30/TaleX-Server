@@ -3,11 +3,7 @@ package com.talex.server.services.impls;
 import com.talex.server.dtos.BasePageResponse;
 import com.talex.server.dtos.requests.SeriesRequestDto;
 import com.talex.server.dtos.responses.SeriesResponseDto;
-import com.talex.server.entities.Category;
-import com.talex.server.entities.Series;
-import com.talex.server.entities.SeriesCategory;
-import com.talex.server.entities.SeriesTag;
-import com.talex.server.entities.Tag;
+import com.talex.server.entities.*;
 import com.talex.server.enums.SeriesStatus;
 import com.talex.server.enums.Visibility;
 import com.talex.server.exceptions.details.ContentModuleException;
@@ -17,11 +13,9 @@ import com.talex.server.repositories.SeriesTagRepository;
 import com.talex.server.services.CategoryService;
 import com.talex.server.services.SeriesService;
 import com.talex.server.services.TagService;
+import com.talex.server.utils.PageUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -71,7 +65,7 @@ public class SeriesServiceImpl implements SeriesService {
     @Transactional(readOnly = true)
     @Override
     public BasePageResponse<SeriesResponseDto> list(Integer page, Integer pageSize) {
-        Page<SeriesResponseDto> result = seriesRepository.findAllByIsDeletedFalse(buildPageable(page, pageSize))
+        Page<SeriesResponseDto> result = seriesRepository.findAllByIsDeletedFalse(PageUtils.buildPageable(page, pageSize))
                 .map(this::toResponse);
         return toPageResponse(result);
     }
@@ -84,7 +78,7 @@ public class SeriesServiceImpl implements SeriesService {
         }
 
         Page<SeriesResponseDto> result = seriesRepository
-                .findAllByCreatorIdAndIsDeletedFalse(creatorId, buildPageable(page, pageSize))
+                .findAllByCreatorIdAndIsDeletedFalse(creatorId, PageUtils.buildPageable(page, pageSize))
                 .map(this::toResponse);
         return toPageResponse(result);
     }
@@ -96,7 +90,7 @@ public class SeriesServiceImpl implements SeriesService {
                 .findAllByVisibilityAndStatusAndIsDeletedFalse(
                         Visibility.PUBLIC,
                         SeriesStatus.PUBLISHED,
-                        buildPageable(page, pageSize))
+                        PageUtils.buildPageable(page, pageSize))
                 .map(this::toResponse);
         return toPageResponse(result);
     }
@@ -296,12 +290,6 @@ public class SeriesServiceImpl implements SeriesService {
         return ids.stream()
                 .filter(id -> id != null && !id.isBlank())
                 .collect(Collectors.toCollection(HashSet::new));
-    }
-
-    private Pageable buildPageable(Integer page, Integer pageSize) {
-        int safePage = page == null || page < 1 ? 1 : page;
-        int safePageSize = pageSize == null || pageSize < 1 ? 20 : pageSize;
-        return PageRequest.of(safePage - 1, safePageSize, Sort.by(Sort.Direction.DESC, "createdAt"));
     }
 
     private BasePageResponse<SeriesResponseDto> toPageResponse(Page<SeriesResponseDto> page) {

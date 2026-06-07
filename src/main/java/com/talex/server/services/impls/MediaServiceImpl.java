@@ -30,13 +30,7 @@ import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashSet;
-import java.util.HexFormat;
-import java.util.List;
-import java.util.Locale;
-import java.util.Set;
+import java.util.*;
 import java.util.regex.Pattern;
 
 @Service
@@ -76,7 +70,7 @@ public class MediaServiceImpl implements MediaService {
         if (request == null || request.getPages() == null || request.getPages().isEmpty()) {
             throw ContentModuleException.badRequest("At least one comic page URL is required");
         }
-        if (request.getPages().stream().anyMatch(page -> page == null)) {
+        if (request.getPages().stream().anyMatch(Objects::isNull)) {
             throw ContentModuleException.badRequest("Comic page item must not be null");
         }
 
@@ -420,7 +414,7 @@ public class MediaServiceImpl implements MediaService {
                             MediaType.VIDEO,
                             VIDEO_REPLACEMENT_BLOCKING_STATUSES)
                     .stream()
-                    .anyMatch(media -> currentMediaId == null || !media.getMediaId().equals(currentMediaId));
+                    .anyMatch(media -> !media.getMediaId().equals(currentMediaId));
             if (hasAnotherReadyVideo) {
                 throw ContentModuleException.conflict("Video episode already has a video media or HLS processing is still running");
             }
@@ -478,7 +472,7 @@ public class MediaServiceImpl implements MediaService {
 
     private void rejectDuplicate(String checksum, String currentMediaId) {
         mediaRepository.findFirstByChecksumAndIsDeletedFalse(checksum)
-                .filter(existing -> currentMediaId == null || !existing.getMediaId().equals(currentMediaId))
+                .filter(existing -> !existing.getMediaId().equals(currentMediaId))
                 .ifPresent(existing -> {
                     throw ContentModuleException.conflict("Duplicate media URL detected");
                 });
@@ -537,7 +531,7 @@ public class MediaServiceImpl implements MediaService {
                 .findAllByEpisode_EpisodeIdAndIsDeletedFalseOrderByDisplayOrderAsc(episodeId)
                 .stream()
                 .map(Media::getDisplayOrder)
-                .filter(order -> order != null)
+                .filter(Objects::nonNull)
                 .collect(java.util.stream.Collectors.toSet());
         if (displayOrders.stream().anyMatch(existingOrders::contains)) {
             throw ContentModuleException.conflict("displayOrder already exists in this episode");
@@ -555,7 +549,7 @@ public class MediaServiceImpl implements MediaService {
         return mediaRepository.findAllByEpisode_EpisodeIdAndIsDeletedFalseOrderByDisplayOrderAsc(episodeId)
                 .stream()
                 .map(Media::getDisplayOrder)
-                .filter(order -> order != null)
+                .filter(Objects::nonNull)
                 .max(Integer::compareTo)
                 .orElse(0) + 1;
     }

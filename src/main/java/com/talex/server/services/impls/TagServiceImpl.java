@@ -8,16 +8,13 @@ import com.talex.server.enums.TagStatus;
 import com.talex.server.exceptions.details.ContentModuleException;
 import com.talex.server.repositories.TagRepository;
 import com.talex.server.services.TagService;
+import com.talex.server.utils.PageUtils;
+import com.talex.server.utils.SlugUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.text.Normalizer;
-import java.util.Locale;
 
 @Service
 @RequiredArgsConstructor
@@ -27,7 +24,7 @@ public class TagServiceImpl implements TagService {
     @Transactional
     @Override
     public TagResponseDto create(TagRequestDto request) {
-        String slug = normalizeSlug(request.getSlug(), request.getTagName());
+        String slug = SlugUtils.normalizeSlug(request.getSlug(), request.getTagName());
         ensureSlugAvailable(slug, null);
 
         Tag tag = new Tag();
@@ -49,7 +46,7 @@ public class TagServiceImpl implements TagService {
     @Transactional(readOnly = true)
     @Override
     public BasePageResponse<TagResponseDto> list(Integer page, Integer pageSize) {
-        Pageable pageable = buildPageable(page, pageSize);
+        Pageable pageable = PageUtils.buildPageable(page, pageSize);
         Page<TagResponseDto> result = tagRepository.findAllByIsDeletedFalse(pageable)
                 .map(this::toResponse);
         return toPageResponse(result);
@@ -58,7 +55,7 @@ public class TagServiceImpl implements TagService {
     @Transactional(readOnly = true)
     @Override
     public BasePageResponse<TagResponseDto> listPublic(Integer page, Integer pageSize) {
-        Pageable pageable = buildPageable(page, pageSize);
+        Pageable pageable = PageUtils.buildPageable(page, pageSize);
         Page<TagResponseDto> result = tagRepository
                 .findAllByStatusAndIsDeletedFalse(TagStatus.ACTIVE, pageable)
                 .map(this::toResponse);
@@ -69,7 +66,7 @@ public class TagServiceImpl implements TagService {
     @Override
     public TagResponseDto update(String id, TagRequestDto request) {
         Tag tag = findActiveEntity(id);
-        String slug = normalizeSlug(request.getSlug(), request.getTagName());
+        String slug = SlugUtils.normalizeSlug(request.getSlug(), request.getTagName());
         ensureSlugAvailable(slug, id);
 
         tag.setTagName(request.getTagName());
@@ -145,16 +142,10 @@ public class TagServiceImpl implements TagService {
 
     private void ensureSlugAvailable(String slug, String currentId) {
         tagRepository.findBySlugAndIsDeletedFalse(slug)
-                .filter(existing -> currentId == null || !existing.getTagId().equals(currentId))
+                .filter(existing -> !existing.getTagId().equals(currentId))
                 .ifPresent(existing -> {
                     throw ContentModuleException.conflict("Tag slug already exists: " + slug);
                 });
-    }
-
-    private Pageable buildPageable(Integer page, Integer pageSize) {
-        int safePage = page == null || page < 1 ? 1 : page;
-        int safePageSize = pageSize == null || pageSize < 1 ? 20 : pageSize;
-        return PageRequest.of(safePage - 1, safePageSize, Sort.by(Sort.Direction.DESC, "createdAt"));
     }
 
     private BasePageResponse<TagResponseDto> toPageResponse(Page<TagResponseDto> page) {
@@ -167,19 +158,5 @@ public class TagServiceImpl implements TagService {
                 .isFirst(page.isFirst())
                 .isLast(page.isLast())
                 .build();
-    }
-
-    private String normalizeSlug(String slug, String fallback) {
-        String value = slug == null || slug.isBlank() ? fallback : slug;
-        String normalized = Normalizer.normalize(value, Normalizer.Form.NFD)
-                .replaceAll("\\p{M}", "")
-                .toLowerCase(Locale.ROOT)
-                .replaceAll("[^a-z0-9]+", "-")
-                .replaceAll("(^-|-$)", "");
-
-        if (normalized.isBlank()) {
-            throw ContentModuleException.badRequest("Slug cannot be empty");
-        }
-        return normalized;
     }
 }
