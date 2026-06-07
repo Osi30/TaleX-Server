@@ -43,6 +43,8 @@ public class WatchTickController {
 //                    .intColumn("dwell_time", dwellTime)
                     .atNow(); // Tự động lấy timestamp hiện tại của hệ thống làm mốc thời gian log
 
+            questDBSender.flush();
+
             return ResponseEntity.ok("Tick ghi nhận thành công.");
 
         } catch (Exception e) {

@@ -4,8 +4,6 @@ import io.questdb.client.Sender;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.datasource.DriverManagerDataSource;
 
 @Configuration
 public class QuestDbConfig {
@@ -21,6 +19,7 @@ public class QuestDbConfig {
         // Khởi tạo Sender kết nối qua giao thức mạng TCP siêu tốc của QuestDB
         return Sender.builder(Sender.Transport.TCP)
                 .address(host + ":" + port)
+                .bufferCapacity(1024)
                 .build();
     }
 }
