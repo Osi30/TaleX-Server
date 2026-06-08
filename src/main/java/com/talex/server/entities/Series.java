@@ -10,6 +10,7 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
@@ -21,7 +22,12 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "series")
+@Table(
+        name = "series",
+        indexes = {
+                @Index(name = "idx_series_creator_deleted", columnList = "creator_id,is_deleted"),
+                @Index(name = "idx_series_public_listing", columnList = "visibility,status,is_deleted")
+        })
 @Getter
 @Setter
 @NoArgsConstructor

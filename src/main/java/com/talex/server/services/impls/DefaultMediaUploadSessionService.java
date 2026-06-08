@@ -19,9 +19,9 @@ import com.talex.server.enums.MediaStatus;
 import com.talex.server.enums.MediaType;
 import com.talex.server.enums.MediaUploadSessionStatus;
 import com.talex.server.exceptions.details.ContentModuleException;
+import com.talex.server.repositories.EpisodeRepository;
 import com.talex.server.repositories.MediaRepository;
 import com.talex.server.repositories.MediaUploadSessionRepository;
-import com.talex.server.services.EpisodeService;
 import com.talex.server.services.MediaService;
 import com.talex.server.services.MediaUploadSessionService;
 import com.talex.server.services.media.MediaProviderService;
@@ -32,8 +32,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -41,23 +44,32 @@ import java.util.UUID;
 @Slf4j
 public class DefaultMediaUploadSessionService implements MediaUploadSessionService {
     private static final long MB = 1024L * 1024L;
-    private static final List<MediaStatus> VIDEO_REPLACEMENT_CHECK_STATUSES = List.of(
-            MediaStatus.PROCESSING,
-            MediaStatus.HLS_PROCESSING,
+    private static final List<MediaStatus> VIDEO_UPLOAD_BLOCKING_STATUSES = List.of(
+            MediaStatus.ACTIVE,
             MediaStatus.HLS_READY,
-            MediaStatus.ACTIVE);
+            MediaStatus.HLS_PROCESSING);
+    private static final List<MediaStatus> STALE_VIDEO_UPLOAD_STATUSES = List.of(MediaStatus.PROCESSING);
+    private static final Set<MediaUploadSessionStatus> TERMINAL_UPLOAD_SESSION_STATUSES = EnumSet.of(
+            MediaUploadSessionStatus.COMPLETED,
+            MediaUploadSessionStatus.FAILED,
+            MediaUploadSessionStatus.CANCELLED,
+            MediaUploadSessionStatus.EXPIRED);
+    private static final Set<MediaUploadSessionStatus> ALLOWED_PROGRESS_STATUSES = EnumSet.of(
+            MediaUploadSessionStatus.UPLOADING,
+            MediaUploadSessionStatus.PAUSED);
 
     private final MediaUploadSessionRepository uploadSessionRepository;
     private final MediaRepository mediaRepository;
-    private final EpisodeService episodeService;
+    private final EpisodeRepository episodeRepository;
     private final MediaService mediaService;
     private final MediaProviderService mediaProviderService;
     private final MediaProperties mediaProperties;
+    private final CloudinaryHlsReconcileService cloudinaryHlsReconcileService;
 
     @Transactional
     @Override
     public VideoUploadSessionResponseDto createVideoUploadSession(String episodeId, VideoUploadSessionRequestDto request) {
-        Episode episode = episodeService.findActiveEntity(episodeId);
+        Episode episode = lockActiveEpisode(episodeId);
         validateVideoEpisode(episode);
         validateVideoRequest(request);
 
@@ -91,7 +103,6 @@ public class DefaultMediaUploadSessionService implements MediaUploadSessionServi
         media.setProviderPublicId(providerPublicId);
         media.setStorageProvider(MediaProvider.CLOUDINARY.name());
         media.setExternalPublicId(providerPublicId);
-        mediaRepository.save(media);
 
         MediaUploadSession session = new MediaUploadSession();
         session.setUploadSessionId(UUID.randomUUID().toString());
@@ -133,20 +144,37 @@ public class DefaultMediaUploadSessionService implements MediaUploadSessionServi
     @Override
     public MediaUploadSessionResponseDto updateProgress(String uploadSessionId, MediaUploadProgressRequestDto request) {
         MediaUploadSession session = findSession(uploadSessionId);
+        MediaUploadSessionStatus nextStatus = request.getStatus() == null
+                ? MediaUploadSessionStatus.UPLOADING
+                : request.getStatus();
+
+        if (!ALLOWED_PROGRESS_STATUSES.contains(nextStatus)) {
+            throw ContentModuleException.badRequest("Upload progress status must be UPLOADING or PAUSED");
+        }
         if (request.getUploadedBytes() > session.getFileSize()) {
             throw ContentModuleException.badRequest("uploadedBytes cannot exceed fileSize");
         }
-        if (session.getStatus() == MediaUploadSessionStatus.COMPLETED
-                || session.getStatus() == MediaUploadSessionStatus.CANCELLED
-                || session.getStatus() == MediaUploadSessionStatus.EXPIRED) {
+        if (TERMINAL_UPLOAD_SESSION_STATUSES.contains(session.getStatus())) {
             throw ContentModuleException.badRequest("Upload session cannot accept progress in status " + session.getStatus());
+        }
+        validateChunkIndex(session, request.getLastUploadedChunkIndex());
+
+        long currentUploadedBytes = session.getUploadedBytes() == null ? 0L : session.getUploadedBytes();
+        if (request.getUploadedBytes() < currentUploadedBytes) {
+            log.debug("Ignored stale video upload progress. uploadSessionId={} currentUploadedBytes={} requestedUploadedBytes={}",
+                    uploadSessionId, currentUploadedBytes, request.getUploadedBytes());
+            return toResponse(session);
+        }
+
+        if (isSameProgress(session, request, nextStatus)) {
+            return toResponse(session);
         }
 
         session.setUploadedBytes(request.getUploadedBytes());
         session.setLastUploadedChunkIndex(request.getLastUploadedChunkIndex());
-        session.setStatus(request.getStatus() == null ? MediaUploadSessionStatus.UPLOADING : request.getStatus());
+        session.setStatus(nextStatus);
         session.markUpdatedBy(request.getActorId());
-        log.info("Video upload progress updated. uploadSessionId={} uploadedBytes={}",
+        log.debug("Video upload progress updated. uploadSessionId={} uploadedBytes={}",
                 uploadSessionId, request.getUploadedBytes());
         return toResponse(uploadSessionRepository.save(session));
     }
@@ -198,16 +226,20 @@ public class DefaultMediaUploadSessionService implements MediaUploadSessionServi
     @Override
     public MediaResponseDto complete(String uploadSessionId, MediaUploadCompleteRequestDto request) {
         MediaUploadSession session = findSession(uploadSessionId);
-        if (session.getStatus() == MediaUploadSessionStatus.CANCELLED
+        lockActiveEpisode(session.getEpisode().getEpisodeId());
+        if (session.getStatus() == MediaUploadSessionStatus.COMPLETED) {
+            validateCompletedRequestMatchesSession(session, request);
+            if (session.getMedia() == null) {
+                throw ContentModuleException.notFound("Reserved media not found for upload session");
+            }
+            return mediaService.toResponse(session.getMedia());
+        }
+        if (session.getStatus() == MediaUploadSessionStatus.FAILED
+                || session.getStatus() == MediaUploadSessionStatus.CANCELLED
                 || session.getStatus() == MediaUploadSessionStatus.EXPIRED) {
             throw ContentModuleException.badRequest("Upload session cannot complete in status " + session.getStatus());
         }
-        if (!session.getProviderPublicId().equals(request.getPublicId())) {
-            throw ContentModuleException.badRequest("Cloudinary publicId does not match upload session");
-        }
-        if (request.getBytes() > session.getFileSize()) {
-            throw ContentModuleException.badRequest("Completed byte size cannot exceed declared fileSize");
-        }
+        validateCompletedRequestMatchesSession(session, request);
 
         Media media = session.getMedia();
         if (media == null) {
@@ -225,6 +257,7 @@ public class DefaultMediaUploadSessionService implements MediaUploadSessionServi
         media = mediaRepository.save(media);
         log.info("HLS_PROCESSING_STARTED upload completed; waiting for Cloudinary eager webhook. mediaId={} providerPublicId={}",
                 media.getMediaId(), media.getProviderPublicId());
+        cloudinaryHlsReconcileService.notifyProcessingMedia();
 
         session.setUploadedBytes(request.getBytes());
         session.setLastUploadedChunkIndex(session.getTotalChunks() == null ? null : session.getTotalChunks() - 1);
@@ -238,41 +271,90 @@ public class DefaultMediaUploadSessionService implements MediaUploadSessionServi
         return mediaService.toResponse(media);
     }
 
+    private void validateCompletedRequestMatchesSession(MediaUploadSession session, MediaUploadCompleteRequestDto request) {
+        if (!session.getProviderPublicId().equals(request.getPublicId())) {
+            throw ContentModuleException.badRequest("Cloudinary publicId does not match upload session");
+        }
+        if (request.getBytes() > session.getFileSize()) {
+            throw ContentModuleException.badRequest("Completed byte size cannot exceed declared fileSize");
+        }
+    }
+
+    private void validateChunkIndex(MediaUploadSession session, Integer lastUploadedChunkIndex) {
+        if (lastUploadedChunkIndex == null) {
+            return;
+        }
+        if (lastUploadedChunkIndex < -1) {
+            throw ContentModuleException.badRequest("lastUploadedChunkIndex cannot be less than -1");
+        }
+        if (session.getTotalChunks() != null && lastUploadedChunkIndex >= session.getTotalChunks()) {
+            throw ContentModuleException.badRequest("lastUploadedChunkIndex cannot exceed totalChunks");
+        }
+    }
+
+    private boolean isSameProgress(
+            MediaUploadSession session,
+            MediaUploadProgressRequestDto request,
+            MediaUploadSessionStatus nextStatus) {
+        return java.util.Objects.equals(session.getUploadedBytes(), request.getUploadedBytes())
+                && java.util.Objects.equals(session.getLastUploadedChunkIndex(), request.getLastUploadedChunkIndex())
+                && session.getStatus() == nextStatus
+                && java.util.Objects.equals(session.getUpdatedBy(), request.getActorId());
+    }
+
     private void reconcileExistingVideoMedia(String episodeId, String actorId) {
-        var existingVideos = mediaRepository
+        boolean hasBlockingVideo = mediaRepository.existsByEpisode_EpisodeIdAndMediaTypeAndStatusInAndIsDeletedFalse(
+                episodeId,
+                MediaType.VIDEO,
+                VIDEO_UPLOAD_BLOCKING_STATUSES);
+        if (hasBlockingVideo) {
+            throw ContentModuleException.conflict("Video episode already has a video media or HLS processing is still running. Delete it before uploading a replacement.");
+        }
+
+        var staleProcessingVideos = mediaRepository
                 .findAllByEpisode_EpisodeIdAndMediaTypeAndStatusInAndIsDeletedFalse(
                         episodeId,
                         MediaType.VIDEO,
-                        VIDEO_REPLACEMENT_CHECK_STATUSES);
+                        STALE_VIDEO_UPLOAD_STATUSES);
+        if (staleProcessingVideos.isEmpty()) {
+            return;
+        }
 
-        for (Media media : existingVideos) {
-            if (media.getStatus() == MediaStatus.ACTIVE
-                    || media.getStatus() == MediaStatus.HLS_READY
-                    || media.getStatus() == MediaStatus.HLS_PROCESSING) {
-                throw ContentModuleException.conflict("Video episode already has a video media or HLS processing is still running. Delete it before uploading a replacement.");
-            }
+        List<String> staleMediaIds = staleProcessingVideos.stream()
+                .map(Media::getMediaId)
+                .toList();
+        List<MediaUploadSession> sessionsToCancel = new ArrayList<>();
+        uploadSessionRepository.findAllByMedia_MediaIdInAndIsDeletedFalse(staleMediaIds)
+                .stream()
+                .filter(session -> session.getStatus() != MediaUploadSessionStatus.COMPLETED)
+                .forEach(session -> {
+                    session.setStatus(MediaUploadSessionStatus.CANCELLED);
+                    session.setErrorMessage("Superseded by a new upload session");
+                    session.markUpdatedBy(actorId);
+                    sessionsToCancel.add(session);
+                });
+        if (!sessionsToCancel.isEmpty()) {
+            uploadSessionRepository.saveAll(sessionsToCancel);
+        }
 
-            var sessions = uploadSessionRepository.findAllByMedia_MediaIdAndIsDeletedFalse(media.getMediaId());
-            sessions.stream()
-                    .filter(session -> session.getStatus() != MediaUploadSessionStatus.COMPLETED)
-                    .forEach(session -> {
-                        session.setStatus(MediaUploadSessionStatus.CANCELLED);
-                        session.setErrorMessage("Superseded by a new upload session");
-                        session.markUpdatedBy(actorId);
-                        uploadSessionRepository.save(session);
-                    });
-
+        for (Media media : staleProcessingVideos) {
             media.setStatus(MediaStatus.DELETED);
             media.setErrorMessage("Superseded by a new upload session");
             media.softDelete(actorId);
-            mediaRepository.save(media);
             log.info("Cancelled stale processing video before creating a new upload session. mediaId={} episodeId={}",
                     media.getMediaId(), episodeId);
         }
+        mediaRepository.saveAll(staleProcessingVideos);
     }
+
     private MediaUploadSession findSession(String uploadSessionId) {
         return uploadSessionRepository.findByUploadSessionIdAndIsDeletedFalse(uploadSessionId)
                 .orElseThrow(() -> ContentModuleException.notFound("Upload session not found: " + uploadSessionId));
+    }
+
+    private Episode lockActiveEpisode(String episodeId) {
+        return episodeRepository.lockByEpisodeIdAndIsDeletedFalse(episodeId)
+                .orElseThrow(() -> ContentModuleException.notFound("Episode not found: " + episodeId));
     }
 
     private void validateVideoEpisode(Episode episode) {

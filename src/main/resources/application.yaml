@@ -5,10 +5,11 @@
     active: ${SPRING_PROFILES_ACTIVE:local}
   application:
     name: talex-server
-  datasource:
-    driver-class-name: org.postgresql.Driver
-    username: ${DB_USERNAME:postgres}
-    password: ${DB_PASSWORD:12345}
+#  datasource:
+#    driver-class-name: org.postgresql.Driver
+#    username: ${DB_USERNAME:postgres}
+#    password: ${DB_PASSWORD:12345}
+#    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:talex-db}${DB_OPTIONS:}
 #    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:talex-db}
 
   #  datasource:
@@ -16,20 +17,24 @@
   #    username: neondb_owner
   #    password: npg_zEU3djeluHX7
   #    url: jdbc:postgresql://ep-long-silence-ao009tbp.c-2.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require
-    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:talex-db}${DB_OPTIONS:}
-#  datasource:
-#    driver-class-name: org.postgresql.Driver
-#    username: neondb_owner
-#    password: npg_zEU3djeluHX7
-#    url: jdbc:postgresql://ep-long-silence-ao009tbp.c-2.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require
+
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    username: neondb_owner
+    password: npg_zEU3djeluHX7
+    url: jdbc:postgresql://ep-long-silence-ao009tbp.c-2.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require
 
   jpa:
-    show-sql: true
+    show-sql: ${JPA_SHOW_SQL:false}
     hibernate:
       ddl-auto: update
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
+        jdbc:
+          batch_size: 50
+        order_inserts: true
+        order_updates: true
 
   servlet:
     multipart:
@@ -141,4 +146,9 @@ media:
     webhook-signing-secret: ${CLOUDINARY_WEBHOOK_SIGNING_SECRET:${CLOUDINARY_API_SECRET:}}
     api-base-url: ${CLOUDINARY_API_BASE_URL:https://api.cloudinary.com}
     delivery-base-url: ${CLOUDINARY_DELIVERY_BASE_URL:https://res.cloudinary.com}
+    reconcile-enabled: ${CLOUDINARY_RECONCILE_ENABLED:true}
+    reconcile-fixed-delay-ms: ${CLOUDINARY_RECONCILE_FIXED_DELAY_MS:60000}
+    reconcile-stale-after-seconds: ${CLOUDINARY_RECONCILE_STALE_AFTER_SECONDS:30}
+    reconcile-eager-retry-after-seconds: ${CLOUDINARY_RECONCILE_EAGER_RETRY_AFTER_SECONDS:300}
+    reconcile-page-size: ${CLOUDINARY_RECONCILE_PAGE_SIZE:20}
 

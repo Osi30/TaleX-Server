@@ -16,6 +16,7 @@ import com.talex.server.enums.MediaProvider;
 import com.talex.server.enums.MediaStatus;
 import com.talex.server.enums.MediaType;
 import com.talex.server.exceptions.details.ContentModuleException;
+import com.talex.server.repositories.EpisodeRepository;
 import com.talex.server.repositories.MediaRepository;
 import com.talex.server.services.EpisodeService;
 import com.talex.server.services.MediaPlaybackSecurityService;
@@ -31,6 +32,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.*;
+import java.util.function.Function;
 import java.util.regex.Pattern;
 
 @Service
@@ -45,14 +47,24 @@ public class MediaServiceImpl implements MediaService {
             MediaStatus.HLS_PROCESSING);
 
     private final MediaRepository mediaRepository;
+    private final EpisodeRepository episodeRepository;
     private final EpisodeService episodeService;
     private final MediaProviderService mediaProviderService;
     private final MediaPlaybackSecurityService playbackSecurityService;
 
+    private record PreparedMediaUrl(
+            String fileUrl,
+            String checksum,
+            String mimeType,
+            Long fileSize,
+            String storageProvider,
+            MediaProvider provider) {
+    }
+
     @Transactional
     @Override
     public MediaResponseDto createFromUrl(String episodeId, MediaMetadataRequestDto request) {
-        Episode episode = episodeService.findActiveEntity(episodeId);
+        Episode episode = lockActiveEpisode(episodeId);
         if (request == null) {
             throw ContentModuleException.badRequest("Media URL request is required");
         }
@@ -63,7 +75,7 @@ public class MediaServiceImpl implements MediaService {
     @Transactional
     @Override
     public List<MediaResponseDto> createComicPagesFromUrls(String episodeId, MediaComicPagesRequestDto request) {
-        Episode episode = episodeService.findActiveEntity(episodeId);
+        Episode episode = lockActiveEpisode(episodeId);
         if (episode.getContentType() != ContentType.COMIC) {
             throw ContentModuleException.badRequest("Batch media URL creation is only supported for comic episodes");
         }
@@ -75,7 +87,9 @@ public class MediaServiceImpl implements MediaService {
         }
 
         List<Integer> resolvedOrders = resolveComicDisplayOrders(episodeId, request.getPages());
-        List<MediaResponseDto> responses = new ArrayList<>();
+        List<MediaMetadataRequestDto> metadataRequests = new ArrayList<>();
+        List<PreparedMediaUrl> preparedUrls = new ArrayList<>();
+        Set<String> requestedChecksums = new HashSet<>();
         for (int i = 0; i < request.getPages().size(); i++) {
             MediaComicPageRequestDto page = request.getPages().get(i);
             MediaMetadataRequestDto metadata = new MediaMetadataRequestDto();
@@ -91,10 +105,31 @@ public class MediaServiceImpl implements MediaService {
             metadata.setHeight(page.getHeight());
             metadata.setResolution(page.getResolution());
             metadata.setActorId(request.getActorId());
-            responses.add(createOneFromUrl(episode, metadata, MediaType.IMAGE, resolvedOrders.get(i)));
+            PreparedMediaUrl preparedUrl = prepareUrl(metadata, MediaType.IMAGE);
+            if (!requestedChecksums.add(preparedUrl.checksum())) {
+                throw ContentModuleException.conflict("Duplicate media URL detected");
+            }
+            metadataRequests.add(metadata);
+            preparedUrls.add(preparedUrl);
         }
 
-        return responses;
+        rejectDuplicateChecksums(requestedChecksums, null);
+
+        List<Media> mediaList = new ArrayList<>();
+        for (int i = 0; i < metadataRequests.size(); i++) {
+            Media media = new Media();
+            media.setEpisode(episode);
+            media.setMediaType(MediaType.IMAGE);
+            media.setDisplayOrder(resolvedOrders.get(i));
+            applyPreparedUrl(media, metadataRequests.get(i), MediaType.IMAGE, preparedUrls.get(i));
+            media.markCreatedBy(request.getActorId());
+            mediaList.add(media);
+        }
+
+        return mediaRepository.saveAll(mediaList)
+                .stream()
+                .map(this::toResponse)
+                .toList();
     }
 
     @Transactional(readOnly = true)
@@ -156,6 +191,11 @@ public class MediaServiceImpl implements MediaService {
         }
         if (request.getDisplayOrder() != null) {
             ensureImageMedia(media);
+            Episode episode = lockActiveEpisode(media.getEpisode().getEpisodeId());
+            ensureDisplayOrderAvailable(
+                    episode.getEpisodeId(),
+                    request.getDisplayOrder(),
+                    media.getMediaId());
             media.setDisplayOrder(request.getDisplayOrder());
         }
         if (request.getStatus() != null) {
@@ -169,14 +209,15 @@ public class MediaServiceImpl implements MediaService {
     @Override
     public MediaResponseDto replaceUrl(String id, MediaMetadataRequestDto request) {
         Media media = findActiveEntity(id);
+        Episode episode = lockActiveEpisode(media.getEpisode().getEpisodeId());
         MediaType mediaType = resolveMediaType(
-                media.getEpisode(),
+                episode,
                 request != null && request.getMediaType() != null ? request.getMediaType() : media.getMediaType());
         if (media.getMediaType() != mediaType) {
             throw ContentModuleException.badRequest("Replacement URL type must match existing media type");
         }
 
-        validateMediaForEpisode(media.getEpisode(), mediaType, media.getMediaId());
+        validateMediaForEpisode(episode, mediaType, media.getMediaId());
         applyUrl(media, request, mediaType);
         media.markUpdatedBy(request.getActorId());
         return toResponse(mediaRepository.save(media));
@@ -185,21 +226,59 @@ public class MediaServiceImpl implements MediaService {
     @Transactional
     @Override
     public List<MediaResponseDto> reorder(String episodeId, MediaReorderRequestDto request) {
-        Episode episode = episodeService.findActiveEntity(episodeId);
+        Episode episode = lockActiveEpisode(episodeId);
         if (episode.getContentType() != ContentType.COMIC) {
             throw ContentModuleException.badRequest("Only comic episode media can be reordered");
         }
+        if (request == null || request.getItems() == null || request.getItems().isEmpty()) {
+            throw ContentModuleException.badRequest("At least one media reorder item is required");
+        }
+        if (request.getItems().stream().anyMatch(Objects::isNull)) {
+            throw ContentModuleException.badRequest("Media reorder item must not be null");
+        }
 
+        Set<String> mediaIds = new LinkedHashSet<>();
+        Set<Integer> displayOrders = new LinkedHashSet<>();
         for (var item : request.getItems()) {
-            Media media = findActiveEntity(item.getMediaId());
+            if (item.getMediaId() == null || item.getMediaId().isBlank()) {
+                throw ContentModuleException.badRequest("mediaId is required");
+            }
+            if (!mediaIds.add(item.getMediaId().trim())) {
+                throw ContentModuleException.badRequest("mediaId must not contain duplicates");
+            }
+            if (item.getDisplayOrder() == null || item.getDisplayOrder() < 1) {
+                throw ContentModuleException.badRequest("displayOrder must be positive numbers");
+            }
+            if (!displayOrders.add(item.getDisplayOrder())) {
+                throw ContentModuleException.badRequest("displayOrder must not contain duplicates");
+            }
+        }
+
+        Map<String, Media> mediaById = mediaRepository.findAllByMediaIdInAndIsDeletedFalse(mediaIds)
+                .stream()
+                .collect(java.util.stream.Collectors.toMap(Media::getMediaId, Function.identity()));
+        if (mediaRepository.existsByEpisode_EpisodeIdAndDisplayOrderInAndMediaIdNotInAndIsDeletedFalse(
+                episodeId,
+                displayOrders,
+                mediaIds)) {
+            throw ContentModuleException.conflict("displayOrder already exists in this episode");
+        }
+
+        List<Media> changedMedia = new ArrayList<>();
+        for (var item : request.getItems()) {
+            Media media = mediaById.get(item.getMediaId().trim());
+            if (media == null) {
+                throw ContentModuleException.notFound("Media not found: " + item.getMediaId());
+            }
             if (!media.getEpisode().getEpisodeId().equals(episodeId)) {
                 throw ContentModuleException.badRequest("Media does not belong to episode: " + item.getMediaId());
             }
             ensureImageMedia(media);
             media.setDisplayOrder(item.getDisplayOrder());
             media.markUpdatedBy(request.getActorId());
-            mediaRepository.save(media);
+            changedMedia.add(media);
         }
+        mediaRepository.saveAll(changedMedia);
 
         return listByEpisode(episodeId);
     }
@@ -255,6 +334,11 @@ public class MediaServiceImpl implements MediaService {
     public Media findActiveEntity(String id) {
         return mediaRepository.findByMediaIdAndIsDeletedFalse(id)
                 .orElseThrow(() -> ContentModuleException.notFound("Media not found: " + id));
+    }
+
+    private Episode lockActiveEpisode(String episodeId) {
+        return episodeRepository.lockByEpisodeIdAndIsDeletedFalse(episodeId)
+                .orElseThrow(() -> ContentModuleException.notFound("Episode not found: " + episodeId));
     }
 
     @Override
@@ -342,26 +426,44 @@ public class MediaServiceImpl implements MediaService {
     }
 
     private void applyUrl(Media media, MediaMetadataRequestDto request, MediaType mediaType) {
+        PreparedMediaUrl preparedUrl = prepareUrl(request, mediaType);
+        rejectDuplicate(preparedUrl.checksum(), media.getMediaId());
+        applyPreparedUrl(media, request, mediaType, preparedUrl);
+    }
+
+    private PreparedMediaUrl prepareUrl(MediaMetadataRequestDto request, MediaType mediaType) {
         if (request == null) {
             throw ContentModuleException.badRequest("Media URL request is required");
         }
 
         String fileUrl = normalizeFileUrl(request.getFileUrl());
         String checksum = normalizeChecksum(request.getChecksum(), fileUrl);
-        rejectDuplicate(checksum, media.getMediaId());
+        String mimeType = validateMimeType(request.getMimeType(), mediaType);
+        Long fileSize = validateFileSize(request.getFileSize());
+        String storageProvider = normalizeStorageProvider(request.getStorageProvider());
+        MediaProvider provider = request.getProvider() != null
+                ? request.getProvider()
+                : resolveProvider(request.getStorageProvider());
+        return new PreparedMediaUrl(fileUrl, checksum, mimeType, fileSize, storageProvider, provider);
+    }
 
-        media.setFileUrl(fileUrl);
-        media.setOriginalUrl(firstNonBlank(request.getOriginalUrl(), fileUrl));
-        media.setPlaybackUrl(firstNonBlank(request.getPlaybackUrl(), request.getHlsUrl(), fileUrl));
+    private void applyPreparedUrl(
+            Media media,
+            MediaMetadataRequestDto request,
+            MediaType mediaType,
+            PreparedMediaUrl preparedUrl) {
+        media.setFileUrl(preparedUrl.fileUrl());
+        media.setOriginalUrl(firstNonBlank(request.getOriginalUrl(), preparedUrl.fileUrl()));
+        media.setPlaybackUrl(firstNonBlank(request.getPlaybackUrl(), request.getHlsUrl(), preparedUrl.fileUrl()));
         media.setHlsUrl(request.getHlsUrl());
         media.setThumbnailUrl(request.getThumbnailUrl());
         media.setPreviewUrl(request.getPreviewUrl());
-        media.setChecksum(checksum);
-        media.setMimeType(validateMimeType(request.getMimeType(), mediaType));
-        media.setFileSize(validateFileSize(request.getFileSize()));
+        media.setChecksum(preparedUrl.checksum());
+        media.setMimeType(preparedUrl.mimeType());
+        media.setFileSize(preparedUrl.fileSize());
         media.setExternalPublicId(blankToNull(request.getExternalPublicId()));
-        media.setStorageProvider(normalizeStorageProvider(request.getStorageProvider()));
-        media.setProvider(request.getProvider() != null ? request.getProvider() : resolveProvider(request.getStorageProvider()));
+        media.setStorageProvider(preparedUrl.storageProvider());
+        media.setProvider(preparedUrl.provider());
         media.setProviderAssetId(blankToNull(request.getProviderAssetId()));
         media.setProviderPublicId(firstNonBlank(request.getProviderPublicId(), request.getExternalPublicId()));
         media.setProviderDeliveryType(blankToNull(request.getProviderDeliveryType()));
@@ -408,13 +510,16 @@ public class MediaServiceImpl implements MediaService {
     private void validateMediaForEpisode(Episode episode, MediaType mediaType, String currentMediaId) {
         resolveMediaType(episode, mediaType);
         if (episode.getContentType() == ContentType.VIDEO) {
-            boolean hasAnotherReadyVideo = mediaRepository
-                    .findAllByEpisode_EpisodeIdAndMediaTypeAndStatusInAndIsDeletedFalse(
+            boolean hasAnotherReadyVideo = currentMediaId == null
+                    ? mediaRepository.existsByEpisode_EpisodeIdAndMediaTypeAndStatusInAndIsDeletedFalse(
                             episode.getEpisodeId(),
                             MediaType.VIDEO,
                             VIDEO_REPLACEMENT_BLOCKING_STATUSES)
-                    .stream()
-                    .anyMatch(media -> !media.getMediaId().equals(currentMediaId));
+                    : mediaRepository.existsByEpisode_EpisodeIdAndMediaTypeAndStatusInAndIsDeletedFalseAndMediaIdNot(
+                            episode.getEpisodeId(),
+                            MediaType.VIDEO,
+                            VIDEO_REPLACEMENT_BLOCKING_STATUSES,
+                            currentMediaId);
             if (hasAnotherReadyVideo) {
                 throw ContentModuleException.conflict("Video episode already has a video media or HLS processing is still running");
             }
@@ -478,6 +583,20 @@ public class MediaServiceImpl implements MediaService {
                 });
     }
 
+    private void rejectDuplicateChecksums(Collection<String> checksums, String currentMediaId) {
+        if (checksums.isEmpty()) {
+            return;
+        }
+
+        mediaRepository.findAllByChecksumInAndIsDeletedFalse(checksums)
+                .stream()
+                .filter(existing -> currentMediaId == null || !existing.getMediaId().equals(currentMediaId))
+                .findAny()
+                .ifPresent(existing -> {
+                    throw ContentModuleException.conflict("Duplicate media URL detected");
+                });
+    }
+
     private String checksum(String value) {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
@@ -508,7 +627,11 @@ public class MediaServiceImpl implements MediaService {
         if (mediaType == MediaType.VIDEO) {
             return null;
         }
-        return requestedDisplayOrder != null ? requestedDisplayOrder : nextDisplayOrder(episodeId);
+        if (requestedDisplayOrder != null) {
+            ensureDisplayOrderAvailable(episodeId, requestedDisplayOrder, null);
+            return requestedDisplayOrder;
+        }
+        return nextDisplayOrder(episodeId);
     }
 
     private List<Integer> resolveComicDisplayOrders(String episodeId, List<MediaComicPageRequestDto> pages) {
@@ -527,13 +650,7 @@ public class MediaServiceImpl implements MediaService {
             throw ContentModuleException.badRequest("displayOrder must be positive numbers");
         }
 
-        Set<Integer> existingOrders = mediaRepository
-                .findAllByEpisode_EpisodeIdAndIsDeletedFalseOrderByDisplayOrderAsc(episodeId)
-                .stream()
-                .map(Media::getDisplayOrder)
-                .filter(Objects::nonNull)
-                .collect(java.util.stream.Collectors.toSet());
-        if (displayOrders.stream().anyMatch(existingOrders::contains)) {
+        if (mediaRepository.existsByEpisode_EpisodeIdAndDisplayOrderInAndIsDeletedFalse(episodeId, uniqueOrders)) {
             throw ContentModuleException.conflict("displayOrder already exists in this episode");
         }
         return displayOrders;
@@ -545,13 +662,26 @@ public class MediaServiceImpl implements MediaService {
         }
     }
 
+    private void ensureDisplayOrderAvailable(String episodeId, Integer displayOrder, String currentMediaId) {
+        if (displayOrder == null || displayOrder < 1) {
+            throw ContentModuleException.badRequest("displayOrder must be positive numbers");
+        }
+
+        boolean exists = currentMediaId == null
+                ? mediaRepository.existsByEpisode_EpisodeIdAndDisplayOrderInAndIsDeletedFalse(
+                        episodeId,
+                        List.of(displayOrder))
+                : mediaRepository.existsByEpisode_EpisodeIdAndDisplayOrderInAndMediaIdNotInAndIsDeletedFalse(
+                        episodeId,
+                        List.of(displayOrder),
+                        List.of(currentMediaId));
+        if (exists) {
+            throw ContentModuleException.conflict("displayOrder already exists in this episode");
+        }
+    }
+
     private int nextDisplayOrder(String episodeId) {
-        return mediaRepository.findAllByEpisode_EpisodeIdAndIsDeletedFalseOrderByDisplayOrderAsc(episodeId)
-                .stream()
-                .map(Media::getDisplayOrder)
-                .filter(Objects::nonNull)
-                .max(Integer::compareTo)
-                .orElse(0) + 1;
+        return mediaRepository.findMaxDisplayOrderByEpisodeId(episodeId) + 1;
     }
 
     private String normalizeStorageProvider(String storageProvider) {

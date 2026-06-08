@@ -170,12 +170,12 @@ public class DefaultMediaPlaybackSecurityService implements MediaPlaybackSecurit
     @Transactional
     @Override
     public void revokeActiveSessions(Media media) {
-        playbackSessionRepository
-                .findAllByMedia_MediaIdAndStatusAndIsDeletedFalse(media.getMediaId(), MediaPlaybackSessionStatus.ACTIVE)
-                .forEach(session -> {
-                    session.setStatus(MediaPlaybackSessionStatus.REVOKED);
-                    playbackSessionRepository.save(session);
-                });
+        var sessions = playbackSessionRepository
+                .findAllByMedia_MediaIdAndStatusAndIsDeletedFalse(media.getMediaId(), MediaPlaybackSessionStatus.ACTIVE);
+        sessions.forEach(session -> session.setStatus(MediaPlaybackSessionStatus.REVOKED));
+        if (!sessions.isEmpty()) {
+            playbackSessionRepository.saveAll(sessions);
+        }
         log.info("Playback sessions revoked. mediaId={}", media.getMediaId());
     }
 
@@ -191,10 +191,10 @@ public class DefaultMediaPlaybackSecurityService implements MediaPlaybackSecurit
         var sessions = playbackSessionRepository.findAllByStatusAndExpiresAtBeforeAndIsDeletedFalse(
                 MediaPlaybackSessionStatus.ACTIVE,
                 LocalDateTime.now());
-        sessions.forEach(session -> {
-            session.setStatus(MediaPlaybackSessionStatus.EXPIRED);
-            playbackSessionRepository.save(session);
-        });
+        sessions.forEach(session -> session.setStatus(MediaPlaybackSessionStatus.EXPIRED));
+        if (!sessions.isEmpty()) {
+            playbackSessionRepository.saveAll(sessions);
+        }
         if (!sessions.isEmpty()) {
             log.info("Expired playback sessions. count={}", sessions.size());
         }

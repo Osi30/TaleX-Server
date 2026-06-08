@@ -3,6 +3,7 @@ package com.talex.server.entities;
 import jakarta.persistence.EmbeddedId;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
+import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.MapsId;
@@ -13,7 +14,12 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@Table(name = "series_tags")
+@Table(
+        name = "series_tags",
+        indexes = {
+                @Index(name = "idx_series_tags_series_deleted", columnList = "series_id,is_deleted"),
+                @Index(name = "idx_series_tags_tag_deleted", columnList = "tag_id,is_deleted")
+        })
 @Getter
 @Setter
 @NoArgsConstructor
