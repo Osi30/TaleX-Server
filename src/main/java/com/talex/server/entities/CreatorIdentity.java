@@ -19,7 +19,7 @@ public class CreatorIdentity {
     @Column(name = "creator_identity_id")
     private String creatorIdentityId;
 
-    @Column(name = "id_number", length = 50)
+    @Column(name = "id_number", length = 50, unique = true)
     private String idNumber;
 
     @Column(name = "full_name", length = 150)

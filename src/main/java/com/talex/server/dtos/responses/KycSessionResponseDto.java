@@ -14,7 +14,6 @@ import java.time.LocalDateTime;
 @SuperBuilder
 public class KycSessionResponseDto {
     private String kycSessionId;
-    private String termsVersion;
     private KycStatus status;
     private LocalDateTime startedAt;
     private LocalDateTime updatedAt;

@@ -17,4 +17,6 @@ public interface IKycSessionService {
     KycSessionResponseDto updateSession(String kycSessionId, KycSessionRequestDto requestDto);
 
     KycSession getById(String kycSessionId);
+
+    KycSession getInProgressSession(String kycSessionId);
 }

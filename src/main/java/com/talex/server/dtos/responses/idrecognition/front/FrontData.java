@@ -1,5 +1,6 @@
 package com.talex.server.dtos.responses.idrecognition.front;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 

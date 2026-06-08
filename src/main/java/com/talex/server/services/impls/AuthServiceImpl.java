@@ -9,11 +9,7 @@ import com.talex.server.enums.AccountStatus;
 import com.talex.server.exceptions.codes.AuthErrorCode;
 import com.talex.server.exceptions.details.AuthException;
 import com.talex.server.repositories.AccountRepository;
-import com.talex.server.repositories.RoleRepository;
-import com.talex.server.services.AuthService;
-import com.talex.server.services.GoogleAuthService;
-import com.talex.server.services.OtpService;
-import com.talex.server.services.TokenFamilyService;
+import com.talex.server.services.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -28,7 +24,7 @@ import java.util.UUID;
 public class AuthServiceImpl implements AuthService {
 
     private final AccountRepository accountRepository;
-    private final RoleRepository roleRepository;
+    private final IRoleService roleService;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
     private final OtpService otpService;
@@ -63,8 +59,7 @@ public class AuthServiceImpl implements AuthService {
                 .fullName(request.getFullName())
                 .dateOfBirth(request.getDateOfBirth())
                 .phone(request.getPhone())
-                .role(roleRepository.findByCode("VIEWER")
-                        .orElseThrow(() -> new AuthException(AuthErrorCode.ROLE_NOT_FOUND)))
+                .role(roleService.findByCode("VIEWER"))
                 .build();
 
         accountRepository.save(account);
@@ -154,8 +149,7 @@ public class AuthServiceImpl implements AuthService {
                 .googleSubId(googleInfo.getGoogleSubId())
                 .fullName(googleInfo.getName())
                 .status(AccountStatus.ONBOARDING)
-                .role(roleRepository.findByCode("VIEWER")
-                        .orElseThrow(() -> new AuthException(AuthErrorCode.ROLE_NOT_FOUND)))
+                .role(roleService.findByCode("VIEWER"))
                 .build();
 
         accountRepository.save(newAccount);

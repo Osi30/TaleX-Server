@@ -89,6 +89,16 @@ public class KycSessionService implements IKycSessionService {
                 );
     }
 
+    @Override
+    public KycSession getInProgressSession(String kycSessionId) {
+        KycSession kycSession = getById(kycSessionId);
+        if (kycSession.getStatus() == KycStatus.IN_PROGRESS) {
+            return kycSession;
+        }
+
+        throw new KycSessionException(KycSessionErrorCode.KYC_SESSION_NOT_FOUND, "KYC Session in progress not found with id: " + kycSessionId);
+    }
+
     private Map<String, Object> getCriteria(KycSessionFilterRequestDto filterRequest) {
         return filterRequest.getCriteria() != null ? filterRequest.getCriteria() : new HashMap<>();
     }

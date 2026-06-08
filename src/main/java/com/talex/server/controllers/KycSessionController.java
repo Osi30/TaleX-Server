@@ -6,9 +6,9 @@ import com.talex.server.dtos.requests.KycSessionRequestDto;
 import com.talex.server.dtos.requests.filters.KycSessionFilterRequestDto;
 import com.talex.server.dtos.responses.KycSessionPageResponseDto;
 import com.talex.server.dtos.responses.KycSessionResponseDto;
-import com.talex.server.dtos.responses.KycStepResponseDto;
 import com.talex.server.enums.StepType;
 import com.talex.server.policies.FilePolicy;
+import com.talex.server.records.EKycResult;
 import com.talex.server.services.IKycSessionService;
 import com.talex.server.services.IKycStepService;
 import lombok.RequiredArgsConstructor;
@@ -30,7 +30,8 @@ public class KycSessionController {
 
     @GetMapping("/{kycSessionId}")
     public ResponseEntity<BaseResponse> getSessionById(
-            @PathVariable String kycSessionId) {
+            @PathVariable String kycSessionId
+    ) {
         KycSessionResponseDto responseDto = kycSessionService.getSessionById(kycSessionId);
         return ResponseEntity.ok(
                 BaseResponse.builder()
@@ -47,7 +48,8 @@ public class KycSessionController {
             @RequestParam(required = false) String sortBy,
             @RequestParam(required = false) String sortDirection,
             @RequestParam(defaultValue = "1") Integer page,
-            @RequestParam(defaultValue = "20") Integer pageSize) {
+            @RequestParam(defaultValue = "20") Integer pageSize
+    ) {
         KycSessionPageResponseDto responsePage = kycSessionService
                 .filterAndSortSessions(KycSessionFilterRequestDto.builder()
                         .criteria(criteria)
@@ -69,7 +71,8 @@ public class KycSessionController {
     @PutMapping("/{kycSessionId}")
     public ResponseEntity<BaseResponse> updateSession(
             @PathVariable String kycSessionId,
-            @RequestBody KycSessionRequestDto requestDto) {
+            @RequestBody KycSessionRequestDto requestDto
+    ) {
         KycSessionResponseDto responseDto = kycSessionService.updateSession(kycSessionId, requestDto);
         return ResponseEntity.ok(
                 BaseResponse.builder()
@@ -89,7 +92,7 @@ public class KycSessionController {
             @RequestParam("frontImage") @ValidFile(policy = FilePolicy.KYC_IMAGE)
             MultipartFile frontImage
     ) {
-        KycStepResponseDto response = kycStepService
+        EKycResult response = kycStepService
                 .scanID(frontImage, StepType.FRONT_ID, kycSessionId);
 
         return ResponseEntity.ok(
@@ -110,7 +113,7 @@ public class KycSessionController {
             @RequestParam("backImage") @ValidFile(policy = FilePolicy.KYC_IMAGE)
             MultipartFile backImage
     ) {
-        KycStepResponseDto response = kycStepService
+        EKycResult response = kycStepService
                 .scanID(backImage, StepType.BACK_ID, kycSessionId);
 
         return ResponseEntity.ok(
@@ -134,7 +137,8 @@ public class KycSessionController {
             @RequestParam("cmnd") @ValidFile(policy = FilePolicy.KYC_IMAGE)
             MultipartFile image
     ) {
-        KycStepResponseDto stepResult = kycStepService.processLiveness(video, image, kycSessionId);
+        EKycResult stepResult = kycStepService
+                .processLiveness(video, image, kycSessionId);
 
         return ResponseEntity.ok(
                 new BaseResponse(

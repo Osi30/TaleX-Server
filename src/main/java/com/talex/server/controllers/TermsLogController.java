@@ -18,7 +18,9 @@ public class TermsLogController {
     private final ITermsLogService service;
 
     @PostMapping
-    public ResponseEntity<BaseResponse> create(@RequestBody CreatorTermsLogRequestDto dto) {
+    public ResponseEntity<BaseResponse> create(
+            @RequestBody CreatorTermsLogRequestDto dto
+    ) {
         service.create(dto);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(BaseResponse.builder()

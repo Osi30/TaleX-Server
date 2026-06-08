@@ -11,4 +11,5 @@ import java.util.UUID;
 public interface CreatorIdentityRepository extends JpaRepository<CreatorIdentity, String> {
     Optional<CreatorIdentity> findByCreator_CreatorId(String creatorId);
     Optional<CreatorIdentity> findByCreator_Account_AccountId(UUID accountId);
+    boolean existsByIdNumberAndKycSessionIsNotNull(String idNumber);
 }

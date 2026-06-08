@@ -1,13 +1,13 @@
 package com.talex.server.controllers;
 
 import com.talex.server.annotations.CurrentAccountId;
-import com.talex.server.configs.JwtTokenProvider;
+import com.talex.server.dtos.BasePageResponse;
 import com.talex.server.dtos.BaseResponse;
 import com.talex.server.dtos.requests.CreatorRegisterDto;
 import com.talex.server.dtos.requests.CreatorRequestDto;
+import com.talex.server.dtos.requests.filters.CreatorFilterRequestDto;
 import com.talex.server.dtos.responses.CreatorResponseDto;
 import com.talex.server.services.ICreatorService;
-import io.swagger.v3.oas.annotations.Parameter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -26,17 +26,58 @@ public class CreatorController {
             @CurrentAccountId UUID accountId,
             @RequestBody CreatorRegisterDto dto
     ) {
-
-        System.out.println(accountId);
-
-//        String resp = creatorService.createCreator(dto);
+        dto.setAccountId(accountId);
+        String resp = creatorService.createCreator(dto);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(BaseResponse.builder()
                         .code(201)
                         .message("Creator created")
-                        .data("resp")
-                        .build()
-                );
+                        .data(resp)
+                        .build());
+    }
+
+    @GetMapping("/own")
+    public ResponseEntity<BaseResponse> getAccountCreator(
+            @CurrentAccountId UUID accountId
+    ) {
+        CreatorResponseDto resp = creatorService.getByAccount(accountId);
+        return ResponseEntity.ok(BaseResponse.builder()
+                .code(200)
+                .message("OK")
+                .data(resp)
+                .build());
+    }
+
+    @GetMapping
+    public ResponseEntity<BaseResponse> filterCreators(
+            @RequestParam(required = false) String searchKey,
+            @RequestParam(required = false) String createdAtFrom,
+            @RequestParam(required = false) String createdAtTo,
+            @RequestParam(required = false) String updatedAtFrom,
+            @RequestParam(required = false) String updatedAtTo,
+            @RequestParam(required = false) String sortBy,
+            @RequestParam(required = false) String sortDirection,
+            @RequestParam(defaultValue = "1") Integer page,
+            @RequestParam(defaultValue = "20") Integer pageSize
+    ) {
+        BasePageResponse<CreatorResponseDto> responsePage = creatorService.filterCreators(
+                CreatorFilterRequestDto.builder()
+                        .searchKey(searchKey)
+                        .createdAtFrom(createdAtFrom)
+                        .createdAtTo(createdAtTo)
+                        .updatedAtFrom(updatedAtFrom)
+                        .updatedAtTo(updatedAtTo)
+                        .sortBy(sortBy)
+                        .sortDirection(sortDirection)
+                        .page(page)
+                        .pageSize(pageSize)
+                        .build());
+
+        return ResponseEntity.ok(BaseResponse.builder()
+                .code(200)
+                .message("Lấy danh sách creator thành công!")
+                .data(responsePage)
+                .build());
     }
 
     @GetMapping("/{id}")
@@ -46,8 +87,7 @@ public class CreatorController {
                 .code(200)
                 .message("OK")
                 .data(resp)
-                .build()
-        );
+                .build());
     }
 
     @PutMapping("/{id}")
@@ -60,10 +100,11 @@ public class CreatorController {
                 .code(200)
                 .message("Updated")
                 .data(resp)
-                .build()
-        );
+                .build());
     }
 
+    // Cần thiết kế lại để đảm bảo đáp ứng pháp lý
+    // Hiện đang xóa cứng
     @DeleteMapping("/{id}")
     public ResponseEntity<BaseResponse> delete(@PathVariable String id) {
         creatorService.deleteCreator(id);
@@ -71,7 +112,6 @@ public class CreatorController {
                 .code(200)
                 .message("Deleted")
                 .data(null)
-                .build()
-        );
+                .build());
     }
 }

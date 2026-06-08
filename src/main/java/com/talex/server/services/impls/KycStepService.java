@@ -7,6 +7,7 @@ import com.talex.server.dtos.responses.idrecognition.back.FptAiIdBackResponse;
 import com.talex.server.dtos.responses.idrecognition.front.FptAiIdFrontResponse;
 import com.talex.server.dtos.responses.idrecognition.front.FrontData;
 import com.talex.server.dtos.responses.liveness.FptAiLivenessResponse;
+import com.talex.server.entities.Account;
 import com.talex.server.entities.CreatorIdentity;
 import com.talex.server.entities.KycSession;
 import com.talex.server.entities.KycStep;
@@ -16,12 +17,11 @@ import com.talex.server.exceptions.codes.KycStepErrorCode;
 import com.talex.server.exceptions.details.KycStepException;
 import com.talex.server.mappers.IKycStepMapper;
 import com.talex.server.records.EKycResult;
-import com.talex.server.repositories.CreatorIdentityRepository;
-import com.talex.server.repositories.KycSessionRepository;
-import com.talex.server.repositories.KycStepRepository;
+import com.talex.server.repositories.*;
 import com.talex.server.services.IEKycService;
 import com.talex.server.services.IKycSessionService;
 import com.talex.server.services.IKycStepService;
+import com.talex.server.services.IRoleService;
 import com.talex.server.specifications.KycStepSpec;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -32,6 +32,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 
@@ -44,6 +45,8 @@ public class KycStepService implements IKycStepService {
     private final KycStepRepository kycStepRepository;
     private final KycSessionRepository kycSessionRepository;
     private final CreatorIdentityRepository creatorIdentityRepository;
+    private final AccountRepository accountRepository;
+    private final IRoleService roleService;
     private final IKycSessionService kycSessionService;
     private final IEKycService eKycService;
     private final IKycStepMapper kycStepMapper;
@@ -72,17 +75,18 @@ public class KycStepService implements IKycStepService {
     }
 
     @Override
-    public KycStepResponseDto scanID(MultipartFile image, StepType stepType, String sessionId) {
+    public EKycResult scanID(MultipartFile image, StepType stepType, String sessionId) {
         validateStepType(stepType);
 
         // Khởi tạo Step
-        KycSession kycSession = kycSessionService.getById(sessionId);
+        KycSession kycSession = kycSessionService.getInProgressSession(sessionId);
         KycStep scanImage = createKycStep(stepType, kycSession);
         CreatorIdentity identity = kycSession.getCreator().getCreatorIdentity();
 
+        EKycResult eKycResult;
         try {
             // Gọi dịch vụ OCR
-            EKycResult eKycResult = callOcrProviderApi(stepType, image, identity);
+            eKycResult = callOcrProviderApi(stepType, image, identity);
 
             // Cập nhật dữ liệu (success)
             applySuccessState(scanImage, eKycResult);
@@ -98,29 +102,41 @@ public class KycStepService implements IKycStepService {
             persistKycStepResult(scanImage);
         }
 
-        return kycStepMapper.toResponseDto(scanImage);
+        return new EKycResult(eKycResult.isSuccess(), eKycResult.message(), null);
     }
 
     @Override
-    public KycStepResponseDto processLiveness(MultipartFile video, MultipartFile cmnd, String sessionId) {
+    public EKycResult processLiveness(MultipartFile video, MultipartFile cmnd, String sessionId) {
         // Khởi tạo Step
-        KycSession kycSession = kycSessionService.getById(sessionId);
+        KycSession kycSession = kycSessionService.getInProgressSession(sessionId);
+        CreatorIdentity identity = kycSession.getCreator().getCreatorIdentity();
+
+        // Kiểm tra trùng cccd đã đăng kí
+        if (creatorIdentityRepository
+                .existsByIdNumberAndKycSessionIsNotNull(identity.getIdNumber())){
+            throw new KycStepException(KycStepErrorCode.KYC_STEP_ID_NUMBER_ALREADY_EXIST);
+        }
+
         KycStep kycStep = createKycStep(StepType.LIVENESS_FACEMATCH, kycSession);
+        EKycResult eKycResult;
 
         try {
             // Gọi dịch vụ Liveness - Facematch
-            EKycResult eKycResult = executeLiveness(video, cmnd);
+            eKycResult = executeLiveness(video, cmnd);
 
             // Cập nhật dữ liệu (success)
             applySuccessState(kycStep, eKycResult);
-            if (eKycResult.isSuccess()){
+            if (eKycResult.isSuccess()) {
                 kycSession.setCompletedAt(LocalDateTime.now());
                 kycSession.setStatus(KycStatus.SUCCESS);
                 kycSessionRepository.save(kycSession);
 
-                CreatorIdentity identity = kycSession.getCreator().getCreatorIdentity();
                 identity.setKycSession(kycSession);
                 creatorIdentityRepository.save(identity);
+
+                Account account = kycSession.getCreator().getAccount();
+                account.setRole(roleService.findByCode("CREATOR"));
+                accountRepository.save(account);
             }
 
         } catch (Exception ex) {
@@ -132,7 +148,7 @@ public class KycStepService implements IKycStepService {
             persistKycStepResult(kycStep);
         }
 
-        return kycStepMapper.toResponseDto(kycStep);
+        return new EKycResult(eKycResult.isSuccess(), eKycResult.message(), null);
     }
 
     @Override
@@ -166,15 +182,22 @@ public class KycStepService implements IKycStepService {
 
         // Update Creator Identity Info
         FrontData data = response.getData().getFirst();
-        identity.setAddress(data.getAddress());
-        identity.setSex(data.getSex());
-        identity.setDob(LocalDate.parse(data.getDob()));
-        identity.setDoe(LocalDate.parse(data.getDoe()));
-        identity.setIdNumber(data.getId());
-        identity.setFullName(data.getName());
-        creatorIdentityRepository.save(identity);
+        
+        // Không trùng cccd đã đăng kí
+        if (!creatorIdentityRepository.existsByIdNumberAndKycSessionIsNotNull(data.getId())){
+            identity.setAddress(data.getAddress());
+            identity.setSex(data.getSex());
+            identity.setIdNumber(data.getId());
+            identity.setFullName(data.getName());
 
-        return new EKycResult(isSuccess, message, objectMapper.valueToTree(response));
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+            identity.setDob(LocalDate.parse(data.getDob(), formatter));
+            identity.setDoe(LocalDate.parse(data.getDoe(), formatter));
+            creatorIdentityRepository.save(identity);
+            return new EKycResult(isSuccess, message, objectMapper.valueToTree(response));
+        }
+
+        return new EKycResult(!isSuccess, "Trùng cccd với tài khoản đã đăng ký", objectMapper.valueToTree(response));
     }
 
     private EKycResult executeBackIdOcr(MultipartFile image) {
