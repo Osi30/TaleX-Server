@@ -20,6 +20,12 @@ public enum AuthErrorCode {
     PROFILE_INCOMPLETE(4020, HttpStatus.FORBIDDEN, "Vui lòng hoàn tất thông tin cá nhân"),
     EMAIL_ALREADY_EXISTS(4090, HttpStatus.CONFLICT, "Email đã được sử dụng"),
     USERNAME_ALREADY_EXISTS(4091, HttpStatus.CONFLICT, "Username đã được sử dụng"),
+    ACCOUNT_NOT_ACTIVE(4021, HttpStatus.FORBIDDEN, "Tài khoản không ở trạng thái hoạt động"),
+    CURRENT_PASSWORD_REQUIRED(4022, HttpStatus.BAD_REQUEST, "Vui lòng nhập mật khẩu hiện tại"),
+    CURRENT_PASSWORD_INCORRECT(4023, HttpStatus.BAD_REQUEST, "Mật khẩu hiện tại không đúng"),
+    PASSWORD_SAME_AS_OLD(4024, HttpStatus.BAD_REQUEST, "Mật khẩu mới không được trùng với mật khẩu hiện tại"),
+    PASSWORD_CONFIRMATION_MISMATCH(4025, HttpStatus.BAD_REQUEST, "Mật khẩu xác nhận không khớp"),
+
     ROLE_NOT_FOUND(5001, HttpStatus.INTERNAL_SERVER_ERROR, "Không tìm thấy role"),
     EMAIL_SERVICE_UNAVAILABLE(5030, HttpStatus.SERVICE_UNAVAILABLE, "Dịch vụ email không khả dụng");
 

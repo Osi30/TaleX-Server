@@ -44,10 +44,38 @@ public class EmailServiceImpl implements EmailService {
 
     @Override
     public void sendOtpEmailAsync(String to, String otpCode) {
+        sendWithRetry(() -> sendOtpEmail(to, otpCode), to);
+    }
+
+    @Override
+    public void sendPasswordResetEmail(String to, String otpCode) {
+        try {
+            MimeMessage mimeMessage = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, "UTF-8");
+
+            helper.setFrom(fromEmail);
+            helper.setTo(to);
+            helper.setSubject("TaleX — Đặt lại mật khẩu");
+            helper.setText(EmailTemplateUtil.buildPasswordResetEmailHtml(otpCode), true);
+
+            mailSender.send(mimeMessage);
+            log.info("Password reset email sent to: {}", to);
+        } catch (MailException | MessagingException e) {
+            log.error("Password reset email send failed to: {}", to, e);
+            throw new MailSendException("Failed to send password reset email", e);
+        }
+    }
+
+    @Override
+    public void sendPasswordResetEmailAsync(String to, String otpCode) {
+        sendWithRetry(() -> sendPasswordResetEmail(to, otpCode), to);
+    }
+
+    private void sendWithRetry(Runnable sendAction, String to) {
         int maxRetries = 3;
         for (int attempt = 1; attempt <= maxRetries; attempt++) {
             try {
-                sendOtpEmail(to, otpCode);
+                sendAction.run();
                 return;
             } catch (Exception e) {
                 log.warn("Async email attempt {}/{} failed for: {}", attempt, maxRetries, to, e);

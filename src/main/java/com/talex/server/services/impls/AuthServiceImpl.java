@@ -2,6 +2,7 @@ package com.talex.server.services.impls;
 
 import com.talex.server.configs.JwtTokenProvider;
 import com.talex.server.dtos.requests.*;
+import com.talex.server.dtos.responses.AccountProfileResponse;
 import com.talex.server.dtos.responses.AuthResponse;
 import com.talex.server.dtos.responses.GoogleUserInfo;
 import com.talex.server.entities.Account;
@@ -30,6 +31,7 @@ public class AuthServiceImpl implements AuthService {
     private final OtpService otpService;
     private final TokenFamilyService tokenFamilyService;
     private final GoogleAuthService googleAuthService;
+    private final AccountProfileService accountProfileService;
 
     @Override
     @Transactional
@@ -224,6 +226,31 @@ public class AuthServiceImpl implements AuthService {
 
         otpService.generateAndSend(account);
         return "OTP mới đã được gửi tới email của bạn";
+    }
+
+    @Override
+    public AccountProfileResponse getProfile(UUID accountId) {
+        return accountProfileService.getProfile(accountId);
+    }
+
+    @Override
+    public AccountProfileResponse updateProfile(UUID accountId, UpdateProfileRequest request) {
+        return accountProfileService.updateProfile(accountId, request);
+    }
+
+    @Override
+    public void changePassword(UUID accountId, ChangePasswordRequest request) {
+        accountProfileService.changePassword(accountId, request);
+    }
+
+    @Override
+    public void forgotPassword(ForgotPasswordRequest request) {
+        accountProfileService.forgotPassword(request);
+    }
+
+    @Override
+    public void resetPassword(ResetPasswordRequest request) {
+        accountProfileService.resetPassword(request);
     }
 
     private void validateAccountStatus(Account account) {

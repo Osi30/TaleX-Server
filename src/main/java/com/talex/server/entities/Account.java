@@ -77,4 +77,7 @@ public class Account {
 
     @Column(name = "google_sub_id", unique = true)
     private String googleSubId;
+
+    @Column(name = "avatar_url")
+    private String avatarUrl;
 }
