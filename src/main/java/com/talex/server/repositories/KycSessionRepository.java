@@ -14,9 +14,8 @@ public interface KycSessionRepository extends JpaRepository<KycSession, String>,
 
     /**
      * Cập nhật hàng loạt trạng thái Session
-     * clearAutomatically = true giúp xóa First-level Cache (Persistence Context) của Hibernate
      */
-    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Modifying
     @Query("UPDATE KycSession k SET k.status = :newStatus WHERE k.status = :oldStatus AND k.creator.creatorId = :creatorId")
     void bulkUpdateStatus(
             @Param("creatorId") String creatorId,

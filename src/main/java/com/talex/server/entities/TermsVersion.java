@@ -27,6 +27,9 @@ public class TermsVersion {
     @Column(name = "type", length = 50, nullable = false)
     private TermsType type;
 
+    @Column(name = "title")
+    private String title;
+
     @Column(name = "content", columnDefinition = "TEXT")
     private String content;
 

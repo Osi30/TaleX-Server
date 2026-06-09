@@ -16,6 +16,7 @@ import java.time.LocalDateTime;
 public class TermsVersionResponseDto {
     private String id;
     private String version;
+    private String title;
     private TermsType type;
     private String content;
     private Boolean isActive;

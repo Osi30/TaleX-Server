@@ -47,7 +47,7 @@ public class CreatorService implements ICreatorService {
 
         // Đã đồng ý điều khoản
         if (ValidationUtils.isNullOrEmpty(dto.getTermsId())) {
-            creator = findCreatorByAccountId(dto.getAccountId().toString());
+            creator = findCreatorByAccountId(dto.getAccountId());
         }
         // Chưa đồng ý điều khoản
         else {
@@ -102,7 +102,7 @@ public class CreatorService implements ICreatorService {
     @Override
     public CreatorResponseDto getByAccount(UUID accountId) {
         return creatorMapper.toResponseDto(
-                findCreatorByAccountId(accountId.toString()));
+                findCreatorByAccountId(accountId));
     }
 
     @Override
@@ -128,8 +128,8 @@ public class CreatorService implements ICreatorService {
                         "Creator không tồn tại với id: " + id));
     }
 
-    private Creator findCreatorByAccountId(String id) {
-        return creatorRepository.findById(id)
+    private Creator findCreatorByAccountId(UUID id) {
+        return creatorRepository.findByAccount_AccountId(id)
                 .orElseThrow(() -> new CreatorException(CreatorErrorCode.CREATOR_NOT_FOUND,
                         "Creator không tồn tại với account id: " + id));
     }

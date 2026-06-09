@@ -12,6 +12,7 @@ import lombok.NoArgsConstructor;
 @Builder
 public class TermsVersionRequestDto {
     private String version;
+    private String title;
     private TermsType type;
     private String content;
     private Boolean isActive;

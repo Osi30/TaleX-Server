@@ -1,14 +1,14 @@
 package com.talex.server.repositories;
 
-import com.talex.server.entities.Creator;
+import com.talex.server.entities.Subscription;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
-import java.util.UUID;
 
 @Repository
-public interface CreatorRepository extends JpaRepository<Creator, String>, JpaSpecificationExecutor<Creator> {
-    Optional<Creator> findByAccount_AccountId(UUID accountId);
+public interface SubscriptionRepository
+        extends JpaRepository<Subscription, String>, JpaSpecificationExecutor<Subscription> {
+    Optional<Subscription> findBySubscriptionIdAndIsDeletedFalse(String id);
 }

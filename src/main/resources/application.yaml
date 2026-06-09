@@ -17,11 +17,6 @@
   #    password: npg_zEU3djeluHX7
   #    url: jdbc:postgresql://ep-long-silence-ao009tbp.c-2.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:talex-db}${DB_OPTIONS:}
-#  datasource:
-#    driver-class-name: org.postgresql.Driver
-#    username: neondb_owner
-#    password: npg_zEU3djeluHX7
-#    url: jdbc:postgresql://ep-long-silence-ao009tbp.c-2.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require
 
   jpa:
     show-sql: true
@@ -70,7 +65,7 @@ integration:
   clients:
     fpt-ai:
       base-url: https://api.fpt.ai
-      api-key: ${FPT_AI_API_KEY:}
+      api-key: ${FPT_AI_API_KEY}
       connection-timeout-ms: 5000
       read-timeout-ms: 30000
 
@@ -141,4 +136,3 @@ media:
     webhook-signing-secret: ${CLOUDINARY_WEBHOOK_SIGNING_SECRET:${CLOUDINARY_API_SECRET:}}
     api-base-url: ${CLOUDINARY_API_BASE_URL:https://api.cloudinary.com}
     delivery-base-url: ${CLOUDINARY_DELIVERY_BASE_URL:https://res.cloudinary.com}
-

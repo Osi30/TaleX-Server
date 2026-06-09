@@ -19,6 +19,7 @@ public class TermsVersionMapperImpl implements ITermsVersionMapper {
                 .version(entity.getVersion())
                 .type(entity.getType())
                 .content(entity.getContent())
+                .title(entity.getTitle())
                 .isActive(entity.getIsActive())
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
@@ -34,6 +35,7 @@ public class TermsVersionMapperImpl implements ITermsVersionMapper {
                 .version(dto.getVersion())
                 .type(dto.getType())
                 .content(dto.getContent())
+                .title(dto.getTitle())
                 .isActive(dto.getIsActive())
                 .build();
     }

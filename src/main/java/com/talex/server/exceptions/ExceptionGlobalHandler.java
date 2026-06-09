@@ -3,6 +3,7 @@ package com.talex.server.exceptions;
 import com.talex.server.dtos.BaseResponse;
 import com.talex.server.exceptions.codes.AuthErrorCode;
 import com.talex.server.exceptions.codes.KycSessionErrorCode;
+import com.talex.server.exceptions.codes.SubscriptionErrorCode;
 import com.talex.server.exceptions.details.AuthException;
 import com.talex.server.exceptions.details.CreatorException;
 import com.talex.server.exceptions.details.CreatorTermsLogException;
@@ -11,6 +12,7 @@ import com.talex.server.exceptions.details.FptAIIDRecognitionException;
 import com.talex.server.exceptions.details.KycSessionException;
 import com.talex.server.exceptions.details.KycStepException;
 import com.talex.server.exceptions.details.ResourceNotFoundException;
+import com.talex.server.exceptions.details.SubscriptionException;
 import com.talex.server.exceptions.details.TermVersionException;
 import com.talex.server.exceptions.details.CreatorIdentityException;
 import jakarta.validation.ConstraintViolation;
@@ -103,6 +105,19 @@ public class ExceptionGlobalHandler {
     @ExceptionHandler(KycSessionException.class)
     public ResponseEntity<BaseResponse> handleKYCSessionException(KycSessionException ex, WebRequest request) {
         KycSessionErrorCode errorCode = ex.getErrorCode();
+
+        BaseResponse exceptionResponse = BaseResponse.builder()
+                .message(ex.getMessage())
+                .code(errorCode.getCode())
+                .data(request.getDescription(false))
+                .build();
+
+        return new ResponseEntity<>(exceptionResponse, errorCode.getHttpStatus());
+    }
+
+    @ExceptionHandler(SubscriptionException.class)
+    public ResponseEntity<BaseResponse> handleSubscriptionException(SubscriptionException ex, WebRequest request) {
+        SubscriptionErrorCode errorCode = ex.getErrorCode();
 
         BaseResponse exceptionResponse = BaseResponse.builder()
                 .message(ex.getMessage())
@@ -227,7 +242,8 @@ public class ExceptionGlobalHandler {
         String normalized = detail == null ? "" : detail.toLowerCase(Locale.ROOT);
 
         if (normalized.contains("media_status")
-                || (normalized.contains("media") && normalized.contains("status") && normalized.contains("check constraint"))) {
+                || (normalized.contains("media") && normalized.contains("status")
+                        && normalized.contains("check constraint"))) {
             return "Media status is not allowed by the current database constraint. Update the media status constraint to include HLS_PROCESSING and HLS_READY.";
         }
 

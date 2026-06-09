@@ -2,6 +2,7 @@ package com.talex.server.specifications;
 
 import com.talex.server.entities.TermsVersion;
 import com.talex.server.enums.TermsType;
+import com.talex.server.utils.SpecUtils;
 import com.talex.server.utils.ValidationUtils;
 import jakarta.persistence.criteria.Predicate;
 import org.springframework.data.jpa.domain.Specification;
@@ -29,6 +30,11 @@ public class TermsVersionSpec {
                 predicates.add(builder.like(root.get("version"), "%" + version + "%"));
             }
 
+            String title = (String) criteria.get("title");
+            if (!ValidationUtils.isNullOrEmpty(title)) {
+                predicates.add(builder.like(root.get("title"), "%" + title + "%"));
+            }
+
             String content = (String) criteria.get("content");
             if (!ValidationUtils.isNullOrEmpty(content)) {
                 predicates.add(builder.like(root.get("content"), "%" + content + "%"));
@@ -43,25 +49,7 @@ public class TermsVersionSpec {
                 predicates.add(root.get("type").in((Object[]) termsTypes));
             }
 
-            String createdAtFrom = (String) criteria.get("createdAtFrom");
-            if (!ValidationUtils.isNullOrEmpty(createdAtFrom)) {
-                predicates.add(builder.greaterThanOrEqualTo(root.get("createdAt"), LocalDateTime.parse(createdAtFrom)));
-            }
-
-            String createdAtTo = (String) criteria.get("createdAtTo");
-            if (!ValidationUtils.isNullOrEmpty(createdAtTo)) {
-                predicates.add(builder.lessThanOrEqualTo(root.get("createdAt"), LocalDateTime.parse(createdAtTo)));
-            }
-
-            String updatedAtFrom = (String) criteria.get("updatedAtFrom");
-            if (!ValidationUtils.isNullOrEmpty(updatedAtFrom)) {
-                predicates.add(builder.greaterThanOrEqualTo(root.get("updatedAt"), LocalDateTime.parse(updatedAtFrom)));
-            }
-
-            String updatedAtTo = (String) criteria.get("updatedAtTo");
-            if (!ValidationUtils.isNullOrEmpty(updatedAtTo)) {
-                predicates.add(builder.lessThanOrEqualTo(root.get("updatedAt"), LocalDateTime.parse(updatedAtTo)));
-            }
+            SpecUtils.addAuditDateFilters(root, builder, predicates, criteria);
 
             return builder.and(predicates.toArray(new Predicate[0]));
         };

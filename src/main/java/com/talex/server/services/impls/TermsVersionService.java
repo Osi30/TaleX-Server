@@ -31,8 +31,14 @@ public class TermsVersionService implements ITermsVersionService {
     private final ITermsVersionMapper mapper;
 
     @Override
+    @Transactional
     public TermsVersionResponseDto create(TermsVersionRequestDto dto) {
         TermsVersion entity = mapper.toEntity(dto);
+        if (Boolean.TRUE.equals(entity.getIsActive())){
+            repository.bulkUpdateStatus(
+                    entity.getType(), true, false
+            );
+        }
         TermsVersion saved = repository.save(entity);
         return mapper.toResponseDto(saved);
     }
@@ -48,6 +54,7 @@ public class TermsVersionService implements ITermsVersionService {
         TermsVersion existing = findById(id);
 
         Optional.ofNullable(dto.getVersion()).ifPresent(existing::setVersion);
+        Optional.ofNullable(dto.getTitle()).ifPresent(existing::setTitle);
         Optional.ofNullable(dto.getType()).ifPresent(existing::setType);
         Optional.ofNullable(dto.getContent()).ifPresent(existing::setContent);
 
@@ -104,11 +111,10 @@ public class TermsVersionService implements ITermsVersionService {
     }
 
     private Sort getSortBy(BaseFilterRequestDto filterRequest) {
-        String sortBy = Optional.ofNullable(filterRequest.getSortBy()).orElse("createdAt");
         String sortDirection = Optional.ofNullable(filterRequest.getSortDirection()).orElse("DESC");
 
         Sort.Direction direction = "ASC".equalsIgnoreCase(sortDirection) ? Sort.Direction.ASC : Sort.Direction.DESC;
-        return Sort.by(direction, normalizeSortProperty(sortBy));
+        return Sort.by(direction, normalizeSortProperty(filterRequest.getSortBy()));
     }
 
     private String normalizeSortProperty(String sortBy) {
@@ -117,7 +123,7 @@ public class TermsVersionService implements ITermsVersionService {
         }
 
         return switch (sortBy) {
-            case "version", "type", "createdAt", "updatedAt" -> sortBy;
+            case "version", "type", "createdAt", "updatedAt", "title" -> sortBy;
             default -> "createdAt";
         };
     }
