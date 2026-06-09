@@ -287,9 +287,6 @@ public class AuthServiceImpl implements AuthService {
 
     private String generateUsernameFromEmail(String email) {
         String base = email.split("@")[0];
-        if (!accountRepository.existsByUsername(base)) {
-            return base;
-        }
-        return base + "_" + System.currentTimeMillis() % 10000;
+        return base + "_" + UUID.randomUUID().toString().substring(0, 6);
     }
 }
