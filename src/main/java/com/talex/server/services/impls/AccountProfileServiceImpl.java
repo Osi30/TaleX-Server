@@ -20,6 +20,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -101,16 +102,36 @@ public class AccountProfileServiceImpl implements AccountProfileService {
     @Override
     public void forgotPassword(ForgotPasswordRequest request) {
         // Anti-enumeration: always return success regardless of email existence
-        Account account = accountRepository.findByEmail(request.getEmail()).orElse(null);
+        List<Account> activeAccounts = accountRepository.findAllByEmail(request.getEmail())
+                .stream()
+                .filter(a -> a.getStatus() == AccountStatus.ACTIVE)
+                .toList();
 
-        if (account == null || account.getStatus() != AccountStatus.ACTIVE) {
+        if (activeAccounts.isEmpty()) {
             log.debug("Forgot password for non-existent or inactive email: {}", request.getEmail());
             return;
         }
 
-        otpService.enforcePasswordResetCooldown(request.getEmail());
+        Account account;
+        if (activeAccounts.size() == 1) {
+            account = activeAccounts.getFirst();
+        } else {
+            // Multiple accounts with same email — require username for disambiguation
+            if (request.getUsername() == null || request.getUsername().isBlank()) {
+                throw new AuthException(AuthErrorCode.MULTIPLE_ACCOUNTS_FOUND);
+            }
+            account = activeAccounts.stream()
+                    .filter(a -> a.getUsername().equals(request.getUsername()))
+                    .findFirst()
+                    .orElse(null);
+            if (account == null) {
+                return; // Anti-enumeration: don't reveal username mismatch
+            }
+        }
+
+        otpService.enforcePasswordResetCooldown(account.getAccountId());
         otpService.generateAndSendPasswordReset(account);
-        log.info("Forgot password OTP sent for email: {}", request.getEmail());
+        log.info("Forgot password OTP sent for accountId: {}", account.getAccountId());
     }
 
     @Override

@@ -16,5 +16,5 @@ public interface OtpService {
 
     void verifyPasswordReset(UUID accountId, String code);
 
-    void enforcePasswordResetCooldown(String email);
+    void enforcePasswordResetCooldown(UUID accountId);
 }

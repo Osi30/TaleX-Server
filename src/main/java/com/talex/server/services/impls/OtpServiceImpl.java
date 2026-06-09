@@ -99,8 +99,8 @@ public class OtpServiceImpl implements OtpService {
     }
 
     @Override
-    public void enforcePasswordResetCooldown(String email) {
-        String key = PWD_RESET_COOLDOWN_PREFIX + email;
+    public void enforcePasswordResetCooldown(UUID accountId) {
+        String key = PWD_RESET_COOLDOWN_PREFIX + accountId;
         Boolean wasAbsent = redisTemplate.opsForValue()
                 .setIfAbsent(key, "1", Duration.ofMinutes(resendCooldownMinutes));
 

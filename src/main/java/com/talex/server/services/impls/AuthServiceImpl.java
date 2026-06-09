@@ -17,6 +17,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -36,7 +37,8 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public String register(RegisterRequest request) {
-        var existing = accountRepository.findByEmail(request.getEmail()).orElse(null);
+        // Username is the unique identifier — email can be shared across accounts
+        var existing = accountRepository.findByUsername(request.getUsername()).orElse(null);
 
         if (existing != null) {
             if (existing.getStatus() == AccountStatus.VERIFYING) {
@@ -44,13 +46,9 @@ public class AuthServiceImpl implements AuthService {
                 updateVerifyingAccount(existing, request);
                 accountRepository.save(existing);
                 otpService.generateAndSend(existing);
-                log.info("Re-register (VERIFYING) for: {}", request.getEmail());
+                log.info("Re-register (VERIFYING) for: {}", request.getUsername());
                 return jwtTokenProvider.generateVerificationToken(existing.getAccountId());
             }
-            throw new AuthException(AuthErrorCode.EMAIL_ALREADY_EXISTS);
-        }
-
-        if (accountRepository.existsByUsername(request.getUsername())) {
             throw new AuthException(AuthErrorCode.USERNAME_ALREADY_EXISTS);
         }
 
@@ -96,18 +94,22 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public AuthResponse login(LoginRequest request) {
-        Account account = accountRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new AuthException(AuthErrorCode.INVALID_CREDENTIALS));
-
-        validateAccountStatus(account);
-
-        if (account.getPassword() == null
-                || !passwordEncoder.matches(request.getPassword(), account.getPassword())) {
+        // Multiple accounts can share the same email — password disambiguates
+        List<Account> accounts = accountRepository.findAllByEmail(request.getEmail());
+        if (accounts.isEmpty()) {
             throw new AuthException(AuthErrorCode.INVALID_CREDENTIALS);
         }
 
+        Account matched = accounts.stream()
+                .filter(a -> a.getPassword() != null
+                        && passwordEncoder.matches(request.getPassword(), a.getPassword()))
+                .findFirst()
+                .orElseThrow(() -> new AuthException(AuthErrorCode.INVALID_CREDENTIALS));
+
+        validateAccountStatus(matched);
+
         log.info("Login success: {}", request.getEmail());
-        return generateAuthResponse(account);
+        return generateAuthResponse(matched);
     }
 
     @Override
@@ -115,21 +117,11 @@ public class AuthServiceImpl implements AuthService {
     public Object googleLogin(GoogleLoginRequest request) {
         GoogleUserInfo googleInfo = googleAuthService.verifyIdToken(request.getIdToken());
 
-        // Find by googleSubId first, then by email
+        // Only find by googleSubId — each Google account is a separate account
         Account account = accountRepository.findByGoogleSubId(googleInfo.getGoogleSubId())
                 .orElse(null);
 
-        if (account == null) {
-            account = accountRepository.findByEmail(googleInfo.getEmail()).orElse(null);
-        }
-
         if (account != null) {
-            // Link googleSubId if not yet linked
-            if (account.getGoogleSubId() == null) {
-                account.setGoogleSubId(googleInfo.getGoogleSubId());
-                accountRepository.save(account);
-            }
-
             return switch (account.getStatus()) {
                 case ACTIVE -> generateAuthResponse(account);
                 case ONBOARDING -> jwtTokenProvider.generateVerificationToken(account.getAccountId());

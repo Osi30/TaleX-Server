@@ -10,4 +10,7 @@ public class ForgotPasswordRequest {
     @NotBlank
     @Email
     private String email;
+
+    // Optional — required when multiple accounts share the same email
+    private String username;
 }
