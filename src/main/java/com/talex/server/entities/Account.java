@@ -39,7 +39,7 @@ public class Account {
     @Column(name = "username", nullable = false, unique = true)
     private String username;
 
-    @Column(name = "email", nullable = false, unique = true)
+    @Column(name = "email", nullable = false)
     private String email;
 
     @Column(name = "password")
@@ -77,4 +77,7 @@ public class Account {
 
     @Column(name = "google_sub_id", unique = true)
     private String googleSubId;
+
+    @Column(name = "avatar_url")
+    private String avatarUrl;
 }
