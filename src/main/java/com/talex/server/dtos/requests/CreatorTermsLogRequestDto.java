@@ -1,6 +1,6 @@
 package com.talex.server.dtos.requests;
 
-import com.talex.server.entities.Creator;
+import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -11,6 +11,6 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Builder
 public class CreatorTermsLogRequestDto {
-    private Creator creator;
+    @NotBlank
     private String versionId;
 }

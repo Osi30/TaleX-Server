@@ -59,10 +59,11 @@ public class CreatorService implements ICreatorService {
                     .build());
 
             // 2. Log
-            creatorTermsLogService.create(CreatorTermsLogRequestDto.builder()
-                    .versionId(dto.getTermsId())
-                    .creator(creator)
-                    .build());
+            creatorTermsLogService.create(
+                    dto.getAccountId(),
+                    CreatorTermsLogRequestDto.builder()
+                            .versionId(dto.getTermsId())
+                            .build());
 
             // 3. Identity
             creatorIdentityService.create(creator);
