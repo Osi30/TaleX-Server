@@ -100,7 +100,7 @@ public class AccountProfileServiceImpl implements AccountProfileService {
     }
 
     @Override
-    public void forgotPassword(ForgotPasswordRequest request) {
+    public String forgotPassword(ForgotPasswordRequest request) {
         // Anti-enumeration: always return success regardless of email existence
         List<Account> activeAccounts = accountRepository.findAllByEmail(request.getEmail())
                 .stream()
@@ -109,7 +109,8 @@ public class AccountProfileServiceImpl implements AccountProfileService {
 
         if (activeAccounts.isEmpty()) {
             log.debug("Forgot password for non-existent or inactive email: {}", request.getEmail());
-            return;
+            // Return a dummy token so attacker can't distinguish from real response
+            return jwtTokenProvider.generateVerificationToken(UUID.randomUUID());
         }
 
         Account account;
@@ -125,13 +126,15 @@ public class AccountProfileServiceImpl implements AccountProfileService {
                     .findFirst()
                     .orElse(null);
             if (account == null) {
-                return; // Anti-enumeration: don't reveal username mismatch
+                // Anti-enumeration: don't reveal username mismatch
+                return jwtTokenProvider.generateVerificationToken(UUID.randomUUID());
             }
         }
 
         otpService.enforcePasswordResetCooldown(account.getAccountId());
         otpService.generateAndSendPasswordReset(account);
         log.info("Forgot password OTP sent for accountId: {}", account.getAccountId());
+        return jwtTokenProvider.generateVerificationToken(account.getAccountId());
     }
 
     @Override

@@ -4,6 +4,7 @@ import com.talex.server.configs.JwtTokenProvider;
 import com.talex.server.dtos.requests.*;
 import com.talex.server.dtos.responses.AccountProfileResponse;
 import com.talex.server.dtos.responses.AuthResponse;
+import com.talex.server.dtos.responses.GoogleAuthResponseDto;
 import com.talex.server.dtos.responses.GoogleUserInfo;
 import com.talex.server.entities.Account;
 import com.talex.server.enums.AccountStatus;
@@ -114,7 +115,7 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     @Transactional
-    public Object googleLogin(GoogleLoginRequest request) {
+    public GoogleAuthResponseDto googleLogin(GoogleLoginRequest request) {
         GoogleUserInfo googleInfo = googleAuthService.verifyIdToken(request.getIdToken());
 
         // Only find by googleSubId — each Google account is a separate account
@@ -123,11 +124,17 @@ public class AuthServiceImpl implements AuthService {
 
         if (account != null) {
             return switch (account.getStatus()) {
-                case ACTIVE -> generateAuthResponse(account);
-                case ONBOARDING -> jwtTokenProvider.generateVerificationToken(account.getAccountId());
+                case ACTIVE -> toGoogleAuthResponse("ACTIVE", account);
+                case ONBOARDING -> GoogleAuthResponseDto.builder()
+                        .status("ONBOARDING")
+                        .verificationToken(jwtTokenProvider.generateVerificationToken(account.getAccountId()))
+                        .build();
                 case VERIFYING -> {
                     otpService.generateAndSend(account);
-                    yield jwtTokenProvider.generateVerificationToken(account.getAccountId());
+                    yield GoogleAuthResponseDto.builder()
+                            .status("VERIFYING")
+                            .verificationToken(jwtTokenProvider.generateVerificationToken(account.getAccountId()))
+                            .build();
                 }
                 case BANNED -> throw new AuthException(AuthErrorCode.ACCOUNT_BANNED);
                 case DELETED -> throw new AuthException(AuthErrorCode.ACCOUNT_DELETED);
@@ -149,7 +156,10 @@ public class AuthServiceImpl implements AuthService {
         accountRepository.save(newAccount);
 
         log.info("New Google account (ONBOARDING): {}", googleInfo.getEmail());
-        return jwtTokenProvider.generateVerificationToken(newAccount.getAccountId());
+        return GoogleAuthResponseDto.builder()
+                .status("ONBOARDING")
+                .verificationToken(jwtTokenProvider.generateVerificationToken(newAccount.getAccountId()))
+                .build();
     }
 
     @Override
@@ -236,8 +246,8 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public void forgotPassword(ForgotPasswordRequest request) {
-        accountProfileService.forgotPassword(request);
+    public String forgotPassword(ForgotPasswordRequest request) {
+        return accountProfileService.forgotPassword(request);
     }
 
     @Override
@@ -259,6 +269,15 @@ public class AuthServiceImpl implements AuthService {
         return AuthResponse.builder()
                 .accessToken(jwtTokenProvider.generateAccessToken(account))
                 .refreshToken(tokenFamilyService.createFamily(account.getAccountId()))
+                .build();
+    }
+
+    private GoogleAuthResponseDto toGoogleAuthResponse(String status, Account account) {
+        AuthResponse auth = generateAuthResponse(account);
+        return GoogleAuthResponseDto.builder()
+                .status(status)
+                .accessToken(auth.getAccessToken())
+                .refreshToken(auth.getRefreshToken())
                 .build();
     }
 

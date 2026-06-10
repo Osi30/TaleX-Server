@@ -13,6 +13,7 @@ import com.talex.server.dtos.requests.UpdateProfileRequest;
 import com.talex.server.dtos.requests.VerifyOtpRequest;
 import com.talex.server.dtos.responses.AccountProfileResponse;
 import com.talex.server.dtos.responses.AuthResponse;
+import com.talex.server.dtos.responses.GoogleAuthResponseDto;
 
 import java.util.UUID;
 
@@ -24,7 +25,7 @@ public interface AuthService {
 
     AuthResponse login(LoginRequest request);
 
-    Object googleLogin(GoogleLoginRequest request);
+    GoogleAuthResponseDto googleLogin(GoogleLoginRequest request);
 
     AuthResponse completeProfile(CompleteProfileRequest request);
 
@@ -40,7 +41,7 @@ public interface AuthService {
 
     void changePassword(UUID accountId, ChangePasswordRequest request);
 
-    void forgotPassword(ForgotPasswordRequest request);
+    String forgotPassword(ForgotPasswordRequest request);
 
     void resetPassword(ResetPasswordRequest request);
 }

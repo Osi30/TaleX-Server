@@ -15,6 +15,7 @@ import com.talex.server.dtos.requests.VerifyOtpRequest;
 import com.talex.server.dtos.responses.AccountProfileResponse;
 import com.talex.server.dtos.responses.ApiResponse;
 import com.talex.server.dtos.responses.AuthResponse;
+import com.talex.server.dtos.responses.GoogleAuthResponseDto;
 import com.talex.server.services.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -63,13 +64,13 @@ public class AuthController {
     }
 
     @PostMapping("/google")
-    @Operation(summary = "Login or register with Google OAuth2 ID token")
-    public ResponseEntity<ApiResponse<?>> googleLogin(@Valid @RequestBody GoogleLoginRequest request) {
-        Object result = authService.googleLogin(request);
-        if (result instanceof AuthResponse auth) {
-            return ResponseEntity.ok(ApiResponse.ok("Google login successful", auth));
-        }
-        return ResponseEntity.ok(ApiResponse.ok("Vui lòng hoàn tất thông tin cá nhân", (String) result));
+    @Operation(summary = "Login or register with Google OAuth2 ID token — check 'status' field for next step")
+    public ResponseEntity<ApiResponse<GoogleAuthResponseDto>> googleLogin(@Valid @RequestBody GoogleLoginRequest request) {
+        GoogleAuthResponseDto result = authService.googleLogin(request);
+        String message = "ACTIVE".equals(result.getStatus())
+                ? "Google login successful"
+                : "Vui lòng hoàn tất thông tin cá nhân";
+        return ResponseEntity.ok(ApiResponse.ok(message, result));
     }
 
     @PostMapping("/complete-profile")
@@ -134,12 +135,13 @@ public class AuthController {
     // ── Password Recovery (Public) ──────────────────────────────────
 
     @PostMapping("/forgot-password")
-    @Operation(summary = "Request password reset OTP via email")
-    public ResponseEntity<ApiResponse<Void>> forgotPassword(
+    @Operation(summary = "Request password reset OTP via email — returns verification token for reset flow")
+    public ResponseEntity<ApiResponse<String>> forgotPassword(
             @Valid @RequestBody ForgotPasswordRequest request) {
-        authService.forgotPassword(request);
+        String verificationToken = authService.forgotPassword(request);
         return ResponseEntity.ok(ApiResponse.ok(
-                "Nếu email tồn tại, mã OTP đã được gửi tới email của bạn."));
+                "Nếu email tồn tại, mã OTP đã được gửi tới email của bạn.",
+                verificationToken));
     }
 
     @PostMapping("/reset-password")

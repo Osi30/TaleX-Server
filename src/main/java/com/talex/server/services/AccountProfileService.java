@@ -16,7 +16,7 @@ public interface AccountProfileService {
 
     void changePassword(UUID accountId, ChangePasswordRequest request);
 
-    void forgotPassword(ForgotPasswordRequest request);
+    String forgotPassword(ForgotPasswordRequest request);
 
     void resetPassword(ResetPasswordRequest request);
 }
