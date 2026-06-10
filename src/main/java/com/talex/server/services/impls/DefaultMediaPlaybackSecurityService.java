@@ -55,7 +55,31 @@ public class DefaultMediaPlaybackSecurityService implements MediaPlaybackSecurit
     @Transactional
     @Override
     public EpisodePlaybackResponseDto getEpisodePlayback(String episodeId, String viewerId, String ipAddress, String userAgent) {
-        Episode episode = episodeService.findPublicEntity(episodeId);
+        return buildEpisodePlayback(
+                episodeService.findPublicEntity(episodeId),
+                episodeId,
+                viewerId,
+                ipAddress,
+                userAgent);
+    }
+
+    @Transactional
+    @Override
+    public EpisodePlaybackResponseDto getCreatorEpisodePlayback(String episodeId, String viewerId, String ipAddress, String userAgent) {
+        return buildEpisodePlayback(
+                episodeService.findActiveEntity(episodeId),
+                episodeId,
+                viewerId,
+                ipAddress,
+                userAgent);
+    }
+
+    private EpisodePlaybackResponseDto buildEpisodePlayback(
+            Episode episode,
+            String episodeId,
+            String viewerId,
+            String ipAddress,
+            String userAgent) {
         if (!playbackAuthorizationService.canViewEpisode(viewerId, episodeId)) {
             throw ContentModuleException.badRequest("PLAYBACK_NOT_AUTHORIZED");
         }

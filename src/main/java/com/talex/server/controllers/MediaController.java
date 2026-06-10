@@ -11,7 +11,9 @@ import com.talex.server.dtos.requests.MediaUploadFailRequestDto;
 import com.talex.server.dtos.requests.MediaUploadProgressRequestDto;
 import com.talex.server.dtos.requests.VideoUploadSessionRequestDto;
 import com.talex.server.services.MediaService;
+import com.talex.server.services.MediaPlaybackSecurityService;
 import com.talex.server.services.MediaUploadSessionService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -31,6 +33,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class MediaController {
     private final MediaService mediaService;
     private final MediaUploadSessionService mediaUploadSessionService;
+    private final MediaPlaybackSecurityService mediaPlaybackSecurityService;
 
     @PostMapping("/api/v1/episodes/{episodeId}/media/video/upload-session")
     public ResponseEntity<BaseResponse> createVideoUploadSession(
@@ -106,6 +109,19 @@ public class MediaController {
     @GetMapping("/api/v1/episodes/{episodeId}/media")
     public ResponseEntity<BaseResponse> listByEpisode(@PathVariable String episodeId) {
         return ResponseEntity.ok(response(200, "OK", mediaService.listByEpisode(episodeId)));
+    }
+
+    @GetMapping("/api/v1/episodes/{episodeId}/playback")
+    public ResponseEntity<BaseResponse> getCreatorEpisodePlayback(
+            @PathVariable String episodeId,
+            @RequestParam(required = false) String viewerId,
+            HttpServletRequest request) {
+        return ResponseEntity.ok(response(200, "OK",
+                mediaPlaybackSecurityService.getCreatorEpisodePlayback(
+                        episodeId,
+                        viewerId,
+                        request.getRemoteAddr(),
+                        request.getHeader("User-Agent"))));
     }
 
     @GetMapping("/api/v1/media/{id}")

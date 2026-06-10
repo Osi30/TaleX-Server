@@ -65,6 +65,7 @@ public class DefaultMediaUploadSessionService implements MediaUploadSessionServi
     private final MediaProviderService mediaProviderService;
     private final MediaProperties mediaProperties;
     private final CloudinaryHlsReconcileService cloudinaryHlsReconcileService;
+    private final MediaUploadProgressCache uploadProgressCache;
 
     @Transactional
     @Override
@@ -137,13 +138,15 @@ public class DefaultMediaUploadSessionService implements MediaUploadSessionServi
     @Transactional(readOnly = true)
     @Override
     public MediaUploadSessionResponseDto getSession(String uploadSessionId) {
-        return toResponse(findSession(uploadSessionId));
+        MediaUploadSession session = findSession(uploadSessionId);
+        return toResponse(session, latestProgressFor(session));
     }
 
     @Transactional
     @Override
     public MediaUploadSessionResponseDto updateProgress(String uploadSessionId, MediaUploadProgressRequestDto request) {
         MediaUploadSession session = findSession(uploadSessionId);
+        CachedMediaUploadProgress currentProgress = latestProgressFor(session);
         MediaUploadSessionStatus nextStatus = request.getStatus() == null
                 ? MediaUploadSessionStatus.UPLOADING
                 : request.getStatus();
@@ -159,40 +162,52 @@ public class DefaultMediaUploadSessionService implements MediaUploadSessionServi
         }
         validateChunkIndex(session, request.getLastUploadedChunkIndex());
 
-        long currentUploadedBytes = session.getUploadedBytes() == null ? 0L : session.getUploadedBytes();
+        long currentUploadedBytes = currentProgress.uploadedBytes() == null ? 0L : currentProgress.uploadedBytes();
         if (request.getUploadedBytes() < currentUploadedBytes) {
             log.debug("Ignored stale video upload progress. uploadSessionId={} currentUploadedBytes={} requestedUploadedBytes={}",
                     uploadSessionId, currentUploadedBytes, request.getUploadedBytes());
-            return toResponse(session);
+            return toResponse(session, currentProgress);
         }
 
-        if (isSameProgress(session, request, nextStatus)) {
-            return toResponse(session);
+        if (isSameProgress(currentProgress, request, nextStatus)) {
+            return toResponse(session, currentProgress);
         }
 
-        session.setUploadedBytes(request.getUploadedBytes());
-        session.setLastUploadedChunkIndex(request.getLastUploadedChunkIndex());
-        session.setStatus(nextStatus);
-        session.markUpdatedBy(request.getActorId());
+        CachedMediaUploadProgress nextProgress = new CachedMediaUploadProgress(
+                request.getUploadedBytes(),
+                request.getLastUploadedChunkIndex(),
+                nextStatus,
+                request.getActorId());
+        if (!uploadProgressCache.put(uploadSessionId, nextProgress, session)) {
+            session.setUploadedBytes(nextProgress.uploadedBytes());
+            session.setLastUploadedChunkIndex(nextProgress.lastUploadedChunkIndex());
+            session.setStatus(nextProgress.status());
+            session.markUpdatedBy(nextProgress.actorId());
+            session = uploadSessionRepository.save(session);
+        }
         log.debug("Video upload progress updated. uploadSessionId={} uploadedBytes={}",
                 uploadSessionId, request.getUploadedBytes());
-        return toResponse(uploadSessionRepository.save(session));
+        return toResponse(session, nextProgress);
     }
 
     @Transactional
     @Override
     public MediaUploadSessionResponseDto pause(String uploadSessionId, String actorId) {
         MediaUploadSession session = findSession(uploadSessionId);
+        applyCachedProgress(session);
         session.setStatus(MediaUploadSessionStatus.PAUSED);
         session.markUpdatedBy(actorId);
         log.info("Video upload paused. uploadSessionId={}", uploadSessionId);
-        return toResponse(uploadSessionRepository.save(session));
+        session = uploadSessionRepository.save(session);
+        uploadProgressCache.delete(uploadSessionId);
+        return toResponse(session);
     }
 
     @Transactional
     @Override
     public MediaUploadSessionResponseDto fail(String uploadSessionId, MediaUploadFailRequestDto request) {
         MediaUploadSession session = findSession(uploadSessionId);
+        applyCachedProgress(session);
         session.setStatus(MediaUploadSessionStatus.FAILED);
         session.setErrorMessage(request == null ? null : blankToNull(request.getErrorMessage()));
         session.markUpdatedBy(request == null ? null : request.getActorId());
@@ -202,13 +217,16 @@ public class DefaultMediaUploadSessionService implements MediaUploadSessionServi
             mediaRepository.save(session.getMedia());
         }
         log.warn("Video upload failed. uploadSessionId={} error={}", uploadSessionId, session.getErrorMessage());
-        return toResponse(uploadSessionRepository.save(session));
+        session = uploadSessionRepository.save(session);
+        uploadProgressCache.delete(uploadSessionId);
+        return toResponse(session);
     }
 
     @Transactional
     @Override
     public MediaUploadSessionResponseDto cancel(String uploadSessionId, String actorId) {
         MediaUploadSession session = findSession(uploadSessionId);
+        applyCachedProgress(session);
         session.setStatus(MediaUploadSessionStatus.CANCELLED);
         session.markUpdatedBy(actorId);
         if (session.getMedia() != null) {
@@ -219,13 +237,16 @@ public class DefaultMediaUploadSessionService implements MediaUploadSessionServi
             mediaRepository.save(media);
         }
         log.info("Video upload cancelled. uploadSessionId={}", uploadSessionId);
-        return toResponse(uploadSessionRepository.save(session));
+        session = uploadSessionRepository.save(session);
+        uploadProgressCache.delete(uploadSessionId);
+        return toResponse(session);
     }
 
     @Transactional
     @Override
     public MediaResponseDto complete(String uploadSessionId, MediaUploadCompleteRequestDto request) {
         MediaUploadSession session = findSession(uploadSessionId);
+        applyCachedProgress(session);
         lockActiveEpisode(session.getEpisode().getEpisodeId());
         if (session.getStatus() == MediaUploadSessionStatus.COMPLETED) {
             validateCompletedRequestMatchesSession(session, request);
@@ -265,6 +286,7 @@ public class DefaultMediaUploadSessionService implements MediaUploadSessionServi
         session.setErrorMessage(null);
         session.markUpdatedBy(request.getActorId());
         uploadSessionRepository.save(session);
+        uploadProgressCache.delete(uploadSessionId);
 
         log.info("Video upload completed. uploadSessionId={} mediaId={} providerPublicId={}",
                 uploadSessionId, media.getMediaId(), media.getProviderPublicId());
@@ -293,13 +315,53 @@ public class DefaultMediaUploadSessionService implements MediaUploadSessionServi
     }
 
     private boolean isSameProgress(
-            MediaUploadSession session,
+            CachedMediaUploadProgress currentProgress,
             MediaUploadProgressRequestDto request,
             MediaUploadSessionStatus nextStatus) {
-        return java.util.Objects.equals(session.getUploadedBytes(), request.getUploadedBytes())
-                && java.util.Objects.equals(session.getLastUploadedChunkIndex(), request.getLastUploadedChunkIndex())
-                && session.getStatus() == nextStatus
-                && java.util.Objects.equals(session.getUpdatedBy(), request.getActorId());
+        return java.util.Objects.equals(currentProgress.uploadedBytes(), request.getUploadedBytes())
+                && java.util.Objects.equals(currentProgress.lastUploadedChunkIndex(), request.getLastUploadedChunkIndex())
+                && currentProgress.status() == nextStatus
+                && java.util.Objects.equals(currentProgress.actorId(), request.getActorId());
+    }
+
+    private CachedMediaUploadProgress latestProgressFor(MediaUploadSession session) {
+        CachedMediaUploadProgress persistedProgress = new CachedMediaUploadProgress(
+                session.getUploadedBytes(),
+                session.getLastUploadedChunkIndex(),
+                session.getStatus(),
+                session.getUpdatedBy());
+        if (TERMINAL_UPLOAD_SESSION_STATUSES.contains(session.getStatus())) {
+            return persistedProgress;
+        }
+        return uploadProgressCache.get(session.getUploadSessionId())
+                .filter(cachedProgress -> isUsableCachedProgress(session, cachedProgress))
+                .orElse(persistedProgress);
+    }
+
+    private boolean isUsableCachedProgress(MediaUploadSession session, CachedMediaUploadProgress cachedProgress) {
+        if (cachedProgress.uploadedBytes() == null || cachedProgress.uploadedBytes() > session.getFileSize()) {
+            return false;
+        }
+        if (cachedProgress.status() == null || !ALLOWED_PROGRESS_STATUSES.contains(cachedProgress.status())) {
+            return false;
+        }
+        long persistedUploadedBytes = session.getUploadedBytes() == null ? 0L : session.getUploadedBytes();
+        if (cachedProgress.uploadedBytes() < persistedUploadedBytes) {
+            return false;
+        }
+        try {
+            validateChunkIndex(session, cachedProgress.lastUploadedChunkIndex());
+            return true;
+        } catch (ContentModuleException ex) {
+            return false;
+        }
+    }
+
+    private void applyCachedProgress(MediaUploadSession session) {
+        CachedMediaUploadProgress cachedProgress = latestProgressFor(session);
+        session.setUploadedBytes(cachedProgress.uploadedBytes());
+        session.setLastUploadedChunkIndex(cachedProgress.lastUploadedChunkIndex());
+        session.setStatus(cachedProgress.status());
     }
 
     private void reconcileExistingVideoMedia(String episodeId, String actorId) {
@@ -427,6 +489,14 @@ public class DefaultMediaUploadSessionService implements MediaUploadSessionServi
     }
 
     private MediaUploadSessionResponseDto toResponse(MediaUploadSession session) {
+        return toResponse(session, new CachedMediaUploadProgress(
+                session.getUploadedBytes(),
+                session.getLastUploadedChunkIndex(),
+                session.getStatus(),
+                session.getUpdatedBy()));
+    }
+
+    private MediaUploadSessionResponseDto toResponse(MediaUploadSession session, CachedMediaUploadProgress progress) {
         return MediaUploadSessionResponseDto.builder()
                 .uploadSessionId(session.getUploadSessionId())
                 .mediaId(session.getMedia() == null ? null : session.getMedia().getMediaId())
@@ -440,10 +510,10 @@ public class DefaultMediaUploadSessionService implements MediaUploadSessionServi
                 .fileSize(session.getFileSize())
                 .mimeType(session.getMimeType())
                 .chunkSize(session.getChunkSize())
-                .uploadedBytes(session.getUploadedBytes())
+                .uploadedBytes(progress.uploadedBytes())
                 .totalChunks(session.getTotalChunks())
-                .lastUploadedChunkIndex(session.getLastUploadedChunkIndex())
-                .status(session.getStatus())
+                .lastUploadedChunkIndex(progress.lastUploadedChunkIndex())
+                .status(progress.status())
                 .errorMessage(session.getErrorMessage())
                 .expiredAt(session.getExpiredAt())
                 .createdAt(session.getCreatedAt())

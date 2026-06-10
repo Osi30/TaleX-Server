@@ -28,6 +28,8 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -52,10 +54,14 @@ class DefaultMediaUploadSessionServiceTest {
     @Mock
     private CloudinaryHlsReconcileService cloudinaryHlsReconcileService;
 
+    @Mock
+    private MediaUploadProgressCache uploadProgressCache;
+
     private DefaultMediaUploadSessionService service;
 
     @BeforeEach
     void setUp() {
+        lenient().when(uploadProgressCache.get(any())).thenReturn(Optional.empty());
         service = new DefaultMediaUploadSessionService(
                 uploadSessionRepository,
                 mediaRepository,
@@ -63,7 +69,8 @@ class DefaultMediaUploadSessionServiceTest {
                 mediaService,
                 mediaProviderService,
                 new MediaProperties(),
-                cloudinaryHlsReconcileService);
+                cloudinaryHlsReconcileService,
+                uploadProgressCache);
     }
 
     @Test
@@ -93,6 +100,24 @@ class DefaultMediaUploadSessionServiceTest {
 
         assertEquals(2048L, response.getUploadedBytes());
         assertEquals(2048L, session.getUploadedBytes());
+        verify(uploadSessionRepository, never()).save(any(MediaUploadSession.class));
+    }
+
+    @Test
+    void updateProgressStoresProgressInRedisWithoutSavingDatabase() {
+        MediaUploadSession session = session(MediaUploadSessionStatus.UPLOADING, 1024L, 0);
+        when(uploadSessionRepository.findByUploadSessionIdAndIsDeletedFalse("session-1"))
+                .thenReturn(Optional.of(session));
+        when(uploadProgressCache.put(eq("session-1"), any(CachedMediaUploadProgress.class), any(MediaUploadSession.class)))
+                .thenReturn(true);
+
+        var response = service.updateProgress(
+                "session-1",
+                new MediaUploadProgressRequestDto(2048L, 1, MediaUploadSessionStatus.UPLOADING, "actor-1"));
+
+        assertEquals(2048L, response.getUploadedBytes());
+        assertEquals(1, response.getLastUploadedChunkIndex());
+        verify(uploadProgressCache).put(eq("session-1"), any(CachedMediaUploadProgress.class), any(MediaUploadSession.class));
         verify(uploadSessionRepository, never()).save(any(MediaUploadSession.class));
     }
 
