@@ -6,6 +6,7 @@ import com.talex.server.services.IKycStepService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -18,6 +19,7 @@ public class KycStepController {
     private final IKycStepService kycStepService;
 
     @GetMapping("/{kycStepId}")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<BaseResponse> getKycStepById(
             @PathVariable String kycStepId) {
         KycStepResponseDto response = kycStepService.getKycStepById(kycStepId);
@@ -32,6 +34,7 @@ public class KycStepController {
 
 
     @GetMapping()
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<BaseResponse> filterKycSteps(
             @RequestParam Map<String, Object> params
     ) {

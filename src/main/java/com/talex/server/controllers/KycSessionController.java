@@ -14,6 +14,7 @@ import com.talex.server.services.IKycStepService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -29,6 +30,7 @@ public class KycSessionController {
     private final IKycStepService kycStepService;
 
     @GetMapping("/{kycSessionId}")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<BaseResponse> getSessionById(
             @PathVariable String kycSessionId
     ) {
@@ -42,6 +44,7 @@ public class KycSessionController {
     }
 
     @GetMapping
+    @PreAuthorize("hasAnyRole('STAFF', 'ADMIN')")
     public ResponseEntity<BaseResponse> filterAndSortSessions(
             @RequestParam(required = false) Map<String, Object> criteria,
             @RequestParam(required = false) String[] statuses,
@@ -69,6 +72,7 @@ public class KycSessionController {
     }
 
     @PutMapping("/{kycSessionId}")
+    @PreAuthorize("hasAnyRole('STAFF', 'ADMIN')")
     public ResponseEntity<BaseResponse> updateSession(
             @PathVariable String kycSessionId,
             @RequestBody KycSessionRequestDto requestDto
@@ -86,6 +90,7 @@ public class KycSessionController {
             value = "/{kycSessionId}/id-card/front-image",
             consumes = MediaType.MULTIPART_FORM_DATA_VALUE
     )
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<BaseResponse> scanFrontIdCard(
             @PathVariable
             String kycSessionId,
@@ -107,6 +112,7 @@ public class KycSessionController {
             value = "/{kycSessionId}/id-card/back-image",
             consumes = MediaType.MULTIPART_FORM_DATA_VALUE
     )
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<BaseResponse> scanBackIdCard(
             @PathVariable
             String kycSessionId,
@@ -129,6 +135,7 @@ public class KycSessionController {
             value = "/{kycSessionId}/liveness",
             consumes = MediaType.MULTIPART_FORM_DATA_VALUE
     )
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<BaseResponse> verifyLiveness(
             @PathVariable
             String kycSessionId,

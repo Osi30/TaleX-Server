@@ -7,6 +7,7 @@ import com.talex.server.dtos.responses.CreatorIdentityResponseDto;
 import com.talex.server.services.ICreatorIdentityService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
@@ -18,6 +19,7 @@ public class CreatorIdentityController {
     private final ICreatorIdentityService creatorIdentityService;
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('CREATOR', 'STAFF', 'ADMIN')")
     public ResponseEntity<BaseResponse> getById(@PathVariable String id) {
         CreatorIdentityResponseDto resp = creatorIdentityService.getById(id);
         return ResponseEntity.ok(BaseResponse.builder()
@@ -28,6 +30,7 @@ public class CreatorIdentityController {
     }
 
     @GetMapping("/own")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<BaseResponse> getAccountCreatorIdentity(
             @CurrentAccountId UUID accountId
     ) {
@@ -41,6 +44,7 @@ public class CreatorIdentityController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('STAFF', 'ADMIN')")
     public ResponseEntity<BaseResponse> update(
             @PathVariable String id,
             @RequestBody CreatorIdentityRequestDto dto
@@ -53,9 +57,8 @@ public class CreatorIdentityController {
                 .build());
     }
 
-    // Cần thiết kế lại để đảm bảo đáp ứng pháp lý
-    // Hiện đang xóa cứng
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<BaseResponse> delete(@PathVariable String id) {
         creatorIdentityService.delete(id);
         return ResponseEntity.ok(BaseResponse.builder()

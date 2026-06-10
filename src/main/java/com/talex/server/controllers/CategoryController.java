@@ -1,5 +1,6 @@
 package com.talex.server.controllers;
 
+import com.talex.server.annotations.CurrentAccountId;
 import com.talex.server.dtos.BaseResponse;
 import com.talex.server.dtos.requests.CategoryRequestDto;
 import com.talex.server.services.CategoryService;
@@ -7,6 +8,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -18,6 +20,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.UUID;
+
 @RestController
 @RequestMapping("/api/v1/categories")
 @RequiredArgsConstructor
@@ -25,6 +29,7 @@ public class CategoryController {
     private final CategoryService categoryService;
 
     @PostMapping
+    @PreAuthorize("hasAnyRole('STAFF', 'ADMIN')")
     public ResponseEntity<BaseResponse> create(@Valid @RequestBody CategoryRequestDto request) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(response(201, "Category created", categoryService.create(request)));
@@ -43,6 +48,7 @@ public class CategoryController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('STAFF', 'ADMIN')")
     public ResponseEntity<BaseResponse> update(
             @PathVariable String id,
             @Valid @RequestBody CategoryRequestDto request) {
@@ -50,24 +56,27 @@ public class CategoryController {
     }
 
     @PatchMapping("/{id}/hide")
+    @PreAuthorize("hasAnyRole('STAFF', 'ADMIN')")
     public ResponseEntity<BaseResponse> hide(
             @PathVariable String id,
-            @RequestParam(required = false) String actorId) {
-        return ResponseEntity.ok(response(200, "Category hidden", categoryService.hide(id, actorId)));
+            @CurrentAccountId UUID accountId) {
+        return ResponseEntity.ok(response(200, "Category hidden", categoryService.hide(id, accountId.toString())));
     }
 
     @PatchMapping("/{id}/unhide")
+    @PreAuthorize("hasAnyRole('STAFF', 'ADMIN')")
     public ResponseEntity<BaseResponse> unhide(
             @PathVariable String id,
-            @RequestParam(required = false) String actorId) {
-        return ResponseEntity.ok(response(200, "Category visible", categoryService.unhide(id, actorId)));
+            @CurrentAccountId UUID accountId) {
+        return ResponseEntity.ok(response(200, "Category visible", categoryService.unhide(id, accountId.toString())));
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyRole('STAFF', 'ADMIN')")
     public ResponseEntity<BaseResponse> delete(
             @PathVariable String id,
-            @RequestParam(required = false) String actorId) {
-        categoryService.delete(id, actorId);
+            @CurrentAccountId UUID accountId) {
+        categoryService.delete(id, accountId.toString());
         return ResponseEntity.ok(response(200, "Category deleted", null));
     }
 

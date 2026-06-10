@@ -1,5 +1,6 @@
 package com.talex.server.controllers;
 
+import com.talex.server.annotations.CurrentAccountId;
 import com.talex.server.dtos.BaseResponse;
 import com.talex.server.dtos.requests.MediaComicPagesRequestDto;
 import com.talex.server.dtos.requests.MediaMetadataRequestDto;
@@ -18,6 +19,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -28,6 +30,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.UUID;
+
 @RestController
 @RequiredArgsConstructor
 public class MediaController {
@@ -36,6 +40,7 @@ public class MediaController {
     private final MediaPlaybackSecurityService mediaPlaybackSecurityService;
 
     @PostMapping("/api/v1/episodes/{episodeId}/media/video/upload-session")
+    @PreAuthorize("hasAnyRole('CREATOR', 'STAFF', 'ADMIN')")
     public ResponseEntity<BaseResponse> createVideoUploadSession(
             @PathVariable String episodeId,
             @Valid @RequestBody VideoUploadSessionRequestDto request) {
@@ -45,11 +50,13 @@ public class MediaController {
     }
 
     @GetMapping("/api/v1/media/upload-sessions/{uploadSessionId}")
+    @PreAuthorize("hasAnyRole('CREATOR', 'STAFF', 'ADMIN')")
     public ResponseEntity<BaseResponse> getUploadSession(@PathVariable String uploadSessionId) {
         return ResponseEntity.ok(response(200, "OK", mediaUploadSessionService.getSession(uploadSessionId)));
     }
 
     @PatchMapping("/api/v1/media/upload-sessions/{uploadSessionId}/progress")
+    @PreAuthorize("hasAnyRole('CREATOR', 'STAFF', 'ADMIN')")
     public ResponseEntity<BaseResponse> updateUploadProgress(
             @PathVariable String uploadSessionId,
             @Valid @RequestBody MediaUploadProgressRequestDto request) {
@@ -58,14 +65,16 @@ public class MediaController {
     }
 
     @PatchMapping("/api/v1/media/upload-sessions/{uploadSessionId}/pause")
+    @PreAuthorize("hasAnyRole('CREATOR', 'STAFF', 'ADMIN')")
     public ResponseEntity<BaseResponse> pauseUpload(
             @PathVariable String uploadSessionId,
-            @RequestParam(required = false) String actorId) {
+            @CurrentAccountId UUID accountId) {
         return ResponseEntity.ok(response(200, "Upload paused",
-                mediaUploadSessionService.pause(uploadSessionId, actorId)));
+                mediaUploadSessionService.pause(uploadSessionId, accountId.toString())));
     }
 
     @PatchMapping("/api/v1/media/upload-sessions/{uploadSessionId}/fail")
+    @PreAuthorize("hasAnyRole('CREATOR', 'STAFF', 'ADMIN')")
     public ResponseEntity<BaseResponse> failUpload(
             @PathVariable String uploadSessionId,
             @RequestBody(required = false) MediaUploadFailRequestDto request) {
@@ -74,14 +83,16 @@ public class MediaController {
     }
 
     @PatchMapping("/api/v1/media/upload-sessions/{uploadSessionId}/cancel")
+    @PreAuthorize("hasAnyRole('CREATOR', 'STAFF', 'ADMIN')")
     public ResponseEntity<BaseResponse> cancelUpload(
             @PathVariable String uploadSessionId,
-            @RequestParam(required = false) String actorId) {
+            @CurrentAccountId UUID accountId) {
         return ResponseEntity.ok(response(200, "Upload cancelled",
-                mediaUploadSessionService.cancel(uploadSessionId, actorId)));
+                mediaUploadSessionService.cancel(uploadSessionId, accountId.toString())));
     }
 
     @PostMapping("/api/v1/media/upload-sessions/{uploadSessionId}/complete")
+    @PreAuthorize("hasAnyRole('CREATOR', 'STAFF', 'ADMIN')")
     public ResponseEntity<BaseResponse> completeUpload(
             @PathVariable String uploadSessionId,
             @Valid @RequestBody MediaUploadCompleteRequestDto request) {
@@ -90,6 +101,7 @@ public class MediaController {
     }
 
     @PostMapping("/api/v1/episodes/{episodeId}/media")
+    @PreAuthorize("hasAnyRole('CREATOR', 'STAFF', 'ADMIN')")
     public ResponseEntity<BaseResponse> createFromUrl(
             @PathVariable String episodeId,
             @RequestBody MediaMetadataRequestDto request) {
@@ -98,6 +110,7 @@ public class MediaController {
     }
 
     @PostMapping("/api/v1/episodes/{episodeId}/media/comic-pages")
+    @PreAuthorize("hasAnyRole('CREATOR', 'STAFF', 'ADMIN')")
     public ResponseEntity<BaseResponse> createComicPagesFromUrls(
             @PathVariable String episodeId,
             @RequestBody MediaComicPagesRequestDto request) {
@@ -107,11 +120,13 @@ public class MediaController {
     }
 
     @GetMapping("/api/v1/episodes/{episodeId}/media")
+    @PreAuthorize("hasAnyRole('CREATOR', 'STAFF', 'ADMIN')")
     public ResponseEntity<BaseResponse> listByEpisode(@PathVariable String episodeId) {
         return ResponseEntity.ok(response(200, "OK", mediaService.listByEpisode(episodeId)));
     }
 
     @GetMapping("/api/v1/episodes/{episodeId}/playback")
+    @PreAuthorize("hasAnyRole('CREATOR', 'STAFF', 'ADMIN')")
     public ResponseEntity<BaseResponse> getCreatorEpisodePlayback(
             @PathVariable String episodeId,
             @RequestParam(required = false) String viewerId,
@@ -125,11 +140,13 @@ public class MediaController {
     }
 
     @GetMapping("/api/v1/media/{id}")
+    @PreAuthorize("hasAnyRole('CREATOR', 'STAFF', 'ADMIN')")
     public ResponseEntity<BaseResponse> getById(@PathVariable String id) {
         return ResponseEntity.ok(response(200, "OK", mediaService.getById(id)));
     }
 
     @PutMapping("/api/v1/media/{id}")
+    @PreAuthorize("hasAnyRole('CREATOR', 'STAFF', 'ADMIN')")
     public ResponseEntity<BaseResponse> update(
             @PathVariable String id,
             @RequestBody MediaUpdateRequestDto request) {
@@ -137,6 +154,7 @@ public class MediaController {
     }
 
     @PutMapping("/api/v1/media/{id}/url")
+    @PreAuthorize("hasAnyRole('CREATOR', 'STAFF', 'ADMIN')")
     public ResponseEntity<BaseResponse> replaceUrl(
             @PathVariable String id,
             @RequestBody MediaMetadataRequestDto request) {
@@ -144,6 +162,7 @@ public class MediaController {
     }
 
     @PutMapping("/api/v1/episodes/{episodeId}/media/reorder")
+    @PreAuthorize("hasAnyRole('CREATOR', 'STAFF', 'ADMIN')")
     public ResponseEntity<BaseResponse> reorder(
             @PathVariable String episodeId,
             @Valid @RequestBody MediaReorderRequestDto request) {
@@ -151,20 +170,23 @@ public class MediaController {
     }
 
     @PatchMapping("/api/v1/media/{id}/hide")
+    @PreAuthorize("hasAnyRole('CREATOR', 'STAFF', 'ADMIN')")
     public ResponseEntity<BaseResponse> hide(
             @PathVariable String id,
-            @RequestParam(required = false) String actorId) {
-        return ResponseEntity.ok(response(200, "Media hidden", mediaService.hide(id, actorId)));
+            @CurrentAccountId UUID accountId) {
+        return ResponseEntity.ok(response(200, "Media hidden", mediaService.hide(id, accountId.toString())));
     }
 
     @PatchMapping("/api/v1/media/{id}/unhide")
+    @PreAuthorize("hasAnyRole('CREATOR', 'STAFF', 'ADMIN')")
     public ResponseEntity<BaseResponse> unhide(
             @PathVariable String id,
-            @RequestParam(required = false) String actorId) {
-        return ResponseEntity.ok(response(200, "Media visible", mediaService.unhide(id, actorId)));
+            @CurrentAccountId UUID accountId) {
+        return ResponseEntity.ok(response(200, "Media visible", mediaService.unhide(id, accountId.toString())));
     }
 
     @PatchMapping("/api/v1/media/{id}/status")
+    @PreAuthorize("hasAnyRole('CREATOR', 'STAFF', 'ADMIN')")
     public ResponseEntity<BaseResponse> updateStatus(
             @PathVariable String id,
             @Valid @RequestBody MediaStatusRequestDto request) {
@@ -172,10 +194,11 @@ public class MediaController {
     }
 
     @DeleteMapping("/api/v1/media/{id}")
+    @PreAuthorize("hasAnyRole('CREATOR', 'STAFF', 'ADMIN')")
     public ResponseEntity<BaseResponse> delete(
             @PathVariable String id,
-            @RequestParam(required = false) String actorId) {
-        mediaService.delete(id, actorId);
+            @CurrentAccountId UUID accountId) {
+        mediaService.delete(id, accountId.toString());
         return ResponseEntity.ok(response(200, "Media deleted", null));
     }
 

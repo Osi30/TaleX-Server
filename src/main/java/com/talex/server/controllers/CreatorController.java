@@ -11,6 +11,7 @@ import com.talex.server.services.ICreatorService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
@@ -22,6 +23,7 @@ public class CreatorController {
     private final ICreatorService creatorService;
 
     @PostMapping
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<BaseResponse> create(
             @CurrentAccountId UUID accountId,
             @RequestBody CreatorRegisterDto dto
@@ -37,6 +39,7 @@ public class CreatorController {
     }
 
     @GetMapping("/own")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<BaseResponse> getAccountCreator(
             @CurrentAccountId UUID accountId
     ) {
@@ -49,6 +52,7 @@ public class CreatorController {
     }
 
     @GetMapping
+    @PreAuthorize("hasAnyRole('STAFF', 'ADMIN')")
     public ResponseEntity<BaseResponse> filterCreators(
             @RequestParam(required = false) String searchKey,
             @RequestParam(required = false) String createdAtFrom,
@@ -81,6 +85,7 @@ public class CreatorController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('CREATOR', 'STAFF', 'ADMIN')")
     public ResponseEntity<BaseResponse> getById(@PathVariable String id) {
         CreatorResponseDto resp = creatorService.getById(id);
         return ResponseEntity.ok(BaseResponse.builder()
@@ -91,6 +96,7 @@ public class CreatorController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('CREATOR', 'STAFF', 'ADMIN')")
     public ResponseEntity<BaseResponse> update(
             @PathVariable String id,
             @RequestBody CreatorRequestDto dto
@@ -103,9 +109,8 @@ public class CreatorController {
                 .build());
     }
 
-    // Cần thiết kế lại để đảm bảo đáp ứng pháp lý
-    // Hiện đang xóa cứng
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<BaseResponse> delete(@PathVariable String id) {
         creatorService.deleteCreator(id);
         return ResponseEntity.ok(BaseResponse.builder()
