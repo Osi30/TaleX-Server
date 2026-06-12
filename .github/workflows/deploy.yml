@@ -42,6 +42,7 @@ jobs:
             CLOUDINARY_AUTH_TOKEN_KEY=${{ secrets.CLOUDINARY_AUTH_TOKEN_KEY }}
             QUESTDB_USER=${{ secrets.QUESTDB_USER }}
             QUESTDB_PASSWORD=${{ secrets.QUESTDB_PASSWORD }}
+            CORS_ALLOWED_ORIGINS=${{ secrets.CORS_ALLOWED_ORIGINS }}
             ENVEOF
 
             # Remove leading whitespace from .env lines
