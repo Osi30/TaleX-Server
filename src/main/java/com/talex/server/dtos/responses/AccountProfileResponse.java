@@ -19,5 +19,6 @@ public class AccountProfileResponse {
     private boolean hasPassword;
     private boolean googleLinked;
     private String roleName;
+    private String status;
     private LocalDateTime createdAt;
 }

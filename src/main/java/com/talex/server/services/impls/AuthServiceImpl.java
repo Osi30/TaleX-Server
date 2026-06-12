@@ -14,11 +14,13 @@ import com.talex.server.repositories.AccountRepository;
 import com.talex.server.services.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
+import java.time.Duration;
 import java.util.UUID;
 
 @Service
@@ -34,22 +36,36 @@ public class AuthServiceImpl implements AuthService {
     private final TokenFamilyService tokenFamilyService;
     private final GoogleAuthService googleAuthService;
     private final AccountProfileService accountProfileService;
+    private final StringRedisTemplate redisTemplate;
+
+    private static final String LOGIN_FAIL_PREFIX = "login_fail:";
+    private static final int MAX_LOGIN_ATTEMPTS = 5;
+
+    @Value("${login.rate-limit-minutes:15}")
+    private int rateLimitMinutes;
+
+    // ── Register ────────────────────────────────────────────────────
 
     @Override
     @Transactional
     public String register(RegisterRequest request) {
-        // Username is the unique identifier — email can be shared across accounts
-        var existing = accountRepository.findByUsername(request.getUsername()).orElse(null);
+        // 1 email = 1 account — check email unique
+        var existingByEmail = accountRepository.findByEmail(request.getEmail()).orElse(null);
 
-        if (existing != null) {
-            if (existing.getStatus() == AccountStatus.VERIFYING) {
+        if (existingByEmail != null) {
+            if (existingByEmail.getStatus() == AccountStatus.VERIFYING) {
                 // Re-register while still verifying — update info and resend OTP
-                updateVerifyingAccount(existing, request);
-                accountRepository.save(existing);
-                otpService.generateAndSend(existing);
-                log.info("Re-register (VERIFYING) for: {}", request.getUsername());
-                return jwtTokenProvider.generateVerificationToken(existing.getAccountId());
+                updateVerifyingAccount(existingByEmail, request);
+                accountRepository.save(existingByEmail);
+                otpService.generateAndSend(existingByEmail);
+                log.info("Re-register (VERIFYING) for: {}", request.getEmail());
+                return jwtTokenProvider.generateVerificationToken(existingByEmail.getAccountId());
             }
+            throw new AuthException(AuthErrorCode.EMAIL_ALREADY_EXISTS);
+        }
+
+        // Check username unique
+        if (accountRepository.existsByUsername(request.getUsername())) {
             throw new AuthException(AuthErrorCode.USERNAME_ALREADY_EXISTS);
         }
 
@@ -69,6 +85,8 @@ public class AuthServiceImpl implements AuthService {
         log.info("User registered: {}", request.getEmail());
         return jwtTokenProvider.generateVerificationToken(account.getAccountId());
     }
+
+    // ── Verify Email ────────────────────────────────────────────────
 
     @Override
     @Transactional
@@ -93,74 +111,61 @@ public class AuthServiceImpl implements AuthService {
         return generateAuthResponse(account);
     }
 
+    // ── Login (email + password) with rate limiting ─────────────────
+
     @Override
     public AuthResponse login(LoginRequest request) {
-        // Multiple accounts can share the same email — password disambiguates
-        List<Account> accounts = accountRepository.findAllByEmail(request.getEmail());
-        if (accounts.isEmpty()) {
+        // Rate limit check
+        enforceLoginRateLimit(request.getEmail());
+
+        Account account = accountRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> {
+                    incrementLoginFail(request.getEmail());
+                    return new AuthException(AuthErrorCode.INVALID_CREDENTIALS);
+                });
+
+        if (account.getPassword() == null
+                || !passwordEncoder.matches(request.getPassword(), account.getPassword())) {
+            incrementLoginFail(request.getEmail());
             throw new AuthException(AuthErrorCode.INVALID_CREDENTIALS);
         }
 
-        Account matched = accounts.stream()
-                .filter(a -> a.getPassword() != null
-                        && passwordEncoder.matches(request.getPassword(), a.getPassword()))
-                .findFirst()
-                .orElseThrow(() -> new AuthException(AuthErrorCode.INVALID_CREDENTIALS));
+        validateAccountStatus(account);
 
-        validateAccountStatus(matched);
+        // Login success — clear fail counter
+        clearLoginFail(request.getEmail());
 
         log.info("Login success: {}", request.getEmail());
-        return generateAuthResponse(matched);
+        return generateAuthResponse(account);
     }
+
+    // ── Google Login ────────────────────────────────────────────────
 
     @Override
     @Transactional
     public GoogleAuthResponseDto googleLogin(GoogleLoginRequest request) {
         GoogleUserInfo googleInfo = googleAuthService.verifyIdToken(request.getIdToken());
 
-        // Only find by googleSubId — each Google account is a separate account
+        // Step 1: Find by googleSubId (returning user)
         Account account = accountRepository.findByGoogleSubId(googleInfo.getGoogleSubId())
                 .orElse(null);
 
         if (account != null) {
-            return switch (account.getStatus()) {
-                case ACTIVE -> toGoogleAuthResponse("ACTIVE", account);
-                case ONBOARDING -> GoogleAuthResponseDto.builder()
-                        .status("ONBOARDING")
-                        .verificationToken(jwtTokenProvider.generateVerificationToken(account.getAccountId()))
-                        .build();
-                case VERIFYING -> {
-                    otpService.generateAndSend(account);
-                    yield GoogleAuthResponseDto.builder()
-                            .status("VERIFYING")
-                            .verificationToken(jwtTokenProvider.generateVerificationToken(account.getAccountId()))
-                            .build();
-                }
-                case BANNED -> throw new AuthException(AuthErrorCode.ACCOUNT_BANNED);
-                case DELETED -> throw new AuthException(AuthErrorCode.ACCOUNT_DELETED);
-            };
+            return handleExistingGoogleAccount(account);
         }
 
-        // New Google account — create as ONBOARDING (no OTP needed, email verified by Google)
-        String username = generateUsernameFromEmail(googleInfo.getEmail());
+        // Step 2: Find by email — link Google to existing account
+        account = accountRepository.findByEmail(googleInfo.getEmail()).orElse(null);
 
-        Account newAccount = Account.builder()
-                .username(username)
-                .email(googleInfo.getEmail())
-                .googleSubId(googleInfo.getGoogleSubId())
-                .fullName(googleInfo.getName())
-                .status(AccountStatus.ONBOARDING)
-                .role(roleService.findByCode("VIEWER"))
-                .build();
+        if (account != null) {
+            return linkGoogleToExistingAccount(account, googleInfo);
+        }
 
-        accountRepository.save(newAccount);
-
-        log.info("New Google account (ONBOARDING): {}", googleInfo.getEmail());
-        return GoogleAuthResponseDto.builder()
-                .status("ONBOARDING")
-                .verificationToken(jwtTokenProvider.generateVerificationToken(newAccount.getAccountId()))
-                .build();
+        // Step 3: New user — create account
+        return createNewGoogleAccount(googleInfo);
     }
+
+    // ── Complete Profile (Google onboarding) ─────────────────────────
 
     @Override
     @Transactional
@@ -184,6 +189,8 @@ public class AuthServiceImpl implements AuthService {
         log.info("Profile completed for accountId: {}", accountId);
         return generateAuthResponse(account);
     }
+
+    // ── Token Management ────────────────────────────────────────────
 
     @Override
     public AuthResponse refreshToken(RefreshTokenRequest request) {
@@ -210,6 +217,8 @@ public class AuthServiceImpl implements AuthService {
         log.info("User logged out: {}", accountId);
     }
 
+    // ── OTP ─────────────────────────────────────────────────────────
+
     @Override
     @Transactional
     public String resendOtp(ResendOtpRequest request) {
@@ -229,6 +238,8 @@ public class AuthServiceImpl implements AuthService {
         otpService.generateAndSend(account);
         return "OTP mới đã được gửi tới email của bạn";
     }
+
+    // ── Profile Delegation ──────────────────────────────────────────
 
     @Override
     public AccountProfileResponse getProfile(UUID accountId) {
@@ -254,6 +265,85 @@ public class AuthServiceImpl implements AuthService {
     public void resetPassword(ResetPasswordRequest request) {
         accountProfileService.resetPassword(request);
     }
+
+    // ── Private: Google Login Helpers ────────────────────────────────
+
+    private GoogleAuthResponseDto handleExistingGoogleAccount(Account account) {
+        return switch (account.getStatus()) {
+            case ACTIVE -> toGoogleAuthResponse("ACTIVE", account);
+            case ONBOARDING -> GoogleAuthResponseDto.builder()
+                    .status("ONBOARDING")
+                    .verificationToken(jwtTokenProvider.generateVerificationToken(account.getAccountId()))
+                    .build();
+            case VERIFYING -> {
+                otpService.generateAndSend(account);
+                yield GoogleAuthResponseDto.builder()
+                        .status("VERIFYING")
+                        .verificationToken(jwtTokenProvider.generateVerificationToken(account.getAccountId()))
+                        .build();
+            }
+            case BANNED -> throw new AuthException(AuthErrorCode.ACCOUNT_BANNED);
+            case DELETED -> throw new AuthException(AuthErrorCode.ACCOUNT_DELETED);
+        };
+    }
+
+    private GoogleAuthResponseDto linkGoogleToExistingAccount(Account account, GoogleUserInfo googleInfo) {
+        // Link Google identity to existing account
+        account.setGoogleSubId(googleInfo.getGoogleSubId());
+        if (account.getAvatarUrl() == null && googleInfo.getPictureUrl() != null) {
+            account.setAvatarUrl(googleInfo.getPictureUrl());
+        }
+        accountRepository.save(account);
+
+        log.info("Linked Google to existing account: {}", account.getEmail());
+        return handleExistingGoogleAccount(account);
+    }
+
+    private GoogleAuthResponseDto createNewGoogleAccount(GoogleUserInfo googleInfo) {
+        String username = generateUsernameFromEmail(googleInfo.getEmail());
+
+        Account newAccount = Account.builder()
+                .username(username)
+                .email(googleInfo.getEmail())
+                .googleSubId(googleInfo.getGoogleSubId())
+                .fullName(googleInfo.getName())
+                .avatarUrl(googleInfo.getPictureUrl())
+                .status(AccountStatus.ONBOARDING)
+                .role(roleService.findByCode("VIEWER"))
+                .build();
+
+        accountRepository.save(newAccount);
+
+        log.info("New Google account (ONBOARDING): {}", googleInfo.getEmail());
+        return GoogleAuthResponseDto.builder()
+                .status("ONBOARDING")
+                .verificationToken(jwtTokenProvider.generateVerificationToken(newAccount.getAccountId()))
+                .build();
+    }
+
+    // ── Private: Rate Limiting ──────────────────────────────────────
+
+    private void enforceLoginRateLimit(String email) {
+        String key = LOGIN_FAIL_PREFIX + email;
+        String value = redisTemplate.opsForValue().get(key);
+        if (value != null && Integer.parseInt(value) >= MAX_LOGIN_ATTEMPTS) {
+            throw new AuthException(AuthErrorCode.LOGIN_RATE_LIMITED);
+        }
+    }
+
+    private void incrementLoginFail(String email) {
+        String key = LOGIN_FAIL_PREFIX + email;
+        Long count = redisTemplate.opsForValue().increment(key);
+        if (count != null && count == 1) {
+            redisTemplate.expire(key, Duration.ofMinutes(rateLimitMinutes));
+        }
+    }
+
+    private void clearLoginFail(String email) {
+        redisTemplate.delete(LOGIN_FAIL_PREFIX + email);
+    }
+
+    // ── Private: Common Helpers ─────────────────────────────────────
 
     private void validateAccountStatus(Account account) {
         switch (account.getStatus()) {
@@ -287,7 +377,6 @@ public class AuthServiceImpl implements AuthService {
         account.setDateOfBirth(request.getDateOfBirth());
         account.setPhone(request.getPhone());
 
-        // Update username only if changed and not taken by another account
         if (!account.getUsername().equals(request.getUsername())) {
             if (accountRepository.existsByUsername(request.getUsername())) {
                 throw new AuthException(AuthErrorCode.USERNAME_ALREADY_EXISTS);

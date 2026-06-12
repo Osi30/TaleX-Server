@@ -20,7 +20,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -101,34 +100,13 @@ public class AccountProfileServiceImpl implements AccountProfileService {
 
     @Override
     public String forgotPassword(ForgotPasswordRequest request) {
-        // Anti-enumeration: always return success regardless of email existence
-        List<Account> activeAccounts = accountRepository.findAllByEmail(request.getEmail())
-                .stream()
-                .filter(a -> a.getStatus() == AccountStatus.ACTIVE)
-                .toList();
+        // 1 email = 1 account — simple lookup
+        Account account = accountRepository.findByEmail(request.getEmail()).orElse(null);
 
-        if (activeAccounts.isEmpty()) {
+        if (account == null || account.getStatus() != AccountStatus.ACTIVE) {
             log.debug("Forgot password for non-existent or inactive email: {}", request.getEmail());
-            // Return a dummy token so attacker can't distinguish from real response
+            // Anti-enumeration: return dummy token
             return jwtTokenProvider.generateVerificationToken(UUID.randomUUID());
-        }
-
-        Account account;
-        if (activeAccounts.size() == 1) {
-            account = activeAccounts.getFirst();
-        } else {
-            // Multiple accounts with same email — require username for disambiguation
-            if (request.getUsername() == null || request.getUsername().isBlank()) {
-                throw new AuthException(AuthErrorCode.MULTIPLE_ACCOUNTS_FOUND);
-            }
-            account = activeAccounts.stream()
-                    .filter(a -> a.getUsername().equals(request.getUsername()))
-                    .findFirst()
-                    .orElse(null);
-            if (account == null) {
-                // Anti-enumeration: don't reveal username mismatch
-                return jwtTokenProvider.generateVerificationToken(UUID.randomUUID());
-            }
         }
 
         otpService.enforcePasswordResetCooldown(account.getAccountId());
@@ -183,6 +161,7 @@ public class AccountProfileServiceImpl implements AccountProfileService {
                 .hasPassword(account.getPassword() != null)
                 .googleLinked(account.getGoogleSubId() != null)
                 .roleName(account.getRole().getCode())
+                .status(account.getStatus().name())
                 .createdAt(account.getCreatedAt())
                 .build();
     }

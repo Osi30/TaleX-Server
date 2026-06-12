@@ -5,29 +5,17 @@
     active: ${SPRING_PROFILES_ACTIVE:local}
   application:
     name: talex-server
-#  datasource:
-#    driver-class-name: org.postgresql.Driver
-#    username: ${DB_USERNAME:postgres}
-#    password: ${DB_PASSWORD:12345}
-#    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:talex-db}${DB_OPTIONS:}
-#    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:talex-db}
-
-  #  datasource:
-  #    driver-class-name: org.postgresql.Driver
-  #    username: neondb_owner
-  #    password: npg_zEU3djeluHX7
-  #    url: jdbc:postgresql://ep-long-silence-ao009tbp.c-2.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require
 
   datasource:
     driver-class-name: org.postgresql.Driver
-    username: neondb_owner
-    password: npg_zEU3djeluHX7
-    url: jdbc:postgresql://ep-long-silence-ao009tbp.c-2.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:12345}
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:talex-db}${DB_OPTIONS:}
 
   jpa:
     show-sql: ${JPA_SHOW_SQL:false}
     hibernate:
-      ddl-auto: update
+      ddl-auto: create-drop
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
@@ -67,6 +55,7 @@
 
 springdoc:
   api-docs:
+
     path: /api-docs
   swagger-ui:
     path: /swagger-ui.html
@@ -118,6 +107,9 @@ otp:
   expiration-minutes: 10
   length: 6
 
+login:
+  rate-limit-minutes: 15
+
 app:
   env: ${APP_ENV:${SPRING_PROFILES_ACTIVE:local}}
   cors:
@@ -154,4 +146,9 @@ media:
     reconcile-stale-after-seconds: ${CLOUDINARY_RECONCILE_STALE_AFTER_SECONDS:30}
     reconcile-eager-retry-after-seconds: ${CLOUDINARY_RECONCILE_EAGER_RETRY_AFTER_SECONDS:300}
     reconcile-page-size: ${CLOUDINARY_RECONCILE_PAGE_SIZE:20}
+
+questdb:
+  host: ${QUESTDB_HOST:questdb}
+  port: ${QUESTDB_PORT:9009}
+
 
