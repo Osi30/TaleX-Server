@@ -1,6 +1,7 @@
 package com.talex.server.configs;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -29,6 +30,9 @@ public class SecurityConfig {
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
 
+    @Value("${app.cors.allowed-origins:http://localhost:3000,http://localhost:8080}")
+    private String[] corsAllowedOrigins;
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
@@ -40,12 +44,6 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
                                 "/api/auth/**",
-                                "/api/v1/categories/**",
-                                "/api/v1/tags/**",
-                                "/api/v1/series/**",
-                                "/api/v1/seasons/**",
-                                "/api/v1/episodes/**",
-                                "/api/v1/media/**",
                                 "/api/v1/public/**",
                                 "/api/v1/interactions/**",
                                 "/api/v1/webhooks/**",
@@ -76,9 +74,7 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of(
-                "http://localhost:3000",
-                "http://localhost:8080"));
+        configuration.setAllowedOrigins(List.of(corsAllowedOrigins));
         configuration.setAllowedMethods(List.of(
                 "GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));

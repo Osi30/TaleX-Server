@@ -55,7 +55,31 @@ public class DefaultMediaPlaybackSecurityService implements MediaPlaybackSecurit
     @Transactional
     @Override
     public EpisodePlaybackResponseDto getEpisodePlayback(String episodeId, String viewerId, String ipAddress, String userAgent) {
-        Episode episode = episodeService.findPublicEntity(episodeId);
+        return buildEpisodePlayback(
+                episodeService.findPublicEntity(episodeId),
+                episodeId,
+                viewerId,
+                ipAddress,
+                userAgent);
+    }
+
+    @Transactional
+    @Override
+    public EpisodePlaybackResponseDto getCreatorEpisodePlayback(String episodeId, String viewerId, String ipAddress, String userAgent) {
+        return buildEpisodePlayback(
+                episodeService.findActiveEntity(episodeId),
+                episodeId,
+                viewerId,
+                ipAddress,
+                userAgent);
+    }
+
+    private EpisodePlaybackResponseDto buildEpisodePlayback(
+            Episode episode,
+            String episodeId,
+            String viewerId,
+            String ipAddress,
+            String userAgent) {
         if (!playbackAuthorizationService.canViewEpisode(viewerId, episodeId)) {
             throw ContentModuleException.badRequest("PLAYBACK_NOT_AUTHORIZED");
         }
@@ -170,12 +194,12 @@ public class DefaultMediaPlaybackSecurityService implements MediaPlaybackSecurit
     @Transactional
     @Override
     public void revokeActiveSessions(Media media) {
-        playbackSessionRepository
-                .findAllByMedia_MediaIdAndStatusAndIsDeletedFalse(media.getMediaId(), MediaPlaybackSessionStatus.ACTIVE)
-                .forEach(session -> {
-                    session.setStatus(MediaPlaybackSessionStatus.REVOKED);
-                    playbackSessionRepository.save(session);
-                });
+        var sessions = playbackSessionRepository
+                .findAllByMedia_MediaIdAndStatusAndIsDeletedFalse(media.getMediaId(), MediaPlaybackSessionStatus.ACTIVE);
+        sessions.forEach(session -> session.setStatus(MediaPlaybackSessionStatus.REVOKED));
+        if (!sessions.isEmpty()) {
+            playbackSessionRepository.saveAll(sessions);
+        }
         log.info("Playback sessions revoked. mediaId={}", media.getMediaId());
     }
 
@@ -191,10 +215,10 @@ public class DefaultMediaPlaybackSecurityService implements MediaPlaybackSecurit
         var sessions = playbackSessionRepository.findAllByStatusAndExpiresAtBeforeAndIsDeletedFalse(
                 MediaPlaybackSessionStatus.ACTIVE,
                 LocalDateTime.now());
-        sessions.forEach(session -> {
-            session.setStatus(MediaPlaybackSessionStatus.EXPIRED);
-            playbackSessionRepository.save(session);
-        });
+        sessions.forEach(session -> session.setStatus(MediaPlaybackSessionStatus.EXPIRED));
+        if (!sessions.isEmpty()) {
+            playbackSessionRepository.saveAll(sessions);
+        }
         if (!sessions.isEmpty()) {
             log.info("Expired playback sessions. count={}", sessions.size());
         }

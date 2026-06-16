@@ -29,8 +29,14 @@ public class CurrentAccountIdArgumentResolver implements HandlerMethodArgumentRe
         if (authentication == null || !authentication.isAuthenticated()) {
             return null;
         }
-        UserDetails userDetails = (UserDetails) authentication.getPrincipal();
-        assert userDetails != null;
-        return UUID.fromString(userDetails.getUsername());
+
+        Object principal = authentication.getPrincipal();
+        if (principal instanceof UserDetails userDetails) {
+            return UUID.fromString(userDetails.getUsername());
+        }
+        if (principal instanceof String str && !"anonymousUser".equals(str)) {
+            return UUID.fromString(str);
+        }
+        return null;
     }
 }

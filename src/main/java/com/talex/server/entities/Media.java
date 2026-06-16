@@ -13,6 +13,7 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
@@ -22,7 +23,16 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@Table(name = "media")
+@Table(
+        name = "media",
+        indexes = {
+                @Index(name = "idx_media_episode_deleted_order", columnList = "episode_id,is_deleted,display_order"),
+                @Index(name = "idx_media_episode_status_deleted_order", columnList = "episode_id,status,is_deleted,display_order"),
+                @Index(name = "idx_media_episode_type_status_deleted", columnList = "episode_id,media_type,status,is_deleted"),
+                @Index(name = "idx_media_checksum_deleted", columnList = "checksum,is_deleted"),
+                @Index(name = "idx_media_provider_public_deleted", columnList = "provider_public_id,is_deleted"),
+                @Index(name = "idx_media_provider_status_updated_deleted", columnList = "provider,status,updated_at,is_deleted")
+        })
 @Getter
 @Setter
 @NoArgsConstructor

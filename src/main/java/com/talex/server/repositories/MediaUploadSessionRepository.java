@@ -16,6 +16,8 @@ public interface MediaUploadSessionRepository extends JpaRepository<MediaUploadS
 
     List<MediaUploadSession> findAllByMedia_MediaIdAndIsDeletedFalse(String mediaId);
 
+    List<MediaUploadSession> findAllByMedia_MediaIdInAndIsDeletedFalse(Collection<String> mediaIds);
+
     List<MediaUploadSession> findAllByStatusInAndExpiredAtBeforeAndIsDeletedFalse(
             Collection<MediaUploadSessionStatus> statuses,
             LocalDateTime expiredAt);

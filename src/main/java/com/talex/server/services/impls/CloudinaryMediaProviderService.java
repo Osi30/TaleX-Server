@@ -29,6 +29,7 @@ import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @Service
 @RequiredArgsConstructor
@@ -37,6 +38,7 @@ public class CloudinaryMediaProviderService implements MediaProviderService, Med
     private static final String RESOURCE_TYPE_VIDEO = "video";
 
     private final MediaProperties mediaProperties;
+    private final AtomicBoolean spAutoWarningLogged = new AtomicBoolean(false);
 
     @Override
     public SignedUploadParams createSignedUploadParams(String providerPublicId, String providerDeliveryType) {
@@ -238,7 +240,9 @@ public class CloudinaryMediaProviderService implements MediaProviderService, Med
         }
 
         if (profile.toLowerCase(Locale.ROOT).startsWith("sp_auto")) {
-            log.warn("Cloudinary sp_auto cannot be used for eager HLS webhook processing. Using sp_hd/f_m3u8 instead. Set CLOUDINARY_HLS_STREAMING_PROFILE to sp_hd, sp_full_hd, or sp_sd for explicit control.");
+            if (spAutoWarningLogged.compareAndSet(false, true)) {
+                log.warn("Cloudinary sp_auto cannot be used for eager HLS webhook processing. Using sp_hd/f_m3u8 instead. Set CLOUDINARY_HLS_STREAMING_PROFILE to sp_hd, sp_full_hd, or sp_sd for explicit control.");
+            }
             profile = "sp_hd";
         }
 

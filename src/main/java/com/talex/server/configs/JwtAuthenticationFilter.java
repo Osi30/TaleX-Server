@@ -2,6 +2,7 @@ package com.talex.server.configs;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import com.talex.server.services.impls.CustomUserDetailsService;
@@ -28,6 +29,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private static final String AUTH_HEADER = "Authorization";
     private static final String BEARER_PREFIX = "Bearer ";
+    private static final String ACCESS_TOKEN_COOKIE = "accessToken";
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -48,17 +50,34 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     new WebAuthenticationDetailsSource().buildDetails(request));
 
             SecurityContextHolder.getContext().setAuthentication(authentication);
-//            log.debug("JWT authenticated: {}", accountId);
         }
 
         filterChain.doFilter(request, response);
     }
 
+    /**
+     * Extract JWT token: Header first (Mobile), Cookie fallback (Web).
+     */
     private String extractToken(HttpServletRequest request) {
+        // Priority 1: Authorization header (Mobile clients)
         String bearerToken = request.getHeader(AUTH_HEADER);
         if (StringUtils.hasText(bearerToken) && bearerToken.startsWith(BEARER_PREFIX)) {
             return bearerToken.substring(BEARER_PREFIX.length());
         }
+
+        // Priority 2: HttpOnly cookie (Web clients via Next.js)
+        Cookie[] cookies = request.getCookies();
+        if (cookies != null) {
+            for (Cookie cookie : cookies) {
+                if (ACCESS_TOKEN_COOKIE.equals(cookie.getName())) {
+                    String value = cookie.getValue();
+                    if (StringUtils.hasText(value)) {
+                        return value;
+                    }
+                }
+            }
+        }
+
         return null;
     }
 }

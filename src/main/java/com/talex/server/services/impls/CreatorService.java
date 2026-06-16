@@ -45,8 +45,12 @@ public class CreatorService implements ICreatorService {
     public String createCreator(CreatorRegisterDto dto) {
         Creator creator;
 
+        if (ValidationUtils.isNullOrEmpty(dto.getTermsId())){
+            throw new CreatorException(CreatorErrorCode.INVALID_CREATOR_REQUEST);
+        }
+
         // Đã đồng ý điều khoản
-        if (ValidationUtils.isNullOrEmpty(dto.getTermsId())) {
+        if (creatorTermsLogService.existsByAccountAndTerm(dto.getAccountId(), dto.getTermsId())) {
             creator = findCreatorByAccountId(dto.getAccountId());
         }
         // Chưa đồng ý điều khoản
@@ -59,10 +63,11 @@ public class CreatorService implements ICreatorService {
                     .build());
 
             // 2. Log
-            creatorTermsLogService.create(CreatorTermsLogRequestDto.builder()
-                    .versionId(dto.getTermsId())
-                    .creator(creator)
-                    .build());
+            creatorTermsLogService.create(
+                    dto.getAccountId(),
+                    CreatorTermsLogRequestDto.builder()
+                            .versionId(dto.getTermsId())
+                            .build());
 
             // 3. Identity
             creatorIdentityService.create(creator);

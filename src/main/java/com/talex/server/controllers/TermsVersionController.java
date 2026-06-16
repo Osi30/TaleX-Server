@@ -10,6 +10,7 @@ import com.talex.server.services.ITermsVersionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -21,6 +22,7 @@ public class TermsVersionController {
         private final ITermsVersionService termsService;
 
         @PostMapping
+        @PreAuthorize("hasRole('ADMIN')")
         public ResponseEntity<BaseResponse> create(@RequestBody TermsVersionRequestDto dto) {
                 TermsVersionResponseDto resp = termsService.create(dto);
                 return ResponseEntity.status(HttpStatus.CREATED)
@@ -78,6 +80,7 @@ public class TermsVersionController {
         }
 
         @PutMapping("/{id}")
+        @PreAuthorize("hasRole('ADMIN')")
         public ResponseEntity<BaseResponse> update(
                         @PathVariable String id,
                         @RequestBody TermsVersionRequestDto dto) {
@@ -90,6 +93,7 @@ public class TermsVersionController {
         }
 
         @DeleteMapping("/{id}")
+        @PreAuthorize("hasRole('ADMIN')")
         public ResponseEntity<BaseResponse> delete(@PathVariable String id) {
                 termsService.delete(id);
                 return ResponseEntity.ok(BaseResponse.builder()

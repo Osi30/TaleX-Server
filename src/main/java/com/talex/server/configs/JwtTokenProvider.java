@@ -22,12 +22,15 @@ public class JwtTokenProvider {
 
     private final SecretKey key;
     private final long accessTokenExpiration;
+    private final long verificationTokenExpiration;
 
     public JwtTokenProvider(
             @Value("${jwt.secret}") String secret,
-            @Value("${jwt.access-token-expiration}") long accessTokenExpiration) {
+            @Value("${jwt.access-token-expiration}") long accessTokenExpiration,
+            @Value("${jwt.verification-token-expiration:1800000}") long verificationTokenExpiration) {
         this.key = Keys.hmacShaKeyFor(Decoders.BASE64.decode(secret));
         this.accessTokenExpiration = accessTokenExpiration;
+        this.verificationTokenExpiration = verificationTokenExpiration;
     }
 
     public String generateAccessToken(Account account) {
@@ -50,7 +53,7 @@ public class JwtTokenProvider {
 
     public String generateVerificationToken(UUID accountId) {
         Date now = new Date();
-        Date expiry = new Date(now.getTime() + accessTokenExpiration);
+        Date expiry = new Date(now.getTime() + verificationTokenExpiration);
 
         return Jwts.builder()
                 .subject(accountId.toString())

@@ -1,14 +1,21 @@
 package com.talex.server.controllers;
 
+import com.talex.server.annotations.CurrentAccountId;
+import com.talex.server.dtos.requests.ChangePasswordRequest;
 import com.talex.server.dtos.requests.CompleteProfileRequest;
+import com.talex.server.dtos.requests.ForgotPasswordRequest;
 import com.talex.server.dtos.requests.GoogleLoginRequest;
 import com.talex.server.dtos.requests.LoginRequest;
 import com.talex.server.dtos.requests.RefreshTokenRequest;
 import com.talex.server.dtos.requests.RegisterRequest;
 import com.talex.server.dtos.requests.ResendOtpRequest;
+import com.talex.server.dtos.requests.ResetPasswordRequest;
+import com.talex.server.dtos.requests.UpdateProfileRequest;
 import com.talex.server.dtos.requests.VerifyOtpRequest;
+import com.talex.server.dtos.responses.AccountProfileResponse;
 import com.talex.server.dtos.responses.ApiResponse;
 import com.talex.server.dtos.responses.AuthResponse;
+import com.talex.server.dtos.responses.GoogleAuthResponseDto;
 import com.talex.server.services.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -16,10 +23,15 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -52,13 +64,13 @@ public class AuthController {
     }
 
     @PostMapping("/google")
-    @Operation(summary = "Login or register with Google OAuth2 ID token")
-    public ResponseEntity<ApiResponse<?>> googleLogin(@Valid @RequestBody GoogleLoginRequest request) {
-        Object result = authService.googleLogin(request);
-        if (result instanceof AuthResponse auth) {
-            return ResponseEntity.ok(ApiResponse.ok("Google login successful", auth));
-        }
-        return ResponseEntity.ok(ApiResponse.ok("Vui lòng hoàn tất thông tin cá nhân", (String) result));
+    @Operation(summary = "Login or register with Google OAuth2 ID token — check 'status' field for next step")
+    public ResponseEntity<ApiResponse<GoogleAuthResponseDto>> googleLogin(@Valid @RequestBody GoogleLoginRequest request) {
+        GoogleAuthResponseDto result = authService.googleLogin(request);
+        String message = "ACTIVE".equals(result.getStatus())
+                ? "Google login successful"
+                : "Vui lòng hoàn tất thông tin cá nhân";
+        return ResponseEntity.ok(ApiResponse.ok(message, result));
     }
 
     @PostMapping("/complete-profile")
@@ -87,5 +99,57 @@ public class AuthController {
     public ResponseEntity<ApiResponse<Void>> resendOtp(@Valid @RequestBody ResendOtpRequest request) {
         String message = authService.resendOtp(request);
         return ResponseEntity.ok(ApiResponse.ok(message));
+    }
+
+    // ── Profile Management (Authenticated) ──────────────────────────
+
+    @GetMapping("/me")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Get current user profile")
+    public ResponseEntity<ApiResponse<AccountProfileResponse>> getProfile(
+            @CurrentAccountId UUID accountId) {
+        AccountProfileResponse data = authService.getProfile(accountId);
+        return ResponseEntity.ok(ApiResponse.ok("OK", data));
+    }
+
+    @PutMapping("/me")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Update current user profile")
+    public ResponseEntity<ApiResponse<AccountProfileResponse>> updateProfile(
+            @CurrentAccountId UUID accountId,
+            @Valid @RequestBody UpdateProfileRequest request) {
+        AccountProfileResponse data = authService.updateProfile(accountId, request);
+        return ResponseEntity.ok(ApiResponse.ok("Cập nhật thông tin thành công", data));
+    }
+
+    @PostMapping("/change-password")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Change password — Google users can set password for the first time")
+    public ResponseEntity<ApiResponse<Void>> changePassword(
+            @CurrentAccountId UUID accountId,
+            @Valid @RequestBody ChangePasswordRequest request) {
+        authService.changePassword(accountId, request);
+        return ResponseEntity.ok(ApiResponse.ok("Đổi mật khẩu thành công. Vui lòng đăng nhập lại."));
+    }
+
+    // ── Password Recovery (Public) ──────────────────────────────────
+
+    @PostMapping("/forgot-password")
+    @Operation(summary = "Request password reset OTP via email — returns verification token for reset flow")
+    public ResponseEntity<ApiResponse<String>> forgotPassword(
+            @Valid @RequestBody ForgotPasswordRequest request) {
+        String verificationToken = authService.forgotPassword(request);
+        return ResponseEntity.ok(ApiResponse.ok(
+                "Nếu email tồn tại, mã OTP đã được gửi tới email của bạn.",
+                verificationToken));
+    }
+
+    @PostMapping("/reset-password")
+    @Operation(summary = "Reset password with verification token + OTP")
+    public ResponseEntity<ApiResponse<Void>> resetPassword(
+            @Valid @RequestBody ResetPasswordRequest request) {
+        authService.resetPassword(request);
+        return ResponseEntity.ok(ApiResponse.ok(
+                "Đặt lại mật khẩu thành công. Vui lòng đăng nhập lại."));
     }
 }

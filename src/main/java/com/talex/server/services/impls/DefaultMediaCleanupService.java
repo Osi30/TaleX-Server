@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -35,15 +36,21 @@ public class DefaultMediaCleanupService implements MediaCleanupService {
         var sessions = uploadSessionRepository.findAllByStatusInAndExpiredAtBeforeAndIsDeletedFalse(
                 openStatuses,
                 LocalDateTime.now());
+        List<com.talex.server.entities.Media> failedMedia = new ArrayList<>();
         sessions.forEach(session -> {
             session.setStatus(MediaUploadSessionStatus.EXPIRED);
             if (session.getMedia() != null && session.getMedia().getStatus() == MediaStatus.PROCESSING) {
                 session.getMedia().setStatus(MediaStatus.FAILED);
                 session.getMedia().setErrorMessage("Upload session expired before completion");
-                mediaRepository.save(session.getMedia());
+                failedMedia.add(session.getMedia());
             }
-            uploadSessionRepository.save(session);
         });
+        if (!failedMedia.isEmpty()) {
+            mediaRepository.saveAll(failedMedia);
+        }
+        if (!sessions.isEmpty()) {
+            uploadSessionRepository.saveAll(sessions);
+        }
         if (!sessions.isEmpty()) {
             log.info("Expired stale upload sessions. count={}", sessions.size());
         }

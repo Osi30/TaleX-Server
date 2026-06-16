@@ -13,7 +13,12 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "series")
+@Table(
+        name = "series",
+        indexes = {
+                @Index(name = "idx_series_creator_deleted", columnList = "creator_id,is_deleted"),
+                @Index(name = "idx_series_public_listing", columnList = "visibility,status,is_deleted")
+        })
 @Getter
 @Setter
 @NoArgsConstructor

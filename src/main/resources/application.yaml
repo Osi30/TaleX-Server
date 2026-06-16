@@ -5,26 +5,24 @@
     active: ${SPRING_PROFILES_ACTIVE:local}
   application:
     name: talex-server
+
   datasource:
     driver-class-name: org.postgresql.Driver
     username: ${DB_USERNAME:postgres}
     password: ${DB_PASSWORD:12345}
-#    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:talex-db}
-
-  #  datasource:
-  #    driver-class-name: org.postgresql.Driver
-  #    username: neondb_owner
-  #    password: npg_zEU3djeluHX7
-  #    url: jdbc:postgresql://ep-long-silence-ao009tbp.c-2.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:talex-db}${DB_OPTIONS:}
 
   jpa:
-    show-sql: true
+    show-sql: ${JPA_SHOW_SQL:false}
     hibernate:
-      ddl-auto: update
+      ddl-auto: create-drop
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
+        jdbc:
+          batch_size: 50
+        order_inserts: true
+        order_updates: true
 
   servlet:
     multipart:
@@ -57,6 +55,7 @@
 
 springdoc:
   api-docs:
+
     path: /api-docs
   swagger-ui:
     path: /swagger-ui.html
@@ -95,6 +94,7 @@ resilience4j:
 jwt:
   secret: ${JWT_SECRET:dGFsZXgtc2VjcmV0LWtleS1mb3ItZGV2ZWxvcG1lbnQtb25seQ==}
   access-token-expiration: 900000
+  verification-token-expiration: ${JWT_VERIFICATION_TOKEN_EXPIRATION:1800000}
   refresh-token-expiration: 604800000
 
 google:
@@ -107,8 +107,13 @@ otp:
   expiration-minutes: 10
   length: 6
 
+login:
+  rate-limit-minutes: 15
+
 app:
   env: ${APP_ENV:${SPRING_PROFILES_ACTIVE:local}}
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:8080}
 
 media:
   app-env: ${APP_ENV:${SPRING_PROFILES_ACTIVE:local}}
@@ -135,4 +140,15 @@ media:
     webhook-url: ${CLOUDINARY_WEBHOOK_URL:}
     webhook-signing-secret: ${CLOUDINARY_WEBHOOK_SIGNING_SECRET:${CLOUDINARY_API_SECRET:}}
     api-base-url: ${CLOUDINARY_API_BASE_URL:https://api.cloudinary.com}
+
     delivery-base-url: ${CLOUDINARY_DELIVERY_BASE_URL:https://res.cloudinary.com}
+
+    reconcile-enabled: ${CLOUDINARY_RECONCILE_ENABLED:true}
+    reconcile-fixed-delay-ms: ${CLOUDINARY_RECONCILE_FIXED_DELAY_MS:60000}
+    reconcile-stale-after-seconds: ${CLOUDINARY_RECONCILE_STALE_AFTER_SECONDS:30}
+    reconcile-eager-retry-after-seconds: ${CLOUDINARY_RECONCILE_EAGER_RETRY_AFTER_SECONDS:300}
+    reconcile-page-size: ${CLOUDINARY_RECONCILE_PAGE_SIZE:20}
+
+questdb:
+  host: ${QUESTDB_HOST:questdb}
+  port: ${QUESTDB_PORT:9009}

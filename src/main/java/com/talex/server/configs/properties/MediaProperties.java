@@ -41,5 +41,10 @@ public class MediaProperties {
         private String webhookSigningSecret = "";
         private String apiBaseUrl = "https://api.cloudinary.com";
         private String deliveryBaseUrl = "https://res.cloudinary.com";
+        private Boolean reconcileEnabled = true;
+        private Long reconcileFixedDelayMs = 60000L;
+        private Long reconcileStaleAfterSeconds = 30L;
+        private Long reconcileEagerRetryAfterSeconds = 300L;
+        private Integer reconcilePageSize = 20;
     }
 }

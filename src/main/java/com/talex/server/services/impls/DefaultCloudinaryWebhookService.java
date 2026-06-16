@@ -93,9 +93,8 @@ public class DefaultCloudinaryWebhookService implements CloudinaryWebhookService
                 mediaProperties.getCloudinary().getWebhookSigningSecret(),
                 mediaProperties.getCloudinary().getApiSecret());
         if (secret == null) {
-            // TODO: Configure CLOUDINARY_WEBHOOK_SIGNING_SECRET or a dedicated Cloudinary notification API key secret.
-            log.warn("WEBHOOK_RECEIVED Cloudinary webhook signing secret is not configured; accepting notification without signature validation.");
-            return;
+            log.warn("WEBHOOK_RECEIVED rejected because Cloudinary webhook signing secret is not configured.");
+            throw ContentModuleException.unauthorized("Cloudinary webhook signing secret is not configured");
         }
 
         if (signature == null || signature.isBlank() || timestamp == null || timestamp.isBlank()) {

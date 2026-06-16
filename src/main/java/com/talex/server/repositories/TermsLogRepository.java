@@ -10,4 +10,5 @@ import java.util.UUID;
 @Repository
 public interface TermsLogRepository extends JpaRepository<TermsLog, String> {
     List<TermsLog> findByAccount_AccountId(UUID accountId);
+    Boolean existsByAccount_AccountIdAndVersion_Id(UUID accountId, String versionId);
 }

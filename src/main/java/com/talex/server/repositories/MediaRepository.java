@@ -1,11 +1,16 @@
 package com.talex.server.repositories;
 
 import com.talex.server.entities.Media;
+import com.talex.server.enums.MediaProvider;
 import com.talex.server.enums.MediaStatus;
 import com.talex.server.enums.MediaType;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -14,9 +19,23 @@ import java.util.Optional;
 public interface MediaRepository extends JpaRepository<Media, String> {
     Optional<Media> findByMediaIdAndIsDeletedFalse(String mediaId);
 
+    List<Media> findAllByMediaIdInAndIsDeletedFalse(Collection<String> mediaIds);
+
     Optional<Media> findFirstByChecksumAndIsDeletedFalse(String checksum);
 
+    List<Media> findAllByChecksumInAndIsDeletedFalse(Collection<String> checksums);
+
     Optional<Media> findFirstByProviderPublicIdAndIsDeletedFalse(String providerPublicId);
+
+    List<Media> findAllByProviderAndStatusInAndUpdatedAtBeforeAndProviderPublicIdIsNotNullAndIsDeletedFalseOrderByUpdatedAtAsc(
+            MediaProvider provider,
+            Collection<MediaStatus> statuses,
+            LocalDateTime updatedAt,
+            Pageable pageable);
+
+    boolean existsByProviderAndStatusInAndProviderPublicIdIsNotNullAndIsDeletedFalse(
+            MediaProvider provider,
+            Collection<MediaStatus> statuses);
 
     boolean existsByChecksumAndIsDeletedFalse(String checksum);
 
@@ -34,6 +53,29 @@ public interface MediaRepository extends JpaRepository<Media, String> {
             String episodeId,
             MediaType mediaType,
             Collection<MediaStatus> statuses);
+
+    boolean existsByEpisode_EpisodeIdAndMediaTypeAndStatusInAndIsDeletedFalse(
+            String episodeId,
+            MediaType mediaType,
+            Collection<MediaStatus> statuses);
+
+    boolean existsByEpisode_EpisodeIdAndMediaTypeAndStatusInAndIsDeletedFalseAndMediaIdNot(
+            String episodeId,
+            MediaType mediaType,
+            Collection<MediaStatus> statuses,
+            String mediaId);
+
+    boolean existsByEpisode_EpisodeIdAndDisplayOrderInAndIsDeletedFalse(
+            String episodeId,
+            Collection<Integer> displayOrders);
+
+    boolean existsByEpisode_EpisodeIdAndDisplayOrderInAndMediaIdNotInAndIsDeletedFalse(
+            String episodeId,
+            Collection<Integer> displayOrders,
+            Collection<String> mediaIds);
+
+    @Query("select coalesce(max(m.displayOrder), 0) from Media m where m.episode.episodeId = :episodeId and m.isDeleted = false")
+    Integer findMaxDisplayOrderByEpisodeId(@Param("episodeId") String episodeId);
 
     Optional<Media> findFirstByEpisode_EpisodeIdAndMediaTypeAndStatusInAndIsDeletedFalseOrderByCreatedAtDesc(
             String episodeId,
