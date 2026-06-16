@@ -7,7 +7,7 @@ import com.talex.server.entities.CreatorIdentity;
 import com.talex.server.exceptions.codes.CreatorIdentityErrorCode;
 import com.talex.server.exceptions.details.CreatorIdentityException;
 import com.talex.server.mappers.ICreatorIdentityMapper;
-import com.talex.server.repositories.CreatorIdentityRepository;
+import com.talex.server.repositories.creator.CreatorIdentityRepository;
 import com.talex.server.services.ICreatorIdentityService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;

@@ -1,6 +1,6 @@
 package com.talex.server.dtos.responses;
 
-import com.talex.server.enums.StepType;
+import com.talex.server.enums.kyc.StepType;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.AllArgsConstructor;
 import lombok.Builder;

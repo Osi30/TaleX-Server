@@ -1,6 +1,6 @@
 package com.talex.server.dtos.responses;
 
-import com.talex.server.enums.KycStatus;
+import com.talex.server.enums.kyc.KycStatus;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;

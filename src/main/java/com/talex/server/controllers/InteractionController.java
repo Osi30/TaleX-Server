@@ -1,36 +1,45 @@
 package com.talex.server.controllers;
 
-import com.talex.server.services.IMessagePublisherService;
+import com.talex.server.annotations.CurrentAccountId;
+import com.talex.server.dtos.requests.InteractionRequest;
+import com.talex.server.repositories.subscription.SubscriptionStatRepository;
+import com.talex.server.services.IInteractionService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDateTime;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/interactions")
 @RequiredArgsConstructor
 public class InteractionController {
-    private final StringRedisTemplate redisTemplate;
-    private final IMessagePublisherService messagePublisher;
+    private final IInteractionService interactionService;
+    private final SubscriptionStatRepository statRepo;
 
-    @PostMapping("/like")
-    public ResponseEntity<String> userLikeContent(
-            @RequestParam String accountId,
-            @RequestParam String episodeId) {
+    @PostMapping()
+    public ResponseEntity<String> userInteractContent(
+            @CurrentAccountId UUID accountId,
+            @RequestBody InteractionRequest request
+    ) {
+        interactionService.processInteraction(accountId, request);
+        return ResponseEntity.ok("Tương tác thành công!");
+    }
 
-        // 1. TĂNG BỘ ĐẾM REAL-TIME TRÊN REDIS (Cho hệ thống đề xuất bốc nhanh)
-        String redisKey = "content:" + episodeId + ":like_count";
-        redisTemplate.opsForValue().increment(redisKey);
+    @GetMapping("")
+    public ResponseEntity<String> getInteractions(
+            @CurrentAccountId UUID accountId
+    ) {
+        String subId = statRepo.findActiveAccountSubByAccountId(accountId, LocalDateTime.now());
+        return ResponseEntity.ok(subId);
+    }
 
-        // 2. BẮN SỰ KIỆN VÀO KAFKA HÀNG ĐỢI (Để worker lưu ngầm vào PostgreSQL sau)
-        // Tạo chuỗi json đơn giản để test
-        String eventJson = String.format("{\"userId\":\"%s\", \"contentId\":\"%s\", \"action\":\"LIKE\"}", accountId, episodeId);
-        messagePublisher.publishInteractionEvent(eventJson);
-
-        // ĐÁP ỨNG SIÊU NHANH VỀ CHO USER
-        return ResponseEntity.ok("Like thành công! Đang xử lý ngầm...");
+    @GetMapping("/e")
+    public ResponseEntity<String> getInteractionsCreator(
+            @RequestParam String episodeId
+    ) {
+        String subId = statRepo.findCreatorIdByEpisodeId(episodeId);
+        return ResponseEntity.ok(subId);
     }
 }

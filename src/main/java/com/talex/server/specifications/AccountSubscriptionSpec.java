@@ -1,8 +1,7 @@
 package com.talex.server.specifications;
 
-import com.talex.server.dtos.requests.filters.AccountSubscriptionFilterRequestDto;
-import com.talex.server.entities.AccountSubscription;
-import com.talex.server.enums.AccountSubscriptionStatus;
+import com.talex.server.dtos.BaseFilterRequestDto;
+import com.talex.server.entities.subscription.AccountSubscription;
 import com.talex.server.utils.SpecUtils;
 import com.talex.server.utils.ValidationUtils;
 import jakarta.persistence.criteria.Predicate;
@@ -17,14 +16,10 @@ import java.util.UUID;
 public class AccountSubscriptionSpec {
 
     public static Specification<AccountSubscription> filterByCriteria(
-            AccountSubscriptionFilterRequestDto filterRequest,
-            AccountSubscriptionStatus[] statuses) {
+            BaseFilterRequestDto filterRequest
+    ) {
         return (root, query, criteriaBuilder) -> {
             List<Predicate> predicateList = new ArrayList<>();
-
-            if (statuses != null && statuses.length > 0) {
-                predicateList.add(root.get("status").in((Object[]) statuses));
-            }
 
             Map<String, Object> criteria = filterRequest.getCriteria();
             if (criteria != null) {
@@ -64,6 +59,21 @@ public class AccountSubscriptionSpec {
                 String subscriptionId = (String) criteria.get("subscriptionId");
                 if (!ValidationUtils.isNullOrEmpty(subscriptionId)) {
                     predicateList.add(criteriaBuilder.equal(root.get("subscription").get("subscriptionId"), subscriptionId));
+                }
+
+                String isCancelled = (String) criteria.get("isCancelled");
+                if (!ValidationUtils.isNullOrEmpty(isCancelled)) {
+                    predicateList.add(criteriaBuilder.equal(root.get("isCancelled"), Boolean.parseBoolean(isCancelled)));
+                }
+
+                String cancelledAtFrom = (String) criteria.get("cancelledAtFrom");
+                if (!ValidationUtils.isNullOrEmpty(cancelledAtFrom)) {
+                    predicateList.add(criteriaBuilder.greaterThanOrEqualTo(root.get("cancelledAt"), LocalDateTime.parse(cancelledAtFrom)));
+                }
+
+                String cancelledAtTo = (String) criteria.get("cancelledAtTo");
+                if (!ValidationUtils.isNullOrEmpty(cancelledAtTo)) {
+                    predicateList.add(criteriaBuilder.lessThanOrEqualTo(root.get("cancelledAt"), LocalDateTime.parse(cancelledAtTo)));
                 }
 
                 SpecUtils.addPermissionsSubscriptionFilters(root, criteriaBuilder, predicateList, criteria);

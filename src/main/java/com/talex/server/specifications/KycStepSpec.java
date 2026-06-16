@@ -1,7 +1,7 @@
 package com.talex.server.specifications;
 
-import com.talex.server.entities.KycStep;
-import com.talex.server.enums.StepType;
+import com.talex.server.entities.kyc.KycStep;
+import com.talex.server.enums.kyc.StepType;
 import com.talex.server.utils.ValidationUtils;
 import jakarta.persistence.criteria.Predicate;
 import org.springframework.data.jpa.domain.Specification;

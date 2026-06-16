@@ -1,7 +1,7 @@
 package com.talex.server.specifications;
 
 import com.talex.server.dtos.requests.filters.SubscriptionFilterRequestDto;
-import com.talex.server.entities.Subscription;
+import com.talex.server.entities.subscription.Subscription;
 import com.talex.server.utils.SpecUtils;
 import com.talex.server.utils.ValidationUtils;
 import jakarta.persistence.criteria.Expression;

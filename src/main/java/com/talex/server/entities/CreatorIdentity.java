@@ -1,5 +1,6 @@
 package com.talex.server.entities;
 
+import com.talex.server.entities.kyc.KycSession;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
