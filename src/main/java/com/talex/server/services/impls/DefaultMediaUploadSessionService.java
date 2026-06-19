@@ -91,7 +91,7 @@ public class DefaultMediaUploadSessionService implements MediaUploadSessionServi
         media.setFileSize(request.getFileSize());
         media.setFileUrl("pending://video-upload/" + UUID.randomUUID());
         media.setChecksum("pending:" + UUID.randomUUID());
-        media.setProvider(MediaProvider.CLOUDINARY);
+        media.setProvider(mediaProperties.getProvider());
         media.setProviderDeliveryType(mediaProperties.getCloudinary().getProviderDeliveryType());
         media.setProtectionType(protectionType);
         media.setPlaybackPolicy(playbackPolicy);
@@ -102,7 +102,7 @@ public class DefaultMediaUploadSessionService implements MediaUploadSessionServi
 
         String providerPublicId = mediaProviderService.buildVideoPublicId(episodeId, media.getMediaId());
         media.setProviderPublicId(providerPublicId);
-        media.setStorageProvider(MediaProvider.CLOUDINARY.name());
+        media.setStorageProvider(mediaProperties.getProvider().name());
         media.setExternalPublicId(providerPublicId);
 
         MediaUploadSession session = new MediaUploadSession();
@@ -110,7 +110,7 @@ public class DefaultMediaUploadSessionService implements MediaUploadSessionServi
         session.setMedia(media);
         session.setEpisode(episode);
         session.setCreatorId(blankToNull(request.getCreatorId()));
-        session.setProvider(MediaProvider.CLOUDINARY);
+        session.setProvider(mediaProperties.getProvider());
         session.setProviderPublicId(providerPublicId);
         session.setProviderDeliveryType(media.getProviderDeliveryType());
         session.setUploadUniqueId(UUID.randomUUID().toString());

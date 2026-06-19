@@ -149,6 +149,20 @@ media:
     reconcile-eager-retry-after-seconds: ${CLOUDINARY_RECONCILE_EAGER_RETRY_AFTER_SECONDS:300}
     reconcile-page-size: ${CLOUDINARY_RECONCILE_PAGE_SIZE:20}
 
+  # === Provider selection: CLOUDINARY | AWS ===
+  provider: ${MEDIA_PROVIDER:CLOUDINARY}
+
+  # === AWS S3 + CloudFront ===
+  aws:
+    region: ${AWS_REGION:ap-southeast-1}
+    bucket-name: ${AWS_S3_BUCKET:}
+    cloudfront-domain: ${AWS_CLOUDFRONT_DOMAIN:}
+    access-key-id: ${AWS_ACCESS_KEY_ID:}
+    secret-access-key: ${AWS_SECRET_ACCESS_KEY:}
+    media-convert-queue-arn: ${AWS_MEDIACONVERT_QUEUE_ARN:}
+    media-convert-role-arn: ${AWS_MEDIACONVERT_ROLE_ARN:}
+    sqs-queue-url: ${AWS_SQS_QUEUE_URL:}
+
 questdb:
   host: ${QUESTDB_HOST:questdb}
   port: ${QUESTDB_PORT:9009}
