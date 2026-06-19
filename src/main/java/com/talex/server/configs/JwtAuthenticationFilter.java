@@ -37,19 +37,24 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                     FilterChain filterChain)
             throws ServletException, IOException {
 
-        String token = extractToken(request);
+        try {
+            String token = extractToken(request);
 
-        if (token != null && jwtTokenProvider.validateToken(token)) {
-            UUID accountId = jwtTokenProvider.extractAccountId(token);
-            UserDetails userDetails = customUserDetailsService.loadByAccountId(accountId);
+            if (token != null && jwtTokenProvider.validateToken(token)) {
+                UUID accountId = jwtTokenProvider.extractAccountId(token);
+                UserDetails userDetails = customUserDetailsService.loadByAccountId(accountId);
 
-            UsernamePasswordAuthenticationToken authentication =
-                    new UsernamePasswordAuthenticationToken(
-                            userDetails, null, userDetails.getAuthorities());
-            authentication.setDetails(
-                    new WebAuthenticationDetailsSource().buildDetails(request));
+                UsernamePasswordAuthenticationToken authentication =
+                        new UsernamePasswordAuthenticationToken(
+                                userDetails, null, userDetails.getAuthorities());
+                authentication.setDetails(
+                        new WebAuthenticationDetailsSource().buildDetails(request));
 
-            SecurityContextHolder.getContext().setAuthentication(authentication);
+                SecurityContextHolder.getContext().setAuthentication(authentication);
+            }
+        } catch (Exception e) {
+            log.warn("JWT authentication failed for {}: {}", request.getRequestURI(), e.getMessage());
+            SecurityContextHolder.clearContext();
         }
 
         filterChain.doFilter(request, response);

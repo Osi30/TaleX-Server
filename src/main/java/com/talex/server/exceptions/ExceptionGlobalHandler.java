@@ -24,6 +24,8 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.mail.MailException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.beans.TypeMismatchException;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -225,6 +227,18 @@ public class ExceptionGlobalHandler {
                 .build();
 
         return new ResponseEntity<>(exceptionResponse, ex.getErrorCode().getHttpStatus());
+    }
+
+    // Re-throw Spring Security exceptions so ExceptionTranslationFilter handles them
+    // → AccessDeniedException (from @PreAuthorize) triggers JwtAuthenticationEntryPoint → 401
+    @ExceptionHandler(AccessDeniedException.class)
+    public void handleAccessDenied(AccessDeniedException ex) throws AccessDeniedException {
+        throw ex;
+    }
+
+    @ExceptionHandler(AuthenticationException.class)
+    public void handleAuthentication(AuthenticationException ex) throws AuthenticationException {
+        throw ex;
     }
 
     @ExceptionHandler(Exception.class)
