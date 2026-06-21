@@ -16,6 +16,8 @@ import software.amazon.awssdk.services.mediaconvert.model.ContainerSettings;
 import software.amazon.awssdk.services.mediaconvert.model.ContainerType;
 import software.amazon.awssdk.services.mediaconvert.model.CreateJobRequest;
 import software.amazon.awssdk.services.mediaconvert.model.CreateJobResponse;
+import software.amazon.awssdk.services.mediaconvert.model.FileGroupSettings;
+import software.amazon.awssdk.services.mediaconvert.model.FrameCaptureSettings;
 import software.amazon.awssdk.services.mediaconvert.model.GetJobRequest;
 import software.amazon.awssdk.services.mediaconvert.model.GetJobResponse;
 import software.amazon.awssdk.services.mediaconvert.model.HlsCaptionLanguageSetting;
@@ -53,6 +55,7 @@ public class MediaConvertService {
     /**
      * Submit HLS transcoding job for an uploaded MP4 file.
      * Output ABR ladder: 360p (800kbps), 720p (2400kbps), 1080p (4500kbps).
+     * Also captures 1 JPEG thumbnail via FRAME_CAPTURE output group.
      *
      * @param media the Media entity after upload completion
      * @return the MediaConvert job ID
@@ -63,27 +66,26 @@ public class MediaConvertService {
         String inputKey = media.getProviderPublicId();
         String episodeId = media.getEpisode().getEpisodeId();
         String mediaId = media.getMediaId();
-        String outputPrefix = "output/videos/" + episodeId + "/" + mediaId + "/hls/";
 
         String inputS3Url = "s3://" + bucket + "/" + inputKey;
-        String outputS3Url = "s3://" + bucket + "/" + outputPrefix;
+        String hlsOutputS3Url = "s3://" + bucket + "/output/videos/" + episodeId + "/" + mediaId + "/hls/";
+        String thumbnailOutputS3Url = "s3://" + bucket + "/output/videos/" + episodeId + "/" + mediaId + "/thumbnails/";
 
         CreateJobRequest jobRequest = CreateJobRequest.builder()
                 .role(aws.getMediaConvertRoleArn())
                 .queue(aws.getMediaConvertQueueArn())
-                .settings(buildJobSettings(inputS3Url, outputS3Url))
+                .settings(buildJobSettings(inputS3Url, hlsOutputS3Url, thumbnailOutputS3Url))
                 .build();
 
         CreateJobResponse response = mediaConvertClient.createJob(jobRequest);
         String jobId = response.job().id();
 
-        log.info("MediaConvert HLS job submitted. jobId={} mediaId={} input={} output={}",
-                jobId, mediaId, inputKey, outputPrefix);
+        log.info("MediaConvert job submitted. jobId={} mediaId={} input={}", jobId, mediaId, inputKey);
         return jobId;
     }
 
     /**
-     * Poll MediaConvert job status. Returns true if job completed.
+     * Poll MediaConvert job status directly. Returns true if job has finished (any terminal state).
      */
     public boolean isJobComplete(String jobId) {
         GetJobResponse response = mediaConvertClient.getJob(
@@ -94,14 +96,65 @@ public class MediaConvertService {
                 || JobStatus.CANCELED.toString().equals(status);
     }
 
-    private JobSettings buildJobSettings(String inputUrl, String outputUrl) {
+    /**
+     * Get job status string for reconcile polling. Returns null on error.
+     */
+    public String getJobStatus(String jobId) {
+        try {
+            GetJobResponse response = mediaConvertClient.getJob(
+                    GetJobRequest.builder().id(jobId).build());
+            return response.job().statusAsString();
+        } catch (Exception e) {
+            log.warn("Failed to get MediaConvert job status. jobId={}: {}", jobId, e.getMessage());
+            return null;
+        }
+    }
+
+    private JobSettings buildJobSettings(String inputUrl, String hlsOutputUrl, String thumbnailOutputUrl) {
         int[] resolutions = { 360, 720, 1080 };
         int[] bitrates = { 800_000, 2_400_000, 4_500_000 };
 
-        Output[] outputs = new Output[resolutions.length];
+        Output[] hlsOutputs = new Output[resolutions.length];
         for (int i = 0; i < resolutions.length; i++) {
-            outputs[i] = buildRendition(resolutions[i], bitrates[i]);
+            hlsOutputs[i] = buildHlsRendition(resolutions[i], bitrates[i]);
         }
+
+        OutputGroup hlsGroup = OutputGroup.builder()
+                .name("Apple HLS")
+                .outputGroupSettings(OutputGroupSettings.builder()
+                        .type(OutputGroupType.HLS_GROUP_SETTINGS)
+                        .hlsGroupSettings(buildHlsGroupSettings(hlsOutputUrl))
+                        .build())
+                .outputs(hlsOutputs)
+                .build();
+
+        // FRAME_CAPTURE output: captures 1 JPEG thumbnail from the first frame within the first 10 seconds
+        OutputGroup thumbnailGroup = OutputGroup.builder()
+                .name("Thumbnails")
+                .outputGroupSettings(OutputGroupSettings.builder()
+                        .type(OutputGroupType.FILE_GROUP_SETTINGS)
+                        .fileGroupSettings(FileGroupSettings.builder()
+                                .destination(thumbnailOutputUrl)
+                                .build())
+                        .build())
+                .outputs(Output.builder()
+                        .nameModifier("_thumb")
+                        .videoDescription(VideoDescription.builder()
+                                .codecSettings(VideoCodecSettings.builder()
+                                        .codec(VideoCodec.FRAME_CAPTURE)
+                                        .frameCaptureSettings(FrameCaptureSettings.builder()
+                                                .framerateNumerator(1)
+                                                .framerateDenominator(10) // 1 frame per 10 seconds
+                                                .maxCaptures(1)           // only 1 thumbnail
+                                                .quality(90)
+                                                .build())
+                                        .build())
+                                .build())
+                        .containerSettings(ContainerSettings.builder()
+                                .container(ContainerType.RAW)
+                                .build())
+                        .build())
+                .build();
 
         return JobSettings.builder()
                 .inputs(Input.builder()
@@ -112,14 +165,7 @@ public class MediaConvertService {
                                         .defaultSelection(AudioDefaultSelection.DEFAULT)
                                         .build()))
                         .build())
-                .outputGroups(OutputGroup.builder()
-                        .name("Apple HLS")
-                        .outputGroupSettings(OutputGroupSettings.builder()
-                                .type(OutputGroupType.HLS_GROUP_SETTINGS)
-                                .hlsGroupSettings(buildHlsGroupSettings(outputUrl))
-                                .build())
-                        .outputs(outputs)
-                        .build())
+                .outputGroups(hlsGroup, thumbnailGroup)
                 .build();
     }
 
@@ -141,7 +187,7 @@ public class MediaConvertService {
                 .build();
     }
 
-    private Output buildRendition(int height, int bitrate) {
+    private Output buildHlsRendition(int height, int bitrate) {
         String name = height + "p";
         return Output.builder()
                 .nameModifier("_" + name)

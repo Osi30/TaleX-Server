@@ -61,5 +61,8 @@ public class MediaProperties {
         private String mediaConvertQueueArn = "";
         private String mediaConvertRoleArn = "";
         private String sqsQueueUrl = "";
+        // CloudFront signed URL config (Phase 3)
+        private String cloudfrontKeyPairId = "";      // Public Key ID from CloudFront console
+        private String cloudfrontPrivateKey = "";     // Base64-encoded PEM private key content
     }
 }

@@ -162,6 +162,8 @@ media:
     media-convert-queue-arn: ${AWS_MEDIACONVERT_QUEUE_ARN:}
     media-convert-role-arn: ${AWS_MEDIACONVERT_ROLE_ARN:}
     sqs-queue-url: ${AWS_SQS_QUEUE_URL:}
+    cloudfront-key-pair-id: ${AWS_CLOUDFRONT_KEY_PAIR_ID:}
+    cloudfront-private-key: ${AWS_CLOUDFRONT_PRIVATE_KEY:}
 
 questdb:
   host: ${QUESTDB_HOST:questdb}

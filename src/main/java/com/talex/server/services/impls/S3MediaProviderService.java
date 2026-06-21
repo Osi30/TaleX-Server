@@ -10,9 +10,12 @@ import com.talex.server.enums.MediaType;
 import com.talex.server.services.media.MediaPackagingService;
 import com.talex.server.services.media.MediaProviderService;
 import com.talex.server.services.media.SignedUploadParams;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import software.amazon.awssdk.services.cloudfront.CloudFrontUtilities;
+import software.amazon.awssdk.services.cloudfront.model.CannedSignerRequest;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
@@ -21,10 +24,15 @@ import software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequ
 import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
 
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.util.Base64;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -38,6 +46,28 @@ public class S3MediaProviderService implements MediaProviderService, MediaPackag
     private final S3Client s3Client;
     private final S3Presigner s3Presigner;
     private final MediaConvertService mediaConvertService;
+    private final CloudFrontUtilities cloudFrontUtilities;
+
+    // Cached temp file holding the CloudFront private key PEM — initialized once at startup
+    private volatile Path cloudFrontKeyFile;
+
+    @PostConstruct
+    private void initCloudFrontKey() {
+        String base64Key = mediaProperties.getAws().getCloudfrontPrivateKey();
+        if (base64Key == null || base64Key.isBlank()) {
+            log.info("CloudFront private key not configured — signed URLs disabled, unsigned URLs will be used");
+            return;
+        }
+        try {
+            byte[] pemBytes = Base64.getDecoder().decode(base64Key);
+            cloudFrontKeyFile = Files.createTempFile("cf-pk-", ".pem");
+            Files.write(cloudFrontKeyFile, pemBytes);
+            cloudFrontKeyFile.toFile().deleteOnExit(); // cleanup on JVM shutdown
+            log.info("CloudFront private key loaded — signed URL signing enabled");
+        } catch (Exception e) {
+            log.warn("CloudFront private key init failed, signing disabled: {}", e.getMessage());
+        }
+    }
 
     @Override
     public SignedUploadParams createSignedUploadParams(String providerPublicId, String providerDeliveryType) {
@@ -82,6 +112,7 @@ public class S3MediaProviderService implements MediaProviderService, MediaPackag
         String cloudfrontDomain = aws.getCloudfrontDomain();
         String key = request.getPublicId();
 
+        // Build CloudFront/S3 URL for the raw MP4
         String baseUrl;
         if (cloudfrontDomain != null && !cloudfrontDomain.isBlank()) {
             baseUrl = "https://" + cloudfrontDomain + "/" + key;
@@ -90,27 +121,29 @@ public class S3MediaProviderService implements MediaProviderService, MediaPackag
         }
 
         media.setProvider(MediaProvider.AWS);
-        media.setProviderAssetId(blankToNull(request.getAssetId()));
         media.setProviderPublicId(key);
         media.setProviderDeliveryType(null);
-        // Build predicted HLS output path (will be confirmed by MediaConvert event)
+
         String episodeId = media.getEpisode().getEpisodeId();
         String mediaId = media.getMediaId();
-        String hlsOutputKey = String.format("output/videos/%s/%s/hls/master.m3u8", episodeId, mediaId);
 
-        String predictedHlsUrl;
-        if (cloudfrontDomain != null && !cloudfrontDomain.isBlank()) {
-            predictedHlsUrl = "https://" + cloudfrontDomain + "/" + hlsOutputKey;
-        } else {
-            predictedHlsUrl = "https://" + aws.getBucketName() + ".s3." + aws.getRegion()
-                    + ".amazonaws.com/" + hlsOutputKey;
-        }
+        // Predicted HLS master manifest URL (MediaConvert writes to this path)
+        String hlsOutputKey = String.format("output/videos/%s/%s/hls/master.m3u8", episodeId, mediaId);
+        String predictedHlsUrl = (cloudfrontDomain != null && !cloudfrontDomain.isBlank())
+                ? "https://" + cloudfrontDomain + "/" + hlsOutputKey
+                : "https://" + aws.getBucketName() + ".s3." + aws.getRegion() + ".amazonaws.com/" + hlsOutputKey;
+
+        // Predicted thumbnail URL (MediaConvert FRAME_CAPTURE writes _thumb.0000001.jpeg)
+        String thumbnailKey = String.format("output/videos/%s/%s/thumbnails/_thumb.0000001.jpeg", episodeId, mediaId);
+        String predictedThumbnailUrl = (cloudfrontDomain != null && !cloudfrontDomain.isBlank())
+                ? "https://" + cloudfrontDomain + "/" + thumbnailKey
+                : "https://" + aws.getBucketName() + ".s3." + aws.getRegion() + ".amazonaws.com/" + thumbnailKey;
 
         media.setOriginalUrl(baseUrl);
         media.setFileUrl(baseUrl);
         media.setPlaybackUrl(predictedHlsUrl);
         media.setHlsUrl(predictedHlsUrl);
-        media.setThumbnailUrl(null);
+        media.setThumbnailUrl(predictedThumbnailUrl);
         media.setFormat(blankToNull(request.getFormat()));
         media.setMimeType(session.getMimeType());
         media.setFileSize(request.getBytes());
@@ -126,24 +159,23 @@ public class S3MediaProviderService implements MediaProviderService, MediaPackag
         media.setErrorMessage(null);
         media.setPendingDelete(false);
 
-        // Submit MediaConvert HLS transcode job (async)
+        // Submit MediaConvert HLS transcode job (also generates thumbnail via FRAME_CAPTURE)
         try {
             String jobId = mediaConvertService.submitHlsJob(media);
-            log.info("MediaConvert HLS job submitted for S3 upload. mediaId={} jobId={}",
-                    media.getMediaId(), jobId);
+            media.setProviderAssetId(jobId); // Store jobId so reconcile fallback can poll job status
+            log.info("MediaConvert HLS job submitted. mediaId={} jobId={}", media.getMediaId(), jobId);
         } catch (Exception e) {
             log.error("Failed to submit MediaConvert job, falling back to direct MP4. mediaId={}",
                     media.getMediaId(), e);
             media.setStatus(MediaStatus.ACTIVE);
             media.setPlaybackUrl(baseUrl);
             media.setHlsUrl(null);
+            media.setProviderAssetId(null);
         }
     }
 
     @Override
     public String buildHlsUrl(Media media) {
-        // Return predicted HLS URL (same as stored in applyCompletedUpload)
-        // SqsMediaEventPoller will update to actual CloudFront HLS URL
         if (media.getHlsUrl() != null && !media.getHlsUrl().isBlank()) {
             return media.getHlsUrl();
         }
@@ -156,9 +188,38 @@ public class S3MediaProviderService implements MediaProviderService, MediaPackag
         return null;
     }
 
+    /**
+     * Generate a CloudFront signed URL for HLS playback.
+     * Falls back to unsigned URL if signing is not configured or fails.
+     */
     @Override
     public String buildSignedHlsUrl(Media media, LocalDateTime expiresAt) {
-        return media.getFileUrl();
+        String url = buildHlsUrl(media);
+        if (url == null || url.isBlank()) {
+            return media.getFileUrl();
+        }
+
+        MediaProperties.Aws aws = mediaProperties.getAws();
+        String keyPairId = aws.getCloudfrontKeyPairId();
+
+        if (keyPairId == null || keyPairId.isBlank() || cloudFrontKeyFile == null) {
+            log.debug("CloudFront signing not configured, returning unsigned URL. mediaId={}", media.getMediaId());
+            return url;
+        }
+
+        try {
+            Instant expiry = expiresAt.toInstant(ZoneOffset.UTC);
+            CannedSignerRequest request = CannedSignerRequest.builder()
+                    .resourceUrl(url)
+                    .keyPairId(keyPairId)
+                    .privateKey(cloudFrontKeyFile)
+                    .expirationDate(expiry)
+                    .build();
+            return cloudFrontUtilities.getSignedUrlWithCannedPolicy(request).url();
+        } catch (Exception e) {
+            log.warn("Failed to sign CloudFront URL, returning unsigned. mediaId={}", media.getMediaId(), e);
+            return url;
+        }
     }
 
     @Override
@@ -182,10 +243,10 @@ public class S3MediaProviderService implements MediaProviderService, MediaPackag
 
     @Override
     public String createHlsPackaging(Media media) {
-        // Trigger MediaConvert HLS transcode for existing media
         try {
             String jobId = mediaConvertService.submitHlsJob(media);
             media.setStatus(MediaStatus.HLS_PROCESSING);
+            media.setProviderAssetId(jobId);
             log.info("MediaConvert HLS job submitted. mediaId={} jobId={}", media.getMediaId(), jobId);
             return jobId;
         } catch (Exception e) {

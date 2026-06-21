@@ -4,28 +4,32 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.talex.server.configs.properties.MediaProperties;
 import com.talex.server.entities.Media;
+import com.talex.server.enums.MediaProvider;
 import com.talex.server.enums.MediaStatus;
 import com.talex.server.repositories.MediaRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Pageable;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
+import software.amazon.awssdk.services.mediaconvert.MediaConvertClient;
+import software.amazon.awssdk.services.mediaconvert.model.GetJobRequest;
+import software.amazon.awssdk.services.mediaconvert.model.GetJobResponse;
 import software.amazon.awssdk.services.sqs.SqsClient;
-import org.springframework.data.domain.Pageable;
 import software.amazon.awssdk.services.sqs.model.DeleteMessageRequest;
 import software.amazon.awssdk.services.sqs.model.Message;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageResponse;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
- * Polls SQS queue for MediaConvert job completion events.
- * Updates Media status to HLS_READY or FAILED based on event.
- *
- * Pattern mirrors CloudinaryHlsReconcileService but uses SQS push
- * (via EventBridge) instead of polling Cloudinary Admin API.
+ * Two-layer reliability for MediaConvert job completion:
+ * 1. Primary: SQS event poll (EventBridge → SQS) every 30s
+ * 2. Fallback: Direct MediaConvert job status poll every 60s for stale entries
+ *    (mirrors CloudinaryHlsReconcileService pattern)
  */
 @Service
 @RequiredArgsConstructor
@@ -35,11 +39,14 @@ public class SqsMediaEventPoller {
     private static final String RECONCILE_ACTOR = "aws-mediaconvert-event";
 
     private final SqsClient sqsClient;
+    private final MediaConvertClient mediaConvertClient;
     private final MediaRepository mediaRepository;
     private final MediaProperties mediaProperties;
     private final ObjectMapper objectMapper;
 
-    @Scheduled(fixedDelay = 30_000) // poll every 30 seconds
+    // ── Primary: SQS event-driven notification ────────────────────────────────
+
+    @Scheduled(fixedDelay = 30_000)
     public void pollSqsMessages() {
         MediaProperties.Aws aws = mediaProperties.getAws();
         String queueUrl = aws.getSqsQueueUrl();
@@ -70,7 +77,7 @@ public class SqsMediaEventPoller {
                     log.error("Failed to process SQS message. messageId={}", message.messageId(), e);
                 }
 
-                // Delete from queue after processing (even if failed, to avoid infinite retry)
+                // Delete after processing to avoid infinite retry (DLQ handles poison messages)
                 sqsClient.deleteMessage(DeleteMessageRequest.builder()
                         .queueUrl(queueUrl)
                         .receiptHandle(message.receiptHandle())
@@ -80,6 +87,73 @@ public class SqsMediaEventPoller {
             log.warn("SQS poll failed: {}", e.getMessage());
         }
     }
+
+    // ── Fallback: Direct MediaConvert job status poll ─────────────────────────
+
+    /**
+     * Reconcile fallback: directly polls MediaConvert for any HLS_PROCESSING media
+     * that hasn't been updated in >2 minutes. Catches cases where SQS message was lost.
+     * Mirrors CloudinaryHlsReconcileService pattern.
+     */
+    @Scheduled(fixedDelay = 60_000)
+    public void reconcileStaleHlsJobs() {
+        // Find AWS media stuck in HLS_PROCESSING for more than 2 minutes
+        List<Media> stale = mediaRepository
+                .findAllByProviderAndStatusInAndUpdatedAtBeforeAndProviderPublicIdIsNotNullAndIsDeletedFalseOrderByUpdatedAtAsc(
+                        MediaProvider.AWS,
+                        List.of(MediaStatus.HLS_PROCESSING),
+                        LocalDateTime.now().minusMinutes(2),
+                        Pageable.ofSize(20));
+
+        if (stale.isEmpty()) {
+            return;
+        }
+
+        log.debug("Reconcile: {} stale HLS_PROCESSING media found", stale.size());
+
+        for (Media media : stale) {
+            try {
+                reconcileMedia(media);
+            } catch (Exception e) {
+                log.warn("Reconcile failed for mediaId={}", media.getMediaId(), e);
+            }
+        }
+    }
+
+    private void reconcileMedia(Media media) {
+        String jobId = media.getProviderAssetId(); // stored in applyCompletedUpload()
+
+        if (jobId == null || jobId.isBlank()) {
+            // No job ID stored — if stuck >30 minutes, mark as failed
+            if (media.getUpdatedAt() != null
+                    && media.getUpdatedAt().isBefore(LocalDateTime.now().minusMinutes(30))) {
+                media.setStatus(MediaStatus.FAILED);
+                media.setErrorMessage("HLS transcode timed out: no MediaConvert job ID found");
+                media.markUpdatedBy("aws-reconcile");
+                mediaRepository.save(media);
+                log.error("Reconcile: timed out with no jobId. mediaId={}", media.getMediaId());
+            }
+            return;
+        }
+
+        GetJobResponse job = mediaConvertClient.getJob(
+                GetJobRequest.builder().id(jobId).build());
+        String status = job.job().statusAsString();
+
+        if ("COMPLETE".equals(status)) {
+            markHlsReady(media, media.getHlsUrl());
+            log.info("Reconcile: HLS_READY via direct poll. mediaId={} jobId={}", media.getMediaId(), jobId);
+        } else if ("ERROR".equals(status) || "CANCELED".equals(status)) {
+            media.setStatus(MediaStatus.FAILED);
+            media.setErrorMessage("MediaConvert job " + status + " (reconcile)");
+            media.markUpdatedBy("aws-reconcile");
+            mediaRepository.save(media);
+            log.error("Reconcile: job failed. mediaId={} jobId={} status={}", media.getMediaId(), jobId, status);
+        }
+        // SUBMITTED/PROGRESSING → still running, skip
+    }
+
+    // ── Event processing ──────────────────────────────────────────────────────
 
     private void processEvent(Message message) {
         String body = message.body();
@@ -102,53 +176,53 @@ public class SqsMediaEventPoller {
         if ("COMPLETE".equals(status)) {
             handleJobComplete(root, jobId);
         } else if ("ERROR".equals(status) || "CANCELED".equals(status)) {
-            handleJobFailed(root, jobId, status);
+            handleJobFailed(jobId, status);
         }
     }
 
     private void handleJobComplete(JsonNode root, String jobId) {
-        // Extract output path to find .m3u8 URL
         String hlsUrl = extractHlsUrl(root);
         if (hlsUrl == null) {
             log.warn("MediaConvert COMPLETE but no HLS output found. jobId={}", jobId);
             return;
         }
 
-        // Find media by checking jobId — MediaConvert doesn't pass mediaId directly,
-        // but output path pattern contains episodeId/mediaId.
-        // We find media by searching for HLS_PROCESSING entries for this job.
+        // Match by jobId stored in providerAssetId (set during applyCompletedUpload)
         List<Media> processingMedia = mediaRepository
                 .findAllByProviderAndStatusInAndUpdatedAtBeforeAndProviderPublicIdIsNotNullAndIsDeletedFalseOrderByUpdatedAtAsc(
-                        com.talex.server.enums.MediaProvider.AWS,
+                        MediaProvider.AWS,
                         List.of(MediaStatus.HLS_PROCESSING),
-                        java.time.LocalDateTime.now().plusHours(1),
+                        LocalDateTime.now().plusHours(1),
                         Pageable.unpaged());
 
         for (Media media : processingMedia) {
-            // Check if this media's expected HLS URL matches the completed job output
+            boolean matchByJobId = jobId.equals(media.getProviderAssetId());
             String expectedPrefix = "output/videos/"
                     + media.getEpisode().getEpisodeId() + "/"
                     + media.getMediaId() + "/hls/";
-            if (hlsUrl.contains(expectedPrefix) || processingMedia.size() == 1) {
+            boolean matchByPath = hlsUrl.contains(expectedPrefix);
+
+            if (matchByJobId || matchByPath || processingMedia.size() == 1) {
                 markHlsReady(media, hlsUrl);
                 log.info("Media HLS_READY via SQS. mediaId={} jobId={}", media.getMediaId(), jobId);
                 return;
             }
         }
 
-        log.info("No matching media found for MediaConvert job. jobId={} hlsUrl={}", jobId, hlsUrl);
+        log.info("No matching media found for MediaConvert job. jobId={}", jobId);
     }
 
-    private void handleJobFailed(JsonNode root, String jobId, String status) {
+    private void handleJobFailed(String jobId, String status) {
         List<Media> processingMedia = mediaRepository
                 .findAllByProviderAndStatusInAndUpdatedAtBeforeAndProviderPublicIdIsNotNullAndIsDeletedFalseOrderByUpdatedAtAsc(
-                        com.talex.server.enums.MediaProvider.AWS,
+                        MediaProvider.AWS,
                         List.of(MediaStatus.HLS_PROCESSING),
-                        java.time.LocalDateTime.now().plusHours(1),
+                        LocalDateTime.now().plusHours(1),
                         Pageable.unpaged());
 
         for (Media media : processingMedia) {
-            if (media.getMediaId() != null) {
+            boolean matchByJobId = jobId.equals(media.getProviderAssetId());
+            if (matchByJobId || processingMedia.size() == 1) {
                 media.setStatus(MediaStatus.FAILED);
                 media.setErrorMessage("MediaConvert job " + status + ": " + jobId);
                 media.markUpdatedBy(RECONCILE_ACTOR);
@@ -161,15 +235,13 @@ public class SqsMediaEventPoller {
     }
 
     private String extractHlsUrl(JsonNode root) {
-        // EventBridge detail contains outputGroupDetails with outputFilePaths
         JsonNode outputGroups = root.path("detail").path("outputGroupDetails");
         if (outputGroups.isArray()) {
             for (JsonNode group : outputGroups) {
                 String type = group.path("type").asText();
                 if ("HLS_GROUP".equals(type)) {
                     JsonNode playlistPaths = group.path("playlistFilePaths");
-                    if (playlistPaths.isArray() && playlistPaths.size() > 0) {
-                        // S3 URL: s3://bucket/output/.../master.m3u8
+                    if (playlistPaths.isArray() && !playlistPaths.isEmpty()) {
                         String s3Url = playlistPaths.get(0).asText();
                         return convertToCloudFrontUrl(s3Url);
                     }
@@ -182,8 +254,6 @@ public class SqsMediaEventPoller {
     private String convertToCloudFrontUrl(String s3Url) {
         MediaProperties.Aws aws = mediaProperties.getAws();
         String cloudfrontDomain = aws.getCloudfrontDomain();
-
-        // s3://bucket-name/key → /key
         String key = s3Url.replaceFirst("s3://" + aws.getBucketName() + "/", "");
 
         if (cloudfrontDomain != null && !cloudfrontDomain.isBlank()) {
