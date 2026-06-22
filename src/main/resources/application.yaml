@@ -150,7 +150,7 @@ media:
     reconcile-page-size: ${CLOUDINARY_RECONCILE_PAGE_SIZE:20}
 
   # === Provider selection: CLOUDINARY | AWS ===
-  provider: ${MEDIA_PROVIDER:CLOUDINARY}
+  provider: ${MEDIA_PROVIDER:AWS}
 
   # === AWS S3 + CloudFront ===
   aws:

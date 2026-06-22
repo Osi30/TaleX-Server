@@ -20,6 +20,11 @@ import software.amazon.awssdk.services.mediaconvert.model.FileGroupSettings;
 import software.amazon.awssdk.services.mediaconvert.model.FrameCaptureSettings;
 import software.amazon.awssdk.services.mediaconvert.model.GetJobRequest;
 import software.amazon.awssdk.services.mediaconvert.model.GetJobResponse;
+import software.amazon.awssdk.services.mediaconvert.model.H264AdaptiveQuantization;
+import software.amazon.awssdk.services.mediaconvert.model.H264QualityTuningLevel;
+import software.amazon.awssdk.services.mediaconvert.model.H264RateControlMode;
+import software.amazon.awssdk.services.mediaconvert.model.H264SceneChangeDetect;
+import software.amazon.awssdk.services.mediaconvert.model.H264Settings;
 import software.amazon.awssdk.services.mediaconvert.model.HlsCaptionLanguageSetting;
 import software.amazon.awssdk.services.mediaconvert.model.HlsClientCache;
 import software.amazon.awssdk.services.mediaconvert.model.HlsCodecSpecification;
@@ -194,6 +199,15 @@ public class MediaConvertService {
                 .videoDescription(VideoDescription.builder()
                         .codecSettings(VideoCodecSettings.builder()
                                 .codec(VideoCodec.H_264)
+                                .h264Settings(H264Settings.builder()
+                                        .bitrate(bitrate)
+                                        .rateControlMode(H264RateControlMode.CBR)
+                                        .qualityTuningLevel(H264QualityTuningLevel.SINGLE_PASS)
+                                        .sceneChangeDetect(H264SceneChangeDetect.ENABLED)
+                                        .adaptiveQuantization(H264AdaptiveQuantization.HIGH)
+                                        .framerateNumerator(30)
+                                        .framerateDenominator(1)
+                                        .build())
                                 .build())
                         .width(height * 16 / 9)
                         .height(height)
