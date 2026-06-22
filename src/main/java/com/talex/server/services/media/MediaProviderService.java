@@ -23,5 +23,8 @@ public interface MediaProviderService {
 
     String buildThumbnailUrl(Media media);
 
+    /** Sign a single URL (exact resource, canned policy) for protected content like thumbnails */
+    String signSingleUrl(String url, LocalDateTime expiresAt);
+
     void deleteAsset(Media media);
 }

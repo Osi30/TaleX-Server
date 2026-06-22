@@ -269,6 +269,34 @@ public class S3MediaProviderService implements MediaProviderService, MediaPackag
         }
     }
 
+    /**
+     * Sign a single CloudFront URL using Canned Policy (exact resource, not wildcard).
+     */
+    @Override
+    public String signSingleUrl(String url, LocalDateTime expiresAt) {
+        if (url == null || url.isBlank()) {
+            return url;
+        }
+        MediaProperties.Aws aws = mediaProperties.getAws();
+        String keyPairId = aws.getCloudfrontKeyPairId();
+        if (keyPairId == null || keyPairId.isBlank() || cloudFrontKeyFile == null) {
+            return url;
+        }
+        try {
+            Instant expiry = expiresAt.toInstant(ZoneOffset.UTC);
+            CannedSignerRequest request = CannedSignerRequest.builder()
+                    .resourceUrl(url)
+                    .keyPairId(keyPairId)
+                    .privateKey(cloudFrontKeyFile)
+                    .expirationDate(expiry)
+                    .build();
+            return cloudFrontUtilities.getSignedUrlWithCannedPolicy(request).url();
+        } catch (Exception e) {
+            log.warn("Failed to sign URL: {}", e.getMessage());
+            return url;
+        }
+    }
+
     @Override
     public String buildThumbnailUrl(Media media) {
         return media.getThumbnailUrl();

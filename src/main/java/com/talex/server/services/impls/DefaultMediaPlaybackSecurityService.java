@@ -161,6 +161,14 @@ public class DefaultMediaPlaybackSecurityService implements MediaPlaybackSecurit
         log.info("Playback URL issued. episodeId={} mediaId={} protectionType={} expiresAt={}",
                 episodeId, media.getMediaId(), protectionType, expiresAt);
 
+        // Sign thumbnail URL for protected content
+        String thumbnailUrl = media.getThumbnailUrl();
+        if (protectionType != MediaProtectionType.NONE
+                && media.getPlaybackPolicy() != MediaPlaybackPolicy.PUBLIC
+                && thumbnailUrl != null && !thumbnailUrl.isBlank()) {
+            thumbnailUrl = mediaProviderService.signSingleUrl(thumbnailUrl, expiresAt);
+        }
+
         return EpisodePlaybackResponseDto.builder()
                 .episodeId(episodeId)
                 .mediaId(media.getMediaId())
@@ -170,7 +178,7 @@ public class DefaultMediaPlaybackSecurityService implements MediaPlaybackSecurit
                 .protectionType(protectionType)
                 .hlsUrl(playbackUrl)
                 .playbackUrl(playbackUrl)
-                .thumbnailUrl(media.getThumbnailUrl())
+                .thumbnailUrl(thumbnailUrl)
                 .duration(media.getDuration())
                 .expiresAt(expiresAt)
                 .build();

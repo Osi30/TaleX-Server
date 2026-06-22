@@ -177,6 +177,11 @@ public class CloudinaryMediaProviderService implements MediaProviderService, Med
     }
 
     @Override
+    public String signSingleUrl(String url, java.time.LocalDateTime expiresAt) {
+        return url; // Cloudinary handles signing via delivery path, not query params
+    }
+
+    @Override
     public void deleteAsset(Media media) {
         if (media.getProviderPublicId() == null || media.getProviderPublicId().isBlank()) {
             return;

@@ -78,6 +78,11 @@ public class RoutingMediaProviderService implements MediaProviderService, MediaP
     }
 
     @Override
+    public String signSingleUrl(String url, LocalDateTime expiresAt) {
+        return getActiveProvider().signSingleUrl(url, expiresAt);
+    }
+
+    @Override
     public void deleteAsset(Media media) {
         getProviderForMedia(media.getProvider()).deleteAsset(media);
     }
