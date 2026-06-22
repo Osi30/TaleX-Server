@@ -159,6 +159,7 @@ media:
     cloudfront-domain: ${AWS_CLOUDFRONT_DOMAIN:}
     access-key-id: ${AWS_ACCESS_KEY_ID:}
     secret-access-key: ${AWS_SECRET_ACCESS_KEY:}
+    media-convert-endpoint: ${AWS_MEDIACONVERT_ENDPOINT:}
     media-convert-queue-arn: ${AWS_MEDIACONVERT_QUEUE_ARN:}
     media-convert-role-arn: ${AWS_MEDIACONVERT_ROLE_ARN:}
     sqs-queue-url: ${AWS_SQS_QUEUE_URL:}

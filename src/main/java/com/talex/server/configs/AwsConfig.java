@@ -7,6 +7,8 @@ import org.springframework.context.annotation.Configuration;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
+
+import java.net.URI;
 import software.amazon.awssdk.services.cloudfront.CloudFrontUtilities;
 import software.amazon.awssdk.services.mediaconvert.MediaConvertClient;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -54,17 +56,21 @@ public class AwsConfig {
     @Bean
     public MediaConvertClient mediaConvertClient() {
         MediaProperties.Aws aws = mediaProperties.getAws();
-        if (aws.getAccessKeyId().isBlank()) {
-            return MediaConvertClient.builder()
-                    .region(Region.of(aws.getRegion()))
-                    .build();
+        var builder = MediaConvertClient.builder()
+                .region(Region.of(aws.getRegion()));
+
+        // MediaConvert requires account-specific endpoint URL
+        if (aws.getMediaConvertEndpoint() != null && !aws.getMediaConvertEndpoint().isBlank()) {
+            builder.endpointOverride(URI.create(aws.getMediaConvertEndpoint()));
         }
-        AwsBasicCredentials credentials = AwsBasicCredentials.create(
-                aws.getAccessKeyId(), aws.getSecretAccessKey());
-        return MediaConvertClient.builder()
-                .region(Region.of(aws.getRegion()))
-                .credentialsProvider(StaticCredentialsProvider.create(credentials))
-                .build();
+
+        if (!aws.getAccessKeyId().isBlank()) {
+            AwsBasicCredentials credentials = AwsBasicCredentials.create(
+                    aws.getAccessKeyId(), aws.getSecretAccessKey());
+            builder.credentialsProvider(StaticCredentialsProvider.create(credentials));
+        }
+
+        return builder.build();
     }
 
     @Bean

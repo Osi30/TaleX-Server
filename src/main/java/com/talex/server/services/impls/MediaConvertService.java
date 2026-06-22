@@ -6,8 +6,12 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import software.amazon.awssdk.services.mediaconvert.MediaConvertClient;
+import software.amazon.awssdk.services.mediaconvert.model.AacCodecProfile;
 import software.amazon.awssdk.services.mediaconvert.model.AacCodingMode;
+import software.amazon.awssdk.services.mediaconvert.model.AacRateControlMode;
 import software.amazon.awssdk.services.mediaconvert.model.AacSettings;
+import software.amazon.awssdk.services.mediaconvert.model.AacSpecification;
+import software.amazon.awssdk.services.mediaconvert.model.AudioCodec;
 import software.amazon.awssdk.services.mediaconvert.model.AudioCodecSettings;
 import software.amazon.awssdk.services.mediaconvert.model.AudioDefaultSelection;
 import software.amazon.awssdk.services.mediaconvert.model.AudioDescription;
@@ -21,10 +25,21 @@ import software.amazon.awssdk.services.mediaconvert.model.FrameCaptureSettings;
 import software.amazon.awssdk.services.mediaconvert.model.GetJobRequest;
 import software.amazon.awssdk.services.mediaconvert.model.GetJobResponse;
 import software.amazon.awssdk.services.mediaconvert.model.H264AdaptiveQuantization;
+import software.amazon.awssdk.services.mediaconvert.model.H264CodecLevel;
+import software.amazon.awssdk.services.mediaconvert.model.H264CodecProfile;
+import software.amazon.awssdk.services.mediaconvert.model.H264EntropyEncoding;
+import software.amazon.awssdk.services.mediaconvert.model.H264FlickerAdaptiveQuantization;
+import software.amazon.awssdk.services.mediaconvert.model.H264FramerateControl;
+import software.amazon.awssdk.services.mediaconvert.model.H264GopSizeUnits;
+import software.amazon.awssdk.services.mediaconvert.model.H264InterlaceMode;
+import software.amazon.awssdk.services.mediaconvert.model.H264ParControl;
 import software.amazon.awssdk.services.mediaconvert.model.H264QualityTuningLevel;
+import software.amazon.awssdk.services.mediaconvert.model.H264QvbrSettings;
 import software.amazon.awssdk.services.mediaconvert.model.H264RateControlMode;
 import software.amazon.awssdk.services.mediaconvert.model.H264SceneChangeDetect;
 import software.amazon.awssdk.services.mediaconvert.model.H264Settings;
+import software.amazon.awssdk.services.mediaconvert.model.H264SpatialAdaptiveQuantization;
+import software.amazon.awssdk.services.mediaconvert.model.H264TemporalAdaptiveQuantization;
 import software.amazon.awssdk.services.mediaconvert.model.HlsCaptionLanguageSetting;
 import software.amazon.awssdk.services.mediaconvert.model.HlsClientCache;
 import software.amazon.awssdk.services.mediaconvert.model.HlsCodecSpecification;
@@ -200,13 +215,27 @@ public class MediaConvertService {
                         .codecSettings(VideoCodecSettings.builder()
                                 .codec(VideoCodec.H_264)
                                 .h264Settings(H264Settings.builder()
-                                        .bitrate(bitrate)
-                                        .rateControlMode(H264RateControlMode.CBR)
-                                        .qualityTuningLevel(H264QualityTuningLevel.SINGLE_PASS)
+                                        .rateControlMode(H264RateControlMode.QVBR)
+                                        .maxBitrate(bitrate)
+                                        .qvbrSettings(H264QvbrSettings.builder()
+                                                .qvbrQualityLevel(7)
+                                                .build())
+                                        .qualityTuningLevel(H264QualityTuningLevel.SINGLE_PASS_HQ)
+                                        .codecProfile(H264CodecProfile.MAIN)
+                                        .codecLevel(H264CodecLevel.AUTO)
+                                        .interlaceMode(H264InterlaceMode.PROGRESSIVE)
+                                        .framerateControl(H264FramerateControl.INITIALIZE_FROM_SOURCE)
+                                        .gopSize(3.0)
+                                        .gopSizeUnits(H264GopSizeUnits.SECONDS)
+                                        .numberBFramesBetweenReferenceFrames(2)
+                                        .numberReferenceFrames(3)
+                                        .entropyEncoding(H264EntropyEncoding.CABAC)
                                         .sceneChangeDetect(H264SceneChangeDetect.ENABLED)
                                         .adaptiveQuantization(H264AdaptiveQuantization.HIGH)
-                                        .framerateNumerator(30)
-                                        .framerateDenominator(1)
+                                        .spatialAdaptiveQuantization(H264SpatialAdaptiveQuantization.ENABLED)
+                                        .temporalAdaptiveQuantization(H264TemporalAdaptiveQuantization.ENABLED)
+                                        .flickerAdaptiveQuantization(H264FlickerAdaptiveQuantization.DISABLED)
+                                        .parControl(H264ParControl.INITIALIZE_FROM_SOURCE)
                                         .build())
                                 .build())
                         .width(height * 16 / 9)
@@ -215,10 +244,14 @@ public class MediaConvertService {
                 .audioDescriptions(AudioDescription.builder()
                         .audioSourceName("Audio Selector 1")
                         .codecSettings(AudioCodecSettings.builder()
+                                .codec(AudioCodec.AAC)
                                 .aacSettings(AacSettings.builder()
                                         .bitrate(128_000)
                                         .codingMode(AacCodingMode.CODING_MODE_2_0)
                                         .sampleRate(48000)
+                                        .codecProfile(AacCodecProfile.LC)
+                                        .specification(AacSpecification.MPEG4)
+                                        .rateControlMode(AacRateControlMode.CBR)
                                         .build())
                                 .build())
                         .build())

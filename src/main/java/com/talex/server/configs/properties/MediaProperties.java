@@ -58,6 +58,7 @@ public class MediaProperties {
         private String cloudfrontDomain = "";
         private String accessKeyId = "";
         private String secretAccessKey = "";
+        private String mediaConvertEndpoint = "";
         private String mediaConvertQueueArn = "";
         private String mediaConvertRoleArn = "";
         private String sqsQueueUrl = "";

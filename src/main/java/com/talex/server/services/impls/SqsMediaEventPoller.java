@@ -192,7 +192,7 @@ public class SqsMediaEventPoller {
                 .findAllByProviderAndStatusInAndUpdatedAtBeforeAndProviderPublicIdIsNotNullAndIsDeletedFalseOrderByUpdatedAtAsc(
                         MediaProvider.AWS,
                         List.of(MediaStatus.HLS_PROCESSING),
-                        LocalDateTime.now().plusHours(1),
+                        LocalDateTime.now().plusMinutes(30),
                         Pageable.unpaged());
 
         for (Media media : processingMedia) {
@@ -202,7 +202,7 @@ public class SqsMediaEventPoller {
                     + media.getMediaId() + "/hls/";
             boolean matchByPath = hlsUrl.contains(expectedPrefix);
 
-            if (matchByJobId || matchByPath || processingMedia.size() == 1) {
+            if (matchByJobId || matchByPath) {
                 markHlsReady(media, hlsUrl);
                 log.info("Media HLS_READY via SQS. mediaId={} jobId={}", media.getMediaId(), jobId);
                 return;
