@@ -23,7 +23,7 @@ jobs:
             git pull origin main
 
             # Create .env from GitHub Secrets
-            cat > .env << 'ENVEOF'
+            cat > .env << ENVEOF
             DB_USERNAME=${{ secrets.DB_USERNAME }}
             DB_PASSWORD=${{ secrets.DB_PASSWORD }}
             REDIS_HOST=${{ secrets.REDIS_HOST }}
@@ -37,13 +37,33 @@ jobs:
             GOOGLE_CLIENT_ID_WEB=${{ secrets.GOOGLE_CLIENT_ID_WEB }}
             GOOGLE_CLIENT_ID_ANDROID=${{ secrets.GOOGLE_CLIENT_ID_ANDROID }}
             FPT_AI_API_KEY=${{ secrets.FPT_AI_API_KEY }}
+            CORS_ALLOWED_ORIGINS=${{ secrets.CORS_ALLOWED_ORIGINS }}
+            QUESTDB_USER=${{ secrets.QUESTDB_USER }}
+            QUESTDB_PASSWORD=${{ secrets.QUESTDB_PASSWORD }}
+            MEDIA_PROVIDER=${{ secrets.MEDIA_PROVIDER }}
+            MAX_VIDEO_SIZE_MB=${{ secrets.MAX_VIDEO_SIZE_MB }}
+            VIDEO_UPLOAD_CHUNK_SIZE_MB=${{ secrets.VIDEO_UPLOAD_CHUNK_SIZE_MB }}
+            DEFAULT_VIDEO_PROTECTION_TYPE=${{ secrets.DEFAULT_VIDEO_PROTECTION_TYPE }}
+            SIGNED_PLAYBACK_TTL_SECONDS=${{ secrets.SIGNED_PLAYBACK_TTL_SECONDS }}
             CLOUDINARY_CLOUD_NAME=${{ secrets.CLOUDINARY_CLOUD_NAME }}
             CLOUDINARY_API_KEY=${{ secrets.CLOUDINARY_API_KEY }}
             CLOUDINARY_API_SECRET=${{ secrets.CLOUDINARY_API_SECRET }}
             CLOUDINARY_AUTH_TOKEN_KEY=${{ secrets.CLOUDINARY_AUTH_TOKEN_KEY }}
-            QUESTDB_USER=${{ secrets.QUESTDB_USER }}
-            QUESTDB_PASSWORD=${{ secrets.QUESTDB_PASSWORD }}
-            CORS_ALLOWED_ORIGINS=${{ secrets.CORS_ALLOWED_ORIGINS }}
+            CLOUDINARY_HLS_STREAMING_PROFILE=${{ secrets.CLOUDINARY_HLS_STREAMING_PROFILE }}
+            CLOUDINARY_IMAGE_FOLDER=${{ secrets.CLOUDINARY_IMAGE_FOLDER }}
+            CLOUDINARY_VIDEO_FOLDER=${{ secrets.CLOUDINARY_VIDEO_FOLDER }}
+            CLOUDINARY_PROVIDER_DELIVERY_TYPE=${{ secrets.CLOUDINARY_PROVIDER_DELIVERY_TYPE }}
+            CLOUDINARY_WEBHOOK_URL=${{ secrets.CLOUDINARY_WEBHOOK_URL }}
+            AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
+            AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
+            AWS_REGION=${{ secrets.AWS_REGION }}
+            AWS_S3_BUCKET=${{ secrets.AWS_S3_BUCKET }}
+            AWS_CLOUDFRONT_DOMAIN=${{ secrets.AWS_CLOUDFRONT_DOMAIN }}
+            AWS_CLOUDFRONT_KEY_PAIR_ID=${{ secrets.AWS_CLOUDFRONT_KEY_PAIR_ID }}
+            AWS_CLOUDFRONT_PRIVATE_KEY=${{ secrets.AWS_CLOUDFRONT_PRIVATE_KEY }}
+            AWS_MEDIACONVERT_QUEUE_ARN=${{ secrets.AWS_MEDIACONVERT_QUEUE_ARN }}
+            AWS_MEDIACONVERT_ROLE_ARN=${{ secrets.AWS_MEDIACONVERT_ROLE_ARN }}
+            AWS_SQS_QUEUE_URL=${{ secrets.AWS_SQS_QUEUE_URL }}
             ENVEOF
 
             # Remove leading whitespace from .env lines
