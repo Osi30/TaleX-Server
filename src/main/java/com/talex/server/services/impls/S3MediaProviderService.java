@@ -172,8 +172,8 @@ public class S3MediaProviderService implements MediaProviderService, MediaPackag
                 ? "https://" + cloudfrontDomain + "/" + hlsOutputKey
                 : "https://" + aws.getBucketName() + ".s3." + aws.getRegion() + ".amazonaws.com/" + hlsOutputKey;
 
-        // Predicted thumbnail URL (MediaConvert FRAME_CAPTURE writes _thumb.0000001.jpeg)
-        String thumbnailKey = String.format("output/videos/%s/%s/thumbnails/_thumb.0000001.jpeg", episodeId, mediaId);
+        // Predicted thumbnail URL (MediaConvert FRAME_CAPTURE: {inputName}{nameModifier}.{index}.jpg)
+        String thumbnailKey = String.format("output/videos/%s/%s/thumbnails/original_thumb.0000000.jpg", episodeId, mediaId);
         String predictedThumbnailUrl = (cloudfrontDomain != null && !cloudfrontDomain.isBlank())
                 ? "https://" + cloudfrontDomain + "/" + thumbnailKey
                 : "https://" + aws.getBucketName() + ".s3." + aws.getRegion() + ".amazonaws.com/" + thumbnailKey;
