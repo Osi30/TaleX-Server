@@ -2,6 +2,7 @@ package com.talex.server.controllers;
 
 import com.talex.server.annotations.CurrentAccountId;
 import com.talex.server.dtos.BaseResponse;
+import com.talex.server.dtos.requests.ImagePresignedUploadRequestDto;
 import com.talex.server.dtos.requests.MediaComicPagesRequestDto;
 import com.talex.server.dtos.requests.MediaMetadataRequestDto;
 import com.talex.server.dtos.requests.MediaReorderRequestDto;
@@ -38,6 +39,15 @@ public class MediaController {
     private final MediaService mediaService;
     private final MediaUploadSessionService mediaUploadSessionService;
     private final MediaPlaybackSecurityService mediaPlaybackSecurityService;
+    private final com.talex.server.services.media.MediaProviderService mediaProviderService;
+
+    @PostMapping("/api/v1/media/image/presigned-upload")
+    @PreAuthorize("hasAnyRole('CREATOR', 'STAFF', 'ADMIN')")
+    public ResponseEntity<BaseResponse> createImagePresignedUpload(
+            @Valid @RequestBody ImagePresignedUploadRequestDto request) {
+        return ResponseEntity.ok(response(200, "Image presigned upload URL created",
+                mediaProviderService.createImagePresignedUpload(request)));
+    }
 
     @PostMapping("/api/v1/episodes/{episodeId}/media/video/upload-session")
     @PreAuthorize("hasAnyRole('CREATOR', 'STAFF', 'ADMIN')")

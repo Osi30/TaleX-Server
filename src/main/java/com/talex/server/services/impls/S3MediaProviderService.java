@@ -1,7 +1,9 @@
 package com.talex.server.services.impls;
 
 import com.talex.server.configs.properties.MediaProperties;
+import com.talex.server.dtos.requests.ImagePresignedUploadRequestDto;
 import com.talex.server.dtos.requests.MediaUploadCompleteRequestDto;
+import com.talex.server.dtos.responses.ImagePresignedUploadResponseDto;
 import com.talex.server.entities.Media;
 import com.talex.server.entities.MediaUploadSession;
 import com.talex.server.enums.MediaProvider;
@@ -95,6 +97,42 @@ public class S3MediaProviderService implements MediaProviderService, MediaPackag
         return SignedUploadParams.builder()
                 .uploadUrl(presignedRequest.url().toString())
                 .uploadParams(uploadParams)
+                .build();
+    }
+
+    @Override
+    public ImagePresignedUploadResponseDto createImagePresignedUpload(ImagePresignedUploadRequestDto request) {
+        MediaProperties.Aws aws = mediaProperties.getAws();
+        String env = sanitize(mediaProperties.getAppEnv());
+        String context = sanitize(request.getImageContext());
+        String ext = extractExtension(request.getFileName());
+        String key = String.format("images/%s/%s/%s.%s", env, context, java.util.UUID.randomUUID(), ext);
+
+        PutObjectRequest objectRequest = PutObjectRequest.builder()
+                .bucket(aws.getBucketName())
+                .key(key)
+                .contentType(request.getMimeType())
+                .build();
+
+        PresignedPutObjectRequest presignedRequest = s3Presigner.presignPutObject(
+                PutObjectPresignRequest.builder()
+                        .signatureDuration(Duration.ofHours(1))
+                        .putObjectRequest(objectRequest)
+                        .build());
+
+        String cloudfrontDomain = aws.getCloudfrontDomain();
+        String publicUrl = (cloudfrontDomain != null && !cloudfrontDomain.isBlank())
+                ? "https://" + cloudfrontDomain + "/" + key
+                : "https://" + aws.getBucketName() + ".s3." + aws.getRegion() + ".amazonaws.com/" + key;
+
+        log.info("S3 image presigned URL created. context={} key={}", context, key);
+
+        return ImagePresignedUploadResponseDto.builder()
+                .uploadUrl(presignedRequest.url().toString())
+                .key(key)
+                .publicUrl(publicUrl)
+                .bucket(aws.getBucketName())
+                .region(aws.getRegion())
                 .build();
     }
 
@@ -270,6 +308,13 @@ public class S3MediaProviderService implements MediaProviderService, MediaPackag
             return "unknown";
         }
         return value.replaceAll("[^a-zA-Z0-9_-]", "-");
+    }
+
+    private String extractExtension(String fileName) {
+        if (fileName == null || !fileName.contains(".")) {
+            return "jpg";
+        }
+        return fileName.substring(fileName.lastIndexOf('.') + 1).toLowerCase();
     }
 
     private String blankToNull(String value) {

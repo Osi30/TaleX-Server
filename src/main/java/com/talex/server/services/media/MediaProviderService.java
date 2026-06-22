@@ -1,6 +1,8 @@
 package com.talex.server.services.media;
 
+import com.talex.server.dtos.requests.ImagePresignedUploadRequestDto;
 import com.talex.server.dtos.requests.MediaUploadCompleteRequestDto;
+import com.talex.server.dtos.responses.ImagePresignedUploadResponseDto;
 import com.talex.server.entities.Media;
 import com.talex.server.entities.MediaUploadSession;
 
@@ -8,6 +10,8 @@ import java.time.LocalDateTime;
 
 public interface MediaProviderService {
     SignedUploadParams createSignedUploadParams(String providerPublicId, String providerDeliveryType);
+
+    ImagePresignedUploadResponseDto createImagePresignedUpload(ImagePresignedUploadRequestDto request);
 
     String buildVideoPublicId(String episodeId, String mediaId);
 

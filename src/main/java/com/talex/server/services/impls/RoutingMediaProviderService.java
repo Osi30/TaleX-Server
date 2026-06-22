@@ -1,7 +1,9 @@
 package com.talex.server.services.impls;
 
 import com.talex.server.configs.properties.MediaProperties;
+import com.talex.server.dtos.requests.ImagePresignedUploadRequestDto;
 import com.talex.server.dtos.requests.MediaUploadCompleteRequestDto;
+import com.talex.server.dtos.responses.ImagePresignedUploadResponseDto;
 import com.talex.server.entities.Media;
 import com.talex.server.entities.MediaUploadSession;
 import com.talex.server.enums.MediaProvider;
@@ -38,6 +40,11 @@ public class RoutingMediaProviderService implements MediaProviderService, MediaP
             return s3Provider;
         }
         return cloudinaryProvider;
+    }
+
+    @Override
+    public ImagePresignedUploadResponseDto createImagePresignedUpload(ImagePresignedUploadRequestDto request) {
+        return getActiveProvider().createImagePresignedUpload(request);
     }
 
     @Override
