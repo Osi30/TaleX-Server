@@ -18,6 +18,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import software.amazon.awssdk.services.cloudfront.CloudFrontUtilities;
 import software.amazon.awssdk.services.cloudfront.model.CannedSignerRequest;
+import software.amazon.awssdk.services.cloudfront.model.CustomSignerRequest;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
@@ -247,13 +248,21 @@ public class S3MediaProviderService implements MediaProviderService, MediaPackag
 
         try {
             Instant expiry = expiresAt.toInstant(ZoneOffset.UTC);
-            CannedSignerRequest request = CannedSignerRequest.builder()
-                    .resourceUrl(url)
+
+            // Use Custom Policy with wildcard to sign entire HLS directory
+            // (master playlist + sub-playlists + .ts segments all need valid signature)
+            String hlsDirWildcard = url.substring(0, url.lastIndexOf('/') + 1) + "*";
+            CustomSignerRequest request = CustomSignerRequest.builder()
+                    .resourceUrl(hlsDirWildcard)
                     .keyPairId(keyPairId)
                     .privateKey(cloudFrontKeyFile)
                     .expirationDate(expiry)
                     .build();
-            return cloudFrontUtilities.getSignedUrlWithCannedPolicy(request).url();
+
+            // Signed URL contains wildcard resource — extract query params and apply to master playlist URL
+            String signedWildcard = cloudFrontUtilities.getSignedUrlWithCustomPolicy(request).url();
+            String queryParams = signedWildcard.substring(signedWildcard.indexOf('?'));
+            return url + queryParams;
         } catch (Exception e) {
             log.warn("Failed to sign CloudFront URL, returning unsigned. mediaId={}", media.getMediaId(), e);
             return url;
