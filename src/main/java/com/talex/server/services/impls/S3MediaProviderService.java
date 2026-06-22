@@ -78,8 +78,6 @@ public class S3MediaProviderService implements MediaProviderService, MediaPackag
         PutObjectRequest objectRequest = PutObjectRequest.builder()
                 .bucket(aws.getBucketName())
                 .key(providerPublicId)
-                .contentType("video/mp4")
-                .serverSideEncryption(software.amazon.awssdk.services.s3.model.ServerSideEncryption.AES256)
                 .build();
 
         PutObjectPresignRequest presignRequest = PutObjectPresignRequest.builder()
@@ -114,7 +112,6 @@ public class S3MediaProviderService implements MediaProviderService, MediaPackag
                 .bucket(aws.getBucketName())
                 .key(key)
                 .contentType(request.getMimeType())
-                .serverSideEncryption(software.amazon.awssdk.services.s3.model.ServerSideEncryption.AES256)
                 .build();
 
         PresignedPutObjectRequest presignedRequest = s3Presigner.presignPutObject(
