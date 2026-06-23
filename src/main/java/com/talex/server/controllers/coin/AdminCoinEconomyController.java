@@ -5,6 +5,9 @@ import com.talex.server.dtos.BaseResponse;
 import com.talex.server.dtos.requests.coin.CoinEconomyConfigRequestDto;
 import com.talex.server.dtos.responses.coin.CoinEconomyConfigResponseDto;
 import com.talex.server.services.coin.ICoinEconomyConfigService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -32,6 +35,7 @@ import java.util.UUID;
 @RequestMapping("/api/v1/admin/coin/economy/config")
 @RequiredArgsConstructor
 @PreAuthorize("hasRole('ADMIN')")
+@Tag(name = "Admin - Coin Economy", description = "API cấu hình các mốc phần thưởng nền kinh tế Coin")
 public class AdminCoinEconomyController {
 
     private final ICoinEconomyConfigService coinEconomyConfigService;
@@ -46,6 +50,10 @@ public class AdminCoinEconomyController {
      * @return {@link CoinEconomyConfigResponseDto} — cấu hình hiện hành kèm thời điểm và người tạo
      */
     @GetMapping
+    @Operation(
+            summary = "Lấy cấu hình nền kinh tế Coin",
+            description = "Trả về cấu hình phần thưởng điểm danh cơ bản và các mốc thưởng 7, 14, 30 ngày đang được áp dụng."
+    )
     public ResponseEntity<BaseResponse> getConfig() {
         CoinEconomyConfigResponseDto config = coinEconomyConfigService.getConfig();
 
@@ -71,9 +79,13 @@ public class AdminCoinEconomyController {
      * @return {@link CoinEconomyConfigResponseDto} — bản ghi cấu hình vừa được tạo
      */
     @PutMapping
+    @Operation(
+            summary = "Cập nhật cấu hình nền kinh tế Coin",
+            description = "Tạo phiên bản cấu hình mới cho phần thưởng điểm danh và làm mới cache cấu hình hiện hành."
+    )
     public ResponseEntity<BaseResponse> updateConfig(
             @Valid @RequestBody CoinEconomyConfigRequestDto request,
-            @CurrentAccountId UUID adminId
+            @Parameter(hidden = true) @CurrentAccountId UUID adminId
     ) {
         CoinEconomyConfigResponseDto updated = coinEconomyConfigService.updateConfig(request, adminId);
 

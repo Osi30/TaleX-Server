@@ -5,6 +5,9 @@ import com.talex.server.dtos.BaseResponse;
 import com.talex.server.dtos.requests.coin.MissionRequestDto;
 import com.talex.server.entities.coin.Mission;
 import com.talex.server.services.coin.IMissionService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -26,11 +29,16 @@ import java.util.UUID;
 @RequestMapping("/api/v1/admin/missions")
 @RequiredArgsConstructor
 @PreAuthorize("hasRole('ADMIN')")
+@Tag(name = "Admin - Missions", description = "API quản trị danh sách nhiệm vụ hệ thống")
 public class AdminMissionController {
 
     private final IMissionService missionService;
 
     @GetMapping
+    @Operation(
+            summary = "Lấy toàn bộ cấu hình nhiệm vụ",
+            description = "Hiển thị tất cả nhiệm vụ (kể cả đang tắt) cho Admin quản lý."
+    )
     public ResponseEntity<BaseResponse> getAllMissions() {
         List<Mission> missions = missionService.getAllMissionsForAdmin();
 
@@ -44,9 +52,10 @@ public class AdminMissionController {
     }
 
     @PostMapping
+    @Operation(summary = "Tạo nhiệm vụ mới")
     public ResponseEntity<BaseResponse> createMission(
             @Valid @RequestBody MissionRequestDto request,
-            @CurrentAccountId UUID adminId
+            @Parameter(hidden = true) @CurrentAccountId UUID adminId
     ) {
         Mission created = missionService.createMission(request, adminId.toString());
 
@@ -60,10 +69,15 @@ public class AdminMissionController {
     }
 
     @PutMapping("/{missionId}")
+    @Operation(
+            summary = "Cập nhật thông tin nhiệm vụ",
+            description = "Sửa đổi nội dung, phần thưởng hoặc chỉ tiêu của nhiệm vụ."
+    )
     public ResponseEntity<BaseResponse> updateMission(
+            @Parameter(description = "ID của nhiệm vụ cần cập nhật", required = true)
             @PathVariable UUID missionId,
             @Valid @RequestBody MissionRequestDto request,
-            @CurrentAccountId UUID adminId
+            @Parameter(hidden = true) @CurrentAccountId UUID adminId
     ) {
         Mission updated = missionService.updateMission(
                 missionId,
@@ -81,9 +95,14 @@ public class AdminMissionController {
     }
 
     @PatchMapping("/{missionId}/toggle")
+    @Operation(
+            summary = "Bật/Tắt nhiệm vụ",
+            description = "Chuyển đổi trạng thái isActive của nhiệm vụ."
+    )
     public ResponseEntity<BaseResponse> toggleMissionStatus(
+            @Parameter(description = "ID của nhiệm vụ cần chuyển đổi trạng thái", required = true)
             @PathVariable UUID missionId,
-            @CurrentAccountId UUID adminId
+            @Parameter(hidden = true) @CurrentAccountId UUID adminId
     ) {
         Mission updated = missionService.toggleMissionStatus(
                 missionId,

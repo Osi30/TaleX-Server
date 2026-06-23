@@ -6,6 +6,9 @@ import com.talex.server.dtos.BaseResponse;
 import com.talex.server.dtos.responses.coin.CoinTransactionResponseDto;
 import com.talex.server.dtos.responses.coin.CoinWalletResponseDto;
 import com.talex.server.services.coin.ICoinWalletService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -27,6 +30,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/v1/coins")
 @RequiredArgsConstructor
+@Tag(name = "User - Coin Wallet", description = "API quản lý ví và lịch sử giao dịch Coin")
 public class CoinController {
 
     private final ICoinWalletService coinWalletService;
@@ -39,7 +43,13 @@ public class CoinController {
      * @return Thông tin ví: balance, totalEarned, totalSpent
      */
     @GetMapping("/wallet")
-    public ResponseEntity<BaseResponse> getMyWallet(@CurrentAccountId UUID accountId) {
+    @Operation(
+            summary = "Lấy thông tin ví Coin",
+            description = "Trả về số dư hiện tại, tổng Coin đã nhận và tổng Coin đã sử dụng của người dùng đang đăng nhập."
+    )
+    public ResponseEntity<BaseResponse> getMyWallet(
+            @Parameter(hidden = true) @CurrentAccountId UUID accountId
+    ) {
         CoinWalletResponseDto dto = CoinWalletResponseDto.fromEntity(
                 coinWalletService.getMyWallet(accountId)
         );
@@ -65,9 +75,15 @@ public class CoinController {
      * @return Danh sách giao dịch kèm metadata phân trang
      */
     @GetMapping("/transactions")
+    @Operation(
+            summary = "Lấy lịch sử giao dịch Coin",
+            description = "Trả về lịch sử cộng/trừ Coin theo thứ tự mới nhất, có phân trang. Tham số page bắt đầu từ 1 và size là số bản ghi trên mỗi trang."
+    )
     public ResponseEntity<BaseResponse> getTransactionHistory(
-            @CurrentAccountId UUID accountId,
+            @Parameter(hidden = true) @CurrentAccountId UUID accountId,
+            @Parameter(description = "Số trang cần lấy, bắt đầu từ 1", example = "1")
             @RequestParam(defaultValue = "1") int page,
+            @Parameter(description = "Số giao dịch trên mỗi trang", example = "10")
             @RequestParam(defaultValue = "10") int size
     ) {
         BasePageResponse<CoinTransactionResponseDto> history =
