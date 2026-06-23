@@ -2,7 +2,7 @@ package com.talex.server.mappers;
 
 import com.talex.server.dtos.requests.TermsVersionRequestDto;
 import com.talex.server.dtos.responses.TermsVersionResponseDto;
-import com.talex.server.entities.TermsVersion;
+import com.talex.server.entities.term.TermsVersion;
 
 public interface ITermsVersionMapper {
     TermsVersionResponseDto toResponseDto(TermsVersion entity);

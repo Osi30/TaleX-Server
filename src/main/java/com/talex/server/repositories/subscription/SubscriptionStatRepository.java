@@ -1,6 +1,7 @@
 package com.talex.server.repositories.subscription;
 
 import com.talex.server.entities.subscription.SubscriptionStat;
+import com.talex.server.records.EpisodeDetails;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -26,24 +27,31 @@ public interface SubscriptionStatRepository extends JpaRepository<SubscriptionSt
             @Param("timestamp") LocalDateTime timestamp
     );
 
-    @Query("SELECT ser.creatorId " +
+    @Query("SELECT ser.creatorId, e.totalDuration, e.contentType " +
             "FROM Episode e " +
             "JOIN e.season sea " +
             "JOIN sea.series ser " +
             "WHERE e.episodeId = :episodeId")
-    String findCreatorIdByEpisodeId(@Param("episodeId") String episodeId);
+    EpisodeDetails findEpisodeDetails(@Param("episodeId") String episodeId);
 
     @Modifying
     @Transactional
     @Query(value = "INSERT INTO subscription_stats " +
-            "(month_year, subscription_id, viewer_id, episode_id, creator_id, content_type, is_like, is_comment, is_bookmark, is_share, completion_time) " +
-            "VALUES (:monthYear, :subId, :viewerId, :episodeId, :creatorId, :contentType, :isLike, :isComment, :isBookmark, :isShare, 0) " +
+            "(id, month_year, subscription_id, viewer_id, episode_id, creator_id, content_type, is_like, is_comment, is_bookmark, is_share, is_repeat, last_session_id, total_time, completion_time) " +
+            "VALUES (gen_random_uuid(), :monthYear, :subId, :viewerId, :episodeId, :creatorId, :contentType, :isLike, :isComment, :isBookmark, :isShare, false, :sessionId, :totalTime, 0) " +
             "ON CONFLICT (month_year, subscription_id, viewer_id, episode_id) " +
             "DO UPDATE SET " +
             "  is_like = CASE WHEN EXCLUDED.is_like = true THEN true ELSE subscription_stats.is_like END, " +
             "  is_comment = CASE WHEN EXCLUDED.is_comment = true THEN true ELSE subscription_stats.is_comment END, " +
             "  is_bookmark = CASE WHEN EXCLUDED.is_bookmark = true THEN true ELSE subscription_stats.is_bookmark END, " +
-            "  is_share = CASE WHEN EXCLUDED.is_share = true THEN true ELSE subscription_stats.is_share END",
+            "  is_share = CASE WHEN EXCLUDED.is_share = true THEN true ELSE subscription_stats.is_share END, " +
+            "  is_repeat = CASE " +
+            "    WHEN subscription_stats.is_repeat = true THEN true " +
+            "    WHEN subscription_stats.last_session_id <> EXCLUDED.last_session_id THEN true " +
+            "    ELSE false " +
+            "  END, " +
+            "  last_session_id = EXCLUDED.last_session_id, " +
+            "  total_time = EXCLUDED.total_time",
             nativeQuery = true)
     void upsertInteractionFlags(
             @Param("monthYear") String monthYear,
@@ -55,6 +63,32 @@ public interface SubscriptionStatRepository extends JpaRepository<SubscriptionSt
             @Param("isLike") boolean isLike,
             @Param("isComment") boolean isComment,
             @Param("isBookmark") boolean isBookmark,
-            @Param("isShare") boolean isShare
+            @Param("isShare") boolean isShare,
+            @Param("sessionId") String sessionId,
+            @Param("totalTime") long totalTime
+    );
+
+    @Modifying
+    @Transactional
+    @Query(value = "INSERT INTO subscription_stats (id, month_year, subscription_id, viewer_id, episode_id, creator_id, content_type, completion_time, last_session_id) " +
+            "VALUES (gen_random_uuid(), :monthYear, :subId, :viewerId, :episodeId, :creatorId, :contentType, :duration, :sessionId) " +
+            "ON CONFLICT (month_year, subscription_id, viewer_id, episode_id) " +
+            "DO UPDATE SET completion_time = subscription_stats.completion_time + EXCLUDED.completion_time, " +
+            "  is_repeat = CASE " +
+            "    WHEN subscription_stats.is_repeat = true THEN true " +
+            "    WHEN subscription_stats.last_session_id <> EXCLUDED.last_session_id THEN true " +
+            "    ELSE false " +
+            "  END, " +
+            "  last_session_id = EXCLUDED.last_session_id",
+            nativeQuery = true)
+    void upsertWatchTime(
+            @Param("monthYear") String monthYear,
+            @Param("subId") String subId,
+            @Param("viewerId") String viewerId,
+            @Param("episodeId") String episodeId,
+            @Param("contentType") String contentType,
+            @Param("creatorId") String creatorId,
+            @Param("duration") long duration,
+            @Param("sessionId") String sessionId
     );
 }

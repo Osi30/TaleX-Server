@@ -1,14 +1,17 @@
 package com.talex.server.controllers;
 
 import com.talex.server.annotations.CurrentAccountId;
-import com.talex.server.dtos.requests.InteractionRequest;
-import com.talex.server.repositories.subscription.SubscriptionStatRepository;
+import com.talex.server.dtos.BaseResponse;
+import com.talex.server.dtos.requests.interaction.InteractionRequest;
+import com.talex.server.dtos.requests.interaction.WatchTimeRequest;
 import com.talex.server.services.IInteractionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
-import java.time.LocalDateTime;
 import java.util.UUID;
 
 @RestController
@@ -16,30 +19,30 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class InteractionController {
     private final IInteractionService interactionService;
-    private final SubscriptionStatRepository statRepo;
 
     @PostMapping()
-    public ResponseEntity<String> userInteractContent(
+    public ResponseEntity<BaseResponse> userInteractContent(
             @CurrentAccountId UUID accountId,
             @RequestBody InteractionRequest request
     ) {
         interactionService.processInteraction(accountId, request);
-        return ResponseEntity.ok("Tương tác thành công!");
+        return ResponseEntity.ok(BaseResponse.builder()
+                .code(200)
+                .message("Success")
+                .data("Tương tác thành công!")
+                .build());
     }
 
-    @GetMapping("")
-    public ResponseEntity<String> getInteractions(
-            @CurrentAccountId UUID accountId
+    @PostMapping("/telemetry")
+    public ResponseEntity<BaseResponse> recordWatchTime(
+            @CurrentAccountId UUID accountId,
+            @RequestBody WatchTimeRequest request
     ) {
-        String subId = statRepo.findActiveAccountSubByAccountId(accountId, LocalDateTime.now());
-        return ResponseEntity.ok(subId);
-    }
-
-    @GetMapping("/e")
-    public ResponseEntity<String> getInteractionsCreator(
-            @RequestParam String episodeId
-    ) {
-        String subId = statRepo.findCreatorIdByEpisodeId(episodeId);
-        return ResponseEntity.ok(subId);
+        interactionService.processTelemetry(accountId, request);
+        return ResponseEntity.ok(BaseResponse.builder()
+                .code(200)
+                .message("Success")
+                .data("Thu thập thành công!")
+                .build());
     }
 }

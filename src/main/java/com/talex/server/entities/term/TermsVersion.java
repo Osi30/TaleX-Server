@@ -1,4 +1,4 @@
-package com.talex.server.entities;
+package com.talex.server.entities.term;
 
 import com.talex.server.enums.TermsType;
 import jakarta.persistence.*;

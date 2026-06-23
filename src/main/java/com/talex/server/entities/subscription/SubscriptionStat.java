@@ -9,7 +9,9 @@ import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
 
 @Entity
-@Table(name = "subscription_stats")
+@Table(name = "subscription_stats", uniqueConstraints = {
+        @UniqueConstraint(columnNames = {"month_year", "subscription_id", "viewer_id", "episode_id"})
+})
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -49,6 +51,9 @@ public class SubscriptionStat {
     @Column(name = "is_share")
     private Boolean isShare = false;
 
+    @Column(name = "is_repeat")
+    private Boolean isRepeat = false;
+
     @Column(name = "completion_time")
     private Long completionTime = 0L;
 
@@ -58,4 +63,7 @@ public class SubscriptionStat {
     // Trường ảo tự sinh từ DB - Khóa không cho Java can thiệp sửa đổi
     @Column(name = "weight_amount", insertable = false, updatable = false)
     private BigDecimal weightAmount;
+
+    @Column(name = "last_session_id", length = 50)
+    private String lastSessionId;
 }
