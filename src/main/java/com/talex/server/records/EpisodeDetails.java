@@ -4,7 +4,7 @@ import com.talex.server.enums.ContentType;
 
 public record EpisodeDetails(
         String creatorId,
-        Long totalDuration,
+        Double totalDuration,
         ContentType contentType
 ) {
 }

@@ -4,14 +4,13 @@ import com.talex.server.enums.ContentType;
 import com.talex.server.exceptions.codes.InteractionErrorCode;
 import com.talex.server.exceptions.details.InteractionException;
 import com.talex.server.records.EpisodeDetails;
+import com.talex.server.repositories.WatchSessionRepository;
 import com.talex.server.repositories.subscription.SubscriptionStatRepository;
 import com.talex.server.utils.ValidationUtils;
 import io.questdb.client.Sender;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.redis.connection.stream.MapRecord;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.data.redis.stream.StreamListener;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
@@ -19,16 +18,19 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
-import java.util.Map;
+import java.time.format.DateTimeFormatter;
 import java.util.UUID;
 
 @Component
 @RequiredArgsConstructor
 @Slf4j
-public class InteractionWorker implements StreamListener<String, MapRecord<String, String, String>> {
+public class InteractionWorker {
     private final Sender questDBSender;
     private final StringRedisTemplate redisTemplate;
     private final SubscriptionStatRepository statRepository;
+    private final WatchSessionRepository watchSessionRepository;
+
+    private final DateTimeFormatter monthYearFormatter = DateTimeFormatter.ofPattern("yyyy-MM");
 
     // Kafka pipeline for user interaction
     @KafkaListener(topics = "interaction-log-topic", groupId = "questdb-interaction-group")
@@ -63,16 +65,19 @@ public class InteractionWorker implements StreamListener<String, MapRecord<Strin
             String sessionId = parts[0];
             String accountId = parts[1];
             String episodeId = parts[2];
-            long duration = Long.parseLong(parts[3]);
+            String event = parts[3];
+            double duration = Double.parseDouble(parts[4]);
+            long eventTimestamp = Long.parseLong(parts[5]);
 
-//            questDBSender.table("watch_time_raw_logs")
-//                    .symbol("session_id", sessionId)
-//                    .symbol("viewer_id", accountId)
-//                    .symbol("episode_id", episodeId)
-//                    .longColumn("duration", duration)
-//                    .atNow();
-//            // Production xóa dòng này
-//            questDBSender.flush();
+            questDBSender.table("watch_time_raw_logs")
+                    .symbol("session_id", sessionId)
+                    .symbol("viewer_id", accountId)
+                    .symbol("episode_id", episodeId)
+                    .symbol("event", event)
+                    .doubleColumn("duration", duration)
+                    .at(Instant.ofEpochMilli(eventTimestamp));
+            // Production xóa dòng này
+            questDBSender.flush();
         } catch (Exception e) {
             throw new InteractionException(InteractionErrorCode.KAFKA_PROCESSING_ERROR,
                     "[Kafka Watch Worker Error] Nội dung: " + e.getMessage());
@@ -86,63 +91,57 @@ public class InteractionWorker implements StreamListener<String, MapRecord<Strin
             String sessionId = parts[0];
             String accountId = parts[1];
             String episodeId = parts[2];
-            long totalDuration = Long.parseLong(parts[3]);
+            double watchDuration = Double.parseDouble(parts[3]);
+            int heartbeatCount = Integer.parseInt(parts[4]);
+            long startTimeMs = Long.parseLong(parts[5]);
+            long endTimeMs = Long.parseLong(parts[6]);
 
-            String monthYear = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM")
-                    .format(java.time.LocalDateTime.now());
+            LocalDateTime startTime = LocalDateTime.ofInstant(
+                    Instant.ofEpochMilli(startTimeMs), ZoneId.systemDefault());
+            LocalDateTime currentEndTime = LocalDateTime.ofInstant(
+                    Instant.ofEpochMilli(endTimeMs), ZoneId.systemDefault());
 
             // Thông tin Metadata của tập phim/truyện
             EpisodeDetails episodeDetails = resolveEpisodeDetails(episodeId);
 
-            // Thông tin Gói đăng ký đang hoạt động của User
-            String subscriptionId = resolveSubscriptionId(accountId, java.time.LocalDateTime.now().toString());
-            // Không có gói đăng kí thì không cần lưu nữa
-            if (ValidationUtils.isNullOrEmpty(subscriptionId)) {
-                return;
-            }
-
             // 3. Tiến hành ghi nhận/cộng dồn thời gian vào PostgreSQL
-            statRepository.upsertWatchTime(
-                    monthYear,
-                    subscriptionId,
-                    accountId,
+            watchSessionRepository.upsertWatchSession(
+                    sessionId,
+                    UUID.fromString(accountId),
                     episodeId,
-                    episodeDetails.contentType().name(),
                     episodeDetails.creatorId(),
-                    totalDuration,
-                    sessionId
+                    watchDuration,
+                    episodeDetails.totalDuration(),
+                    heartbeatCount,
+                    startTime,
+                    currentEndTime
             );
-            log.info("Chốt sổ thành công cho Session! User {} xem {} được {} giây.", accountId, episodeId, totalDuration);
-
         } catch (Exception e) {
             throw new InteractionException(InteractionErrorCode.KAFKA_PROCESSING_ERROR,
                     "[Kafka Save to Database Worker Error] Nội dung: " + e.getMessage());
         }
     }
 
-    // Redis Stream for user interaction
-    @Override
-    public void onMessage(MapRecord<String, String, String> message) {
+    @KafkaListener(topics = "interaction-log-topic", groupId = "postgres-interaction-group")
+    public void consumeForPostgresSQL(String message) {
         try {
-            // Đọc gói dữ liệu Map từ bản ghi của Redis Stream phát ra
-            Map<String, String> body = message.getValue();
+            String[] parts = message.split(",");
+            String sessionId = parts[0];
+            String viewerId = parts[1];
+            String episodeId = parts[2];
+            String interactionType = parts[3];
+            String timestampStr = parts[4];
 
-            String sessionId = body.get("sessionId");
-            String timestamp = body.get("timestamp");
-            String monthYear = body.get("monthYear");
-            String viewerId = body.get("viewerId");
-            String episodeId = body.get("episodeId");
-            String interactionType = body.get("interactionType");
+            LocalDateTime timestamp = LocalDateTime.parse(parts[4]);
+            String monthYear = timestamp.format(monthYearFormatter);
+
+            // Xác thực và tìm kiếm mã Gói đăng ký (SubscriptionId)
+            String subscriptionId = resolveSubscriptionId(viewerId, timestampStr);
+            // Không có gói đăng kí thì không cần lưu nữa
+            if (ValidationUtils.isNullOrEmpty(subscriptionId)) return;
 
             // Định danh Episode Meta (Creator, Duration, Type) thông qua Cache/DB
             EpisodeDetails details = resolveEpisodeDetails(episodeId);
-
-            // Xác thực và tìm kiếm mã Gói đăng ký (SubscriptionId)
-            String subscriptionId = resolveSubscriptionId(viewerId, timestamp);
-            // Không có gói đăng kí thì không cần lưu nữa
-            if (ValidationUtils.isNullOrEmpty(subscriptionId)) {
-                redisTemplate.opsForStream().acknowledge("interaction:stream", "pg-sync-group", message.getId());
-            }
 
             // Xác định cờ Boolean cụ thể cần bật dựa theo loại tương tác nhận được
             boolean isLike = "LIKE".equals(interactionType);
@@ -150,25 +149,19 @@ public class InteractionWorker implements StreamListener<String, MapRecord<Strin
             boolean isBookmark = "BOOKMARK".equals(interactionType);
             boolean isShare = "SHARE".equals(interactionType);
 
-            if (!ValidationUtils.isNullOrEmpty(subscriptionId)) {
-                statRepository.upsertInteractionFlags(
-                        monthYear, subscriptionId, viewerId, episodeId, details.contentType().toString(),
-                        details.creatorId(), isLike, isComment, isBookmark, isShare, sessionId, details.totalDuration()
-                );
-
-                // Xác nhận với Redis bản ghi đã được xử lý
-                redisTemplate.opsForStream().acknowledge("interaction:stream", "pg-sync-group", message.getId());
-            }
+            statRepository.upsertInteractionFlags(
+                    monthYear, subscriptionId, viewerId, episodeId,
+                    details.contentType().toString(), details.creatorId(),
+                    isLike, isComment, isBookmark, isShare, sessionId,
+                    details.totalDuration(), interactionType
+            );
 
         } catch (InteractionException e) {
-            if (e.getErrorCode() == InteractionErrorCode.WORKER_EPISODE_NOT_FOUND ||
-                    e.getErrorCode() == InteractionErrorCode.WORKER_ACTIVE_SUB_NOT_FOUND) {
-
-                log.warn("[POISON PILL SKIPPED] Bỏ qua dữ liệu lỗi từ client để tránh tắc nghẽn. ID: {} | Lý do: {}", message.getId(), e.getMessage());
-                redisTemplate.opsForStream().acknowledge("interaction:stream", "pg-sync-group", message.getId());
-            } else {
+            if (e.getErrorCode() != InteractionErrorCode.WORKER_EPISODE_NOT_FOUND &&
+                    e.getErrorCode() != InteractionErrorCode.WORKER_ACTIVE_SUB_NOT_FOUND) {
                 // Các lỗi nghiệp vụ khác thuộc về hạ tầng (ví dụ: WORKER_DATABASE_UPSERT_FAILED)
-                log.info("[INFRASTRUCTURE ERROR] Lỗi DB tạm thời, giữ lại trong PEL: {}", e.getMessage());
+                throw new InteractionException(InteractionErrorCode.WORKER_PROCESSING_ERROR,
+                        "[Worker Error] Nội dung: %s%n" + e.getMessage());
             }
         } catch (Exception e) {
             throw new InteractionException(InteractionErrorCode.WORKER_PROCESSING_ERROR,
@@ -188,7 +181,7 @@ public class InteractionWorker implements StreamListener<String, MapRecord<Strin
             }
 
             // Nén dữ liệu đẩy vào Redis
-            long totalDuration = episodeDetails.totalDuration() == null ? 0 : episodeDetails.totalDuration();
+            double totalDuration = episodeDetails.totalDuration() == null ? 0 : episodeDetails.totalDuration();
             String dataToCache = episodeDetails.creatorId() + "|" + totalDuration + "|" + episodeDetails.contentType().toString();
             redisTemplate.opsForValue().set(cacheKey, dataToCache, Duration.ofHours(24));
             return episodeDetails;
@@ -196,7 +189,7 @@ public class InteractionWorker implements StreamListener<String, MapRecord<Strin
 
             // Giải nén dữ liệu từ Cache Hit
             String[] parts = cachedData.split("\\|");
-            return new EpisodeDetails(parts[0], Long.parseLong(parts[1]), ContentType.valueOf(parts[2]));
+            return new EpisodeDetails(parts[0], Double.parseDouble(parts[1]), ContentType.valueOf(parts[2]));
         }
     }
 

@@ -55,10 +55,10 @@ public class SubscriptionStat {
     private Boolean isRepeat = false;
 
     @Column(name = "completion_time")
-    private Long completionTime = 0L;
+    private Double completionTime = 0D;
 
     @Column(name = "total_time")
-    private Long totalTime = 0L;
+    private Double totalTime = 0D;
 
     // Trường ảo tự sinh từ DB - Khóa không cho Java can thiệp sửa đổi
     @Column(name = "weight_amount", insertable = false, updatable = false)

@@ -174,3 +174,6 @@ media:
 questdb:
   host: ${QUESTDB_HOST:questdb}
   port: ${QUESTDB_PORT:9009}
+
+heartbeat:
+  interval: 5

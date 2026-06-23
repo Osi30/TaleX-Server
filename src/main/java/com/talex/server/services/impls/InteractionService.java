@@ -4,11 +4,13 @@ import com.talex.server.dtos.requests.interaction.InteractionRequest;
 import com.talex.server.dtos.requests.interaction.WatchTimeRequest;
 import com.talex.server.services.IInteractionService;
 import lombok.RequiredArgsConstructor;
+import org.jetbrains.annotations.NotNull;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
@@ -32,22 +34,16 @@ public class InteractionService implements IInteractionService {
         // Gửi log thô qua Kafka (QuestDB tiêu thụ bằng cổng mạng TCP)
         String kafkaMessage = String.format("%s,%s,%s,%s,%s",
                 request.getSessionId(), accountId, request.getEpisodeId(), request.getInteractionType(), timestampStr);
-        kafkaTemplate.send("interaction-log-topic", kafkaMessage);
+        kafkaTemplate.send("interaction-log-topic", request.getSessionId(), kafkaMessage);
 
-        // Tích lũy trên Redis Stream
-        String monthYear = monthYearFormatter.format(request.getTimestamp());
+        // Tích lũy trên Redis
+        String redisKey = String.format("interact:hash:%s:%s", accountId, request.getEpisodeId());
 
-        // Tạo một gói dữ liệu Map phẳng
-        Map<String, String> streamBody = new HashMap<>();
-        streamBody.put("sessionId", request.getSessionId());
-        streamBody.put("timestamp", timestampStr);
-        streamBody.put("monthYear", monthYear);
-        streamBody.put("viewerId", accountId.toString());
-        streamBody.put("episodeId", request.getEpisodeId());
-        streamBody.put("interactionType", request.getInteractionType().name());
+        Map<String, String> fields = getStringStringMap(
+                accountId, request, timestampStr);
 
-        // Đẩy gói dữ liệu vào ống dẫn Redis Stream có tên là "interaction:stream"
-        redisTemplate.opsForStream().add("interaction:stream", streamBody);
+        redisTemplate.opsForHash().putAll(redisKey, fields);
+        redisTemplate.expire(redisKey, Duration.ofHours(1));
     }
 
     @Async("interactionExecutor")
@@ -62,13 +58,33 @@ public class InteractionService implements IInteractionService {
                 .atZone(java.time.ZoneId.systemDefault())
                 .toInstant()
                 .toEpochMilli();
-        String rawMessage = String.format("%s,%s,%s,%d,%d",
+        String rawMessage = String.format("%s,%s,%s,%s,%.2f,%d",
                 request.getSessionId(),
                 accountId.toString(),
                 request.getEpisodeId(),
-                request.getDuration(),
+                request.getEvent(),
+                request.getHeartbeatValue(),
                 eventTimestamp);
 
         kafkaTemplate.send("watch-raw", request.getSessionId(), rawMessage);
+    }
+
+    @NotNull
+    private static Map<String, String> getStringStringMap(UUID accountId, InteractionRequest request, String timestampStr) {
+        Map<String, String> fields = new HashMap<>();
+        fields.put("session_id", request.getSessionId());
+        fields.put("account_id", accountId.toString());
+        fields.put("episode_id", request.getEpisodeId());
+        fields.put("last_updated", timestampStr);
+
+        switch (request.getInteractionType()) {
+            case LIKE -> fields.put("is_like", "true");
+            case UNLIKE -> fields.put("is_like", "false");
+            case BOOKMARK -> fields.put("is_bookmark", "true");
+            case UNBOOKMARK -> fields.put("is_bookmark", "false");
+            case COMMENT -> fields.put("is_comment", "true");
+            case SHARE -> fields.put("is_share", "true");
+        }
+        return fields;
     }
 }

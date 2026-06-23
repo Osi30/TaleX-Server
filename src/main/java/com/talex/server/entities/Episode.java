@@ -69,7 +69,7 @@ public class Episode extends BaseAudit {
     private Integer totalPage;
 
     @Column(name = "total_duration")
-    private Long totalDuration = 0L;
+    private Double totalDuration = 0D;
 
     @OneToMany(mappedBy = "episode")
     private List<Media> media = new ArrayList<>();

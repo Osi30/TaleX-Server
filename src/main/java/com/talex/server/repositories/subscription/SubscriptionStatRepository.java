@@ -41,9 +41,17 @@ public interface SubscriptionStatRepository extends JpaRepository<SubscriptionSt
             "VALUES (gen_random_uuid(), :monthYear, :subId, :viewerId, :episodeId, :creatorId, :contentType, :isLike, :isComment, :isBookmark, :isShare, false, :sessionId, :totalTime, 0) " +
             "ON CONFLICT (month_year, subscription_id, viewer_id, episode_id) " +
             "DO UPDATE SET " +
-            "  is_like = CASE WHEN EXCLUDED.is_like = true THEN true ELSE subscription_stats.is_like END, " +
+            "  is_like = CASE " +
+            "    WHEN :interactionType = 'LIKE' THEN true " +
+            "    WHEN :interactionType = 'UNLIKE' THEN false " +
+            "    ELSE subscription_stats.is_like " +
+            "  END, " +
+            "  is_bookmark = CASE " +
+            "    WHEN :interactionType = 'BOOKMARK' THEN true " +
+            "    WHEN :interactionType = 'UNBOOKMARK' THEN false " +
+            "    ELSE subscription_stats.is_bookmark " +
+            "  END, " +
             "  is_comment = CASE WHEN EXCLUDED.is_comment = true THEN true ELSE subscription_stats.is_comment END, " +
-            "  is_bookmark = CASE WHEN EXCLUDED.is_bookmark = true THEN true ELSE subscription_stats.is_bookmark END, " +
             "  is_share = CASE WHEN EXCLUDED.is_share = true THEN true ELSE subscription_stats.is_share END, " +
             "  is_repeat = CASE " +
             "    WHEN subscription_stats.is_repeat = true THEN true " +
@@ -65,7 +73,8 @@ public interface SubscriptionStatRepository extends JpaRepository<SubscriptionSt
             @Param("isBookmark") boolean isBookmark,
             @Param("isShare") boolean isShare,
             @Param("sessionId") String sessionId,
-            @Param("totalTime") long totalTime
+            @Param("totalTime") Double totalTime,
+            @Param("interactionType") String interactionType
     );
 
     @Modifying
@@ -88,7 +97,7 @@ public interface SubscriptionStatRepository extends JpaRepository<SubscriptionSt
             @Param("episodeId") String episodeId,
             @Param("contentType") String contentType,
             @Param("creatorId") String creatorId,
-            @Param("duration") long duration,
+            @Param("duration") Double duration,
             @Param("sessionId") String sessionId
     );
 }

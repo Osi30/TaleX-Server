@@ -18,12 +18,16 @@ public class WatchTimeRequest {
     private String episodeId;
 
     // Vị trí hiện tại
+    @NotNull
     @JsonProperty("current_position")
     private Double currentPosition;
 
-    // Số giây thực tế vừa xem
-    @JsonProperty("duration")
-    private Long duration;
+    // Số giây thực tế
+    @JsonProperty("heartbeat_value")
+    private Double heartbeatValue;
+
+    @NotNull
+    private String event;
 
     @JsonIgnore
     private LocalDateTime timestamp = LocalDateTime.now();

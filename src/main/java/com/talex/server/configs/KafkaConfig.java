@@ -6,6 +6,7 @@ import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.streams.KeyValue;
 import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.kstream.*;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.annotation.EnableKafkaStreams;
@@ -19,6 +20,9 @@ import java.time.Duration;
 @EnableKafkaStreams
 @Slf4j
 public class KafkaConfig {
+    @Value("${heartbeat.interval}")
+    private Double heartbeatInterval;
+
     @Bean
     public CommonErrorHandler kafkaErrorHandler() {
         // Thử lại 3 lần, mỗi lần cách nhau 2 giây
@@ -44,10 +48,6 @@ public class KafkaConfig {
 
         // 3. Xử lý Stream với Session Window
         rawStream
-                // Giả sử message thô gửi lên Kafka dạng String phân tách dấu phẩy: "sessionId,episodeId,duration"
-                // Ta chuyển Key của Message từ rỗng thành "sessionId" để gom nhóm
-//                .selectKey((k, v) -> v.split(",")[0])
-
                 // Gom nhóm theo Key (sessionId)
                 .groupByKey(Grouped.with(stringSerde, stringSerde))
 
@@ -61,42 +61,39 @@ public class KafkaConfig {
                             String[] parts = currentMessage.split(",");
                             String accountId = parts[1];
                             String episodeId = parts[2];
-                            long currentDuration = Long.parseLong(parts[3]);
-                            long requestTimestamp = Long.parseLong(parts[4]);
-                            long startTime = requestTimestamp;
+                            double heartbeatValue = Double.parseDouble(parts[4]);
+                            long requestTimestamp = Long.parseLong(parts[5]);
 
-                            // Session đã tồn tại
+                            long startTime = requestTimestamp;
+                            double totalDuration = heartbeatInterval;
+                            int heartbeatCount = 1;
+
                             if (!currentAggValue.isEmpty()) {
+                                // Nếu đã có dữ liệu cũ trong cửa sổ 30s này
                                 String[] aggParts = currentAggValue.split(",");
-                                startTime = Long.parseLong(aggParts[4]);
-                            } else {
-                                System.out.println("Empty");
+                                totalDuration = Double.parseDouble(aggParts[3]);
+                                heartbeatCount = Integer.parseInt(aggParts[4]);
+                                startTime = Long.parseLong(aggParts[5]);
+                                long lastClientTimestamp = Long.parseLong(aggParts[6]);
+
+                                // Kiểm tra gian lận
+                                long deltaTimeMs = requestTimestamp - lastClientTimestamp;
+                                double deltaTimeSec = deltaTimeMs / 1000.0;
+
+                                // Nếu khoảng cách gửi giữa 2 request quá ngắn so với heartbeatValue
+                                if (deltaTimeSec >= (heartbeatValue - 1.0)) {
+                                    totalDuration += heartbeatValue;
+                                    heartbeatCount += 1;
+                                } else {
+                                    // Ở bước này có thể xử lí gửi kafka message
+                                    // để ghi log vi phạm và lưu vào chỗ xử lí riêng
+                                    log.warn("Phát hiện gian lận");
+                                }
                             }
 
-                            return sessionId + "," + accountId + "," + episodeId + "," + currentDuration + "," + startTime + "," + requestTimestamp;
+                            return sessionId + "," + accountId + "," + episodeId + "," + totalDuration + "," + heartbeatCount + "," + startTime + "," + requestTimestamp;
                         },
-                        (sessionId, aggValue1, aggValue2) -> {
-                            // Merger xử lý khi Kafka Streams vô tình gộp 2 Session Window lại làm một
-                            if (aggValue1.isEmpty()) return aggValue2;
-                            if (aggValue2.isEmpty()) return aggValue1;
-
-                            String[] p1 = aggValue1.split(",");
-                            String[] p2 = aggValue2.split(",");
-
-                            String accountId = p1[0];
-                            String episodeId = p1[1];
-
-                            // Vì FE tự cộng dồn, khi gộp 2 session, lấy duration lớn nhất
-                            long duration = Math.min(Long.parseLong(p1[3]), Long.parseLong(p2[3]));
-
-                            // Lấy thời gian bắt đầu sớm nhất
-                            long startTime = Math.min(Long.parseLong(p1[4]), Long.parseLong(p2[4]));
-
-                            // Lấy thời gian kết thúc muộn nhất
-                            long endTime = Math.max(Long.parseLong(p1[5]), Long.parseLong(p2[5]));
-
-                            return sessionId + "," + accountId + "," + episodeId + "," + duration + "," + startTime + "," + endTime;
-                        }, // Hàm merge khi 2 session bị gộp
+                        (sessionId, agg1, agg2) -> agg1.isEmpty() ? agg2 : agg1,
                         Materialized.with(stringSerde, stringSerde)
                 )
 
@@ -105,10 +102,7 @@ public class KafkaConfig {
 
                 // Định dạng lại Message trước khi bắn sang Topic kết quả
                 // Định dạng mới: Key = sessionId, Value = "episodeId,totalDuration"
-                .map((windowedKey, finalValue) -> {
-                    String sessionId = windowedKey.key(); // Lấy lại sessionId nguyên bản từ Window
-                    return new KeyValue<>(sessionId, finalValue);
-                })
+                .map((windowedKey, finalValue) -> new KeyValue<>(windowedKey.key(), finalValue))
 
                 // Bắn kết quả chốt sổ cuối cùng sang topic tổng hợp trên Aiven
                 .to("watch-summary", Produced.with(stringSerde, stringSerde));
