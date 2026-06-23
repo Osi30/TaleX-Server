@@ -1,13 +1,12 @@
 package com.talex.server.specifications;
 
-import com.talex.server.entities.TermsVersion;
+import com.talex.server.entities.term.TermsVersion;
 import com.talex.server.enums.TermsType;
 import com.talex.server.utils.SpecUtils;
 import com.talex.server.utils.ValidationUtils;
 import jakarta.persistence.criteria.Predicate;
 import org.springframework.data.jpa.domain.Specification;
 
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;

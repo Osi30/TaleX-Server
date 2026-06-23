@@ -1,6 +1,6 @@
-package com.talex.server.repositories;
+package com.talex.server.repositories.term;
 
-import com.talex.server.entities.TermsVersion;
+import com.talex.server.entities.term.TermsVersion;
 import com.talex.server.enums.TermsType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;

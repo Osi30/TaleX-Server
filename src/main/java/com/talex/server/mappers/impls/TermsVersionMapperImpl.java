@@ -2,7 +2,7 @@ package com.talex.server.mappers.impls;
 
 import com.talex.server.dtos.requests.TermsVersionRequestDto;
 import com.talex.server.dtos.responses.TermsVersionResponseDto;
-import com.talex.server.entities.TermsVersion;
+import com.talex.server.entities.term.TermsVersion;
 import com.talex.server.mappers.ITermsVersionMapper;
 import org.springframework.stereotype.Component;
 

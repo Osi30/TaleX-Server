@@ -1,5 +1,6 @@
-package com.talex.server.entities;
+package com.talex.server.entities.term;
 
+import com.talex.server.entities.Account;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
