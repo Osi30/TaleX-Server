@@ -16,7 +16,6 @@ import java.util.UUID;
 public class MissionHeartbeatScheduler {
 
     private static final String HEARTBEAT_HASH_KEY = "mission:online_heartbeat";
-    private static final String ONLINE_DAILY_MISSION_CODE = "ONLINE_DAILY";
 
     private final StringRedisTemplate stringRedisTemplate;
     private final IMissionService missionService;
@@ -32,7 +31,7 @@ public class MissionHeartbeatScheduler {
                 UUID accountId = UUID.fromString(accountIdKey.toString());
                 int minutes = Integer.parseInt(minutesValue.toString());
 
-                missionService.addProgress(accountId, ONLINE_DAILY_MISSION_CODE, minutes);
+                missionService.distributeOnlineHeartbeat(accountId, minutes);
                 stringRedisTemplate.opsForHash().delete(HEARTBEAT_HASH_KEY, accountIdKey);
             } catch (Exception exception) {
                 log.error(

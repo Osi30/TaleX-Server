@@ -15,6 +15,8 @@ public interface IMissionService {
 
     void processOnlineHeartbeat(UUID accountId);
 
+    void distributeOnlineHeartbeat(UUID accountId, int minutes);
+
     List<Mission> getAllMissionsForAdmin();
 
     Mission createMission(MissionRequestDto request, String adminId);

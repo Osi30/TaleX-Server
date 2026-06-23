@@ -69,18 +69,14 @@ public class MissionServiceImpl implements IMissionService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void addProgress(UUID accountId, String missionCode, int increment) {
-        Mission mission = missionRepository.findByCode(missionCode).orElse(null);
-        if (mission == null) {
-            return;
-        }
+        missionRepository.findByCode(missionCode)
+                .ifPresent(mission -> processProgressInternal(accountId, mission, increment));
+    }
 
+    private void processProgressInternal(UUID accountId, Mission mission, int increment) {
         LocalDate today = LocalDate.now();
         UserMissionProgress progress = userMissionProgressRepository
-                .findByAccountIdAndMissionIdAndProgressDate(
-                        accountId,
-                        mission.getMissionId(),
-                        today
-                )
+                .findByAccountIdAndMissionIdAndProgressDate(accountId, mission.getMissionId(), today)
                 .orElseGet(() -> UserMissionProgress.builder()
                         .accountId(accountId)
                         .missionId(mission.getMissionId())
@@ -89,9 +85,7 @@ public class MissionServiceImpl implements IMissionService {
                         .isCompleted(false)
                         .build());
 
-        if (progress.isCompleted()) {
-            return;
-        }
+        if (progress.isCompleted()) return;
 
         int updatedValue = progress.getCurrentValue() + increment;
         progress.setCurrentValue(updatedValue);
@@ -101,17 +95,10 @@ public class MissionServiceImpl implements IMissionService {
             progress.setCompleted(true);
             progress.setCompletedAt(LocalDateTime.now());
 
-            // Save first so Hibernate assigns progressId before it becomes the
-            // immutable ledger reference for the mission reward transaction.
             progress = userMissionProgressRepository.save(progress);
 
-            coinWalletService.creditCoin(
-                    accountId,
-                    mission.getRewardAmount(),
-                    "MISSION_REWARD",
-                    progress.getProgressId().toString(),
-                    "Hoàn thành nhiệm vụ: " + mission.getTitle()
-            );
+            coinWalletService.creditCoin(accountId, mission.getRewardAmount(), "MISSION_REWARD",
+                    progress.getProgressId().toString(), "Hoàn thành nhiệm vụ: " + mission.getTitle());
         } else {
             userMissionProgressRepository.save(progress);
         }
@@ -124,6 +111,20 @@ public class MissionServiceImpl implements IMissionService {
                 accountId.toString(),
                 1
         );
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void distributeOnlineHeartbeat(UUID accountId, int minutes) {
+        List<Mission> activeMissions = missionRepository.findByIsActiveTrue();
+        List<Mission> onlineMissions = activeMissions.stream()
+                .filter(mission -> mission.getCode() != null
+                        && mission.getCode().toUpperCase().startsWith("ONLINE_"))
+                .toList();
+
+        for (Mission mission : onlineMissions) {
+            processProgressInternal(accountId, mission, minutes);
+        }
     }
 
     @Override
