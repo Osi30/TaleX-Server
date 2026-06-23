@@ -19,6 +19,9 @@ public enum CoinErrorCode {
     /** Số tiền giao dịch không hợp lệ (âm hoặc bằng 0). */
     INVALID_AMOUNT(6003, HttpStatus.BAD_REQUEST, "Số lượng Coin giao dịch phải lớn hơn 0"),
 
+    /** Mã nhiệm vụ là business key và phải duy nhất trong toàn hệ thống. */
+    MISSION_CODE_ALREADY_EXISTS(6004, HttpStatus.CONFLICT, "Mã nhiệm vụ đã tồn tại"),
+
     // ── 429 Concurrency / Rate Limit ──────────────────────────────────────────
 
     /**
@@ -30,7 +33,10 @@ public enum CoinErrorCode {
     // ── 5xx Server Errors ─────────────────────────────────────────────────────
 
     /** Không tìm thấy ví Coin của tài khoản (trong trường hợp không dùng Lazy Init). */
-    WALLET_NOT_FOUND(6500, HttpStatus.NOT_FOUND, "Không tìm thấy ví Coin của tài khoản");
+    WALLET_NOT_FOUND(6500, HttpStatus.NOT_FOUND, "Không tìm thấy ví Coin của tài khoản"),
+
+    /** Không tìm thấy cấu hình nhiệm vụ theo ID được yêu cầu. */
+    MISSION_NOT_FOUND(6501, HttpStatus.NOT_FOUND, "Không tìm thấy nhiệm vụ");
 
     private final int code;
     private final HttpStatus httpStatus;
