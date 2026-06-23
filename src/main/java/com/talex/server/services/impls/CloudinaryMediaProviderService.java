@@ -41,6 +41,13 @@ public class CloudinaryMediaProviderService implements MediaProviderService, Med
     private final AtomicBoolean spAutoWarningLogged = new AtomicBoolean(false);
 
     @Override
+    public com.talex.server.dtos.responses.ImagePresignedUploadResponseDto createImagePresignedUpload(
+            com.talex.server.dtos.requests.ImagePresignedUploadRequestDto request) {
+        // Cloudinary images are uploaded directly from frontend — no presigned URL needed
+        throw new UnsupportedOperationException("Image presigned upload not supported for Cloudinary provider");
+    }
+
+    @Override
     public SignedUploadParams createSignedUploadParams(String providerPublicId, String providerDeliveryType) {
         ensureConfigured();
 
@@ -167,6 +174,11 @@ public class CloudinaryMediaProviderService implements MediaProviderService, Med
                 deliveryType,
                 signature,
                 path);
+    }
+
+    @Override
+    public String signSingleUrl(String url, java.time.LocalDateTime expiresAt) {
+        return url; // Cloudinary handles signing via delivery path, not query params
     }
 
     @Override

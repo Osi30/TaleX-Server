@@ -91,8 +91,11 @@ public class DefaultMediaUploadSessionService implements MediaUploadSessionServi
         media.setFileSize(request.getFileSize());
         media.setFileUrl("pending://video-upload/" + UUID.randomUUID());
         media.setChecksum("pending:" + UUID.randomUUID());
-        media.setProvider(MediaProvider.CLOUDINARY);
-        media.setProviderDeliveryType(mediaProperties.getCloudinary().getProviderDeliveryType());
+        media.setProvider(mediaProperties.getProvider());
+        media.setProviderDeliveryType(
+                mediaProperties.getProvider() == MediaProvider.CLOUDINARY
+                        ? mediaProperties.getCloudinary().getProviderDeliveryType()
+                        : null);
         media.setProtectionType(protectionType);
         media.setPlaybackPolicy(playbackPolicy);
         media.setTokenTtlSeconds(mediaProperties.getSignedPlaybackTtlSeconds().intValue());
@@ -102,7 +105,7 @@ public class DefaultMediaUploadSessionService implements MediaUploadSessionServi
 
         String providerPublicId = mediaProviderService.buildVideoPublicId(episodeId, media.getMediaId());
         media.setProviderPublicId(providerPublicId);
-        media.setStorageProvider(MediaProvider.CLOUDINARY.name());
+        media.setStorageProvider(mediaProperties.getProvider().name());
         media.setExternalPublicId(providerPublicId);
 
         MediaUploadSession session = new MediaUploadSession();
@@ -110,7 +113,7 @@ public class DefaultMediaUploadSessionService implements MediaUploadSessionServi
         session.setMedia(media);
         session.setEpisode(episode);
         session.setCreatorId(blankToNull(request.getCreatorId()));
-        session.setProvider(MediaProvider.CLOUDINARY);
+        session.setProvider(mediaProperties.getProvider());
         session.setProviderPublicId(providerPublicId);
         session.setProviderDeliveryType(media.getProviderDeliveryType());
         session.setUploadUniqueId(UUID.randomUUID().toString());
@@ -276,9 +279,11 @@ public class DefaultMediaUploadSessionService implements MediaUploadSessionServi
                 : MediaPlaybackPolicy.SIGNED);
         media.markUpdatedBy(request.getActorId());
         media = mediaRepository.save(media);
-        log.info("HLS_PROCESSING_STARTED upload completed; waiting for Cloudinary eager webhook. mediaId={} providerPublicId={}",
-                media.getMediaId(), media.getProviderPublicId());
-        cloudinaryHlsReconcileService.notifyProcessingMedia();
+        log.info("Upload completed, HLS processing started. provider={} mediaId={} providerPublicId={}",
+                media.getProvider(), media.getMediaId(), media.getProviderPublicId());
+        if (media.getProvider() == MediaProvider.CLOUDINARY) {
+            cloudinaryHlsReconcileService.notifyProcessingMedia();
+        }
 
         session.setUploadedBytes(request.getBytes());
         session.setLastUploadedChunkIndex(session.getTotalChunks() == null ? null : session.getTotalChunks() - 1);
@@ -295,7 +300,7 @@ public class DefaultMediaUploadSessionService implements MediaUploadSessionServi
 
     private void validateCompletedRequestMatchesSession(MediaUploadSession session, MediaUploadCompleteRequestDto request) {
         if (!session.getProviderPublicId().equals(request.getPublicId())) {
-            throw ContentModuleException.badRequest("Cloudinary publicId does not match upload session");
+            throw ContentModuleException.badRequest("Provider publicId does not match upload session");
         }
         if (request.getBytes() > session.getFileSize()) {
             throw ContentModuleException.badRequest("Completed byte size cannot exceed declared fileSize");

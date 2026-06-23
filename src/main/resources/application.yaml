@@ -1,4 +1,4 @@
-﻿spring:
+spring:
   config:
     import: optional:file:.env[.properties]
   profiles:
@@ -11,6 +11,12 @@
     username: ${DB_USERNAME:postgres}
     password: ${DB_PASSWORD:12345}
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:talex-db}${DB_OPTIONS:}
+    hikari:
+      connection-timeout: 30000
+      maximum-pool-size: 10
+      minimum-idle: 2
+      idle-timeout: 600000
+      max-lifetime: 1800000
 
   jpa:
     show-sql: ${JPA_SHOW_SQL:false}
@@ -55,7 +61,6 @@
 
 springdoc:
   api-docs:
-
     path: /api-docs
   swagger-ui:
     path: /swagger-ui.html
@@ -77,12 +82,12 @@ resilience4j:
     configs:
       default:
         slidingWindowType: COUNT_BASED
-        slidingWindowSize: 10             # Last 10 requests
-        minimumNumberOfCalls: 5           # Start calculating after at least 5 requests
-        failureRateThreshold: 50          # Open circuit when 50% of calls fail or time out
-        slowCallRateThreshold: 50         # Open circuit when 50% of calls are slow
+        slidingWindowSize: 10 # Last 10 requests
+        minimumNumberOfCalls: 5 # Start calculating after at least 5 requests
+        failureRateThreshold: 50 # Open circuit when 50% of calls fail or time out
+        slowCallRateThreshold: 50 # Open circuit when 50% of calls are slow
         slowCallDurationThreshold: 10000ms # Slow call threshold: 10 seconds
-        waitDurationInOpenState: 30000ms  # Wait 30 seconds before half-open
+        waitDurationInOpenState: 30000ms # Wait 30 seconds before half-open
         permittedNumberOfCallsInHalfOpenState: 3 # Probe calls in half-open state
         automaticTransitionFromOpenToHalfOpenEnabled: true
     instances:
@@ -148,6 +153,23 @@ media:
     reconcile-stale-after-seconds: ${CLOUDINARY_RECONCILE_STALE_AFTER_SECONDS:30}
     reconcile-eager-retry-after-seconds: ${CLOUDINARY_RECONCILE_EAGER_RETRY_AFTER_SECONDS:300}
     reconcile-page-size: ${CLOUDINARY_RECONCILE_PAGE_SIZE:20}
+
+  # === Provider selection: CLOUDINARY | AWS ===
+  provider: ${MEDIA_PROVIDER:AWS}
+
+  # === AWS S3 + CloudFront ===
+  aws:
+    region: ${AWS_REGION:ap-southeast-1}
+    bucket-name: ${AWS_S3_BUCKET:}
+    cloudfront-domain: ${AWS_CLOUDFRONT_DOMAIN:}
+    access-key-id: ${AWS_ACCESS_KEY_ID:}
+    secret-access-key: ${AWS_SECRET_ACCESS_KEY:}
+    media-convert-endpoint: ${AWS_MEDIACONVERT_ENDPOINT:}
+    media-convert-queue-arn: ${AWS_MEDIACONVERT_QUEUE_ARN:}
+    media-convert-role-arn: ${AWS_MEDIACONVERT_ROLE_ARN:}
+    sqs-queue-url: ${AWS_SQS_QUEUE_URL:}
+    cloudfront-key-pair-id: ${AWS_CLOUDFRONT_KEY_PAIR_ID:}
+    cloudfront-private-key: ${AWS_CLOUDFRONT_PRIVATE_KEY:}
 
 questdb:
   host: ${QUESTDB_HOST:questdb}

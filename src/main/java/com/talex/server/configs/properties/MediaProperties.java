@@ -1,6 +1,7 @@
 package com.talex.server.configs.properties;
 
 import com.talex.server.enums.MediaProtectionType;
+import com.talex.server.enums.MediaProvider;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
@@ -25,7 +26,9 @@ public class MediaProperties {
     private String drmProvider = "NONE";
     private String drmLicenseServerUrl = "";
     private String drmCertificateUrl = "";
+    private MediaProvider provider = MediaProvider.CLOUDINARY;
     private Cloudinary cloudinary = new Cloudinary();
+    private Aws aws = new Aws();
 
     @Data
     public static class Cloudinary {
@@ -46,5 +49,21 @@ public class MediaProperties {
         private Long reconcileStaleAfterSeconds = 30L;
         private Long reconcileEagerRetryAfterSeconds = 300L;
         private Integer reconcilePageSize = 20;
+    }
+
+    @Data
+    public static class Aws {
+        private String region = "ap-southeast-1";
+        private String bucketName = "";
+        private String cloudfrontDomain = "";
+        private String accessKeyId = "";
+        private String secretAccessKey = "";
+        private String mediaConvertEndpoint = "";
+        private String mediaConvertQueueArn = "";
+        private String mediaConvertRoleArn = "";
+        private String sqsQueueUrl = "";
+        // CloudFront signed URL config (Phase 3)
+        private String cloudfrontKeyPairId = "";      // Public Key ID from CloudFront console
+        private String cloudfrontPrivateKey = "";     // Base64-encoded PEM private key content
     }
 }

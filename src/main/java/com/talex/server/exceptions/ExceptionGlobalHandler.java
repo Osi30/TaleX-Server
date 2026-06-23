@@ -4,6 +4,7 @@ import com.talex.server.dtos.BaseResponse;
 import com.talex.server.exceptions.codes.AuthErrorCode;
 import com.talex.server.exceptions.codes.KycSessionErrorCode;
 import com.talex.server.exceptions.codes.SubscriptionErrorCode;
+import com.talex.server.exceptions.codes.CoinErrorCode;
 import com.talex.server.exceptions.details.AuthException;
 import com.talex.server.exceptions.details.CreatorException;
 import com.talex.server.exceptions.details.CreatorTermsLogException;
@@ -14,6 +15,7 @@ import com.talex.server.exceptions.details.KycStepException;
 import com.talex.server.exceptions.details.ResourceNotFoundException;
 import com.talex.server.exceptions.details.SubscriptionException;
 import com.talex.server.exceptions.details.TermVersionException;
+import com.talex.server.exceptions.details.CoinException;
 import com.talex.server.exceptions.details.CreatorIdentityException;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
@@ -127,6 +129,18 @@ public class ExceptionGlobalHandler {
                 .data(request.getDescription(false))
                 .build();
 
+        return new ResponseEntity<>(exceptionResponse, errorCode.getHttpStatus());
+    }
+
+    @ExceptionHandler(CoinException.class)
+    public ResponseEntity<BaseResponse> handleCoinException(CoinException ex, WebRequest request) {
+        CoinErrorCode errorCode = ex.getErrorCode();
+        log.warn("Coin error [{}]: {}", errorCode.getCode(), ex.getMessage());
+        BaseResponse exceptionResponse = BaseResponse.builder()
+                .message(ex.getMessage())
+                .code(errorCode.getCode())
+                .data(request.getDescription(false))
+                .build();
         return new ResponseEntity<>(exceptionResponse, errorCode.getHttpStatus());
     }
 
