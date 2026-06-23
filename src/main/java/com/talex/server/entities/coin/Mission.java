@@ -1,5 +1,6 @@
 package com.talex.server.entities.coin;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.talex.server.entities.BaseAudit;
 import jakarta.persistence.*;
 import lombok.*;
@@ -70,5 +71,11 @@ public class Mission extends BaseAudit {
      */
     @Builder.Default
     @Column(name = "is_active", nullable = false)
+    @JsonProperty("isActive")
     private boolean isActive = true;
+
+    @JsonProperty("isActive")
+    public boolean isActive() {
+        return isActive;
+    }
 }
