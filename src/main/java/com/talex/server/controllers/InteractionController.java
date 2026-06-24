@@ -45,4 +45,13 @@ public class InteractionController {
                 .data("Thu thập thành công!")
                 .build());
     }
+
+    @PostMapping("test/interact")
+    public ResponseEntity<String> interact(
+            @CurrentAccountId UUID accountId,
+            @RequestBody InteractionRequest request
+    ) {
+        interactionService.handleInteraction(accountId, request);
+        return ResponseEntity.ok("Xử lý tương tác thành công!");
+    }
 }

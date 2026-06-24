@@ -5,18 +5,7 @@ import com.talex.server.exceptions.codes.AuthErrorCode;
 import com.talex.server.exceptions.codes.KycSessionErrorCode;
 import com.talex.server.exceptions.codes.SubscriptionErrorCode;
 import com.talex.server.exceptions.codes.CoinErrorCode;
-import com.talex.server.exceptions.details.AuthException;
-import com.talex.server.exceptions.details.CreatorException;
-import com.talex.server.exceptions.details.CreatorTermsLogException;
-import com.talex.server.exceptions.details.ContentModuleException;
-import com.talex.server.exceptions.details.FptAIIDRecognitionException;
-import com.talex.server.exceptions.details.KycSessionException;
-import com.talex.server.exceptions.details.KycStepException;
-import com.talex.server.exceptions.details.ResourceNotFoundException;
-import com.talex.server.exceptions.details.SubscriptionException;
-import com.talex.server.exceptions.details.TermVersionException;
-import com.talex.server.exceptions.details.CoinException;
-import com.talex.server.exceptions.details.CreatorIdentityException;
+import com.talex.server.exceptions.details.*;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
@@ -62,6 +51,16 @@ public class ExceptionGlobalHandler {
                 .data(request.getDescription(false))
                 .build();
         return new ResponseEntity<>(exceptionResponse, ex.getHttpStatus());
+    }
+
+    @ExceptionHandler(InteractionException.class)
+    public ResponseEntity<BaseResponse> handleInteractionException(InteractionException ex, WebRequest request) {
+        BaseResponse exceptionResponse = BaseResponse.builder()
+                .message(ex.getMessage())
+                .code(ex.getErrorCode().getCode())
+                .data(request.getDescription(false))
+                .build();
+        return new ResponseEntity<>(exceptionResponse, ex.getErrorCode().getHttpStatus());
     }
 
     @ExceptionHandler(FptAIIDRecognitionException.class)

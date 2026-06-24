@@ -2,6 +2,9 @@ package com.talex.server.services.impls;
 
 import com.talex.server.dtos.requests.interaction.InteractionRequest;
 import com.talex.server.dtos.requests.interaction.WatchTimeRequest;
+import com.talex.server.exceptions.codes.InteractionErrorCode;
+import com.talex.server.exceptions.details.InteractionException;
+import com.talex.server.repositories.interaction.AccountInteractionRepository;
 import com.talex.server.services.IInteractionService;
 import lombok.RequiredArgsConstructor;
 import org.jetbrains.annotations.NotNull;
@@ -11,8 +14,6 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -22,9 +23,7 @@ import java.util.UUID;
 public class InteractionService implements IInteractionService {
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final StringRedisTemplate redisTemplate;
-
-    private final DateTimeFormatter monthYearFormatter = DateTimeFormatter
-            .ofPattern("yyyy-MM").withZone(ZoneId.systemDefault());
+    private final AccountInteractionRepository accountInteractionRepository;
 
     @Async("interactionExecutor")
     @Override
@@ -86,5 +85,19 @@ public class InteractionService implements IInteractionService {
             case SHARE -> fields.put("is_share", "true");
         }
         return fields;
+    }
+
+    @Override
+    public void handleInteraction(UUID accountId, InteractionRequest request) {
+        try {
+            accountInteractionRepository.upsertOrDeleteInteraction(
+                    accountId,
+                    request.getEpisodeId(),
+                    request.getInteractionType().toString()
+            );
+        } catch (Exception e) {
+            throw new InteractionException(InteractionErrorCode.SAVING_DATABASE_ERROR,
+                    "Lỗi Interaction khi lưu xuống DB");
+        }
     }
 }

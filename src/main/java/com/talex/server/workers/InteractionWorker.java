@@ -4,7 +4,7 @@ import com.talex.server.enums.ContentType;
 import com.talex.server.exceptions.codes.InteractionErrorCode;
 import com.talex.server.exceptions.details.InteractionException;
 import com.talex.server.records.EpisodeDetails;
-import com.talex.server.repositories.WatchSessionRepository;
+import com.talex.server.repositories.interaction.WatchSessionRepository;
 import com.talex.server.repositories.subscription.SubscriptionStatRepository;
 import com.talex.server.utils.ValidationUtils;
 import io.questdb.client.Sender;

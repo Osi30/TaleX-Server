@@ -1,4 +1,4 @@
-package com.talex.server.entities;
+package com.talex.server.entities.interaction;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
