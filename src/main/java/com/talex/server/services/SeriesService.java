@@ -20,6 +20,10 @@ public interface SeriesService {
 
     SeriesResponseDto update(String id, SeriesRequestDto request);
 
+    SeriesResponseDto approve(String id, String actorId);
+
+    SeriesResponseDto reject(String id, String actorId);
+
     SeriesResponseDto publish(String id, String actorId);
 
     SeriesResponseDto hide(String id, String actorId);

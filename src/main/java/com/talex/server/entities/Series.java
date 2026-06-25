@@ -1,5 +1,6 @@
 package com.talex.server.entities;
 
+import com.talex.server.enums.ContentApprovalStatus;
 import com.talex.server.enums.ContentType;
 import com.talex.server.enums.SeriesStatus;
 import com.talex.server.enums.Visibility;
@@ -9,6 +10,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -17,7 +19,8 @@ import java.util.List;
         name = "series",
         indexes = {
                 @Index(name = "idx_series_creator_deleted", columnList = "creator_id,is_deleted"),
-                @Index(name = "idx_series_public_listing", columnList = "visibility,status,is_deleted")
+                @Index(name = "idx_series_public_listing", columnList = "visibility,status,approval_status,is_deleted"),
+                @Index(name = "idx_series_schedule_publish", columnList = "approval_status,scheduled_publish_at,status,is_deleted")
         })
 @Getter
 @Setter
@@ -51,6 +54,19 @@ public class Series extends BaseAudit {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
     private SeriesStatus status = SeriesStatus.DRAFT;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "approval_status", nullable = false, length = 30)
+    private ContentApprovalStatus approvalStatus = ContentApprovalStatus.PENDING_REVIEW;
+
+    @Column(name = "approval_reviewed_at")
+    private LocalDateTime approvalReviewedAt;
+
+    @Column(name = "approval_reviewed_by")
+    private String approvalReviewedBy;
+
+    @Column(name = "scheduled_publish_at")
+    private LocalDateTime scheduledPublishAt;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)

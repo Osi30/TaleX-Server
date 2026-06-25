@@ -4,6 +4,7 @@ import com.talex.server.dtos.BasePageResponse;
 import com.talex.server.dtos.requests.SeriesRequestDto;
 import com.talex.server.dtos.responses.SeriesResponseDto;
 import com.talex.server.entities.*;
+import com.talex.server.enums.ContentApprovalStatus;
 import com.talex.server.enums.CategoryStatus;
 import com.talex.server.enums.SeriesStatus;
 import com.talex.server.enums.TagStatus;
@@ -23,6 +24,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -49,6 +51,11 @@ public class SeriesServiceImpl implements SeriesService {
     public SeriesResponseDto create(SeriesRequestDto request) {
         Series series = new Series();
         applyMutableFields(series, request);
+        series.setStatus(SeriesStatus.DRAFT);
+        series.setApprovalStatus(ContentApprovalStatus.PENDING_REVIEW);
+        series.setApprovalReviewedAt(null);
+        series.setApprovalReviewedBy(null);
+        series.setScheduledPublishAt(null);
         series.setCreatorId(request.getCreatorId());
         series.markCreatedBy(request.getActorId());
 
@@ -94,9 +101,10 @@ public class SeriesServiceImpl implements SeriesService {
     @Override
     public BasePageResponse<SeriesResponseDto> listPublic(Integer page, Integer pageSize) {
         Page<Series> result = seriesRepository
-                .findAllByVisibilityAndStatusAndIsDeletedFalse(
+                .findAllByVisibilityAndStatusAndApprovalStatusAndIsDeletedFalse(
                         Visibility.PUBLIC,
                         SeriesStatus.PUBLISHED,
+                        ContentApprovalStatus.APPROVED,
                         PageUtils.buildPageable(page, pageSize));
         return toPageResponse(result, toResponses(result.getContent()));
     }
@@ -105,6 +113,9 @@ public class SeriesServiceImpl implements SeriesService {
     @Override
     public SeriesResponseDto update(String id, SeriesRequestDto request) {
         Series series = findActiveEntity(id);
+        if (request.getStatus() != null) {
+            ensureApprovedForStatusUpdate(series.getApprovalStatus(), "Series");
+        }
         applyMutableFields(series, request);
         if (request.getCreatorId() != null) {
             series.setCreatorId(request.getCreatorId());
@@ -120,8 +131,35 @@ public class SeriesServiceImpl implements SeriesService {
 
     @Transactional
     @Override
+    public SeriesResponseDto approve(String id, String actorId) {
+        Series series = findActiveEntity(id);
+        series.setApprovalStatus(ContentApprovalStatus.APPROVED);
+        series.setApprovalReviewedAt(LocalDateTime.now());
+        series.setApprovalReviewedBy(actorId);
+        series.markUpdatedBy(actorId);
+        return toResponse(seriesRepository.save(series));
+    }
+
+    @Transactional
+    @Override
+    public SeriesResponseDto reject(String id, String actorId) {
+        Series series = findActiveEntity(id);
+        series.setApprovalStatus(ContentApprovalStatus.REJECTED);
+        series.setApprovalReviewedAt(LocalDateTime.now());
+        series.setApprovalReviewedBy(actorId);
+        series.setScheduledPublishAt(null);
+        if (series.getStatus() == SeriesStatus.PUBLISHED) {
+            series.setStatus(SeriesStatus.HIDDEN);
+        }
+        series.markUpdatedBy(actorId);
+        return toResponse(seriesRepository.save(series));
+    }
+
+    @Transactional
+    @Override
     public SeriesResponseDto publish(String id, String actorId) {
         Series series = findActiveEntity(id);
+        ensureApprovedForStatusUpdate(series.getApprovalStatus(), "Series");
         series.setStatus(SeriesStatus.PUBLISHED);
         series.setVisibility(Visibility.PUBLIC);
         series.markUpdatedBy(actorId);
@@ -132,6 +170,7 @@ public class SeriesServiceImpl implements SeriesService {
     @Override
     public SeriesResponseDto hide(String id, String actorId) {
         Series series = findActiveEntity(id);
+        ensureApprovedForStatusUpdate(series.getApprovalStatus(), "Series");
         series.setStatus(SeriesStatus.HIDDEN);
         series.markUpdatedBy(actorId);
         return toResponse(seriesRepository.save(series));
@@ -141,6 +180,7 @@ public class SeriesServiceImpl implements SeriesService {
     @Override
     public SeriesResponseDto unhide(String id, String actorId) {
         Series series = findActiveEntity(id);
+        ensureApprovedForStatusUpdate(series.getApprovalStatus(), "Series");
         series.setStatus(SeriesStatus.PUBLISHED);
         series.markUpdatedBy(actorId);
         return toResponse(seriesRepository.save(series));
@@ -164,7 +204,9 @@ public class SeriesServiceImpl implements SeriesService {
     @Override
     public Series findPublicEntity(String id) {
         Series series = findActiveEntity(id);
-        if (series.getStatus() != SeriesStatus.PUBLISHED || series.getVisibility() != Visibility.PUBLIC) {
+        if (series.getStatus() != SeriesStatus.PUBLISHED
+                || series.getVisibility() != Visibility.PUBLIC
+                || series.getApprovalStatus() != ContentApprovalStatus.APPROVED) {
             throw ContentModuleException.notFound("Public series not found: " + id);
         }
         return series;
@@ -209,6 +251,10 @@ public class SeriesServiceImpl implements SeriesService {
                 .bannerUrl(series.getBannerUrl())
                 .contentType(series.getContentType())
                 .status(series.getStatus())
+                .approvalStatus(series.getApprovalStatus())
+                .approvalReviewedAt(series.getApprovalReviewedAt())
+                .approvalReviewedBy(series.getApprovalReviewedBy())
+                .scheduledPublishAt(series.getScheduledPublishAt())
                 .visibility(series.getVisibility())
                 .ageRating(series.getAgeRating())
                 .language(series.getLanguage())
@@ -260,6 +306,12 @@ public class SeriesServiceImpl implements SeriesService {
         series.setVisibility(request.getVisibility() != null ? request.getVisibility() : series.getVisibility());
         series.setAgeRating(request.getAgeRating());
         series.setLanguage(request.getLanguage());
+    }
+
+    private void ensureApprovedForStatusUpdate(ContentApprovalStatus approvalStatus, String entityName) {
+        if (approvalStatus != ContentApprovalStatus.APPROVED) {
+            throw ContentModuleException.badRequest(entityName + " must be approved before status can be updated");
+        }
     }
 
     private void syncCategories(Series series, List<String> categoryIds, String actorId) {

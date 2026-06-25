@@ -1,6 +1,7 @@
 package com.talex.server.repositories;
 
 import com.talex.server.entities.Series;
+import com.talex.server.enums.ContentApprovalStatus;
 import com.talex.server.enums.SeriesStatus;
 import com.talex.server.enums.Visibility;
 import org.springframework.data.domain.Page;
@@ -18,8 +19,9 @@ public interface SeriesRepository extends JpaRepository<Series, String> {
 
     Page<Series> findAllByCreatorIdAndIsDeletedFalse(String creatorId, Pageable pageable);
 
-    Page<Series> findAllByVisibilityAndStatusAndIsDeletedFalse(
+    Page<Series> findAllByVisibilityAndStatusAndApprovalStatusAndIsDeletedFalse(
             Visibility visibility,
             SeriesStatus status,
+            ContentApprovalStatus approvalStatus,
             Pageable pageable);
 }

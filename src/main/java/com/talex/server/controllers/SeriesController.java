@@ -66,6 +66,22 @@ public class SeriesController {
         return ResponseEntity.ok(response(200, "Series updated", seriesService.update(id, request)));
     }
 
+    @PatchMapping("/{id}/approve")
+    @PreAuthorize("hasAnyRole('STAFF', 'ADMIN')")
+    public ResponseEntity<BaseResponse> approve(
+            @PathVariable String id,
+            @CurrentAccountId UUID accountId) {
+        return ResponseEntity.ok(response(200, "Series approved", seriesService.approve(id, accountId.toString())));
+    }
+
+    @PatchMapping("/{id}/reject")
+    @PreAuthorize("hasAnyRole('STAFF', 'ADMIN')")
+    public ResponseEntity<BaseResponse> reject(
+            @PathVariable String id,
+            @CurrentAccountId UUID accountId) {
+        return ResponseEntity.ok(response(200, "Series rejected", seriesService.reject(id, accountId.toString())));
+    }
+
     @PatchMapping("/{id}/publish")
     @PreAuthorize("hasAnyRole('CREATOR', 'STAFF', 'ADMIN')")
     public ResponseEntity<BaseResponse> publish(
