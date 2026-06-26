@@ -6,7 +6,7 @@ import com.talex.server.dtos.requests.TermsVersionRequestDto;
 import com.talex.server.dtos.requests.filters.TermVersionFilterRequestDto;
 import com.talex.server.dtos.responses.TermsVersionResponseDto;
 import com.talex.server.enums.TermsType;
-import com.talex.server.services.ITermsVersionService;
+import com.talex.server.services.terms.ITermsVersionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;

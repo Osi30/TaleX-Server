@@ -21,7 +21,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/v1/creators")
 @RequiredArgsConstructor
-@Tag(name = "Creator", description = "API quản lý creator, bao gồm đăng ký, truy vấn và cập nhật thông tin creator")
+@Tag(name = "Creators", description = "API quản lý creator, bao gồm đăng ký, truy vấn và cập nhật thông tin creator")
 public class CreatorController {
         private final ICreatorService creatorService;
 

@@ -4,7 +4,7 @@ import com.talex.server.annotations.CurrentAccountId;
 import com.talex.server.dtos.BaseResponse;
 import com.talex.server.dtos.requests.CreatorTermsLogRequestDto;
 import com.talex.server.dtos.responses.CreatorTermsLogResponseDto;
-import com.talex.server.services.ITermsLogService;
+import com.talex.server.services.terms.ITermsLogService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;

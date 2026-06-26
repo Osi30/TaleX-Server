@@ -27,7 +27,7 @@ import java.util.Map;
 @RequestMapping("/api/v1/kyc-sessions")
 @RequiredArgsConstructor
 @Validated
-@Tag(name = "KYC phiên", description = "API quản lý phiên KYC, quét CCCD và xác thực liveness")
+@Tag(name = "KYC Sessions", description = "API quản lý phiên KYC, quét CCCD và xác thực liveness")
 public class KycSessionController {
         private final IKycSessionService kycSessionService;
         private final IKycStepService kycStepService;

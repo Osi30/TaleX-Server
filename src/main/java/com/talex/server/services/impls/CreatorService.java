@@ -15,7 +15,7 @@ import com.talex.server.repositories.AccountRepository;
 import com.talex.server.repositories.creator.CreatorRepository;
 import com.talex.server.services.ICreatorIdentityService;
 import com.talex.server.services.ICreatorService;
-import com.talex.server.services.ITermsLogService;
+import com.talex.server.services.terms.ITermsLogService;
 import com.talex.server.services.ekyc.IKycSessionService;
 import com.talex.server.specifications.CreatorSpec;
 import com.talex.server.utils.ValidationUtils;

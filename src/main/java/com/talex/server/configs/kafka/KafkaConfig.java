@@ -1,4 +1,4 @@
-package com.talex.server.configs;
+package com.talex.server.configs.kafka;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.common.serialization.Serde;

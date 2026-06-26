@@ -20,7 +20,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/v1/account-subscriptions")
 @RequiredArgsConstructor
-@Tag(name = "Gói đăng ký tài khoản", description = "API quản lý đăng ký và hiển thị gói dịch vụ của tài khoản")
+@Tag(name = "Account Subscriptions", description = "API quản lý đăng ký và hiển thị gói dịch vụ của tài khoản")
 public class AccountSubscriptionController {
         private final IAccountSubscriptionService accountSubscriptionService;
 

@@ -1,4 +1,4 @@
-package com.talex.server.services.impls;
+package com.talex.server.services.terms.impls;
 
 import com.talex.server.dtos.BaseFilterRequestDto;
 import com.talex.server.dtos.BasePageResponse;
@@ -11,7 +11,7 @@ import com.talex.server.exceptions.codes.TermsVersionErrorCode;
 import com.talex.server.exceptions.details.TermVersionException;
 import com.talex.server.mappers.ITermsVersionMapper;
 import com.talex.server.repositories.term.TermsVersionRepository;
-import com.talex.server.services.ITermsVersionService;
+import com.talex.server.services.terms.ITermsVersionService;
 import com.talex.server.specifications.TermsVersionSpec;
 import com.talex.server.utils.ValidationUtils;
 import lombok.RequiredArgsConstructor;

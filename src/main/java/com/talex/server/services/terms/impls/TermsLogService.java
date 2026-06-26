@@ -1,4 +1,4 @@
-package com.talex.server.services.impls;
+package com.talex.server.services.terms.impls;
 
 import com.talex.server.dtos.requests.CreatorTermsLogRequestDto;
 import com.talex.server.dtos.responses.CreatorTermsLogResponseDto;
@@ -12,8 +12,8 @@ import com.talex.server.exceptions.details.CreatorTermsLogException;
 import com.talex.server.mappers.ITermsLogMapper;
 import com.talex.server.repositories.AccountRepository;
 import com.talex.server.repositories.term.TermsLogRepository;
-import com.talex.server.services.ITermsLogService;
-import com.talex.server.services.ITermsVersionService;
+import com.talex.server.services.terms.ITermsLogService;
+import com.talex.server.services.terms.ITermsVersionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

@@ -17,7 +17,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/v1/creators/identities")
 @RequiredArgsConstructor
-@Tag(name = "Danh tính Creator", description = "API quản lý thông tin định danh của creator")
+@Tag(name = "Creator Identities", description = "API quản lý thông tin định danh của creator")
 public class CreatorIdentityController {
         private final ICreatorIdentityService creatorIdentityService;
 

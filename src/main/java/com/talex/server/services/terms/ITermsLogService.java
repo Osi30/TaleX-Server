@@ -1,4 +1,4 @@
-package com.talex.server.services;
+package com.talex.server.services.terms;
 
 import com.talex.server.dtos.requests.CreatorTermsLogRequestDto;
 import com.talex.server.dtos.responses.CreatorTermsLogResponseDto;
