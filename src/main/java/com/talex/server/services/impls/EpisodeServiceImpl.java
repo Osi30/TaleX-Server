@@ -9,6 +9,7 @@ import com.talex.server.entities.Series;
 import com.talex.server.enums.ContentApprovalStatus;
 import com.talex.server.enums.ContentType;
 import com.talex.server.enums.EpisodeStatus;
+import com.talex.server.enums.EpisodeUnlockType;
 import com.talex.server.enums.MediaStatus;
 import com.talex.server.enums.MediaType;
 import com.talex.server.enums.SeasonStatus;
@@ -51,11 +52,9 @@ public class EpisodeServiceImpl implements EpisodeService {
         episode.setDescription(request.getDescription());
         episode.setContentType(contentType);
         episode.setStatus(EpisodeStatus.DRAFT);
-        episode.setApprovalStatus(ContentApprovalStatus.PENDING_REVIEW);
-        episode.setApprovalReviewedAt(null);
-        episode.setApprovalReviewedBy(null);
         episode.setScheduledPublishAt(null);
         episode.setTotalPage(request.getTotalPage());
+        applyUnlockSettings(episode, request);
         episode.markCreatedBy(request.getActorId());
 
         return toResponse(episodeRepository.save(episode));
@@ -88,10 +87,9 @@ public class EpisodeServiceImpl implements EpisodeService {
     public List<EpisodeResponseDto> listPublicBySeason(String seasonId) {
         seasonService.findPublicEntity(seasonId);
         return episodeRepository
-                .findAllBySeason_SeasonIdAndStatusAndApprovalStatusAndIsDeletedFalseOrderByEpisodeNumberAsc(
+                .findAllBySeason_SeasonIdAndStatusAndIsDeletedFalseOrderByEpisodeNumberAsc(
                         seasonId,
-                        EpisodeStatus.PUBLISHED,
-                        ContentApprovalStatus.APPROVED)
+                        EpisodeStatus.PUBLISHED)
                 .stream()
                 .map(this::toResponse)
                 .toList();
@@ -111,7 +109,6 @@ public class EpisodeServiceImpl implements EpisodeService {
             episode.setContentType(request.getContentType());
         }
         if (request.getStatus() != null) {
-            ensureApprovedForStatusUpdate(episode.getApprovalStatus(), "Episode");
             if (request.getStatus() == EpisodeStatus.PUBLISHED) {
                 ensureReadyMediaForPublish(episode);
                 if (episode.getPublishedAt() == null) {
@@ -121,6 +118,7 @@ public class EpisodeServiceImpl implements EpisodeService {
             episode.setStatus(request.getStatus());
         }
         episode.setTotalPage(request.getTotalPage());
+        applyUnlockSettings(episode, request);
         episode.markUpdatedBy(request.getActorId());
 
         return toResponse(episodeRepository.save(episode));
@@ -128,35 +126,8 @@ public class EpisodeServiceImpl implements EpisodeService {
 
     @Transactional
     @Override
-    public EpisodeResponseDto approve(String id, String actorId) {
-        Episode episode = findActiveEntity(id);
-        episode.setApprovalStatus(ContentApprovalStatus.APPROVED);
-        episode.setApprovalReviewedAt(LocalDateTime.now());
-        episode.setApprovalReviewedBy(actorId);
-        episode.markUpdatedBy(actorId);
-        return toResponse(episodeRepository.save(episode));
-    }
-
-    @Transactional
-    @Override
-    public EpisodeResponseDto reject(String id, String actorId) {
-        Episode episode = findActiveEntity(id);
-        episode.setApprovalStatus(ContentApprovalStatus.REJECTED);
-        episode.setApprovalReviewedAt(LocalDateTime.now());
-        episode.setApprovalReviewedBy(actorId);
-        episode.setScheduledPublishAt(null);
-        if (episode.getStatus() == EpisodeStatus.PUBLISHED) {
-            episode.setStatus(EpisodeStatus.HIDDEN);
-        }
-        episode.markUpdatedBy(actorId);
-        return toResponse(episodeRepository.save(episode));
-    }
-
-    @Transactional
-    @Override
     public EpisodeResponseDto schedulePublish(String id, LocalDateTime scheduledPublishAt, String actorId) {
         Episode episode = findActiveEntity(id);
-        ensureApprovedForStatusUpdate(episode.getApprovalStatus(), "Episode");
         ensureScheduledPublishAt(scheduledPublishAt);
         List<Media> mediaToHide = findReadyMediaForPublish(episode);
         if (mediaToHide.isEmpty()) {
@@ -164,7 +135,6 @@ public class EpisodeServiceImpl implements EpisodeService {
         }
         boolean shouldPublishParents = shouldPublishParentsWithScheduledEpisode(episode);
         if (shouldPublishParents) {
-            ensureParentContentApproved(episode);
             hideParentContentForSchedule(episode, actorId);
         }
         hideEpisodeMediaForSchedule(mediaToHide, actorId);
@@ -179,7 +149,6 @@ public class EpisodeServiceImpl implements EpisodeService {
     @Override
     public EpisodeResponseDto publish(String id, String actorId) {
         Episode episode = findActiveEntity(id);
-        ensureApprovedForStatusUpdate(episode.getApprovalStatus(), "Episode");
         ensureReadyMediaForPublish(episode);
 
         episode.setStatus(EpisodeStatus.PUBLISHED);
@@ -195,7 +164,6 @@ public class EpisodeServiceImpl implements EpisodeService {
     @Override
     public EpisodeResponseDto publishScheduled(String id, String actorId) {
         Episode episode = findActiveEntity(id);
-        ensureApprovedForStatusUpdate(episode.getApprovalStatus(), "Episode");
         List<Media> mediaToPublish = findScheduledMediaForPublish(episode);
         if (mediaToPublish.isEmpty()) {
             throw ContentModuleException.badRequest("Episode must have at least one scheduled or ready media before publishing");
@@ -203,7 +171,6 @@ public class EpisodeServiceImpl implements EpisodeService {
 
         boolean shouldPublishParents = shouldPublishParentsWithScheduledEpisode(episode);
         if (shouldPublishParents) {
-            ensureParentContentApproved(episode);
             publishParentContentForSchedule(episode, actorId);
         }
 
@@ -227,7 +194,6 @@ public class EpisodeServiceImpl implements EpisodeService {
     @Override
     public EpisodeResponseDto hide(String id, String actorId) {
         Episode episode = findActiveEntity(id);
-        ensureApprovedForStatusUpdate(episode.getApprovalStatus(), "Episode");
         episode.setStatus(EpisodeStatus.HIDDEN);
         episode.markUpdatedBy(actorId);
         return toResponse(episodeRepository.save(episode));
@@ -237,7 +203,6 @@ public class EpisodeServiceImpl implements EpisodeService {
     @Override
     public EpisodeResponseDto unhide(String id, String actorId) {
         Episode episode = findActiveEntity(id);
-        ensureApprovedForStatusUpdate(episode.getApprovalStatus(), "Episode");
         ensureReadyMediaForPublish(episode);
         episode.setStatus(EpisodeStatus.PUBLISHED);
         if (episode.getPublishedAt() == null) {
@@ -265,8 +230,7 @@ public class EpisodeServiceImpl implements EpisodeService {
     @Override
     public Episode findPublicEntity(String id) {
         Episode episode = findActiveEntity(id);
-        if (episode.getStatus() != EpisodeStatus.PUBLISHED
-                || episode.getApprovalStatus() != ContentApprovalStatus.APPROVED) {
+        if (episode.getStatus() != EpisodeStatus.PUBLISHED) {
             throw ContentModuleException.notFound("Public episode not found: " + id);
         }
         seasonService.findPublicEntity(episode.getSeason().getSeasonId());
@@ -283,11 +247,10 @@ public class EpisodeServiceImpl implements EpisodeService {
                 .description(episode.getDescription())
                 .contentType(episode.getContentType())
                 .status(episode.getStatus())
-                .approvalStatus(episode.getApprovalStatus())
-                .approvalReviewedAt(episode.getApprovalReviewedAt())
-                .approvalReviewedBy(episode.getApprovalReviewedBy())
                 .scheduledPublishAt(episode.getScheduledPublishAt())
                 .publishedAt(episode.getPublishedAt())
+                .unlockType(episode.getUnlockType())
+                .priceVnd(episode.getPriceVnd())
                 .likes(episode.getLikes())
                 .views(episode.getViews())
                 .totalPage(episode.getTotalPage())
@@ -307,34 +270,31 @@ public class EpisodeServiceImpl implements EpisodeService {
         }
     }
 
-    private void ensureApprovedForStatusUpdate(ContentApprovalStatus approvalStatus, String entityName) {
-        if (approvalStatus != ContentApprovalStatus.APPROVED) {
-            throw ContentModuleException.badRequest(entityName + " must be approved before status can be updated");
-        }
-    }
-
     private void ensureReadyMediaForPublish(Episode episode) {
-        boolean hasReadyMedia = mediaRepository.existsByEpisode_EpisodeIdAndMediaTypeAndStatusInAndIsDeletedFalse(
+        boolean hasReadyMedia = mediaRepository.existsByEpisode_EpisodeIdAndMediaTypeAndStatusInAndApprovalStatusAndIsDeletedFalse(
                 episode.getEpisodeId(),
                 requiredMediaType(episode),
-                readyMediaStatuses(episode));
+                readyMediaStatuses(episode),
+                ContentApprovalStatus.APPROVED);
         if (!hasReadyMedia) {
-            throw ContentModuleException.badRequest("Episode must have at least one ready media before publishing");
+            throw ContentModuleException.badRequest("Episode must have at least one approved ready media before publishing");
         }
     }
 
     private List<Media> findReadyMediaForPublish(Episode episode) {
-        return mediaRepository.findAllByEpisode_EpisodeIdAndMediaTypeAndStatusInAndIsDeletedFalse(
+        return mediaRepository.findAllByEpisode_EpisodeIdAndMediaTypeAndStatusInAndApprovalStatusAndIsDeletedFalse(
                 episode.getEpisodeId(),
                 requiredMediaType(episode),
-                readyMediaStatuses(episode));
+                readyMediaStatuses(episode),
+                ContentApprovalStatus.APPROVED);
     }
 
     private List<Media> findScheduledMediaForPublish(Episode episode) {
-        return mediaRepository.findAllByEpisode_EpisodeIdAndMediaTypeAndStatusInAndIsDeletedFalse(
+        return mediaRepository.findAllByEpisode_EpisodeIdAndMediaTypeAndStatusInAndApprovalStatusAndIsDeletedFalse(
                 episode.getEpisodeId(),
                 requiredMediaType(episode),
-                scheduledPublishMediaStatuses(episode));
+                scheduledPublishMediaStatuses(episode),
+                ContentApprovalStatus.APPROVED);
     }
 
     private MediaType requiredMediaType(Episode episode) {
@@ -355,23 +315,11 @@ public class EpisodeServiceImpl implements EpisodeService {
 
     private boolean shouldPublishParentsWithScheduledEpisode(Episode episode) {
         String seriesId = episode.getSeason().getSeries().getSeriesId();
-        long publishedEpisodes = episodeRepository.countBySeriesIdExcludingEpisodeAndStatusAndApprovalStatus(
+        long publishedEpisodes = episodeRepository.countBySeriesIdExcludingEpisodeAndStatus(
                 seriesId,
                 episode.getEpisodeId(),
-                EpisodeStatus.PUBLISHED,
-                ContentApprovalStatus.APPROVED);
+                EpisodeStatus.PUBLISHED);
         return publishedEpisodes == 0;
-    }
-
-    private void ensureParentContentApproved(Episode episode) {
-        Season season = episode.getSeason();
-        Series series = season.getSeries();
-        if (season.getApprovalStatus() != ContentApprovalStatus.APPROVED) {
-            throw ContentModuleException.badRequest("Season must be approved before scheduled episode can publish it");
-        }
-        if (series.getApprovalStatus() != ContentApprovalStatus.APPROVED) {
-            throw ContentModuleException.badRequest("Series must be approved before scheduled episode can publish it");
-        }
     }
 
     private void hideParentContentForSchedule(Episode episode, String actorId) {
@@ -402,6 +350,27 @@ public class EpisodeServiceImpl implements EpisodeService {
             media.setStatus(MediaStatus.HIDDEN);
             media.markUpdatedBy(actorId);
         }
+    }
+
+    private void applyUnlockSettings(Episode episode, EpisodeRequestDto request) {
+        EpisodeUnlockType unlockType = request.getUnlockType() != null
+                ? request.getUnlockType()
+                : episode.getUnlockType();
+        Long priceVnd = request.getPriceVnd() != null
+                ? request.getPriceVnd()
+                : episode.getPriceVnd();
+
+        if (unlockType == EpisodeUnlockType.FREE) {
+            episode.setUnlockType(EpisodeUnlockType.FREE);
+            episode.setPriceVnd(0L);
+            return;
+        }
+
+        if (priceVnd == null || priceVnd <= 0 || priceVnd >= 100_000L) {
+            throw ContentModuleException.badRequest("Paid episode price must be greater than 0 and less than 100,000 VND");
+        }
+        episode.setUnlockType(EpisodeUnlockType.PAID);
+        episode.setPriceVnd(priceVnd);
     }
 
     private void ensureScheduledPublishAt(LocalDateTime scheduledPublishAt) {

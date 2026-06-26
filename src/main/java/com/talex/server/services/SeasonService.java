@@ -19,10 +19,6 @@ public interface SeasonService {
 
     SeasonResponseDto update(String id, SeasonRequestDto request);
 
-    SeasonResponseDto approve(String id, String actorId);
-
-    SeasonResponseDto reject(String id, String actorId);
-
     SeasonResponseDto publish(String id, String actorId);
 
     SeasonResponseDto hide(String id, String actorId);

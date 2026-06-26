@@ -1,6 +1,5 @@
 package com.talex.server.dtos.responses;
 
-import com.talex.server.enums.ContentApprovalStatus;
 import com.talex.server.enums.SeasonStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -20,10 +19,6 @@ public class SeasonResponseDto {
     private String title;
     private String description;
     private SeasonStatus status;
-    private ContentApprovalStatus approvalStatus;
-    private LocalDateTime approvalReviewedAt;
-    private String approvalReviewedBy;
-    private LocalDateTime scheduledPublishAt;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private LocalDateTime deletedAt;

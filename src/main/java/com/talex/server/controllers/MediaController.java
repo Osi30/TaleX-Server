@@ -195,6 +195,22 @@ public class MediaController {
         return ResponseEntity.ok(response(200, "Media visible", mediaService.unhide(id, accountId.toString())));
     }
 
+    @PatchMapping("/api/v1/media/{id}/approve")
+    @PreAuthorize("hasAnyRole('STAFF', 'ADMIN')")
+    public ResponseEntity<BaseResponse> approve(
+            @PathVariable String id,
+            @CurrentAccountId UUID accountId) {
+        return ResponseEntity.ok(response(200, "Media approved", mediaService.approve(id, accountId.toString())));
+    }
+
+    @PatchMapping("/api/v1/media/{id}/reject")
+    @PreAuthorize("hasAnyRole('STAFF', 'ADMIN')")
+    public ResponseEntity<BaseResponse> reject(
+            @PathVariable String id,
+            @CurrentAccountId UUID accountId) {
+        return ResponseEntity.ok(response(200, "Media rejected", mediaService.reject(id, accountId.toString())));
+    }
+
     @PatchMapping("/api/v1/media/{id}/status")
     @PreAuthorize("hasAnyRole('CREATOR', 'STAFF', 'ADMIN')")
     public ResponseEntity<BaseResponse> updateStatus(

@@ -1,7 +1,6 @@
 package com.talex.server.schedulers;
 
 import com.talex.server.entities.Episode;
-import com.talex.server.enums.ContentApprovalStatus;
 import com.talex.server.enums.EpisodeStatus;
 import com.talex.server.repositories.EpisodeRepository;
 import com.talex.server.services.EpisodeService;
@@ -43,8 +42,7 @@ public class ContentScheduledPublishingScheduler {
 
     private void publishDueEpisodes(LocalDateTime now) {
         List<Episode> dueEpisodes = episodeRepository
-                .findTop100ByApprovalStatusAndScheduledPublishAtLessThanEqualAndStatusInAndIsDeletedFalseOrderByScheduledPublishAtAsc(
-                        ContentApprovalStatus.APPROVED,
+                .findTop100ByScheduledPublishAtLessThanEqualAndStatusInAndIsDeletedFalseOrderByScheduledPublishAtAsc(
                         now,
                         SCHEDULED_EPISODE_STATUSES);
         for (Episode episode : dueEpisodes) {

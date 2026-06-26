@@ -54,22 +54,6 @@ public class SeasonController {
         return ResponseEntity.ok(response(200, "Season updated", seasonService.update(id, request)));
     }
 
-    @PreAuthorize("hasAnyRole('STAFF', 'ADMIN')")
-    @PatchMapping("/api/v1/seasons/{id}/approve")
-    public ResponseEntity<BaseResponse> approve(
-            @PathVariable String id,
-            @CurrentAccountId UUID accountId) {
-        return ResponseEntity.ok(response(200, "Season approved", seasonService.approve(id, accountId.toString())));
-    }
-
-    @PreAuthorize("hasAnyRole('STAFF', 'ADMIN')")
-    @PatchMapping("/api/v1/seasons/{id}/reject")
-    public ResponseEntity<BaseResponse> reject(
-            @PathVariable String id,
-            @CurrentAccountId UUID accountId) {
-        return ResponseEntity.ok(response(200, "Season rejected", seasonService.reject(id, accountId.toString())));
-    }
-
     @PreAuthorize("hasAnyRole('CREATOR', 'STAFF', 'ADMIN')")
     @PatchMapping("/api/v1/seasons/{id}/publish")
     public ResponseEntity<BaseResponse> publish(

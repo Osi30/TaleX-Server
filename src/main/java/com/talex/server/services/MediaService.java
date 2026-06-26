@@ -33,6 +33,10 @@ public interface MediaService {
 
     MediaResponseDto unhide(String id, String actorId);
 
+    MediaResponseDto approve(String id, String actorId);
+
+    MediaResponseDto reject(String id, String actorId);
+
     MediaResponseDto updateProcessingStatus(String id, MediaStatusRequestDto request);
 
     void delete(String id, String actorId);

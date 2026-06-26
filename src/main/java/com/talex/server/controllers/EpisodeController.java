@@ -55,22 +55,6 @@ public class EpisodeController {
         return ResponseEntity.ok(response(200, "Episode updated", episodeService.update(id, request)));
     }
 
-    @PreAuthorize("hasAnyRole('STAFF', 'ADMIN')")
-    @PatchMapping("/api/v1/episodes/{id}/approve")
-    public ResponseEntity<BaseResponse> approve(
-            @PathVariable String id,
-            @CurrentAccountId UUID accountId) {
-        return ResponseEntity.ok(response(200, "Episode approved", episodeService.approve(id, accountId.toString())));
-    }
-
-    @PreAuthorize("hasAnyRole('STAFF', 'ADMIN')")
-    @PatchMapping("/api/v1/episodes/{id}/reject")
-    public ResponseEntity<BaseResponse> reject(
-            @PathVariable String id,
-            @CurrentAccountId UUID accountId) {
-        return ResponseEntity.ok(response(200, "Episode rejected", episodeService.reject(id, accountId.toString())));
-    }
-
     @PreAuthorize("hasAnyRole('CREATOR', 'STAFF', 'ADMIN')")
     @PatchMapping("/api/v1/episodes/{id}/schedule-publish")
     public ResponseEntity<BaseResponse> schedulePublish(

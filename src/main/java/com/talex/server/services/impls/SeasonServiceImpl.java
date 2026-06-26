@@ -36,10 +36,6 @@ public class SeasonServiceImpl implements SeasonService {
         season.setTitle(request.getTitle());
         season.setDescription(request.getDescription());
         season.setStatus(SeasonStatus.DRAFT);
-        season.setApprovalStatus(ContentApprovalStatus.PENDING_REVIEW);
-        season.setApprovalReviewedAt(null);
-        season.setApprovalReviewedBy(null);
-        season.setScheduledPublishAt(null);
         season.markCreatedBy(request.getActorId());
 
         return toResponse(seasonRepository.save(season));
@@ -72,10 +68,9 @@ public class SeasonServiceImpl implements SeasonService {
     public List<SeasonResponseDto> listPublicBySeries(String seriesId) {
         seriesService.findPublicEntity(seriesId);
         return seasonRepository
-                .findAllBySeries_SeriesIdAndStatusAndApprovalStatusAndIsDeletedFalseOrderBySeasonNumberAsc(
+                .findAllBySeries_SeriesIdAndStatusAndIsDeletedFalseOrderBySeasonNumberAsc(
                         seriesId,
-                        SeasonStatus.PUBLISHED,
-                        ContentApprovalStatus.APPROVED)
+                        SeasonStatus.PUBLISHED)
                 .stream()
                 .map(this::toResponse)
                 .toList();
@@ -91,7 +86,6 @@ public class SeasonServiceImpl implements SeasonService {
         season.setTitle(request.getTitle());
         season.setDescription(request.getDescription());
         if (request.getStatus() != null) {
-            ensureApprovedForStatusUpdate(season.getApprovalStatus(), "Season");
             season.setStatus(request.getStatus());
         }
         season.markUpdatedBy(request.getActorId());
@@ -101,35 +95,8 @@ public class SeasonServiceImpl implements SeasonService {
 
     @Transactional
     @Override
-    public SeasonResponseDto approve(String id, String actorId) {
-        Season season = findActiveEntity(id);
-        season.setApprovalStatus(ContentApprovalStatus.APPROVED);
-        season.setApprovalReviewedAt(LocalDateTime.now());
-        season.setApprovalReviewedBy(actorId);
-        season.markUpdatedBy(actorId);
-        return toResponse(seasonRepository.save(season));
-    }
-
-    @Transactional
-    @Override
-    public SeasonResponseDto reject(String id, String actorId) {
-        Season season = findActiveEntity(id);
-        season.setApprovalStatus(ContentApprovalStatus.REJECTED);
-        season.setApprovalReviewedAt(LocalDateTime.now());
-        season.setApprovalReviewedBy(actorId);
-        season.setScheduledPublishAt(null);
-        if (season.getStatus() == SeasonStatus.PUBLISHED) {
-            season.setStatus(SeasonStatus.HIDDEN);
-        }
-        season.markUpdatedBy(actorId);
-        return toResponse(seasonRepository.save(season));
-    }
-
-    @Transactional
-    @Override
     public SeasonResponseDto publish(String id, String actorId) {
         Season season = findActiveEntity(id);
-        ensureApprovedForStatusUpdate(season.getApprovalStatus(), "Season");
         season.setStatus(SeasonStatus.PUBLISHED);
         season.markUpdatedBy(actorId);
         return toResponse(seasonRepository.save(season));
@@ -139,7 +106,6 @@ public class SeasonServiceImpl implements SeasonService {
     @Override
     public SeasonResponseDto hide(String id, String actorId) {
         Season season = findActiveEntity(id);
-        ensureApprovedForStatusUpdate(season.getApprovalStatus(), "Season");
         season.setStatus(SeasonStatus.HIDDEN);
         season.markUpdatedBy(actorId);
         return toResponse(seasonRepository.save(season));
@@ -149,7 +115,6 @@ public class SeasonServiceImpl implements SeasonService {
     @Override
     public SeasonResponseDto unhide(String id, String actorId) {
         Season season = findActiveEntity(id);
-        ensureApprovedForStatusUpdate(season.getApprovalStatus(), "Season");
         season.setStatus(SeasonStatus.PUBLISHED);
         season.markUpdatedBy(actorId);
         return toResponse(seasonRepository.save(season));
@@ -173,8 +138,7 @@ public class SeasonServiceImpl implements SeasonService {
     @Override
     public Season findPublicEntity(String id) {
         Season season = findActiveEntity(id);
-        if (season.getStatus() != SeasonStatus.PUBLISHED
-                || season.getApprovalStatus() != ContentApprovalStatus.APPROVED) {
+        if (season.getStatus() != SeasonStatus.PUBLISHED) {
             throw ContentModuleException.notFound("Public season not found: " + id);
         }
         seriesService.findPublicEntity(season.getSeries().getSeriesId());
@@ -190,10 +154,6 @@ public class SeasonServiceImpl implements SeasonService {
                 .title(season.getTitle())
                 .description(season.getDescription())
                 .status(season.getStatus())
-                .approvalStatus(season.getApprovalStatus())
-                .approvalReviewedAt(season.getApprovalReviewedAt())
-                .approvalReviewedBy(season.getApprovalReviewedBy())
-                .scheduledPublishAt(season.getScheduledPublishAt())
                 .createdAt(season.getCreatedAt())
                 .updatedAt(season.getUpdatedAt())
                 .deletedAt(season.getDeletedAt())
@@ -210,12 +170,6 @@ public class SeasonServiceImpl implements SeasonService {
                 .map(Season::getSeasonNumber)
                 .max(Integer::compareTo)
                 .orElse(0) + 1;
-    }
-
-    private void ensureApprovedForStatusUpdate(ContentApprovalStatus approvalStatus, String entityName) {
-        if (approvalStatus != ContentApprovalStatus.APPROVED) {
-            throw ContentModuleException.badRequest(entityName + " must be approved before status can be updated");
-        }
     }
 
 }

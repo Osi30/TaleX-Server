@@ -1,8 +1,8 @@
 package com.talex.server.dtos.responses;
 
-import com.talex.server.enums.ContentApprovalStatus;
 import com.talex.server.enums.ContentType;
 import com.talex.server.enums.EpisodeStatus;
+import com.talex.server.enums.EpisodeUnlockType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -22,11 +22,10 @@ public class EpisodeResponseDto {
     private String description;
     private ContentType contentType;
     private EpisodeStatus status;
-    private ContentApprovalStatus approvalStatus;
-    private LocalDateTime approvalReviewedAt;
-    private String approvalReviewedBy;
     private LocalDateTime scheduledPublishAt;
     private LocalDateTime publishedAt;
+    private EpisodeUnlockType unlockType;
+    private Long priceVnd;
     private Long likes;
     private Long views;
     private Integer totalPage;

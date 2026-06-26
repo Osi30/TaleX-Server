@@ -1,6 +1,5 @@
 package com.talex.server.dtos.responses;
 
-import com.talex.server.enums.ContentApprovalStatus;
 import com.talex.server.enums.ContentType;
 import com.talex.server.enums.SeriesStatus;
 import com.talex.server.enums.Visibility;
@@ -25,10 +24,6 @@ public class SeriesResponseDto {
     private String bannerUrl;
     private ContentType contentType;
     private SeriesStatus status;
-    private ContentApprovalStatus approvalStatus;
-    private LocalDateTime approvalReviewedAt;
-    private String approvalReviewedBy;
-    private LocalDateTime scheduledPublishAt;
     private Visibility visibility;
     private String ageRating;
     private String language;

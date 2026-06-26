@@ -20,10 +20,6 @@ public interface EpisodeService {
 
     EpisodeResponseDto update(String id, EpisodeRequestDto request);
 
-    EpisodeResponseDto approve(String id, String actorId);
-
-    EpisodeResponseDto reject(String id, String actorId);
-
     EpisodeResponseDto schedulePublish(String id, LocalDateTime scheduledPublishAt, String actorId);
 
     EpisodeResponseDto publish(String id, String actorId);

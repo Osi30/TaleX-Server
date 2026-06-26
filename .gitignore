@@ -86,3 +86,8 @@ logs/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Local AI / Codex config
+.openaiignore
+.codex/
+AGENTS.local.md

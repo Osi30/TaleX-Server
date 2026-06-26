@@ -25,13 +25,11 @@ public interface EpisodeRepository extends JpaRepository<Episode, String> {
 
     List<Episode> findAllBySeason_SeasonIdAndIsDeletedFalseOrderByEpisodeNumberAsc(String seasonId);
 
-    List<Episode> findAllBySeason_SeasonIdAndStatusAndApprovalStatusAndIsDeletedFalseOrderByEpisodeNumberAsc(
+    List<Episode> findAllBySeason_SeasonIdAndStatusAndIsDeletedFalseOrderByEpisodeNumberAsc(
             String seasonId,
-            EpisodeStatus status,
-            ContentApprovalStatus approvalStatus);
+            EpisodeStatus status);
 
-    List<Episode> findTop100ByApprovalStatusAndScheduledPublishAtLessThanEqualAndStatusInAndIsDeletedFalseOrderByScheduledPublishAtAsc(
-            ContentApprovalStatus approvalStatus,
+    List<Episode> findTop100ByScheduledPublishAtLessThanEqualAndStatusInAndIsDeletedFalseOrderByScheduledPublishAtAsc(
             LocalDateTime scheduledPublishAt,
             Collection<EpisodeStatus> statuses);
 
@@ -41,12 +39,10 @@ public interface EpisodeRepository extends JpaRepository<Episode, String> {
             where e.season.series.seriesId = :seriesId
               and e.episodeId <> :episodeId
               and e.status = :status
-              and e.approvalStatus = :approvalStatus
               and e.isDeleted = false
             """)
-    long countBySeriesIdExcludingEpisodeAndStatusAndApprovalStatus(
+    long countBySeriesIdExcludingEpisodeAndStatus(
             @Param("seriesId") String seriesId,
             @Param("episodeId") String episodeId,
-            @Param("status") EpisodeStatus status,
-            @Param("approvalStatus") ContentApprovalStatus approvalStatus);
+            @Param("status") EpisodeStatus status);
 }
