@@ -2,7 +2,7 @@ package com.talex.server.controllers.term;
 
 import com.talex.server.dtos.BasePageResponse;
 import com.talex.server.dtos.BaseResponse;
-import com.talex.server.dtos.requests.TermsVersionRequestDto;
+import com.talex.server.dtos.requests.terms.TermsVersionRequestDto;
 import com.talex.server.dtos.requests.filters.TermVersionFilterRequestDto;
 import com.talex.server.dtos.responses.TermsVersionResponseDto;
 import com.talex.server.enums.TermsType;
@@ -20,7 +20,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/v1/terms-versions")
 @RequiredArgsConstructor
-@Tag(name = "Phiên bản điều khoản", description = "API quản lý phiên bản điều khoản và nội dung điều khoản đang hoạt động")
+@Tag(name = "Term Versions", description = "API quản lý phiên bản điều khoản và nội dung điều khoản đang hoạt động")
 public class TermsVersionController {
         private final ITermsVersionService termsService;
 

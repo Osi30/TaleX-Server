@@ -14,6 +14,7 @@ import com.talex.server.mappers.campaign.IEngagementServiceMapper;
 import com.talex.server.repositories.campaign.EngagementServiceRepository;
 import com.talex.server.services.campaign.IEngagementServiceService;
 import com.talex.server.specifications.EngagementServiceSpec;
+import com.talex.server.utils.PageUtils;
 import com.talex.server.utils.ValidationUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -45,14 +46,9 @@ public class EngagementServiceService implements IEngagementServiceService {
     public BasePageResponse<EngagementServiceResponseDto> filterEngagementServices(
             EngagementServiceFilterRequestDto filterRequest
     ) {
-        int page = Optional.ofNullable(filterRequest.getPage()).orElse(1);
-        int pageSize = Optional.ofNullable(filterRequest.getPageSize()).orElse(20);
-        if (page < 1) {
-            page = 1;
-        }
-
         Sort sort = buildSort(filterRequest);
-        Pageable pageable = PageRequest.of(page - 1, pageSize, sort);
+        Pageable pageable = PageUtils.buildPageable(
+                filterRequest.getPage(), filterRequest.getPageSize(), sort);
 
         EngagementType[] types = parseTypes(filterRequest.getTypes());
         EngagementTarget[] targets = parseTargets(filterRequest.getTargets());
@@ -103,8 +99,9 @@ public class EngagementServiceService implements IEngagementServiceService {
         engagementServiceRepository.save(entity);
     }
 
-    private EngagementService findById(String id) {
-        return engagementServiceRepository.findById(id)
+    @Override
+    public EngagementService findById(String id) {
+        return engagementServiceRepository.findByEngagementServiceIdAndIsDeletedFalse(id)
                 .orElseThrow(() -> new EngagementServiceException(EngagementErrorCode.NOT_FOUND, "EngagementService not found with id: " + id));
     }
 

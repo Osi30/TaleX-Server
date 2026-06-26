@@ -83,6 +83,16 @@ spring:
         statestore.cache.max.bytes: 1048576 # 1MB
         num.stream.threads: 1
         rocksdb.config.setter: com.talex.server.configs.kafka.CustomRocksDBConfig
+    properties:
+      security.protocol: SSL
+      # Nội dung file CA certificate
+      ssl.truststore.type: PEM
+      ssl.truststore.certificates: "${KAFKA_CA_CERTB64}"
+      # Nội dung file Access certificate
+      ssl.keystore.type: PEM
+      ssl.keystore.certificate.chain: "${KAFKA_ACCESS_CERTB64}"
+      # Nội dung file Access key
+      ssl.keystore.key: "${KAFKA_ACCESS_KEYB64}"
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.apache.kafka.common.serialization.StringSerializer

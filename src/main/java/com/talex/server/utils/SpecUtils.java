@@ -46,7 +46,8 @@ public class SpecUtils {
             Root<?> root,
             CriteriaBuilder builder,
             List<Predicate> predicates,
-            Map<String, Object> criteria) {
+            Map<String, Object> criteria
+    ) {
 
         if (criteria == null || criteria.isEmpty()) {
             return;
@@ -65,6 +66,28 @@ public class SpecUtils {
         String isStoryUnlocked = (String) criteria.get("isStoryUnlocked");
         if (!ValidationUtils.isNullOrEmpty(isStoryUnlocked)) {
             predicates.add(builder.equal(root.get("isStoryUnlocked"), Boolean.parseBoolean(isStoryUnlocked)));
+        }
+    }
+
+    public static void addTargetValueFilters(
+            Root<?> root,
+            CriteriaBuilder builder,
+            List<Predicate> predicates,
+            Map<String, Object> criteria
+    ) {
+
+        if (criteria == null || criteria.isEmpty()) {
+            return;
+        }
+
+        // 3. Lọc theo khoảng mục tiêu targetValue
+        String targetValueFrom = (String) criteria.get("targetValueFrom");
+        if (!ValidationUtils.isNullOrEmpty(targetValueFrom)) {
+            predicates.add(builder.greaterThanOrEqualTo(root.get("targetValue"), Long.valueOf(targetValueFrom)));
+        }
+        String targetValueTo = (String) criteria.get("targetValueTo");
+        if (!ValidationUtils.isNullOrEmpty(targetValueTo)) {
+            predicates.add(builder.lessThanOrEqualTo(root.get("targetValue"), Long.valueOf(targetValueTo)));
         }
     }
 }

@@ -1,6 +1,6 @@
 package com.talex.server.services.terms.impls;
 
-import com.talex.server.dtos.requests.CreatorTermsLogRequestDto;
+import com.talex.server.dtos.requests.terms.CreatorTermsLogRequestDto;
 import com.talex.server.dtos.responses.CreatorTermsLogResponseDto;
 import com.talex.server.entities.Account;
 import com.talex.server.entities.term.TermsLog;

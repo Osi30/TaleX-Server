@@ -1,6 +1,7 @@
 package com.talex.server.dtos.responses.campaign;
 
 import com.talex.server.enums.engagement.CampaignStatus;
+import com.talex.server.enums.engagement.EngagementTarget;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -14,15 +15,14 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class CampaignResponseDto {
     private String campaignId;
-    private String name;
-    private String description;
+    private String engagementServiceId;
+    private String episodeId;
     private CampaignStatus status;
     private LocalDateTime startAt;
     private LocalDateTime endAt;
-    private Long budget;
-    private String accountId;
-    private String creatorId;
-    private String engagementServiceId;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private Long targetValue;
+    private Long currentValue;
+    private EngagementTarget engagementTarget;
 }

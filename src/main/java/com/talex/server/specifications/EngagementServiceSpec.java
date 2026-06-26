@@ -52,14 +52,7 @@ public class EngagementServiceSpec {
                 }
 
                 // 4. Lọc theo khoảng targetValue (targetValueFrom -> targetValueTo)
-                String targetValueFrom = (String) criteria.get("targetValueFrom");
-                if (!ValidationUtils.isNullOrEmpty(targetValueFrom)) {
-                    predicates.add(builder.greaterThanOrEqualTo(root.get("targetValue"), Long.valueOf(targetValueFrom)));
-                }
-                String targetValueTo = (String) criteria.get("targetValueTo");
-                if (!ValidationUtils.isNullOrEmpty(targetValueTo)) {
-                    predicates.add(builder.lessThanOrEqualTo(root.get("targetValue"), Long.valueOf(targetValueTo)));
-                }
+                SpecUtils.addTargetValueFilters(root, builder, predicates, criteria);
 
                 // 5. Tích hợp lọc khoảng thời gian createdAt và updatedAt từ bộ SpecUtils chung
                 SpecUtils.addAuditDateFilters(root, builder, predicates, criteria);

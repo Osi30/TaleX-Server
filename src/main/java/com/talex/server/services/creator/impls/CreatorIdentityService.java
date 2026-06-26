@@ -1,6 +1,6 @@
-package com.talex.server.services.impls;
+package com.talex.server.services.creator.impls;
 
-import com.talex.server.dtos.requests.CreatorIdentityRequestDto;
+import com.talex.server.dtos.requests.creator.CreatorIdentityRequestDto;
 import com.talex.server.dtos.responses.CreatorIdentityResponseDto;
 import com.talex.server.entities.Creator;
 import com.talex.server.entities.CreatorIdentity;
@@ -8,7 +8,7 @@ import com.talex.server.exceptions.codes.CreatorIdentityErrorCode;
 import com.talex.server.exceptions.details.CreatorIdentityException;
 import com.talex.server.mappers.ICreatorIdentityMapper;
 import com.talex.server.repositories.creator.CreatorIdentityRepository;
-import com.talex.server.services.ICreatorIdentityService;
+import com.talex.server.services.creator.ICreatorIdentityService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

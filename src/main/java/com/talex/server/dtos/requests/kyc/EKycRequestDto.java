@@ -1,4 +1,4 @@
-package com.talex.server.dtos.requests;
+package com.talex.server.dtos.requests.kyc;
 
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;

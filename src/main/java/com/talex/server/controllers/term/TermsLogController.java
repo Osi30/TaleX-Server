@@ -2,7 +2,7 @@ package com.talex.server.controllers.term;
 
 import com.talex.server.annotations.CurrentAccountId;
 import com.talex.server.dtos.BaseResponse;
-import com.talex.server.dtos.requests.CreatorTermsLogRequestDto;
+import com.talex.server.dtos.requests.terms.CreatorTermsLogRequestDto;
 import com.talex.server.dtos.responses.CreatorTermsLogResponseDto;
 import com.talex.server.services.terms.ITermsLogService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -20,7 +20,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/v1/terms-logs")
 @RequiredArgsConstructor
-@Tag(name = "Lịch sử chấp nhận điều khoản", description = "API quản lý bản ghi sự kiện người dùng chấp nhận điều khoản")
+@Tag(name = "Term Logs", description = "API quản lý bản ghi sự kiện người dùng chấp nhận điều khoản")
 public class TermsLogController {
         private final ITermsLogService service;
 

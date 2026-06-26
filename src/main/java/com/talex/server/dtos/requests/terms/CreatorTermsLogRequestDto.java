@@ -1,4 +1,4 @@
-package com.talex.server.dtos.requests;
+package com.talex.server.dtos.requests.terms;
 
 import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;

@@ -1,9 +1,9 @@
-package com.talex.server.services.impls;
+package com.talex.server.services.creator.impls;
 
 import com.talex.server.dtos.BasePageResponse;
-import com.talex.server.dtos.requests.CreatorRegisterDto;
-import com.talex.server.dtos.requests.CreatorRequestDto;
-import com.talex.server.dtos.requests.CreatorTermsLogRequestDto;
+import com.talex.server.dtos.requests.creator.CreatorRegisterDto;
+import com.talex.server.dtos.requests.creator.CreatorRequestDto;
+import com.talex.server.dtos.requests.terms.CreatorTermsLogRequestDto;
 import com.talex.server.dtos.requests.filters.CreatorFilterRequestDto;
 import com.talex.server.dtos.responses.CreatorResponseDto;
 import com.talex.server.entities.Account;
@@ -13,8 +13,8 @@ import com.talex.server.exceptions.codes.CreatorErrorCode;
 import com.talex.server.mappers.ICreatorMapper;
 import com.talex.server.repositories.AccountRepository;
 import com.talex.server.repositories.creator.CreatorRepository;
-import com.talex.server.services.ICreatorIdentityService;
-import com.talex.server.services.ICreatorService;
+import com.talex.server.services.creator.ICreatorIdentityService;
+import com.talex.server.services.creator.ICreatorService;
 import com.talex.server.services.terms.ITermsLogService;
 import com.talex.server.services.ekyc.IKycSessionService;
 import com.talex.server.specifications.CreatorSpec;

@@ -1,8 +1,8 @@
-package com.talex.server.services;
+package com.talex.server.services.creator;
 
 import com.talex.server.dtos.BasePageResponse;
-import com.talex.server.dtos.requests.CreatorRegisterDto;
-import com.talex.server.dtos.requests.CreatorRequestDto;
+import com.talex.server.dtos.requests.creator.CreatorRegisterDto;
+import com.talex.server.dtos.requests.creator.CreatorRequestDto;
 import com.talex.server.dtos.requests.filters.CreatorFilterRequestDto;
 import com.talex.server.dtos.responses.CreatorResponseDto;
 

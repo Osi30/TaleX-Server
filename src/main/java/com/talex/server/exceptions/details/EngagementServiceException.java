@@ -19,4 +19,5 @@ public class EngagementServiceException extends RuntimeException {
 
     public EngagementErrorCode getErrorCode() {
         return errorCode;
-    }}
+    }
+}

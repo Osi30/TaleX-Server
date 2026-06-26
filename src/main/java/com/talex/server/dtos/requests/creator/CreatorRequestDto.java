@@ -1,4 +1,4 @@
-package com.talex.server.dtos.requests;
+package com.talex.server.dtos.requests.creator;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.AllArgsConstructor;

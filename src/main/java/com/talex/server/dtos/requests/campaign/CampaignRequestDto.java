@@ -1,25 +1,25 @@
 package com.talex.server.dtos.requests.campaign;
 
-import com.talex.server.enums.engagement.CampaignStatus;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class CampaignRequestDto {
-    private String name;
-    private String description;
-    private CampaignStatus status;
-    private LocalDateTime startAt;
-    private LocalDateTime endAt;
-    private Long budget;
-    private String accountId;
-    private String creatorId;
+    @NotBlank
+    private String episodeId;
+
+    @NotBlank
     private String engagementServiceId;
+
+    @JsonIgnore
+    private UUID accountId;
 }

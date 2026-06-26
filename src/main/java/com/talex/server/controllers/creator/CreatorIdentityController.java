@@ -2,9 +2,9 @@ package com.talex.server.controllers.creator;
 
 import com.talex.server.annotations.CurrentAccountId;
 import com.talex.server.dtos.BaseResponse;
-import com.talex.server.dtos.requests.CreatorIdentityRequestDto;
+import com.talex.server.dtos.requests.creator.CreatorIdentityRequestDto;
 import com.talex.server.dtos.responses.CreatorIdentityResponseDto;
-import com.talex.server.services.ICreatorIdentityService;
+import com.talex.server.services.creator.ICreatorIdentityService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;

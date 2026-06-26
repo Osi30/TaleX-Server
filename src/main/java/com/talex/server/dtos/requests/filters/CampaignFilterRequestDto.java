@@ -13,5 +13,6 @@ import lombok.experimental.SuperBuilder;
 @SuperBuilder
 @EqualsAndHashCode(callSuper = true)
 public class CampaignFilterRequestDto extends BaseFilterRequestDto {
+    private String[] targets;
     private String[] statuses;
 }
