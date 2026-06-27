@@ -1,5 +1,6 @@
 package com.talex.server.configs;
 
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.CacheManager;
@@ -13,7 +14,11 @@ import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.serializer.GenericJacksonJsonRedisSerializer;
 import org.springframework.data.redis.serializer.RedisSerializationContext;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
+import tools.jackson.databind.DefaultTyping;
 import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.jsontype.BasicPolymorphicTypeValidator;
+import tools.jackson.databind.jsontype.PolymorphicTypeValidator;
 
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
@@ -21,7 +26,6 @@ import java.util.concurrent.TimeUnit;
 @Configuration
 @RequiredArgsConstructor
 public class CacheConfig {
-    private final ObjectMapper objectMapper;
 
     // Quản lý Cache bằng RAM (Local Cache)
     @Bean(name = "localCacheManager")
@@ -37,6 +41,18 @@ public class CacheConfig {
     @Primary
     @Bean(name = "redisCacheManager")
     public CacheManager redisCacheManager(RedisConnectionFactory connectionFactory) {
+        PolymorphicTypeValidator ptv = BasicPolymorphicTypeValidator.builder()
+                .allowIfBaseType(Object.class)
+                .build();
+
+        ObjectMapper objectMapper = JsonMapper.builder()
+                .activateDefaultTyping(
+                        ptv,
+                        DefaultTyping.NON_FINAL,
+                        JsonTypeInfo.As.PROPERTY
+                )
+                .build();
+
         RedisCacheConfiguration config = RedisCacheConfiguration.defaultCacheConfig()
                 .entryTtl(Duration.ofMinutes(30))
                 .disableCachingNullValues()
