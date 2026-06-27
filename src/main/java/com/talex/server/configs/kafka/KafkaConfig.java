@@ -123,6 +123,7 @@ public class KafkaConfig {
                 new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(consumerFactory);
         factory.setBatchListener(true);
+        factory.setCommonErrorHandler(kafkaErrorHandler());
         factory.setConcurrency(2);
         return factory;
     }
@@ -134,6 +135,7 @@ public class KafkaConfig {
                 new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(consumerFactory);
         factory.setBatchListener(false);
+        factory.setCommonErrorHandler(kafkaErrorHandler());
         return factory;
     }
 }
