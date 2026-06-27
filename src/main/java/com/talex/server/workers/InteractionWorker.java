@@ -10,8 +10,10 @@ import com.talex.server.utils.ValidationUtils;
 import io.questdb.client.Sender;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
@@ -26,30 +28,52 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @Slf4j
 public class InteractionWorker {
+//    @Value("${spring.kafka.dlq.interaction}")
+//    private String dlqTopic;
+
     private final Sender questDBSender;
     private final StringRedisTemplate redisTemplate;
+    private final KafkaTemplate<String, String> kafkaTemplate;
     private final SubscriptionStatRepository statRepository;
     private final WatchSessionRepository watchSessionRepository;
-
     private final DateTimeFormatter monthYearFormatter = DateTimeFormatter.ofPattern("yyyy-MM");
 
     // Kafka pipeline for user interaction
-    @KafkaListener(topics = "interaction-log-topic", groupId = "questdb-interaction-group")
-    public void consume(String message) {
-        try {
-            String[] parts = message.split(",");
-            String sessionId = parts[0];
-            String accountId = parts[1];
-            String episodeId = parts[2];
-            String interactionType = parts[3];
-            LocalDateTime timestamp = LocalDateTime.parse(parts[4]);
+//    @KafkaListener(topics = "interaction-log-topic", groupId = "questdb-interaction-group",  containerFactory = "singleFactory")
+//    public void consume(String message) {
+//        try {
+//            String[] parts = message.split(",");
+//            String sessionId = parts[0];
+//            String accountId = parts[1];
+//            String episodeId = parts[2];
+//            String interactionType = parts[3];
+//            LocalDateTime timestamp = LocalDateTime.parse(parts[4]);
+//
+//            questDBSender.table("interaction_logs")
+//                    .symbol("session_id", sessionId)
+//                    .symbol("account_id", accountId)
+//                    .symbol("episode_id", episodeId)
+//                    .symbol("interaction_type", interactionType)
+//                    .at(Instant.from(timestamp.atZone(ZoneId.systemDefault()).toInstant()));
+//            // Production xóa dòng này
+//            questDBSender.flush();
+//
+//        } catch (Exception e) {
+//            throw new InteractionException(InteractionErrorCode.KAFKA_PROCESSING_ERROR,
+//                    "[Kafka Interaction Worker Error] Nội dung: " + e.getMessage());
+//        }
+//    }
 
-            questDBSender.table("interaction_logs")
-                    .symbol("session_id", sessionId)
-                    .symbol("account_id", accountId)
-                    .symbol("episode_id", episodeId)
-                    .symbol("interaction_type", interactionType)
-                    .at(Instant.from(timestamp.atZone(ZoneId.systemDefault()).toInstant()));
+    @KafkaListener(
+            topics = "interaction-log-topic",
+            groupId = "questdb-interaction-group",
+            containerFactory = "batchFactory"
+    )
+    public void consume(List<String> messages) {
+        try {
+            for (String message : messages) {
+                saveInteractionMessage(message);
+            }
             // Production xóa dòng này
             questDBSender.flush();
 
@@ -59,41 +83,29 @@ public class InteractionWorker {
         }
     }
 
-//    @KafkaListener(
-//            topics = "interaction-log-topic",
-//            groupId = "questdb-interaction-group",
-//            containerFactory = "batchFactory"
-//    )
-//    public void consume(List<String> messages) {
-//        try {
-//            for (String message : messages) {
-//                try {
-//                    String[] parts = message.split(",");
-//                    String sessionId = parts[0];
-//                    String accountId = parts[1];
-//                    String episodeId = parts[2];
-//                    String interactionType = parts[3];
-//                    LocalDateTime timestamp = LocalDateTime.parse(parts[4]);
-//
-//                    questDBSender.table("interaction_logs")
-//                            .symbol("session_id", sessionId)
-//                            .symbol("account_id", accountId)
-//                            .symbol("episode_id", episodeId)
-//                            .symbol("interaction_type", interactionType)
-//                            .at(Instant.from(timestamp.atZone(ZoneId.systemDefault()).toInstant()));
-//
-//                } catch (Exception e) {
-//                    log.warn("[Kafka Interaction Worker Error] Nội dung: {}", e.getMessage());
-//                }
-//            }
-//            // Production xóa dòng này
-//            questDBSender.flush();
-//
-//        } catch (Exception e) {
-//            throw new InteractionException(InteractionErrorCode.KAFKA_PROCESSING_ERROR,
-//                    "[Kafka Interaction Worker Error] Nội dung: " + e.getMessage());
-//        }
-//    }
+    private void saveInteractionMessage(String message) {
+        try {
+            String[] parts = message.split(",");
+            String sessionId = parts[0];
+            String accountId = parts[1];
+            String episodeId = parts[2];
+            String interactionType = parts[3];
+            LocalDateTime timestamp = LocalDateTime.parse(parts[4]);
+
+            if (ValidationUtils.isNullOrEmpty(accountId)) return;
+
+            questDBSender.table("interaction_logs")
+                    .symbol("session_id", sessionId)
+                    .symbol("account_id", accountId)
+                    .symbol("episode_id", episodeId)
+                    .symbol("interaction_type", interactionType)
+                    .at(Instant.from(timestamp.atZone(ZoneId.systemDefault()).toInstant()));
+
+        } catch (Exception e) {
+            log.warn("[Kafka Interaction Worker Error] Nội dung: {}", e.getMessage());
+//                    kafkaTemplate.send(dlqTopic, message);
+        }
+    }
 
     @KafkaListener(topics = "watch-raw", groupId = "questdb-watch-group")
     public void consumeRawLog(String message) {
@@ -159,7 +171,7 @@ public class InteractionWorker {
         }
     }
 
-    @KafkaListener(topics = "interaction-log-topic", groupId = "postgres-interaction-group")
+    //    @KafkaListener(topics = "interaction-log-topic", groupId = "postgres-interaction-group")
     public void consumeForPostgresSQL(String message) {
         try {
             String[] parts = message.split(",");

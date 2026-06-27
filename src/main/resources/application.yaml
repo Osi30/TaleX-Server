@@ -107,6 +107,8 @@ spring:
       properties:
         fetch.max.bytes: 5242880 # 5MB
         max.partition.fetch.bytes: 1048576 # 1MB
+#    dlq:
+#      interaction: interaction-log-topic.DLQ
 
 springdoc:
   api-docs:
