@@ -4,6 +4,7 @@ import com.talex.server.dtos.BasePageResponse;
 import com.talex.server.dtos.requests.SeriesRequestDto;
 import com.talex.server.dtos.responses.SeriesResponseDto;
 import com.talex.server.entities.*;
+import com.talex.server.enums.ContentApprovalStatus;
 import com.talex.server.enums.CategoryStatus;
 import com.talex.server.enums.SeriesStatus;
 import com.talex.server.enums.TagStatus;
@@ -23,6 +24,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -49,6 +51,7 @@ public class SeriesServiceImpl implements SeriesService {
     public SeriesResponseDto create(SeriesRequestDto request) {
         Series series = new Series();
         applyMutableFields(series, request);
+        series.setStatus(SeriesStatus.DRAFT);
         series.setCreatorId(request.getCreatorId());
         series.markCreatedBy(request.getActorId());
 
@@ -164,7 +167,8 @@ public class SeriesServiceImpl implements SeriesService {
     @Override
     public Series findPublicEntity(String id) {
         Series series = findActiveEntity(id);
-        if (series.getStatus() != SeriesStatus.PUBLISHED || series.getVisibility() != Visibility.PUBLIC) {
+        if (series.getStatus() != SeriesStatus.PUBLISHED
+                || series.getVisibility() != Visibility.PUBLIC) {
             throw ContentModuleException.notFound("Public series not found: " + id);
         }
         return series;

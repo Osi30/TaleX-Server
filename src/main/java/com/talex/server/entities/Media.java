@@ -1,5 +1,6 @@
 package com.talex.server.entities;
 
+import com.talex.server.enums.ContentApprovalStatus;
 import com.talex.server.enums.MediaPlaybackPolicy;
 import com.talex.server.enums.MediaProtectionType;
 import com.talex.server.enums.MediaProvider;
@@ -22,6 +23,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.time.LocalDateTime;
+
 @Entity
 @Table(
         name = "media",
@@ -29,6 +32,7 @@ import lombok.Setter;
                 @Index(name = "idx_media_episode_deleted_order", columnList = "episode_id,is_deleted,display_order"),
                 @Index(name = "idx_media_episode_status_deleted_order", columnList = "episode_id,status,is_deleted,display_order"),
                 @Index(name = "idx_media_episode_type_status_deleted", columnList = "episode_id,media_type,status,is_deleted"),
+                @Index(name = "idx_media_episode_type_status_approval_deleted", columnList = "episode_id,media_type,status,approval_status,is_deleted"),
                 @Index(name = "idx_media_checksum_deleted", columnList = "checksum,is_deleted"),
                 @Index(name = "idx_media_provider_public_deleted", columnList = "provider_public_id,is_deleted"),
                 @Index(name = "idx_media_provider_status_updated_deleted", columnList = "provider,status,updated_at,is_deleted")
@@ -147,4 +151,14 @@ public class Media extends BaseAudit {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
     private MediaStatus status = MediaStatus.PROCESSING;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "approval_status", nullable = false, length = 30, columnDefinition = "varchar(30) default 'PENDING_REVIEW'")
+    private ContentApprovalStatus approvalStatus = ContentApprovalStatus.PENDING_REVIEW;
+
+    @Column(name = "approval_reviewed_at")
+    private LocalDateTime approvalReviewedAt;
+
+    @Column(name = "approval_reviewed_by")
+    private String approvalReviewedBy;
 }
