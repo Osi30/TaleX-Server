@@ -8,6 +8,7 @@ import com.talex.server.enums.ContentApprovalStatus;
 import com.talex.server.enums.SeasonStatus;
 import com.talex.server.exceptions.details.ContentModuleException;
 import com.talex.server.repositories.SeasonRepository;
+import com.talex.server.services.ContentOwnershipService;
 import com.talex.server.services.SeasonService;
 import com.talex.server.services.SeriesService;
 import lombok.RequiredArgsConstructor;
@@ -22,29 +23,33 @@ import java.util.List;
 public class SeasonServiceImpl implements SeasonService {
     private final SeasonRepository seasonRepository;
     private final SeriesService seriesService;
+    private final ContentOwnershipService contentOwnershipService;
 
     @Transactional
     @Override
-    public SeasonResponseDto create(String seriesId, SeasonRequestDto request) {
+    public SeasonResponseDto create(String seriesId, SeasonRequestDto request, String accountId) {
         Series series = seriesService.findActiveEntity(seriesId);
+        contentOwnershipService.assertCanManage(series, accountId);
 
         Season season = new Season();
         season.setSeries(series);
+        season.setCreatorId(series.getCreatorId());
         season.setSeasonNumber(request.getSeasonNumber() != null
                 ? request.getSeasonNumber()
                 : nextSeasonNumber(seriesId));
         season.setTitle(request.getTitle());
         season.setDescription(request.getDescription());
         season.setStatus(SeasonStatus.DRAFT);
-        season.markCreatedBy(request.getActorId());
+        season.markCreatedBy(accountId);
 
         return toResponse(seasonRepository.save(season));
     }
 
     @Transactional(readOnly = true)
     @Override
-    public SeasonResponseDto getById(String id) {
-        return toResponse(findActiveEntity(id));
+    public SeasonResponseDto getById(String id, String accountId) {
+        Season season = findManageableEntity(id, accountId);
+        return toResponse(season);
     }
 
     @Transactional(readOnly = true)
@@ -55,8 +60,9 @@ public class SeasonServiceImpl implements SeasonService {
 
     @Transactional(readOnly = true)
     @Override
-    public List<SeasonResponseDto> listBySeries(String seriesId) {
-        seriesService.findActiveEntity(seriesId);
+    public List<SeasonResponseDto> listBySeries(String seriesId, String accountId) {
+        Series series = seriesService.findActiveEntity(seriesId);
+        contentOwnershipService.assertCanManage(series, accountId);
         return seasonRepository.findAllBySeries_SeriesIdAndIsDeletedFalseOrderBySeasonNumberAsc(seriesId)
                 .stream()
                 .map(this::toResponse)
@@ -78,8 +84,8 @@ public class SeasonServiceImpl implements SeasonService {
 
     @Transactional
     @Override
-    public SeasonResponseDto update(String id, SeasonRequestDto request) {
-        Season season = findActiveEntity(id);
+    public SeasonResponseDto update(String id, SeasonRequestDto request, String accountId) {
+        Season season = findManageableEntity(id, accountId);
         if (request.getSeasonNumber() != null) {
             season.setSeasonNumber(request.getSeasonNumber());
         }
@@ -88,7 +94,7 @@ public class SeasonServiceImpl implements SeasonService {
         if (request.getStatus() != null) {
             season.setStatus(request.getStatus());
         }
-        season.markUpdatedBy(request.getActorId());
+        season.markUpdatedBy(accountId);
 
         return toResponse(seasonRepository.save(season));
     }
@@ -96,7 +102,7 @@ public class SeasonServiceImpl implements SeasonService {
     @Transactional
     @Override
     public SeasonResponseDto publish(String id, String actorId) {
-        Season season = findActiveEntity(id);
+        Season season = findManageableEntity(id, actorId);
         season.setStatus(SeasonStatus.PUBLISHED);
         season.markUpdatedBy(actorId);
         return toResponse(seasonRepository.save(season));
@@ -105,7 +111,7 @@ public class SeasonServiceImpl implements SeasonService {
     @Transactional
     @Override
     public SeasonResponseDto hide(String id, String actorId) {
-        Season season = findActiveEntity(id);
+        Season season = findManageableEntity(id, actorId);
         season.setStatus(SeasonStatus.HIDDEN);
         season.markUpdatedBy(actorId);
         return toResponse(seasonRepository.save(season));
@@ -114,7 +120,7 @@ public class SeasonServiceImpl implements SeasonService {
     @Transactional
     @Override
     public SeasonResponseDto unhide(String id, String actorId) {
-        Season season = findActiveEntity(id);
+        Season season = findManageableEntity(id, actorId);
         season.setStatus(SeasonStatus.PUBLISHED);
         season.markUpdatedBy(actorId);
         return toResponse(seasonRepository.save(season));
@@ -123,7 +129,7 @@ public class SeasonServiceImpl implements SeasonService {
     @Transactional
     @Override
     public void delete(String id, String actorId) {
-        Season season = findActiveEntity(id);
+        Season season = findManageableEntity(id, actorId);
         season.setStatus(SeasonStatus.DELETED);
         season.softDelete(actorId);
         seasonRepository.save(season);
@@ -133,6 +139,19 @@ public class SeasonServiceImpl implements SeasonService {
     public Season findActiveEntity(String id) {
         return seasonRepository.findBySeasonIdAndIsDeletedFalse(id)
                 .orElseThrow(() -> ContentModuleException.notFound("Season not found: " + id));
+    }
+
+    private Season findManageableEntity(String id, String accountId) {
+        if (contentOwnershipService.isPrivileged()) {
+            return findActiveEntity(id);
+        }
+
+        String creatorId = contentOwnershipService.requireCurrentCreatorId(accountId);
+        Season season = seasonRepository
+                .findBySeasonIdAndCreatorIdAndIsDeletedFalse(id, creatorId)
+                .orElseThrow(() -> ContentModuleException.notFound("Season not found: " + id));
+        contentOwnershipService.assertOwnedByCreator(season, creatorId);
+        return season;
     }
 
     @Override
@@ -150,6 +169,7 @@ public class SeasonServiceImpl implements SeasonService {
         return SeasonResponseDto.builder()
                 .seasonId(season.getSeasonId())
                 .seriesId(season.getSeries().getSeriesId())
+                .creatorId(season.getCreatorId())
                 .seasonNumber(season.getSeasonNumber())
                 .title(season.getTitle())
                 .description(season.getDescription())

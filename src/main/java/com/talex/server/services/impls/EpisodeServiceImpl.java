@@ -18,6 +18,7 @@ import com.talex.server.enums.Visibility;
 import com.talex.server.exceptions.details.ContentModuleException;
 import com.talex.server.repositories.EpisodeRepository;
 import com.talex.server.repositories.MediaRepository;
+import com.talex.server.services.ContentOwnershipService;
 import com.talex.server.services.EpisodeService;
 import com.talex.server.services.SeasonService;
 import lombok.RequiredArgsConstructor;
@@ -33,11 +34,13 @@ public class EpisodeServiceImpl implements EpisodeService {
     private final EpisodeRepository episodeRepository;
     private final MediaRepository mediaRepository;
     private final SeasonService seasonService;
+    private final ContentOwnershipService contentOwnershipService;
 
     @Transactional
     @Override
-    public EpisodeResponseDto create(String seasonId, EpisodeRequestDto request) {
+    public EpisodeResponseDto create(String seasonId, EpisodeRequestDto request, String accountId) {
         Season season = seasonService.findActiveEntity(seasonId);
+        contentOwnershipService.assertCanManage(season.getSeries(), accountId);
         ContentType contentType = request.getContentType() != null
                 ? request.getContentType()
                 : season.getSeries().getContentType();
@@ -45,6 +48,7 @@ public class EpisodeServiceImpl implements EpisodeService {
 
         Episode episode = new Episode();
         episode.setSeason(season);
+        episode.setCreatorId(season.getSeries().getCreatorId());
         episode.setEpisodeNumber(request.getEpisodeNumber() != null
                 ? request.getEpisodeNumber()
                 : nextEpisodeNumber(seasonId));
@@ -55,15 +59,16 @@ public class EpisodeServiceImpl implements EpisodeService {
         episode.setScheduledPublishAt(null);
         episode.setTotalPage(request.getTotalPage());
         applyUnlockSettings(episode, request);
-        episode.markCreatedBy(request.getActorId());
+        episode.markCreatedBy(accountId);
 
         return toResponse(episodeRepository.save(episode));
     }
 
     @Transactional(readOnly = true)
     @Override
-    public EpisodeResponseDto getById(String id) {
-        return toResponse(findActiveEntity(id));
+    public EpisodeResponseDto getById(String id, String accountId) {
+        Episode episode = findManageableEntity(id, accountId);
+        return toResponse(episode);
     }
 
     @Transactional(readOnly = true)
@@ -74,8 +79,9 @@ public class EpisodeServiceImpl implements EpisodeService {
 
     @Transactional(readOnly = true)
     @Override
-    public List<EpisodeResponseDto> listBySeason(String seasonId) {
-        seasonService.findActiveEntity(seasonId);
+    public List<EpisodeResponseDto> listBySeason(String seasonId, String accountId) {
+        Season season = seasonService.findActiveEntity(seasonId);
+        contentOwnershipService.assertCanManage(season.getSeries(), accountId);
         return episodeRepository.findAllBySeason_SeasonIdAndIsDeletedFalseOrderByEpisodeNumberAsc(seasonId)
                 .stream()
                 .map(this::toResponse)
@@ -97,8 +103,8 @@ public class EpisodeServiceImpl implements EpisodeService {
 
     @Transactional
     @Override
-    public EpisodeResponseDto update(String id, EpisodeRequestDto request) {
-        Episode episode = findActiveEntity(id);
+    public EpisodeResponseDto update(String id, EpisodeRequestDto request, String accountId) {
+        Episode episode = findManageableEntity(id, accountId);
         if (request.getEpisodeNumber() != null) {
             episode.setEpisodeNumber(request.getEpisodeNumber());
         }
@@ -119,7 +125,7 @@ public class EpisodeServiceImpl implements EpisodeService {
         }
         episode.setTotalPage(request.getTotalPage());
         applyUnlockSettings(episode, request);
-        episode.markUpdatedBy(request.getActorId());
+        episode.markUpdatedBy(accountId);
 
         return toResponse(episodeRepository.save(episode));
     }
@@ -127,7 +133,7 @@ public class EpisodeServiceImpl implements EpisodeService {
     @Transactional
     @Override
     public EpisodeResponseDto schedulePublish(String id, LocalDateTime scheduledPublishAt, String actorId) {
-        Episode episode = findActiveEntity(id);
+        Episode episode = findManageableEntity(id, actorId);
         ensureScheduledPublishAt(scheduledPublishAt);
         List<Media> mediaToHide = findReadyMediaForPublish(episode);
         if (mediaToHide.isEmpty()) {
@@ -148,7 +154,7 @@ public class EpisodeServiceImpl implements EpisodeService {
     @Transactional
     @Override
     public EpisodeResponseDto publish(String id, String actorId) {
-        Episode episode = findActiveEntity(id);
+        Episode episode = findManageableEntity(id, actorId);
         ensureReadyMediaForPublish(episode);
 
         episode.setStatus(EpisodeStatus.PUBLISHED);
@@ -193,7 +199,7 @@ public class EpisodeServiceImpl implements EpisodeService {
     @Transactional
     @Override
     public EpisodeResponseDto hide(String id, String actorId) {
-        Episode episode = findActiveEntity(id);
+        Episode episode = findManageableEntity(id, actorId);
         episode.setStatus(EpisodeStatus.HIDDEN);
         episode.markUpdatedBy(actorId);
         return toResponse(episodeRepository.save(episode));
@@ -202,7 +208,7 @@ public class EpisodeServiceImpl implements EpisodeService {
     @Transactional
     @Override
     public EpisodeResponseDto unhide(String id, String actorId) {
-        Episode episode = findActiveEntity(id);
+        Episode episode = findManageableEntity(id, actorId);
         ensureReadyMediaForPublish(episode);
         episode.setStatus(EpisodeStatus.PUBLISHED);
         if (episode.getPublishedAt() == null) {
@@ -215,7 +221,7 @@ public class EpisodeServiceImpl implements EpisodeService {
     @Transactional
     @Override
     public void delete(String id, String actorId) {
-        Episode episode = findActiveEntity(id);
+        Episode episode = findManageableEntity(id, actorId);
         episode.setStatus(EpisodeStatus.DELETED);
         episode.softDelete(actorId);
         episodeRepository.save(episode);
@@ -225,6 +231,19 @@ public class EpisodeServiceImpl implements EpisodeService {
     public Episode findActiveEntity(String id) {
         return episodeRepository.findByEpisodeIdAndIsDeletedFalse(id)
                 .orElseThrow(() -> ContentModuleException.notFound("Episode not found: " + id));
+    }
+
+    private Episode findManageableEntity(String id, String accountId) {
+        if (contentOwnershipService.isPrivileged()) {
+            return findActiveEntity(id);
+        }
+
+        String creatorId = contentOwnershipService.requireCurrentCreatorId(accountId);
+        Episode episode = episodeRepository
+                .findByEpisodeIdAndCreatorIdAndIsDeletedFalse(id, creatorId)
+                .orElseThrow(() -> ContentModuleException.notFound("Episode not found: " + id));
+        contentOwnershipService.assertOwnedByCreator(episode, creatorId);
+        return episode;
     }
 
     @Override
@@ -242,6 +261,7 @@ public class EpisodeServiceImpl implements EpisodeService {
         return EpisodeResponseDto.builder()
                 .episodeId(episode.getEpisodeId())
                 .seasonId(episode.getSeason().getSeasonId())
+                .creatorId(episode.getCreatorId())
                 .episodeNumber(episode.getEpisodeNumber())
                 .title(episode.getTitle())
                 .description(episode.getDescription())

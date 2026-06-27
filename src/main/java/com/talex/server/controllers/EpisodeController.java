@@ -30,29 +30,38 @@ public class EpisodeController {
     @PostMapping("/api/v1/seasons/{seasonId}/episodes")
     public ResponseEntity<BaseResponse> create(
             @PathVariable String seasonId,
-            @Valid @RequestBody EpisodeRequestDto request) {
+            @Valid @RequestBody EpisodeRequestDto request,
+            @CurrentAccountId UUID accountId) {
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(response(201, "Episode created", episodeService.create(seasonId, request)));
+                .body(response(201, "Episode created",
+                        episodeService.create(seasonId, request, accountId.toString())));
     }
 
     @PreAuthorize("hasAnyRole('CREATOR', 'STAFF', 'ADMIN')")
     @GetMapping("/api/v1/seasons/{seasonId}/episodes")
-    public ResponseEntity<BaseResponse> listBySeason(@PathVariable String seasonId) {
-        return ResponseEntity.ok(response(200, "OK", episodeService.listBySeason(seasonId)));
+    public ResponseEntity<BaseResponse> listBySeason(
+            @PathVariable String seasonId,
+            @CurrentAccountId UUID accountId) {
+        return ResponseEntity.ok(response(200, "OK",
+                episodeService.listBySeason(seasonId, accountId.toString())));
     }
 
     @PreAuthorize("hasAnyRole('CREATOR', 'STAFF', 'ADMIN')")
     @GetMapping("/api/v1/episodes/{id}")
-    public ResponseEntity<BaseResponse> getById(@PathVariable String id) {
-        return ResponseEntity.ok(response(200, "OK", episodeService.getById(id)));
+    public ResponseEntity<BaseResponse> getById(
+            @PathVariable String id,
+            @CurrentAccountId UUID accountId) {
+        return ResponseEntity.ok(response(200, "OK", episodeService.getById(id, accountId.toString())));
     }
 
     @PreAuthorize("hasAnyRole('CREATOR', 'STAFF', 'ADMIN')")
     @PutMapping("/api/v1/episodes/{id}")
     public ResponseEntity<BaseResponse> update(
             @PathVariable String id,
-            @Valid @RequestBody EpisodeRequestDto request) {
-        return ResponseEntity.ok(response(200, "Episode updated", episodeService.update(id, request)));
+            @Valid @RequestBody EpisodeRequestDto request,
+            @CurrentAccountId UUID accountId) {
+        return ResponseEntity.ok(response(200, "Episode updated",
+                episodeService.update(id, request, accountId.toString())));
     }
 
     @PreAuthorize("hasAnyRole('CREATOR', 'STAFF', 'ADMIN')")

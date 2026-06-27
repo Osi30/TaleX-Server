@@ -8,17 +8,17 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 public interface EpisodeService {
-    EpisodeResponseDto create(String seasonId, EpisodeRequestDto request);
+    EpisodeResponseDto create(String seasonId, EpisodeRequestDto request, String accountId);
 
-    EpisodeResponseDto getById(String id);
+    EpisodeResponseDto getById(String id, String accountId);
 
     EpisodeResponseDto getPublicById(String id);
 
-    List<EpisodeResponseDto> listBySeason(String seasonId);
+    List<EpisodeResponseDto> listBySeason(String seasonId, String accountId);
 
     List<EpisodeResponseDto> listPublicBySeason(String seasonId);
 
-    EpisodeResponseDto update(String id, EpisodeRequestDto request);
+    EpisodeResponseDto update(String id, EpisodeRequestDto request, String accountId);
 
     EpisodeResponseDto schedulePublish(String id, LocalDateTime scheduledPublishAt, String actorId);
 

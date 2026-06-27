@@ -31,7 +31,8 @@ import java.util.List;
         indexes = {
                 @Index(name = "idx_episodes_season_status_deleted", columnList = "season_id,status,is_deleted"),
                 @Index(name = "idx_episodes_schedule_publish_due", columnList = "scheduled_publish_at,status,is_deleted"),
-                @Index(name = "idx_episodes_unlock_type", columnList = "unlock_type,is_deleted")
+                @Index(name = "idx_episodes_unlock_type", columnList = "unlock_type,is_deleted"),
+                @Index(name = "idx_episodes_creator_deleted", columnList = "creator_id,is_deleted")
         })
 @Getter
 @Setter
@@ -46,6 +47,9 @@ public class Episode extends BaseAudit {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "season_id", nullable = false)
     private Season season;
+
+    @Column(name = "creator_id")
+    private String creatorId;
 
     @Column(name = "episode_number", nullable = false)
     private Integer episodeNumber;

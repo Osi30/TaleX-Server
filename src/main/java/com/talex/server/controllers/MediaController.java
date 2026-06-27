@@ -196,7 +196,7 @@ public class MediaController {
     }
 
     @PatchMapping("/api/v1/media/{id}/approve")
-    @PreAuthorize("hasAnyRole('STAFF', 'ADMIN')")
+//    @PreAuthorize("hasAnyRole('STAFF', 'ADMIN')")
     public ResponseEntity<BaseResponse> approve(
             @PathVariable String id,
             @CurrentAccountId UUID accountId) {

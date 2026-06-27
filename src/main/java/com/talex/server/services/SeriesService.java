@@ -6,19 +6,19 @@ import com.talex.server.dtos.responses.SeriesResponseDto;
 import com.talex.server.entities.Series;
 
 public interface SeriesService {
-    SeriesResponseDto create(SeriesRequestDto request);
+    SeriesResponseDto create(SeriesRequestDto request, String accountId);
 
-    SeriesResponseDto getById(String id);
+    SeriesResponseDto getById(String id, String accountId);
 
     SeriesResponseDto getPublicById(String id);
 
     BasePageResponse<SeriesResponseDto> list(Integer page, Integer pageSize);
 
-    BasePageResponse<SeriesResponseDto> listByCreator(String creatorId, Integer page, Integer pageSize);
+    BasePageResponse<SeriesResponseDto> listByCreator(String accountId, Integer page, Integer pageSize);
 
     BasePageResponse<SeriesResponseDto> listPublic(Integer page, Integer pageSize);
 
-    SeriesResponseDto update(String id, SeriesRequestDto request);
+    SeriesResponseDto update(String id, SeriesRequestDto request, String accountId);
 
     SeriesResponseDto publish(String id, String actorId);
 

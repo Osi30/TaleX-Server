@@ -17,6 +17,7 @@ import java.util.List;
 public class SeriesRequestDto {
     private String creatorId;
 
+
     @NotBlank
     private String title;
 
@@ -41,5 +42,4 @@ public class SeriesRequestDto {
 
     private List<String> tagIds;
 
-    private String actorId;
 }

@@ -30,9 +30,11 @@ public class SeriesController {
 
     @PostMapping
     @PreAuthorize("hasAnyRole('CREATOR', 'STAFF', 'ADMIN')")
-    public ResponseEntity<BaseResponse> create(@Valid @RequestBody SeriesRequestDto request) {
+    public ResponseEntity<BaseResponse> create(
+            @Valid @RequestBody SeriesRequestDto request,
+            @CurrentAccountId UUID accountId) {
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(response(201, "Series created", seriesService.create(request)));
+                .body(response(201, "Series created", seriesService.create(request, accountId.toString())));
     }
 
     @GetMapping
@@ -43,27 +45,32 @@ public class SeriesController {
         return ResponseEntity.ok(response(200, "OK", seriesService.list(page, pageSize)));
     }
 
-    @GetMapping("/by-creator/{creatorId}")
+    @GetMapping("/by-creator")
     @PreAuthorize("hasAnyRole('CREATOR', 'STAFF', 'ADMIN')")
     public ResponseEntity<BaseResponse> listByCreator(
-            @PathVariable String creatorId,
             @RequestParam(defaultValue = "1") Integer page,
-            @RequestParam(defaultValue = "20") Integer pageSize) {
-        return ResponseEntity.ok(response(200, "OK", seriesService.listByCreator(creatorId, page, pageSize)));
+            @RequestParam(defaultValue = "20") Integer pageSize,
+            @CurrentAccountId UUID accountId) {
+        return ResponseEntity.ok(response(200, "OK",
+                seriesService.listByCreator(accountId.toString(), page, pageSize)));
     }
 
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('CREATOR', 'STAFF', 'ADMIN')")
-    public ResponseEntity<BaseResponse> getById(@PathVariable String id) {
-        return ResponseEntity.ok(response(200, "OK", seriesService.getById(id)));
+    public ResponseEntity<BaseResponse> getById(
+            @PathVariable String id,
+            @CurrentAccountId UUID accountId) {
+        return ResponseEntity.ok(response(200, "OK", seriesService.getById(id, accountId.toString())));
     }
 
     @PutMapping("/{id}")
     @PreAuthorize("hasAnyRole('CREATOR', 'STAFF', 'ADMIN')")
     public ResponseEntity<BaseResponse> update(
             @PathVariable String id,
-            @Valid @RequestBody SeriesRequestDto request) {
-        return ResponseEntity.ok(response(200, "Series updated", seriesService.update(id, request)));
+            @Valid @RequestBody SeriesRequestDto request,
+            @CurrentAccountId UUID accountId) {
+        return ResponseEntity.ok(response(200, "Series updated",
+                seriesService.update(id, request, accountId.toString())));
     }
 
     @PatchMapping("/{id}/publish")
