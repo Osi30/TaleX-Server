@@ -3,6 +3,7 @@ package com.talex.server.dtos.requests.coin;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Positive;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -20,6 +21,7 @@ import java.math.BigDecimal;
 public class MissionRequestDto {
 
     @NotBlank(message = "Mã nhiệm vụ không được để trống")
+    @Pattern(regexp = "^[A-Z0-9_]+$", message = "Mã nhiệm vụ chỉ được chứa chữ in hoa, số và dấu gạch dưới (VD: WATCH_AD_1)")
     private String code;
 
     @NotBlank(message = "Tên nhiệm vụ không được để trống")
