@@ -140,10 +140,23 @@ public class CreatorService implements ICreatorService {
         Creator creator = getEntityByAccountId(accountId);
 
         // 2. Lấy bản điều khoản hiện hành loại CREATOR
-        TermsVersionResponseDto activeTerm = termsVersionService.getActiveByType(TermsType.CREATOR);
+        TermsVersionResponseDto activeTerm;
+        try {
+            Object raw = termsVersionService.getActiveByType(TermsType.CREATOR);
+            if (raw instanceof TermsVersionResponseDto dto) {
+                activeTerm = dto;
+            } else {
+                // Redis cache returns LinkedHashMap — convert via ObjectMapper
+                com.fasterxml.jackson.databind.ObjectMapper om = new com.fasterxml.jackson.databind.ObjectMapper();
+                om.findAndRegisterModules();
+                activeTerm = om.convertValue(raw, TermsVersionResponseDto.class);
+            }
+        } catch (Exception e) {
+            activeTerm = null;
+        }
 
         // 3. Kiểm tra đã đồng ý với term hiện hành chưa
-        boolean hasAcceptedLatest = creatorTermsLogService.existsByAccountAndTerm(accountId, activeTerm.getId());
+        boolean hasAcceptedLatest = activeTerm != null && creatorTermsLogService.existsByAccountAndTerm(accountId, activeTerm.getId());
 
         // 4. Nếu vượt qua mọi tầng kiểm tra -> Trả dữ liệu Creator hợp lệ thông thường
         CreatorResponseDto responseDto = creatorMapper.toResponseDto(creator);

@@ -5,6 +5,7 @@ import com.talex.server.dtos.BaseResponse;
 import com.talex.server.dtos.requests.ImagePresignedUploadRequestDto;
 import com.talex.server.dtos.requests.MediaComicPagesRequestDto;
 import com.talex.server.dtos.requests.MediaMetadataRequestDto;
+import com.talex.server.dtos.requests.MediaRejectRequestDto;
 import com.talex.server.dtos.requests.MediaReorderRequestDto;
 import com.talex.server.dtos.requests.MediaStatusRequestDto;
 import com.talex.server.dtos.requests.MediaUpdateRequestDto;
@@ -155,6 +156,22 @@ public class MediaController {
         return ResponseEntity.ok(response(200, "OK", mediaService.getById(id)));
     }
 
+    // Returns copyright + moderation violations for a specific media (creator view)
+    @GetMapping("/api/v1/media/{mediaId}/violations")
+    @PreAuthorize("hasAnyRole('CREATOR', 'STAFF', 'ADMIN')")
+    public ResponseEntity<BaseResponse> getMediaViolations(@PathVariable String mediaId) {
+        return ResponseEntity.ok(response(200, "OK", mediaService.getMediaViolations(mediaId)));
+    }
+
+    // Paginated list of media pending staff review
+    @GetMapping("/api/v1/media/pending-review")
+    @PreAuthorize("hasAnyRole('STAFF', 'ADMIN')")
+    public ResponseEntity<BaseResponse> listPendingReview(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(response(200, "OK", mediaService.listPendingReview(page, size)));
+    }
+
     @PutMapping("/api/v1/media/{id}")
     @PreAuthorize("hasAnyRole('CREATOR', 'STAFF', 'ADMIN')")
     public ResponseEntity<BaseResponse> update(
@@ -207,8 +224,10 @@ public class MediaController {
     @PreAuthorize("hasAnyRole('STAFF', 'ADMIN')")
     public ResponseEntity<BaseResponse> reject(
             @PathVariable String id,
-            @CurrentAccountId UUID accountId) {
-        return ResponseEntity.ok(response(200, "Media rejected", mediaService.reject(id, accountId.toString())));
+            @CurrentAccountId UUID accountId,
+            @RequestBody(required = false) MediaRejectRequestDto request) {
+        return ResponseEntity.ok(response(200, "Media rejected",
+                mediaService.rejectWithReason(id, accountId.toString(), request)));
     }
 
     @PatchMapping("/api/v1/media/{id}/status")

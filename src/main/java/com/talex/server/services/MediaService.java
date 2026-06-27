@@ -2,11 +2,14 @@ package com.talex.server.services;
 
 import com.talex.server.dtos.requests.MediaComicPagesRequestDto;
 import com.talex.server.dtos.requests.MediaMetadataRequestDto;
+import com.talex.server.dtos.requests.MediaRejectRequestDto;
 import com.talex.server.dtos.requests.MediaReorderRequestDto;
 import com.talex.server.dtos.requests.MediaStatusRequestDto;
 import com.talex.server.dtos.requests.MediaUpdateRequestDto;
 import com.talex.server.dtos.responses.MediaResponseDto;
+import com.talex.server.dtos.responses.MediaViolationsResponseDto;
 import com.talex.server.entities.Media;
+import org.springframework.data.domain.Page;
 
 import java.util.List;
 
@@ -37,6 +40,8 @@ public interface MediaService {
 
     MediaResponseDto reject(String id, String actorId);
 
+    MediaResponseDto rejectWithReason(String id, String actorId, MediaRejectRequestDto request);
+
     MediaResponseDto updateProcessingStatus(String id, MediaStatusRequestDto request);
 
     void delete(String id, String actorId);
@@ -44,4 +49,8 @@ public interface MediaService {
     Media findActiveEntity(String id);
 
     MediaResponseDto toResponse(Media media);
+
+    MediaViolationsResponseDto getMediaViolations(String mediaId);
+
+    Page<MediaResponseDto> listPendingReview(int page, int size);
 }

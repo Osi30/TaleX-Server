@@ -5,6 +5,7 @@ import com.talex.server.enums.ContentApprovalStatus;
 import com.talex.server.enums.MediaProvider;
 import com.talex.server.enums.MediaStatus;
 import com.talex.server.enums.MediaType;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -104,4 +105,7 @@ public interface MediaRepository extends JpaRepository<Media, String> {
             String episodeId,
             MediaType mediaType,
             MediaStatus status);
+
+    // Paginated query for staff moderation — lists media awaiting review
+    Page<Media> findByApprovalStatusAndIsDeletedFalse(ContentApprovalStatus approvalStatus, Pageable pageable);
 }

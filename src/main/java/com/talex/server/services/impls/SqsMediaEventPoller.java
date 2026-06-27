@@ -7,6 +7,7 @@ import com.talex.server.entities.Media;
 import com.talex.server.enums.MediaProvider;
 import com.talex.server.enums.MediaStatus;
 import com.talex.server.repositories.MediaRepository;
+import com.talex.server.services.ContentPipelineService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
@@ -43,6 +44,7 @@ public class SqsMediaEventPoller {
     private final MediaRepository mediaRepository;
     private final MediaProperties mediaProperties;
     private final ObjectMapper objectMapper;
+    private final ContentPipelineService contentPipelineService;
 
     // ── Primary: SQS event-driven notification ────────────────────────────────
 
@@ -270,5 +272,12 @@ public class SqsMediaEventPoller {
         media.setErrorMessage(null);
         media.markUpdatedBy(RECONCILE_ACTOR);
         mediaRepository.save(media);
+
+        // Dispatch content pipeline job for copyright check + moderation
+        try {
+            contentPipelineService.dispatchPipelineJob(media);
+        } catch (Exception e) {
+            log.error("Failed to dispatch pipeline job for media: {}", media.getMediaId(), e);
+        }
     }
 }
