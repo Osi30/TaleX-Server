@@ -73,6 +73,9 @@ public class Creator {
     @OneToOne(mappedBy = "creator")
     private CreatorIdentity creatorIdentity;
 
+    @OneToOne(mappedBy = "creator", cascade = CascadeType.ALL)
+    private CreatorWallet creatorWallet;
+
     @OneToMany(mappedBy = "creator", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<PaymentProfile> paymentProfiles = new ArrayList<>();
 }

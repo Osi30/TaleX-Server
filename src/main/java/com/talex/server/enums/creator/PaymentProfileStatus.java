@@ -1,4 +1,4 @@
-package com.talex.server.enums;
+package com.talex.server.enums.creator;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;

@@ -6,6 +6,8 @@ import com.talex.server.dtos.requests.subscription.SubscriptionRequestDto;
 import com.talex.server.dtos.requests.filters.SubscriptionFilterRequestDto;
 import com.talex.server.dtos.responses.subscription.SubscriptionResponseDto;
 import com.talex.server.services.subscription.ISubscriptionService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -17,10 +19,12 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/v1/subscriptions")
 @RequiredArgsConstructor
+@Tag(name = "Subscriptions", description = "API quản lý các gói đăng ký")
 public class SubscriptionController {
     private final ISubscriptionService subscriptionService;
 
     @PostMapping
+    @Operation(summary = "Tạo gói đăng ký mới", description = "Tạo gói đăng ký mới")
     public ResponseEntity<BaseResponse> create(@Valid @RequestBody SubscriptionRequestDto request) {
         SubscriptionResponseDto response = subscriptionService.createSubscription(request);
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -32,6 +36,7 @@ public class SubscriptionController {
     }
 
     @GetMapping
+    @Operation(summary = "Tìm kiếm/Lọc các gói đăng ký", description = "Tìm kiếm và phân trang các gói đăng ký theo tiêu chí lọc.")
     public ResponseEntity<BaseResponse> list(
             @RequestParam(required = false) Map<String, Object> criteria,
             @RequestParam(required = false) String[] durationUnits,
@@ -57,6 +62,7 @@ public class SubscriptionController {
     }
 
     @GetMapping("/{subscriptionId}")
+    @Operation(summary = "Lấy gói đăng ký theo ID", description = "Trả về thông tin gói đăng ký theo ID.")
     public ResponseEntity<BaseResponse> getById(@PathVariable String subscriptionId) {
         SubscriptionResponseDto response = subscriptionService
                 .getSubscriptionById(subscriptionId);
@@ -68,6 +74,7 @@ public class SubscriptionController {
     }
 
     @PutMapping("/{subscriptionId}")
+    @Operation(summary = "Cập nhật thông tin gói đăng ký", description = "Cập nhật thông tin gói đăng ký theo ID")
     public ResponseEntity<BaseResponse> update(
             @PathVariable String subscriptionId,
             @Valid @RequestBody SubscriptionRequestDto request) {
@@ -80,6 +87,7 @@ public class SubscriptionController {
     }
 
     @DeleteMapping("/{subscriptionId}")
+    @Operation(summary = "Xóa gói đăng ký", description = "Xóa gói đăng ký theo ID")
     public ResponseEntity<BaseResponse> delete(@PathVariable String subscriptionId) {
         subscriptionService.deleteSubscription(subscriptionId);
         return ResponseEntity.ok(BaseResponse.builder()
