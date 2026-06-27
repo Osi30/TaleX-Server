@@ -1,6 +1,7 @@
 package com.talex.server.repositories;
 
 import com.talex.server.entities.Media;
+import com.talex.server.enums.ContentApprovalStatus;
 import com.talex.server.enums.MediaProvider;
 import com.talex.server.enums.MediaStatus;
 import com.talex.server.enums.MediaType;
@@ -49,15 +50,32 @@ public interface MediaRepository extends JpaRepository<Media, String> {
             String episodeId,
             Collection<MediaStatus> statuses);
 
+    List<Media> findAllByEpisode_EpisodeIdAndStatusInAndApprovalStatusAndIsDeletedFalseOrderByDisplayOrderAsc(
+            String episodeId,
+            Collection<MediaStatus> statuses,
+            ContentApprovalStatus approvalStatus);
+
     List<Media> findAllByEpisode_EpisodeIdAndMediaTypeAndStatusInAndIsDeletedFalse(
             String episodeId,
             MediaType mediaType,
             Collection<MediaStatus> statuses);
 
+    List<Media> findAllByEpisode_EpisodeIdAndMediaTypeAndStatusInAndApprovalStatusAndIsDeletedFalse(
+            String episodeId,
+            MediaType mediaType,
+            Collection<MediaStatus> statuses,
+            ContentApprovalStatus approvalStatus);
+
     boolean existsByEpisode_EpisodeIdAndMediaTypeAndStatusInAndIsDeletedFalse(
             String episodeId,
             MediaType mediaType,
             Collection<MediaStatus> statuses);
+
+    boolean existsByEpisode_EpisodeIdAndMediaTypeAndStatusInAndApprovalStatusAndIsDeletedFalse(
+            String episodeId,
+            MediaType mediaType,
+            Collection<MediaStatus> statuses,
+            ContentApprovalStatus approvalStatus);
 
     boolean existsByEpisode_EpisodeIdAndMediaTypeAndStatusInAndIsDeletedFalseAndMediaIdNot(
             String episodeId,

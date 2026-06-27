@@ -9,6 +9,7 @@ import com.talex.server.dtos.requests.MediaUpdateRequestDto;
 import com.talex.server.dtos.responses.MediaResponseDto;
 import com.talex.server.entities.Episode;
 import com.talex.server.entities.Media;
+import com.talex.server.enums.ContentApprovalStatus;
 import com.talex.server.enums.ContentType;
 import com.talex.server.enums.MediaPlaybackPolicy;
 import com.talex.server.enums.MediaProtectionType;
@@ -31,6 +32,7 @@ import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.function.Function;
 import java.util.regex.Pattern;
@@ -142,7 +144,8 @@ public class MediaServiceImpl implements MediaService {
     @Override
     public MediaResponseDto getPublicById(String id) {
         Media media = findActiveEntity(id);
-        if (!PUBLIC_READY_STATUSES.contains(media.getStatus())) {
+        if (!PUBLIC_READY_STATUSES.contains(media.getStatus())
+                || media.getApprovalStatus() != ContentApprovalStatus.APPROVED) {
             throw ContentModuleException.notFound("Public media not found: " + id);
         }
         episodeService.findPublicEntity(media.getEpisode().getEpisodeId());
@@ -164,9 +167,10 @@ public class MediaServiceImpl implements MediaService {
     public List<MediaResponseDto> listPublicByEpisode(String episodeId) {
         episodeService.findPublicEntity(episodeId);
         return mediaRepository
-                .findAllByEpisode_EpisodeIdAndStatusInAndIsDeletedFalseOrderByDisplayOrderAsc(
+                .findAllByEpisode_EpisodeIdAndStatusInAndApprovalStatusAndIsDeletedFalseOrderByDisplayOrderAsc(
                         episodeId,
-                        PUBLIC_READY_STATUSES)
+                        PUBLIC_READY_STATUSES,
+                        ContentApprovalStatus.APPROVED)
                 .stream()
                 .map(this::toPublicResponse)
                 .sorted(Comparator.comparing(MediaResponseDto::getDisplayOrder, Comparator.nullsLast(Integer::compareTo)))
@@ -304,6 +308,32 @@ public class MediaServiceImpl implements MediaService {
 
     @Transactional
     @Override
+    public MediaResponseDto approve(String id, String actorId) {
+        Media media = findActiveEntity(id);
+        media.setApprovalStatus(ContentApprovalStatus.APPROVED);
+        media.setApprovalReviewedAt(LocalDateTime.now());
+        media.setApprovalReviewedBy(actorId);
+        media.markUpdatedBy(actorId);
+        return toResponse(mediaRepository.save(media));
+    }
+
+    @Transactional
+    @Override
+    public MediaResponseDto reject(String id, String actorId) {
+        Media media = findActiveEntity(id);
+        media.setApprovalStatus(ContentApprovalStatus.REJECTED);
+        media.setApprovalReviewedAt(LocalDateTime.now());
+        media.setApprovalReviewedBy(actorId);
+        if (media.getStatus() == MediaStatus.ACTIVE || media.getStatus() == MediaStatus.HLS_READY) {
+            media.setStatus(MediaStatus.HIDDEN);
+            playbackSecurityService.revokeActiveSessions(media);
+        }
+        media.markUpdatedBy(actorId);
+        return toResponse(mediaRepository.save(media));
+    }
+
+    @Transactional
+    @Override
     public MediaResponseDto updateProcessingStatus(String id, MediaStatusRequestDto request) {
         Media media = findActiveEntity(id);
         if (request.getStatus() == MediaStatus.DELETED) {
@@ -398,6 +428,9 @@ public class MediaServiceImpl implements MediaService {
                 .duration(media.getDuration())
                 .displayOrder(media.getDisplayOrder())
                 .status(media.getStatus())
+                .approvalStatus(media.getApprovalStatus())
+                .approvalReviewedAt(media.getApprovalReviewedAt())
+                .approvalReviewedBy(media.getApprovalReviewedBy())
                 .createdAt(media.getCreatedAt())
                 .updatedAt(media.getUpdatedAt())
                 .deletedAt(media.getDeletedAt())
@@ -471,6 +504,9 @@ public class MediaServiceImpl implements MediaService {
         media.setProtectionType(request.getProtectionType() != null ? request.getProtectionType() : MediaProtectionType.NONE);
         media.setPlaybackPolicy(request.getPlaybackPolicy() != null ? request.getPlaybackPolicy() : MediaPlaybackPolicy.PUBLIC);
         media.setStatus(MediaStatus.ACTIVE);
+        media.setApprovalStatus(ContentApprovalStatus.PENDING_REVIEW);
+        media.setApprovalReviewedAt(null);
+        media.setApprovalReviewedBy(null);
         applyMetadata(media, request, mediaType);
     }
 

@@ -4,6 +4,7 @@ import com.talex.server.dtos.requests.SeasonRequestDto;
 import com.talex.server.dtos.responses.SeasonResponseDto;
 import com.talex.server.entities.Season;
 import com.talex.server.entities.Series;
+import com.talex.server.enums.ContentApprovalStatus;
 import com.talex.server.enums.SeasonStatus;
 import com.talex.server.exceptions.details.ContentModuleException;
 import com.talex.server.repositories.SeasonRepository;
@@ -13,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -33,7 +35,7 @@ public class SeasonServiceImpl implements SeasonService {
                 : nextSeasonNumber(seriesId));
         season.setTitle(request.getTitle());
         season.setDescription(request.getDescription());
-        season.setStatus(request.getStatus() != null ? request.getStatus() : SeasonStatus.DRAFT);
+        season.setStatus(SeasonStatus.DRAFT);
         season.markCreatedBy(request.getActorId());
 
         return toResponse(seasonRepository.save(season));
@@ -54,7 +56,7 @@ public class SeasonServiceImpl implements SeasonService {
     @Transactional(readOnly = true)
     @Override
     public List<SeasonResponseDto> listBySeries(String seriesId) {
-//        seriesService.findActiveEntity(seriesId);
+        seriesService.findActiveEntity(seriesId);
         return seasonRepository.findAllBySeries_SeriesIdAndIsDeletedFalseOrderBySeasonNumberAsc(seriesId)
                 .stream()
                 .map(this::toResponse)
@@ -64,7 +66,7 @@ public class SeasonServiceImpl implements SeasonService {
     @Transactional(readOnly = true)
     @Override
     public List<SeasonResponseDto> listPublicBySeries(String seriesId) {
-//        seriesService.findPublicEntity(seriesId);
+        seriesService.findPublicEntity(seriesId);
         return seasonRepository
                 .findAllBySeries_SeriesIdAndStatusAndIsDeletedFalseOrderBySeasonNumberAsc(
                         seriesId,
@@ -169,4 +171,5 @@ public class SeasonServiceImpl implements SeasonService {
                 .max(Integer::compareTo)
                 .orElse(0) + 1;
     }
+
 }

@@ -5,6 +5,7 @@ import com.talex.server.enums.MediaProtectionType;
 import com.talex.server.enums.MediaProvider;
 import com.talex.server.enums.MediaStatus;
 import com.talex.server.enums.MediaType;
+import com.talex.server.enums.ContentApprovalStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -52,6 +53,9 @@ public class MediaResponseDto {
     private Long duration;
     private Integer displayOrder;
     private MediaStatus status;
+    private ContentApprovalStatus approvalStatus;
+    private LocalDateTime approvalReviewedAt;
+    private String approvalReviewedBy;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private LocalDateTime deletedAt;
