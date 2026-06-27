@@ -15,6 +15,8 @@ import com.talex.server.services.terms.ITermsVersionService;
 import com.talex.server.specifications.TermsVersionSpec;
 import com.talex.server.utils.ValidationUtils;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -32,6 +34,7 @@ public class TermsVersionService implements ITermsVersionService {
 
     @Override
     @Transactional
+    @CacheEvict(value = "active_terms", allEntries = true, cacheManager = "redisCacheManager")
     public TermsVersionResponseDto create(TermsVersionRequestDto dto) {
         TermsVersion entity = mapper.toEntity(dto);
         if (Boolean.TRUE.equals(entity.getIsActive())){
@@ -50,6 +53,7 @@ public class TermsVersionService implements ITermsVersionService {
     }
 
     @Override
+    @CacheEvict(value = "active_terms", allEntries = true, cacheManager = "redisCacheManager")
     public TermsVersionResponseDto update(String id, TermsVersionRequestDto dto) {
         TermsVersion existing = findById(id);
 
@@ -63,6 +67,7 @@ public class TermsVersionService implements ITermsVersionService {
     }
 
     @Override
+    @CacheEvict(value = "active_terms", allEntries = true, cacheManager = "redisCacheManager")
     public void delete(String id) {
         TermsVersion existing = findById(id);
         existing.setIsActive(Boolean.FALSE);
@@ -95,6 +100,7 @@ public class TermsVersionService implements ITermsVersionService {
 
     @Override
     @Transactional(readOnly = true)
+    @Cacheable(value = "active_terms", key = "#type.name()", cacheManager = "redisCacheManager")
     public TermsVersionResponseDto getActiveByType(TermsType type) {
         return repository.findByTypeAndIsActiveTrue(type)
                 .map(mapper::toResponseDto)
@@ -103,6 +109,7 @@ public class TermsVersionService implements ITermsVersionService {
                         "Active TermsVersion not found for type: " + type));
     }
 
+    @Override
     public TermsVersion findById(String id) {
         return repository.findById(id)
                 .orElseThrow(() -> new TermVersionException(

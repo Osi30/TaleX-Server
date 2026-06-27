@@ -26,9 +26,27 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class TermsLogService implements ITermsLogService {
     private final ITermsVersionService termsVersionService;
-    private final AccountRepository accountRepository;
     private final TermsLogRepository logRepository;
+    private final AccountRepository accountRepository;
     private final ITermsLogMapper mapper;
+
+    @Override
+    @Transactional
+    public void create(Account account, CreatorTermsLogRequestDto dto) {
+        TermsVersion version = termsVersionService.findById(dto.getVersionId());
+        if (!version.getIsActive()) {
+            throw new CreatorTermsLogException(
+                    CreatorTermsLogErrorCode.CREATOR_TERMS_LOG_INACTIVE_VERSION,
+                    "Bản điều khoản " + dto.getVersionId() + " chưa được kích hoạt.");
+        }
+
+        TermsLog log = TermsLog.builder()
+                .account(account)
+                .version(version)
+                .build();
+
+        logRepository.save(log);
+    }
 
     @Override
     @Transactional

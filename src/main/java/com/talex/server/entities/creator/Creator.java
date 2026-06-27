@@ -25,12 +25,6 @@ public class Creator {
     @Column(name = "creator_id")
     private String creatorId;
 
-    @Column(name = "nickname", length = 100)
-    private String nickname;
-
-    @Column(name = "bio", columnDefinition = "TEXT")
-    private String bio;
-
     @Column(name = "follower_count", nullable = false)
     @Builder.Default
     private Long followerCount = 0L;
@@ -43,6 +37,22 @@ public class Creator {
     @Column(name = "total_watch_time", nullable = false)
     @Builder.Default
     private Double totalWatchTime = 0D;
+
+    @Column(name = "total_likes")
+    @Builder.Default
+    private Long likes = 0L;
+
+    @Column(name = "total_bookmarks")
+    @Builder.Default
+    private Long bookmarks = 0L;
+
+    @Column(name = "total_shares")
+    @Builder.Default
+    private Long shares = 0L;
+
+    @Column(name = "total_comments")
+    @Builder.Default
+    private Long comments = 0L;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)

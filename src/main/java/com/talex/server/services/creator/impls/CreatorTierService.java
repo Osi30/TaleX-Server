@@ -61,6 +61,15 @@ public class CreatorTierService implements ICreatorTierService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public CreatorTier getDefaultTier() {
+        return repository.findByIsDefaultTrueAndIsDeletedFalse().orElseThrow(
+                () -> new CreatorTierException(CreatorTierErrorCode.NOT_FOUND,
+                        "Không tìm thấy tier cấp độ 0")
+        );
+    }
+
+    @Override
     @Transactional
     public CreatorTierResponseDto update(String id, CreatorTierRequestDto dto) {
         CreatorTier existing = findById(id);

@@ -3,20 +3,24 @@ package com.talex.server.services.creator.impls;
 import com.talex.server.dtos.BasePageResponse;
 import com.talex.server.dtos.requests.creator.CreatorRegisterDto;
 import com.talex.server.dtos.requests.creator.CreatorRequestDto;
-import com.talex.server.dtos.requests.terms.CreatorTermsLogRequestDto;
 import com.talex.server.dtos.requests.filters.CreatorFilterRequestDto;
+import com.talex.server.dtos.requests.terms.CreatorTermsLogRequestDto;
 import com.talex.server.dtos.responses.CreatorResponseDto;
+import com.talex.server.dtos.responses.TermsVersionResponseDto;
 import com.talex.server.entities.Account;
 import com.talex.server.entities.creator.Creator;
-import com.talex.server.exceptions.details.CreatorException;
+import com.talex.server.entities.creator.CreatorTier;
+import com.talex.server.enums.AccountStatus;
+import com.talex.server.enums.TermsType;
 import com.talex.server.exceptions.codes.CreatorErrorCode;
+import com.talex.server.exceptions.details.CreatorException;
 import com.talex.server.mappers.ICreatorMapper;
 import com.talex.server.repositories.AccountRepository;
 import com.talex.server.repositories.creator.CreatorRepository;
-import com.talex.server.services.creator.ICreatorIdentityService;
 import com.talex.server.services.creator.ICreatorService;
+import com.talex.server.services.creator.ICreatorTierService;
 import com.talex.server.services.terms.ITermsLogService;
-import com.talex.server.services.ekyc.IKycSessionService;
+import com.talex.server.services.terms.ITermsVersionService;
 import com.talex.server.specifications.CreatorSpec;
 import com.talex.server.utils.ValidationUtils;
 import lombok.RequiredArgsConstructor;
@@ -33,53 +37,74 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class CreatorService implements ICreatorService {
+    private final ITermsVersionService termsVersionService;
     private final ITermsLogService creatorTermsLogService;
-    private final ICreatorIdentityService creatorIdentityService;
-    private final IKycSessionService kycSessionService;
+    private final ICreatorTierService creatorTierService;
     private final CreatorRepository creatorRepository;
     private final AccountRepository accountRepository;
     private final ICreatorMapper creatorMapper;
 
-    public void registerCreator(){
-
-    }
-
     @Override
     @Transactional
-    public String createCreator(CreatorRegisterDto dto) {
-        Creator creator;
+    public CreatorResponseDto createCreator(CreatorRegisterDto dto) {
+        // 1. Creator
+        Account account = accountRepository.findByAccountIdAndStatus(
+                        dto.getAccountId(), AccountStatus.ACTIVE)
+                .orElseThrow(() -> new CreatorException(CreatorErrorCode.CREATOR_NOT_FOUND, "No active account found with id: " + dto.getAccountId()));
 
-        if (ValidationUtils.isNullOrEmpty(dto.getTermsId())){
-            throw new CreatorException(CreatorErrorCode.INVALID_CREATOR_REQUEST);
-        }
+        CreatorTier tier = creatorTierService.getDefaultTier();
+        Creator creator = creatorRepository.save(Creator.builder()
+                .creatorTier(tier)
+                .account(account)
+                .build());
 
-        // Đã đồng ý điều khoản
-        if (creatorTermsLogService.existsByAccountAndTerm(dto.getAccountId(), dto.getTermsId())) {
-            creator = findCreatorByAccountId(dto.getAccountId());
-        }
-        // Chưa đồng ý điều khoản
-        else {
-            // 1. Creator
-            Account account = accountRepository.findById(dto.getAccountId()).orElseThrow(
-                    () -> new CreatorException(CreatorErrorCode.CREATOR_NOT_FOUND));
-            creator = creatorRepository.save(Creator.builder()
-                    .account(account)
-                    .build());
+        // 2. Log
+        creatorTermsLogService.create(
+                account,
+                CreatorTermsLogRequestDto.builder()
+                        .versionId(dto.getTermsId())
+                        .build());
 
-            // 2. Log
-            creatorTermsLogService.create(
-                    dto.getAccountId(),
-                    CreatorTermsLogRequestDto.builder()
-                            .versionId(dto.getTermsId())
-                            .build());
-
-            // 3. Identity
-            creatorIdentityService.create(creator);
-        }
-
-        // 4. Session
-        return kycSessionService.createSession(creator);
+        return creatorMapper.toResponseDto(creator);
     }
+
+
+//    @Override
+//    @Transactional
+//    public String createCreator(CreatorRegisterDto dto) {
+//        Creator creator;
+//
+//        if (ValidationUtils.isNullOrEmpty(dto.getTermsId())) {
+//            throw new CreatorException(CreatorErrorCode.INVALID_CREATOR_REQUEST);
+//        }
+//
+//        // Đã đồng ý điều khoản
+//        if (creatorTermsLogService.existsByAccountAndTerm(dto.getAccountId(), dto.getTermsId())) {
+//            creator = findCreatorByAccountId(dto.getAccountId());
+//        }
+//        // Chưa đồng ý điều khoản
+//        else {
+//            // 1. Creator
+//            Account account = accountRepository.findById(dto.getAccountId()).orElseThrow(
+//                    () -> new CreatorException(CreatorErrorCode.CREATOR_NOT_FOUND));
+//            creator = creatorRepository.save(Creator.builder()
+//                    .account(account)
+//                    .build());
+//
+//            // 2. Log
+//            creatorTermsLogService.create(
+//                    dto.getAccountId(),
+//                    CreatorTermsLogRequestDto.builder()
+//                            .versionId(dto.getTermsId())
+//                            .build());
+//
+//            // 3. Identity
+//            creatorIdentityService.create(creator);
+//        }
+//
+//        // 4. Session
+//        return kycSessionService.createSession(creator);
+//    }
 
     @Override
     @Transactional(readOnly = true)
@@ -110,17 +135,28 @@ public class CreatorService implements ICreatorService {
 
     @Override
     public CreatorResponseDto getByAccount(UUID accountId) {
-        return creatorMapper.toResponseDto(
-                findCreatorByAccountId(accountId));
+        // 1. Kiểm tra xem tài khoản này đã từng đăng ký Creator chưa
+        Creator creator = findCreatorByAccountId(accountId);
+
+        // 2. Lấy bản điều khoản hiện hành loại CREATOR
+        TermsVersionResponseDto activeTerm = termsVersionService.getActiveByType(TermsType.CREATOR);
+
+        // 3. Kiểm tra đã đồng ý với term hiện hành chưa
+        boolean hasAcceptedLatest = creatorTermsLogService.existsByAccountAndTerm(accountId, activeTerm.getId());
+
+        // 4. Nếu vượt qua mọi tầng kiểm tra -> Trả dữ liệu Creator hợp lệ thông thường
+        CreatorResponseDto responseDto = creatorMapper.toResponseDto(creator);
+        responseDto.setIsAcceptedLatestTerms(hasAcceptedLatest);
+        if (!hasAcceptedLatest) {
+            responseDto.setTermsVersion(activeTerm);
+        }
+
+        return responseDto;
     }
 
     @Override
     public CreatorResponseDto updateCreator(String id, CreatorRequestDto dto) {
         Creator existing = findById(id);
-
-        existing.setNickname(dto.getNickname());
-        existing.setBio(dto.getBio());
-
         Creator saved = creatorRepository.save(existing);
         return creatorMapper.toResponseDto(saved);
     }
@@ -140,7 +176,7 @@ public class CreatorService implements ICreatorService {
     private Creator findCreatorByAccountId(UUID id) {
         return creatorRepository.findByAccount_AccountId(id)
                 .orElseThrow(() -> new CreatorException(CreatorErrorCode.CREATOR_NOT_FOUND,
-                        "Creator không tồn tại với account id: " + id));
+                        "Tài khoản này hiện tại chưa đăng ký thông tin nhà sáng tạo."));
     }
 
     private Sort getSort(CreatorFilterRequestDto filterRequest) {

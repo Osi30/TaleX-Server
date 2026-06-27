@@ -30,6 +30,7 @@ public class TermsLogController {
         public ResponseEntity<BaseResponse> create(
                         @CurrentAccountId UUID accountId,
                         @Valid @RequestBody CreatorTermsLogRequestDto dto) {
+
                 service.create(accountId, dto);
                 return ResponseEntity.status(HttpStatus.CREATED)
                                 .body(BaseResponse.builder()

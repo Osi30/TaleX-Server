@@ -25,7 +25,7 @@ public class TermsVersionController {
         private final ITermsVersionService termsService;
 
         @PostMapping
-        @PreAuthorize("hasRole('ADMIN')")
+//        @PreAuthorize("hasRole('ADMIN')")
         @Operation(summary = "Tạo phiên bản điều khoản mới", description = "Tạo bản ghi phiên bản điều khoản mới, chỉ admin được phép.")
         public ResponseEntity<BaseResponse> create(@RequestBody TermsVersionRequestDto dto) {
                 TermsVersionResponseDto resp = termsService.create(dto);

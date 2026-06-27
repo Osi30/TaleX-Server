@@ -17,6 +17,8 @@ public interface CreatorTierRepository
 
     Optional<CreatorTier> findByCreatorTierIdAndIsDeletedFalse(String id);
 
+    Optional<CreatorTier> findByIsDefaultTrueAndIsDeletedFalse();
+
     boolean existsByTierLevelAndIsDeletedFalse(Integer tierLevel);
 
     boolean existsByTierLevelAndCreatorTierIdNotAndIsDeletedFalse(Integer tierLevel, String creatorTierId);

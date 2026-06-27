@@ -11,6 +11,8 @@ public interface ICreatorTierService {
 
     CreatorTierResponseDto getById(String id);
 
+    CreatorTier getDefaultTier();
+
     CreatorTierResponseDto update(String id, CreatorTierRequestDto dto);
 
     void delete(String id);

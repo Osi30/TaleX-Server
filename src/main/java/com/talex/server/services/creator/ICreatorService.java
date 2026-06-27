@@ -9,7 +9,7 @@ import com.talex.server.dtos.responses.CreatorResponseDto;
 import java.util.UUID;
 
 public interface ICreatorService {
-    String createCreator(CreatorRegisterDto dto);
+    CreatorResponseDto createCreator(CreatorRegisterDto dto);
 
     CreatorResponseDto getById(String id);
 
