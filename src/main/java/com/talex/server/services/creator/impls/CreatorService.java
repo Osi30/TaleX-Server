@@ -109,7 +109,7 @@ public class CreatorService implements ICreatorService {
     @Override
     @Transactional(readOnly = true)
     public CreatorResponseDto getById(String id) {
-        Creator creator = findById(id);
+        Creator creator = getEntityById(id);
         return creatorMapper.toResponseDto(creator);
     }
 
@@ -134,9 +134,10 @@ public class CreatorService implements ICreatorService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public CreatorResponseDto getByAccount(UUID accountId) {
         // 1. Kiểm tra xem tài khoản này đã từng đăng ký Creator chưa
-        Creator creator = findCreatorByAccountId(accountId);
+        Creator creator = getEntityByAccountId(accountId);
 
         // 2. Lấy bản điều khoản hiện hành loại CREATOR
         TermsVersionResponseDto activeTerm = termsVersionService.getActiveByType(TermsType.CREATOR);
@@ -156,24 +157,28 @@ public class CreatorService implements ICreatorService {
 
     @Override
     public CreatorResponseDto updateCreator(String id, CreatorRequestDto dto) {
-        Creator existing = findById(id);
+        Creator existing = getEntityById(id);
         Creator saved = creatorRepository.save(existing);
         return creatorMapper.toResponseDto(saved);
     }
 
     @Override
     public void deleteCreator(String id) {
-        Creator existing = findById(id);
+        Creator existing = getEntityById(id);
         creatorRepository.delete(existing);
     }
 
-    private Creator findById(String id) {
+    @Override
+    @Transactional(readOnly = true)
+    public Creator getEntityById(String id) {
         return creatorRepository.findById(id)
                 .orElseThrow(() -> new CreatorException(CreatorErrorCode.CREATOR_NOT_FOUND,
                         "Creator không tồn tại với id: " + id));
     }
 
-    private Creator findCreatorByAccountId(UUID id) {
+    @Override
+    @Transactional(readOnly = true)
+    public Creator getEntityByAccountId(UUID id) {
         return creatorRepository.findByAccount_AccountId(id)
                 .orElseThrow(() -> new CreatorException(CreatorErrorCode.CREATOR_NOT_FOUND,
                         "Tài khoản này hiện tại chưa đăng ký thông tin nhà sáng tạo."));

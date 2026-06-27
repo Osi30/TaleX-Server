@@ -15,6 +15,7 @@ import java.time.LocalDateTime;
 public class SeasonResponseDto {
     private String seasonId;
     private String seriesId;
+    private String creatorId;
     private Integer seasonNumber;
     private String title;
     private String description;

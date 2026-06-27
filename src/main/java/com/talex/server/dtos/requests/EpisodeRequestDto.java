@@ -29,5 +29,4 @@ public class EpisodeRequestDto {
 
     private Integer totalPage;
 
-    private String actorId;
 }

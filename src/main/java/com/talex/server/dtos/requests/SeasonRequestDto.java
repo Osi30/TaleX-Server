@@ -19,5 +19,4 @@ public class SeasonRequestDto {
 
     private SeasonStatus status;
 
-    private String actorId;
 }

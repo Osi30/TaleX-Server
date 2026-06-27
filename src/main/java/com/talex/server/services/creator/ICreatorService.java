@@ -5,6 +5,7 @@ import com.talex.server.dtos.requests.creator.CreatorRegisterDto;
 import com.talex.server.dtos.requests.creator.CreatorRequestDto;
 import com.talex.server.dtos.requests.filters.CreatorFilterRequestDto;
 import com.talex.server.dtos.responses.CreatorResponseDto;
+import com.talex.server.entities.creator.Creator;
 
 import java.util.UUID;
 
@@ -14,6 +15,10 @@ public interface ICreatorService {
     CreatorResponseDto getById(String id);
 
     CreatorResponseDto getByAccount(UUID accountId);
+
+    Creator getEntityByAccountId(UUID accountId);
+
+    Creator getEntityById(String creatorId);
 
     BasePageResponse<CreatorResponseDto> filterCreators(CreatorFilterRequestDto filterRequest);
 

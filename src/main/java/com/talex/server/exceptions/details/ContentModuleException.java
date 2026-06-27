@@ -28,6 +28,10 @@ public class ContentModuleException extends RuntimeException {
         return new ContentModuleException(4401, HttpStatus.UNAUTHORIZED, message);
     }
 
+    public static ContentModuleException forbidden(String message) {
+        return new ContentModuleException(4403, HttpStatus.FORBIDDEN, message);
+    }
+
     public static ContentModuleException notFound(String message) {
         return new ContentModuleException(4404, HttpStatus.NOT_FOUND, message);
     }

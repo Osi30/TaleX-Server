@@ -29,29 +29,38 @@ public class SeasonController {
     @PostMapping("/api/v1/series/{seriesId}/seasons")
     public ResponseEntity<BaseResponse> create(
             @PathVariable String seriesId,
-            @Valid @RequestBody SeasonRequestDto request) {
+            @Valid @RequestBody SeasonRequestDto request,
+            @CurrentAccountId UUID accountId) {
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(response(201, "Season created", seasonService.create(seriesId, request)));
+                .body(response(201, "Season created",
+                        seasonService.create(seriesId, request, accountId.toString())));
     }
 
     @PreAuthorize("hasAnyRole('CREATOR', 'STAFF', 'ADMIN')")
     @GetMapping("/api/v1/series/{seriesId}/seasons")
-    public ResponseEntity<BaseResponse> listBySeries(@PathVariable String seriesId) {
-        return ResponseEntity.ok(response(200, "OK", seasonService.listBySeries(seriesId)));
+    public ResponseEntity<BaseResponse> listBySeries(
+            @PathVariable String seriesId,
+            @CurrentAccountId UUID accountId) {
+        return ResponseEntity.ok(response(200, "OK",
+                seasonService.listBySeries(seriesId, accountId.toString())));
     }
 
     @PreAuthorize("hasAnyRole('CREATOR', 'STAFF', 'ADMIN')")
     @GetMapping("/api/v1/seasons/{id}")
-    public ResponseEntity<BaseResponse> getById(@PathVariable String id) {
-        return ResponseEntity.ok(response(200, "OK", seasonService.getById(id)));
+    public ResponseEntity<BaseResponse> getById(
+            @PathVariable String id,
+            @CurrentAccountId UUID accountId) {
+        return ResponseEntity.ok(response(200, "OK", seasonService.getById(id, accountId.toString())));
     }
 
     @PreAuthorize("hasAnyRole('CREATOR', 'STAFF', 'ADMIN')")
     @PutMapping("/api/v1/seasons/{id}")
     public ResponseEntity<BaseResponse> update(
             @PathVariable String id,
-            @Valid @RequestBody SeasonRequestDto request) {
-        return ResponseEntity.ok(response(200, "Season updated", seasonService.update(id, request)));
+            @Valid @RequestBody SeasonRequestDto request,
+            @CurrentAccountId UUID accountId) {
+        return ResponseEntity.ok(response(200, "Season updated",
+                seasonService.update(id, request, accountId.toString())));
     }
 
     @PreAuthorize("hasAnyRole('CREATOR', 'STAFF', 'ADMIN')")

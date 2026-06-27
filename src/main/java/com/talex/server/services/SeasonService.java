@@ -7,17 +7,17 @@ import com.talex.server.entities.Season;
 import java.util.List;
 
 public interface SeasonService {
-    SeasonResponseDto create(String seriesId, SeasonRequestDto request);
+    SeasonResponseDto create(String seriesId, SeasonRequestDto request, String accountId);
 
-    SeasonResponseDto getById(String id);
+    SeasonResponseDto getById(String id, String accountId);
 
     SeasonResponseDto getPublicById(String id);
 
-    List<SeasonResponseDto> listBySeries(String seriesId);
+    List<SeasonResponseDto> listBySeries(String seriesId, String accountId);
 
     List<SeasonResponseDto> listPublicBySeries(String seriesId);
 
-    SeasonResponseDto update(String id, SeasonRequestDto request);
+    SeasonResponseDto update(String id, SeasonRequestDto request, String accountId);
 
     SeasonResponseDto publish(String id, String actorId);
 
