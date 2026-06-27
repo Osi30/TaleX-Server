@@ -22,6 +22,12 @@ public enum CoinErrorCode {
     /** Mã nhiệm vụ là business key và phải duy nhất trong toàn hệ thống. */
     MISSION_CODE_ALREADY_EXISTS(6004, HttpStatus.CONFLICT, "Mã nhiệm vụ đã tồn tại"),
 
+    /** Reward ad session is missing, expired, or belongs to another account. */
+    AD_SESSION_INVALID(6005, HttpStatus.BAD_REQUEST, "Ad session is invalid or has expired"),
+
+    /** User completed the reward ad before the minimum watch duration. */
+    AD_WATCH_TIME_TOO_SHORT(6006, HttpStatus.BAD_REQUEST, "You must watch the ad for the minimum required time"),
+
     // ── 429 Concurrency / Rate Limit ──────────────────────────────────────────
 
     /**
