@@ -49,6 +49,19 @@ public interface EpisodeRepository extends JpaRepository<Episode, String> {
             @Param("episodeId") String episodeId,
             @Param("status") EpisodeStatus status);
 
+    @Query("""
+            select count(e)
+            from Episode e
+            where e.season.seasonId = :seasonId
+              and e.episodeId <> :episodeId
+              and e.status = :status
+              and e.isDeleted = false
+            """)
+    long countBySeasonIdExcludingEpisodeAndStatus(
+            @Param("seasonId") String seasonId,
+            @Param("episodeId") String episodeId,
+            @Param("status") EpisodeStatus status);
+
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query(value = """
             update episodes e

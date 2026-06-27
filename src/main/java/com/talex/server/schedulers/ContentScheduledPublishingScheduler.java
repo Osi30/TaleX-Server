@@ -16,9 +16,9 @@ import java.util.List;
 @Component
 @RequiredArgsConstructor
 public class ContentScheduledPublishingScheduler {
-    private static final String ACTOR_ID = "system:scheduled-publisher";
+    private static final String ACTOR_ID = "system_cron";
     private static final List<EpisodeStatus> SCHEDULED_EPISODE_STATUSES =
-            List.of(EpisodeStatus.DRAFT, EpisodeStatus.HIDDEN);
+            List.of(EpisodeStatus.HIDDEN);
 
     private final EpisodeRepository episodeRepository;
     private final EpisodeService episodeService;
