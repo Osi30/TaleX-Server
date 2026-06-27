@@ -1,6 +1,6 @@
 package com.talex.server.entities.creator;
 
-import com.talex.server.enums.PaymentProfileStatus;
+import com.talex.server.enums.creator.PaymentProfileStatus;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -33,6 +33,12 @@ public class PaymentProfile {
 
     @Column(name = "is_primary")
     private Boolean isPrimary = false;
+
+    @Column(name = "verified_at")
+    private LocalDateTime verifiedAt;
+
+    @Column(name = "verified_note")
+    private String verifiedNote;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", length = 20)
