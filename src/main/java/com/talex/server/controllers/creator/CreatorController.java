@@ -26,20 +26,38 @@ public class CreatorController {
         private final ICreatorService creatorService;
 
         @PostMapping
-        @PreAuthorize("isAuthenticated()")
-        @Operation(summary = "Tạo creator mới", description = "Đăng ký creator cho tài khoản đang đăng nhập.")
+        @PreAuthorize("hasRole('VIEWER')")
+        @Operation(summary = "Đăng ký nhà sáng tạo", description = "Đăng ký trở thành nhà sáng tạo cho tài khoản đang đăng nhập.")
         public ResponseEntity<BaseResponse> create(
-                        @CurrentAccountId UUID accountId,
-                        @RequestBody CreatorRegisterDto dto) {
+                @CurrentAccountId UUID accountId,
+                @RequestBody CreatorRegisterDto dto
+        ) {
                 dto.setAccountId(accountId);
                 String resp = creatorService.createCreator(dto);
                 return ResponseEntity.status(HttpStatus.CREATED)
-                                .body(BaseResponse.builder()
-                                                .code(201)
-                                                .message("Creator created")
-                                                .data(resp)
-                                                .build());
+                        .body(BaseResponse.builder()
+                                .code(201)
+                                .message("Creator created")
+                                .data(resp)
+                                .build());
         }
+
+//        @PostMapping
+//        @PreAuthorize("isAuthenticated()")
+//        @Operation(summary = "Tạo creator mới", description = "Đăng ký creator cho tài khoản đang đăng nhập.")
+//        public ResponseEntity<BaseResponse> create(
+//                        @CurrentAccountId UUID accountId,
+//                        @RequestBody CreatorRegisterDto dto
+//        ) {
+//                dto.setAccountId(accountId);
+//                String resp = creatorService.createCreator(dto);
+//                return ResponseEntity.status(HttpStatus.CREATED)
+//                                .body(BaseResponse.builder()
+//                                                .code(201)
+//                                                .message("Creator created")
+//                                                .data(resp)
+//                                                .build());
+//        }
 
         @GetMapping("/own")
         @PreAuthorize("isAuthenticated()")

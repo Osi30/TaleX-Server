@@ -1,6 +1,6 @@
 package com.talex.server.repositories.creator;
 
-import com.talex.server.entities.CreatorIdentity;
+import com.talex.server.entities.creator.CreatorIdentity;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

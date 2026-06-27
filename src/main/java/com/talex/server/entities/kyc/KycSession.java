@@ -1,7 +1,7 @@
 package com.talex.server.entities.kyc;
 
-import com.talex.server.entities.Creator;
-import com.talex.server.entities.CreatorIdentity;
+import com.talex.server.entities.creator.Creator;
+import com.talex.server.entities.creator.CreatorIdentity;
 import com.talex.server.enums.kyc.KycStatus;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;

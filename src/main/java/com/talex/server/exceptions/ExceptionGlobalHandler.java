@@ -5,6 +5,7 @@ import com.talex.server.exceptions.codes.AuthErrorCode;
 import com.talex.server.exceptions.codes.KycSessionErrorCode;
 import com.talex.server.exceptions.codes.SubscriptionErrorCode;
 import com.talex.server.exceptions.codes.CoinErrorCode;
+import com.talex.server.exceptions.codes.CreatorTierErrorCode;
 import com.talex.server.exceptions.details.*;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
@@ -145,6 +146,17 @@ public class ExceptionGlobalHandler {
 
     @ExceptionHandler(TermVersionException.class)
     public ResponseEntity<BaseResponse> handleTermVersionException(TermVersionException ex, WebRequest request) {
+        BaseResponse exceptionResponse = BaseResponse.builder()
+                .message(ex.getMessage())
+                .code(ex.getErrorCode().getCode())
+                .data(request.getDescription(false))
+                .build();
+
+        return new ResponseEntity<>(exceptionResponse, ex.getErrorCode().getHttpStatus());
+    }
+
+    @ExceptionHandler(CreatorTierException.class)
+    public ResponseEntity<BaseResponse> handleCreatorTierException(CreatorTierException ex, WebRequest request) {
         BaseResponse exceptionResponse = BaseResponse.builder()
                 .message(ex.getMessage())
                 .code(ex.getErrorCode().getCode())

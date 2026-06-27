@@ -3,7 +3,7 @@ package com.talex.server.entities.kyc;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.talex.server.converters.JsonNodeConverter;
 import com.talex.server.entities.Account;
-import com.talex.server.entities.Creator;
+import com.talex.server.entities.creator.Creator;
 import com.talex.server.enums.kyc.KycActionType;
 import jakarta.persistence.*;
 import lombok.*;

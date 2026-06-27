@@ -7,7 +7,7 @@ import com.talex.server.dtos.requests.terms.CreatorTermsLogRequestDto;
 import com.talex.server.dtos.requests.filters.CreatorFilterRequestDto;
 import com.talex.server.dtos.responses.CreatorResponseDto;
 import com.talex.server.entities.Account;
-import com.talex.server.entities.Creator;
+import com.talex.server.entities.creator.Creator;
 import com.talex.server.exceptions.details.CreatorException;
 import com.talex.server.exceptions.codes.CreatorErrorCode;
 import com.talex.server.mappers.ICreatorMapper;
@@ -39,6 +39,10 @@ public class CreatorService implements ICreatorService {
     private final CreatorRepository creatorRepository;
     private final AccountRepository accountRepository;
     private final ICreatorMapper creatorMapper;
+
+    public void registerCreator(){
+
+    }
 
     @Override
     @Transactional

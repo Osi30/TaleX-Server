@@ -1,6 +1,6 @@
 package com.talex.server.repositories.creator;
 
-import com.talex.server.entities.Creator;
+import com.talex.server.entities.creator.Creator;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Repository;

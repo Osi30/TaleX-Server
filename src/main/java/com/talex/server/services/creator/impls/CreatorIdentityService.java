@@ -2,8 +2,8 @@ package com.talex.server.services.creator.impls;
 
 import com.talex.server.dtos.requests.creator.CreatorIdentityRequestDto;
 import com.talex.server.dtos.responses.CreatorIdentityResponseDto;
-import com.talex.server.entities.Creator;
-import com.talex.server.entities.CreatorIdentity;
+import com.talex.server.entities.creator.Creator;
+import com.talex.server.entities.creator.CreatorIdentity;
 import com.talex.server.exceptions.codes.CreatorIdentityErrorCode;
 import com.talex.server.exceptions.details.CreatorIdentityException;
 import com.talex.server.mappers.ICreatorIdentityMapper;

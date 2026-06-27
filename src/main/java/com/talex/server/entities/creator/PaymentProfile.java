@@ -1,4 +1,4 @@
-package com.talex.server.entities;
+package com.talex.server.entities.creator;
 
 import com.talex.server.enums.PaymentProfileStatus;
 import jakarta.persistence.*;

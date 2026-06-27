@@ -1,7 +1,7 @@
 package com.talex.server.specifications;
 
 import com.talex.server.dtos.requests.filters.CreatorFilterRequestDto;
-import com.talex.server.entities.Creator;
+import com.talex.server.entities.creator.Creator;
 import com.talex.server.utils.ValidationUtils;
 import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.Predicate;

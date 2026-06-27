@@ -2,7 +2,7 @@ package com.talex.server.mappers.impls;
 
 import com.talex.server.dtos.requests.creator.CreatorIdentityRequestDto;
 import com.talex.server.dtos.responses.CreatorIdentityResponseDto;
-import com.talex.server.entities.CreatorIdentity;
+import com.talex.server.entities.creator.CreatorIdentity;
 import com.talex.server.mappers.ICreatorIdentityMapper;
 import org.springframework.stereotype.Component;
 

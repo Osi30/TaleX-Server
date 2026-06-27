@@ -1,7 +1,5 @@
 package com.talex.server.entities.campaign;
 
-import com.talex.server.entities.Account;
-import com.talex.server.entities.Creator;
 import com.talex.server.entities.Episode;
 import com.talex.server.enums.engagement.CampaignStatus;
 import com.talex.server.enums.engagement.EngagementTarget;

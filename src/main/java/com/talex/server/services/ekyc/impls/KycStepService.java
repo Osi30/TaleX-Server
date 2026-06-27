@@ -8,7 +8,7 @@ import com.talex.server.dtos.responses.idrecognition.front.FptAiIdFrontResponse;
 import com.talex.server.dtos.responses.idrecognition.front.FrontData;
 import com.talex.server.dtos.responses.liveness.FptAiLivenessResponse;
 import com.talex.server.entities.Account;
-import com.talex.server.entities.CreatorIdentity;
+import com.talex.server.entities.creator.CreatorIdentity;
 import com.talex.server.entities.kyc.KycSession;
 import com.talex.server.entities.kyc.KycStep;
 import com.talex.server.enums.kyc.KycStatus;

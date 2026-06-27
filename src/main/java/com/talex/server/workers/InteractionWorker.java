@@ -19,6 +19,7 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 import java.util.UUID;
 
 @Component
@@ -57,6 +58,42 @@ public class InteractionWorker {
                     "[Kafka Interaction Worker Error] Nội dung: " + e.getMessage());
         }
     }
+
+//    @KafkaListener(
+//            topics = "interaction-log-topic",
+//            groupId = "questdb-interaction-group",
+//            containerFactory = "batchFactory"
+//    )
+//    public void consume(List<String> messages) {
+//        try {
+//            for (String message : messages) {
+//                try {
+//                    String[] parts = message.split(",");
+//                    String sessionId = parts[0];
+//                    String accountId = parts[1];
+//                    String episodeId = parts[2];
+//                    String interactionType = parts[3];
+//                    LocalDateTime timestamp = LocalDateTime.parse(parts[4]);
+//
+//                    questDBSender.table("interaction_logs")
+//                            .symbol("session_id", sessionId)
+//                            .symbol("account_id", accountId)
+//                            .symbol("episode_id", episodeId)
+//                            .symbol("interaction_type", interactionType)
+//                            .at(Instant.from(timestamp.atZone(ZoneId.systemDefault()).toInstant()));
+//
+//                } catch (Exception e) {
+//                    log.warn("[Kafka Interaction Worker Error] Nội dung: {}", e.getMessage());
+//                }
+//            }
+//            // Production xóa dòng này
+//            questDBSender.flush();
+//
+//        } catch (Exception e) {
+//            throw new InteractionException(InteractionErrorCode.KAFKA_PROCESSING_ERROR,
+//                    "[Kafka Interaction Worker Error] Nội dung: " + e.getMessage());
+//        }
+//    }
 
     @KafkaListener(topics = "watch-raw", groupId = "questdb-watch-group")
     public void consumeRawLog(String message) {

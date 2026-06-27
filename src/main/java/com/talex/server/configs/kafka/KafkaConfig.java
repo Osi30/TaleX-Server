@@ -1,5 +1,6 @@
 package com.talex.server.configs.kafka;
 
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serdes;
@@ -10,6 +11,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.annotation.EnableKafkaStreams;
+import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
+import org.springframework.kafka.core.ConsumerFactory;
 import org.springframework.kafka.listener.CommonErrorHandler;
 import org.springframework.kafka.listener.DefaultErrorHandler;
 import org.springframework.util.backoff.FixedBackOff;
@@ -19,9 +22,12 @@ import java.time.Duration;
 @Configuration
 @EnableKafkaStreams
 @Slf4j
+@RequiredArgsConstructor
 public class KafkaConfig {
     @Value("${heartbeat.interval}")
     private Double heartbeatInterval;
+
+    private final ConsumerFactory<Object, Object> consumerFactory;
 
     @Bean
     public CommonErrorHandler kafkaErrorHandler() {
@@ -108,5 +114,26 @@ public class KafkaConfig {
                 .to("watch-summary", Produced.with(stringSerde, stringSerde));
 
         return rawStream;
+    }
+
+    /// Batch Factory
+    @Bean
+    public ConcurrentKafkaListenerContainerFactory<Object, Object> batchFactory() {
+        ConcurrentKafkaListenerContainerFactory<Object, Object> factory =
+                new ConcurrentKafkaListenerContainerFactory<>();
+        factory.setConsumerFactory(consumerFactory);
+        factory.setBatchListener(true);
+        factory.setConcurrency(2);
+        return factory;
+    }
+
+    /// Single Factory
+    @Bean
+    public ConcurrentKafkaListenerContainerFactory<Object, Object> singleFactory() {
+        ConcurrentKafkaListenerContainerFactory<Object, Object> factory =
+                new ConcurrentKafkaListenerContainerFactory<>();
+        factory.setConsumerFactory(consumerFactory);
+        factory.setBatchListener(false);
+        return factory;
     }
 }

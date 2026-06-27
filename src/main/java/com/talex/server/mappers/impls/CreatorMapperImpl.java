@@ -2,7 +2,7 @@ package com.talex.server.mappers.impls;
 
 import com.talex.server.dtos.requests.creator.CreatorRequestDto;
 import com.talex.server.dtos.responses.CreatorResponseDto;
-import com.talex.server.entities.Creator;
+import com.talex.server.entities.creator.Creator;
 import com.talex.server.mappers.ICreatorMapper;
 import org.springframework.stereotype.Component;
 

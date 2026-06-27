@@ -1,28 +1,26 @@
 package com.talex.server.entities.campaign;
 
-import com.talex.server.entities.Account;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "campaign_log", uniqueConstraints = {
-        @UniqueConstraint(columnNames = {"campaign_log_id", "hour_bucket"})
+@Table(name = "campaign_episode_log", uniqueConstraints = {
+        @UniqueConstraint(columnNames = {"campaign_episode_id", "hour_bucket"})
 })
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class CampaignLog {
+public class CampaignEpisodeLog {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(name = "campaign_log_id")
-    private String campaignLogId;
+    @Column(name = "campaign_episode_log_id")
+    private String campaignEpisodeLogId;
 
     @Column(name = "hour_bucket", nullable = false)
     private LocalDateTime hourBucket;
@@ -43,6 +41,6 @@ public class CampaignLog {
     private Long comments = 0L;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "campaign_id", nullable = false)
-    private Campaign campaign;
+    @JoinColumn(name = "campaign_episode_id", nullable = false)
+    private CampaignEpisode campaignEpisode;
 }

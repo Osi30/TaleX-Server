@@ -2,7 +2,7 @@ package com.talex.server.services.creator;
 
 import com.talex.server.dtos.responses.CreatorIdentityResponseDto;
 import com.talex.server.dtos.requests.creator.CreatorIdentityRequestDto;
-import com.talex.server.entities.Creator;
+import com.talex.server.entities.creator.Creator;
 
 public interface ICreatorIdentityService {
     void create(Creator creator);
