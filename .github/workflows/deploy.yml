@@ -63,28 +63,43 @@ jobs:
             AWS_MEDIACONVERT_QUEUE_ARN=${{ secrets.AWS_MEDIACONVERT_QUEUE_ARN }}
             AWS_MEDIACONVERT_ROLE_ARN=${{ secrets.AWS_MEDIACONVERT_ROLE_ARN }}
             AWS_SQS_QUEUE_URL=${{ secrets.AWS_SQS_QUEUE_URL }}
+            KAFKA_BOOTSTRAP_SERVERS=${{ secrets.KAFKA_BOOTSTRAP_SERVERS }}
+            QUESTDB_HOST=${{ secrets.QUESTDB_HOST }}
+            QUESTDB_PORT=${{ secrets.QUESTDB_PORT }}
             ENVEOF
 
             sed -i 's/^[[:space:]]*//' .env
 
-            # Cleanup old images and build cache before building (prevent disk full)
-            docker system prune -af --filter "until=24h" 2>/dev/null || true
+            # Write Kafka PEM certificates to files (cannot store multiline in .env)
+            mkdir -p kafka-certs
+            echo '${{ secrets.KAFKA_ACCESS_CERTB64 }}' | sed 's/\\n/\n/g' > kafka-certs/access-cert.pem
+            echo '${{ secrets.KAFKA_CA_CERTB64 }}' | sed 's/\\n/\n/g' > kafka-certs/ca-cert.pem
+            echo '${{ secrets.KAFKA_ACCESS_KEYB64 }}' | sed 's/\\n/\n/g' > kafka-certs/access-key.pem
 
-            # Build and restart
+            # Ensure docker-compose has Kafka cert env vars
+            grep -q 'KAFKA_ACCESS_CERTB64' docker-compose.prod.yml || \
+              sed -i '/SPRING_PROFILES_ACTIVE=prod/a\      - KAFKA_ACCESS_CERTB64\n      - KAFKA_CA_CERTB64\n      - KAFKA_ACCESS_KEYB64' docker-compose.prod.yml
+
+            # Cleanup old images only (keep build cache for faster builds)
+            docker image prune -af --filter "until=48h" 2>/dev/null || true
+
+            # Build and start with Kafka certs from files
+            export KAFKA_ACCESS_CERTB64="$(cat kafka-certs/access-cert.pem)"
+            export KAFKA_CA_CERTB64="$(cat kafka-certs/ca-cert.pem)"
+            export KAFKA_ACCESS_KEYB64="$(cat kafka-certs/access-key.pem)"
             COMPOSE_DOCKER_CLI_BUILD=1 DOCKER_BUILDKIT=1 \
               docker compose -f docker-compose.prod.yml up --build -d
 
-            # Post-build cleanup
-            docker system prune -f 2>/dev/null || true
+            # Post-build cleanup (remove dangling images only)
+            docker image prune -f 2>/dev/null || true
 
-            # Health check — wait up to 60s for backend to start
+            # Health check — wait up to 120s for backend to start
             echo "Waiting for backend health check..."
-            for i in $(seq 1 12); do
+            for i in $(seq 1 24); do
               if curl -sf http://localhost:8080/api-docs > /dev/null 2>&1; then
-                echo "Backend is healthy!"
+                echo "Backend is healthy after $((i*5))s!"
                 exit 0
               fi
-              echo "  attempt $i/12..."
               sleep 5
             done
-            echo "WARNING: Backend health check failed after 60s"
+            echo "WARNING: Backend health check failed after 120s"

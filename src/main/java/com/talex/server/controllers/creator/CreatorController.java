@@ -3,11 +3,11 @@ package com.talex.server.controllers.creator;
 import com.talex.server.annotations.CurrentAccountId;
 import com.talex.server.dtos.BasePageResponse;
 import com.talex.server.dtos.BaseResponse;
-import com.talex.server.dtos.requests.CreatorRegisterDto;
-import com.talex.server.dtos.requests.CreatorRequestDto;
+import com.talex.server.dtos.requests.creator.CreatorRegisterDto;
+import com.talex.server.dtos.requests.creator.CreatorRequestDto;
 import com.talex.server.dtos.requests.filters.CreatorFilterRequestDto;
 import com.talex.server.dtos.responses.CreatorResponseDto;
-import com.talex.server.services.ICreatorService;
+import com.talex.server.services.creator.ICreatorService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -21,7 +21,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/v1/creators")
 @RequiredArgsConstructor
-@Tag(name = "Creator", description = "API quản lý creator, bao gồm đăng ký, truy vấn và cập nhật thông tin creator")
+@Tag(name = "Creators", description = "API quản lý creator, bao gồm đăng ký, truy vấn và cập nhật thông tin creator")
 public class CreatorController {
         private final ICreatorService creatorService;
 

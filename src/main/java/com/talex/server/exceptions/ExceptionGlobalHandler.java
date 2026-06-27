@@ -154,6 +154,17 @@ public class ExceptionGlobalHandler {
         return new ResponseEntity<>(exceptionResponse, ex.getErrorCode().getHttpStatus());
     }
 
+    @ExceptionHandler(EngagementServiceException.class)
+    public ResponseEntity<BaseResponse> handleEngagementServiceException(EngagementServiceException ex, WebRequest request) {
+        BaseResponse exceptionResponse = BaseResponse.builder()
+                .message(ex.getMessage())
+                .code(ex.getErrorCode().getCode())
+                .data(request.getDescription(false))
+                .build();
+
+        return new ResponseEntity<>(exceptionResponse, ex.getErrorCode().getHttpStatus());
+    }
+
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     public ResponseEntity<BaseResponse> handleMaxSizeException(MaxUploadSizeExceededException exc) {
         return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE)

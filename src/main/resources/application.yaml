@@ -44,6 +44,12 @@ spring:
       ssl:
         enabled: ${REDIS_SSL:false}
       timeout: ${REDIS_TIMEOUT:5000ms}
+      lettuce:
+        pool:
+          max-active: 4
+          max-idle: 2
+          min-idle: 0
+          max-wait: 2000ms
   threads:
     virtual:
       enabled: true
@@ -58,6 +64,49 @@ spring:
           auth: true
           starttls:
             enable: true
+
+  kafka:
+    # Service URI
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
+
+    # Kafka Streams
+    streams:
+      application-id: log-stream-service
+      properties:
+        default.key.serde: org.apache.kafka.common.serialization.Serdes$StringSerde
+        default.value.serde: org.apache.kafka.common.serialization.Serdes$StringSerde
+        topic:
+          retention:
+            ms: 604800000
+        state:
+          dir: /var/lib/kafka-streams-state
+        statestore.cache.max.bytes: 1048576 # 1MB
+        num.stream.threads: 1
+        rocksdb.config.setter: com.talex.server.configs.kafka.CustomRocksDBConfig
+    properties:
+      security.protocol: SSL
+      # Nội dung file CA certificate
+      ssl.truststore.type: PEM
+      ssl.truststore.certificates: "${KAFKA_CA_CERTB64}"
+      # Nội dung file Access certificate
+      ssl.keystore.type: PEM
+      ssl.keystore.certificate.chain: "${KAFKA_ACCESS_CERTB64}"
+      # Nội dung file Access key
+      ssl.keystore.key: "${KAFKA_ACCESS_KEYB64}"
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      buffer-memory: 4194304 # 4MB
+      batch-size: 8192
+    consumer:
+      group-id: talex-interaction-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      max-poll-records: 50
+      properties:
+        fetch.max.bytes: 5242880 # 5MB
+        max.partition.fetch.bytes: 1048576 # 1MB
 
 springdoc:
   api-docs:
@@ -172,8 +221,14 @@ media:
     cloudfront-private-key: ${AWS_CLOUDFRONT_PRIVATE_KEY:}
 
 questdb:
-  host: ${QUESTDB_HOST:questdb}
-  port: ${QUESTDB_PORT:9009}
+  host: ${QUESTDB_HOST}
+  port: ${QUESTDB_PORT}
 
 heartbeat:
   interval: 5
+
+logging:
+  level:
+    org.apache.kafka: WARN
+    org.springframework.data.redis: WARN
+    io.lettuce.core: WARN

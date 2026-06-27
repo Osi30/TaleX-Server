@@ -17,7 +17,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/v1/kyc-steps")
 @RequiredArgsConstructor
-@Tag(name = "Bước KYC", description = "API truy vấn và lọc thông tin các bước trong quy trình KYC")
+@Tag(name = "KYC Steps", description = "API truy vấn và lọc thông tin các bước trong quy trình KYC")
 public class KycStepController {
         private final IKycStepService kycStepService;
 

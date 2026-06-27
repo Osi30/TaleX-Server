@@ -10,4 +10,10 @@ public class PageUtils {
         int safePageSize = pageSize == null || pageSize < 1 ? 20 : pageSize;
         return PageRequest.of(safePage - 1, safePageSize, Sort.by(Sort.Direction.DESC, "createdAt"));
     }
+
+    public static Pageable buildPageable(Integer page, Integer pageSize, Sort sort) {
+        int safePage = page == null || page < 1 ? 1 : page;
+        int safePageSize = pageSize == null || pageSize < 1 ? 20 : pageSize;
+        return PageRequest.of(safePage - 1, safePageSize, sort);
+    }
 }

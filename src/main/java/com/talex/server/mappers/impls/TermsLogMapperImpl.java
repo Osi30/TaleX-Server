@@ -1,6 +1,6 @@
 package com.talex.server.mappers.impls;
 
-import com.talex.server.dtos.requests.CreatorTermsLogRequestDto;
+import com.talex.server.dtos.requests.terms.CreatorTermsLogRequestDto;
 import com.talex.server.dtos.responses.CreatorTermsLogResponseDto;
 import com.talex.server.entities.term.TermsLog;
 import com.talex.server.mappers.ITermsLogMapper;
