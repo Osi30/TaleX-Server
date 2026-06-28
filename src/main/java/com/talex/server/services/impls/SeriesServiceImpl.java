@@ -8,7 +8,6 @@ import com.talex.server.entities.series.*;
 import com.talex.server.enums.CategoryStatus;
 import com.talex.server.enums.SeriesStatus;
 import com.talex.server.enums.TagStatus;
-import com.talex.server.enums.Visibility;
 import com.talex.server.exceptions.details.ContentModuleException;
 import com.talex.server.repositories.series.*;
 import com.talex.server.services.CategoryService;
@@ -92,8 +91,7 @@ public class SeriesServiceImpl implements SeriesService {
     @Override
     public BasePageResponse<SeriesResponseDto> listPublic(Integer page, Integer pageSize) {
         Page<Series> result = seriesRepository
-                .findAllByVisibilityAndStatusAndIsDeletedFalse(
-                        Visibility.PUBLIC,
+                .findAllByStatusAndIsDeletedFalse(
                         SeriesStatus.PUBLISHED,
                         PageUtils.buildPageable(page, pageSize));
         return toPageResponse(result, toResponses(result.getContent()));
@@ -104,6 +102,9 @@ public class SeriesServiceImpl implements SeriesService {
     public SeriesResponseDto update(String id, SeriesRequestDto request, String accountId) {
         Series series = findActiveEntity(id);
         contentOwnershipService.assertCanManage(series, accountId);
+        if (request.getStatus() == SeriesStatus.SCHEDULED) {
+            throw ContentModuleException.badRequest("SCHEDULED is managed by episode publish scheduling");
+        }
         applyMutableFields(series, request);
         series.markUpdatedBy(accountId);
 
@@ -120,7 +121,6 @@ public class SeriesServiceImpl implements SeriesService {
         Series series = findActiveEntity(id);
         contentOwnershipService.assertCanManage(series, actorId);
         series.setStatus(SeriesStatus.PUBLISHED);
-        series.setVisibility(Visibility.PUBLIC);
         series.markUpdatedBy(actorId);
         return toResponse(seriesRepository.save(series));
     }
@@ -164,8 +164,7 @@ public class SeriesServiceImpl implements SeriesService {
     @Override
     public Series findPublicEntity(String id) {
         Series series = findActiveEntity(id);
-        if (series.getStatus() != SeriesStatus.PUBLISHED
-                || series.getVisibility() != Visibility.PUBLIC) {
+        if (series.getStatus() != SeriesStatus.PUBLISHED) {
             throw ContentModuleException.notFound("Public series not found: " + id);
         }
         return series;
@@ -210,7 +209,6 @@ public class SeriesServiceImpl implements SeriesService {
                 .bannerUrl(series.getBannerUrl())
                 .contentType(series.getContentType())
                 .status(series.getStatus())
-                .visibility(series.getVisibility())
                 .ageRating(series.getAgeRating())
                 .language(series.getLanguage())
                 .totalViews(series.getTotalViews())
@@ -258,7 +256,6 @@ public class SeriesServiceImpl implements SeriesService {
         series.setBannerUrl(request.getBannerUrl());
         series.setContentType(request.getContentType());
         series.setStatus(request.getStatus() != null ? request.getStatus() : series.getStatus());
-        series.setVisibility(request.getVisibility() != null ? request.getVisibility() : series.getVisibility());
         series.setAgeRating(request.getAgeRating());
         series.setLanguage(request.getLanguage());
     }

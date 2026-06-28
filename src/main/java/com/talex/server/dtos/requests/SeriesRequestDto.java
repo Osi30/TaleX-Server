@@ -3,7 +3,6 @@ package com.talex.server.dtos.requests;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.talex.server.enums.ContentType;
 import com.talex.server.enums.SeriesStatus;
-import com.talex.server.enums.Visibility;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
@@ -32,8 +31,6 @@ public class SeriesRequestDto {
     private ContentType contentType;
 
     private SeriesStatus status;
-
-    private Visibility visibility;
 
     private String ageRating;
 
