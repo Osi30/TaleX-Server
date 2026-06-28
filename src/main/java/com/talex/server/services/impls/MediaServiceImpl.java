@@ -3,12 +3,20 @@ package com.talex.server.services.impls;
 import com.talex.server.dtos.requests.MediaComicPageRequestDto;
 import com.talex.server.dtos.requests.MediaComicPagesRequestDto;
 import com.talex.server.dtos.requests.MediaMetadataRequestDto;
+import com.talex.server.dtos.requests.MediaRejectRequestDto;
 import com.talex.server.dtos.requests.MediaReorderRequestDto;
 import com.talex.server.dtos.requests.MediaStatusRequestDto;
 import com.talex.server.dtos.requests.MediaUpdateRequestDto;
+import com.talex.server.dtos.responses.ContentCensorshipResponseDto;
+import com.talex.server.dtos.responses.MediaCopyrightResponseDto;
 import com.talex.server.dtos.responses.MediaResponseDto;
+import com.talex.server.dtos.responses.MediaViolationsResponseDto;
+import com.talex.server.dtos.responses.ViolationDetailResponseDto;
+import com.talex.server.entities.ContentCensorship;
 import com.talex.server.entities.Episode;
 import com.talex.server.entities.Media;
+import com.talex.server.entities.MediaCopyright;
+import com.talex.server.enums.CensorshipStatus;
 import com.talex.server.enums.ContentApprovalStatus;
 import com.talex.server.enums.ContentType;
 import com.talex.server.enums.MediaPlaybackPolicy;
@@ -17,13 +25,20 @@ import com.talex.server.enums.MediaProvider;
 import com.talex.server.enums.MediaStatus;
 import com.talex.server.enums.MediaType;
 import com.talex.server.exceptions.details.ContentModuleException;
+import com.talex.server.repositories.ContentCensorshipRepository;
 import com.talex.server.repositories.EpisodeRepository;
+import com.talex.server.repositories.MediaCopyrightRepository;
 import com.talex.server.repositories.MediaRepository;
+import com.talex.server.services.ContentPipelineService;
 import com.talex.server.services.EpisodeService;
 import com.talex.server.services.MediaPlaybackSecurityService;
 import com.talex.server.services.MediaService;
 import com.talex.server.services.media.MediaProviderService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,9 +51,11 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.function.Function;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class MediaServiceImpl implements MediaService {
     private static final Pattern SHA256_PATTERN = Pattern.compile("^[a-fA-F0-9]{64}$");
     private static final String URL_STORAGE_PROVIDER = "URL";
@@ -53,6 +70,9 @@ public class MediaServiceImpl implements MediaService {
     private final EpisodeService episodeService;
     private final MediaProviderService mediaProviderService;
     private final MediaPlaybackSecurityService playbackSecurityService;
+    private final ContentPipelineService contentPipelineService;
+    private final MediaCopyrightRepository mediaCopyrightRepository;
+    private final ContentCensorshipRepository contentCensorshipRepository;
 
     private record PreparedMediaUrl(
             String fileUrl,
@@ -82,22 +102,18 @@ public class MediaServiceImpl implements MediaService {
             throw ContentModuleException.badRequest("Batch media URL creation is only supported for comic episodes");
         }
         if (request == null || request.getPages() == null || request.getPages().isEmpty()) {
-            throw ContentModuleException.badRequest("At least one comic page URL is required");
-        }
-        if (request.getPages().stream().anyMatch(Objects::isNull)) {
-            throw ContentModuleException.badRequest("Comic page item must not be null");
+            throw ContentModuleException.badRequest("At least one comic page is required");
         }
 
-        List<Integer> resolvedOrders = resolveComicDisplayOrders(episodeId, request.getPages());
+        List<Integer> resolvedOrders = resolveComicDisplayOrders(episode.getEpisodeId(), request.getPages());
+        Set<String> requestedChecksums = new HashSet<>();
         List<MediaMetadataRequestDto> metadataRequests = new ArrayList<>();
         List<PreparedMediaUrl> preparedUrls = new ArrayList<>();
-        Set<String> requestedChecksums = new HashSet<>();
-        for (int i = 0; i < request.getPages().size(); i++) {
-            MediaComicPageRequestDto page = request.getPages().get(i);
+
+        for (MediaComicPageRequestDto page : request.getPages()) {
             MediaMetadataRequestDto metadata = new MediaMetadataRequestDto();
             metadata.setFileUrl(page.getFileUrl());
-            metadata.setMediaType(MediaType.IMAGE);
-            metadata.setDisplayOrder(resolvedOrders.get(i));
+            metadata.setOriginalUrl(page.getFileUrl());
             metadata.setMimeType(page.getMimeType());
             metadata.setFileSize(page.getFileSize());
             metadata.setChecksum(page.getChecksum());
@@ -128,10 +144,18 @@ public class MediaServiceImpl implements MediaService {
             mediaList.add(media);
         }
 
-        return mediaRepository.saveAll(mediaList)
-                .stream()
-                .map(this::toResponse)
-                .toList();
+        List<Media> saved = mediaRepository.saveAll(mediaList);
+
+        // Dispatch pipeline for each image — runs async via Kafka, doesn't block response
+        for (Media media : saved) {
+            try {
+                contentPipelineService.dispatchPipelineJob(media);
+            } catch (Exception e) {
+                log.error("Failed to dispatch pipeline job for image mediaId={}", media.getMediaId(), e);
+            }
+        }
+
+        return saved.stream().map(this::toResponse).toList();
     }
 
     @Transactional(readOnly = true)
@@ -220,7 +244,6 @@ public class MediaServiceImpl implements MediaService {
         if (media.getMediaType() != mediaType) {
             throw ContentModuleException.badRequest("Replacement URL type must match existing media type");
         }
-
         validateMediaForEpisode(episode, mediaType, media.getMediaId());
         applyUrl(media, request, mediaType);
         media.markUpdatedBy(request.getActorId());
@@ -260,7 +283,7 @@ public class MediaServiceImpl implements MediaService {
 
         Map<String, Media> mediaById = mediaRepository.findAllByMediaIdInAndIsDeletedFalse(mediaIds)
                 .stream()
-                .collect(java.util.stream.Collectors.toMap(Media::getMediaId, Function.identity()));
+                .collect(Collectors.toMap(Media::getMediaId, Function.identity()));
         if (mediaRepository.existsByEpisode_EpisodeIdAndDisplayOrderInAndMediaIdNotInAndIsDeletedFalse(
                 episodeId,
                 displayOrders,
@@ -334,6 +357,33 @@ public class MediaServiceImpl implements MediaService {
 
     @Transactional
     @Override
+    public MediaResponseDto rejectWithReason(String id, String actorId, MediaRejectRequestDto request) {
+        Media media = findActiveEntity(id);
+        media.setApprovalStatus(ContentApprovalStatus.REJECTED);
+        media.setApprovalReviewedAt(LocalDateTime.now());
+        media.setApprovalReviewedBy(actorId);
+        if (media.getStatus() == MediaStatus.ACTIVE || media.getStatus() == MediaStatus.HLS_READY) {
+            media.setStatus(MediaStatus.HIDDEN);
+            playbackSecurityService.revokeActiveSessions(media);
+        }
+        media.markUpdatedBy(actorId);
+        mediaRepository.save(media);
+
+        // Record human review decision as a censorship entry with staff's reason
+        String reason = (request != null && request.getReason() != null) ? request.getReason() : "";
+        ContentCensorship censorship = new ContentCensorship();
+        censorship.setMedia(media);
+        censorship.setReviewedBy("HUMAN");
+        censorship.setReviewerNotes(reason);
+        censorship.setStatus(CensorshipStatus.REJECTED);
+        censorship.setCheckedAt(LocalDateTime.now());
+        contentCensorshipRepository.save(censorship);
+
+        return toResponse(media);
+    }
+
+    @Transactional
+    @Override
     public MediaResponseDto updateProcessingStatus(String id, MediaStatusRequestDto request) {
         Media media = findActiveEntity(id);
         if (request.getStatus() == MediaStatus.DELETED) {
@@ -366,9 +416,37 @@ public class MediaServiceImpl implements MediaService {
                 .orElseThrow(() -> ContentModuleException.notFound("Media not found: " + id));
     }
 
-    private Episode lockActiveEpisode(String episodeId) {
-        return episodeRepository.lockByEpisodeIdAndIsDeletedFalse(episodeId)
-                .orElseThrow(() -> ContentModuleException.notFound("Episode not found: " + episodeId));
+    @Transactional(readOnly = true)
+    @Override
+    public MediaViolationsResponseDto getMediaViolations(String mediaId) {
+        Media media = findActiveEntity(mediaId);
+
+        List<MediaCopyright> copyrightEntities = mediaCopyrightRepository.findAllByMedia_MediaId(mediaId);
+        List<ContentCensorship> censorshipEntities = contentCensorshipRepository.findAllByMedia_MediaId(mediaId);
+
+        List<MediaCopyrightResponseDto> copyrightDtos = copyrightEntities.stream()
+                .map(this::mapCopyrightToDto)
+                .toList();
+
+        List<ContentCensorshipResponseDto> censorshipDtos = censorshipEntities.stream()
+                .map(this::mapCensorshipToDto)
+                .toList();
+
+        return MediaViolationsResponseDto.builder()
+                .mediaId(media.getMediaId())
+                .contentId(media.getProviderPublicId())
+                .copyrightViolations(copyrightDtos)
+                .censorshipResults(censorshipDtos)
+                .build();
+    }
+
+    @Transactional(readOnly = true)
+    @Override
+    public Page<MediaResponseDto> listPendingReview(int page, int size) {
+        PageRequest pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        return mediaRepository
+                .findByApprovalStatusAndIsDeletedFalse(ContentApprovalStatus.PENDING_REVIEW, pageable)
+                .map(this::toResponse);
     }
 
     @Override
@@ -440,6 +518,50 @@ public class MediaServiceImpl implements MediaService {
                 .isDeleted(media.getIsDeleted());
     }
 
+    private MediaCopyrightResponseDto mapCopyrightToDto(MediaCopyright entity) {
+        return MediaCopyrightResponseDto.builder()
+                .mediaCopyrightId(entity.getMediaCopyrightId())
+                .mediaId(entity.getMedia().getMediaId())
+                .sourceMediaId(entity.getSourceMedia() != null ? entity.getSourceMedia().getMediaId() : null)
+                .startTimeTarget(entity.getStartTimeTarget())
+                .endTimeTarget(entity.getEndTimeTarget())
+                .startTimeSource(entity.getStartTimeSource())
+                .endTimeSource(entity.getEndTimeSource())
+                .similarityScore(entity.getSimilarityScore())
+                .violationType(entity.getViolationType())
+                .isValid(entity.getIsValid())
+                .note(entity.getNote())
+                .checkedAt(entity.getCheckedAt())
+                .build();
+    }
+
+    private ContentCensorshipResponseDto mapCensorshipToDto(ContentCensorship entity) {
+        List<ViolationDetailResponseDto> details = entity.getViolationDetails() == null
+                ? List.of()
+                : entity.getViolationDetails().stream()
+                        .map(vd -> ViolationDetailResponseDto.builder()
+                                .violationDetailId(vd.getViolationDetailId())
+                                .violationAt(vd.getViolationAt())
+                                .endViolationAt(vd.getEndViolationAt())
+                                .label(vd.getLabel())
+                                .confidence(vd.getConfidence())
+                                .suggestion(vd.getSuggestion())
+                                .build())
+                        .toList();
+
+        return ContentCensorshipResponseDto.builder()
+                .censorshipId(entity.getCensorshipId())
+                .mediaId(entity.getMedia().getMediaId())
+                .primaryViolationLabel(entity.getPrimaryViolationLabel())
+                .confidenceScore(entity.getConfidenceScore())
+                .checkedAt(entity.getCheckedAt())
+                .reviewedBy(entity.getReviewedBy())
+                .reviewerNotes(entity.getReviewerNotes())
+                .status(entity.getStatus())
+                .violationDetails(details)
+                .build();
+    }
+
     private MediaResponseDto createOneFromUrl(
             Episode episode,
             MediaMetadataRequestDto request,
@@ -455,7 +577,18 @@ public class MediaServiceImpl implements MediaService {
         applyUrl(media, request, mediaType);
         media.markCreatedBy(request.getActorId());
 
-        return toResponse(mediaRepository.save(media));
+        Media saved = mediaRepository.save(media);
+
+        // Dispatch pipeline for IMAGE media — runs async via Kafka, doesn't block response
+        if (mediaType == MediaType.IMAGE) {
+            try {
+                contentPipelineService.dispatchPipelineJob(saved);
+            } catch (Exception e) {
+                log.error("Failed to dispatch pipeline job for image mediaId={}", saved.getMediaId(), e);
+            }
+        }
+
+        return toResponse(saved);
     }
 
     private void applyUrl(Media media, MediaMetadataRequestDto request, MediaType mediaType) {
@@ -557,7 +690,8 @@ public class MediaServiceImpl implements MediaService {
                             VIDEO_REPLACEMENT_BLOCKING_STATUSES,
                             currentMediaId);
             if (hasAnotherReadyVideo) {
-                throw ContentModuleException.conflict("Video episode already has a video media or HLS processing is still running");
+                throw ContentModuleException.conflict(
+                        "Episode already has an active or processing video media. Delete it first.");
             }
         }
     }
@@ -749,5 +883,10 @@ public class MediaServiceImpl implements MediaService {
 
     private String blankToNull(String value) {
         return value == null || value.isBlank() ? null : value.trim();
+    }
+
+    private Episode lockActiveEpisode(String episodeId) {
+        return episodeRepository.lockByEpisodeIdAndIsDeletedFalse(episodeId)
+                .orElseThrow(() -> ContentModuleException.notFound("Episode not found: " + episodeId));
     }
 }

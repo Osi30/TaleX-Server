@@ -161,4 +161,11 @@ public class Media extends BaseAudit {
 
     @Column(name = "approval_reviewed_by")
     private String approvalReviewedBy;
+
+    @Column(name = "content_id", length = 100)
+    private String contentId;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "copyright_id")
+    private Copyright copyright;
 }

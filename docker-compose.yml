@@ -3,27 +3,25 @@ services:
     build: .
     ports:
       - "8080:8080"
+    env_file:
+      - .env
     environment:
-      # Database
+      # Override DB host for Docker internal networking
       - DB_HOST=db
       - DB_PORT=5432
       - DB_NAME=talex-db
       - DB_USERNAME=postgres
       - DB_PASSWORD=12345
-      # Redis (Redis Cloud)
-      - REDIS_HOST=${REDIS_HOST:-station-empowering-kiss-54115.db.redis.io}
-      - REDIS_PORT=${REDIS_PORT:-15883}
-      - REDIS_USERNAME=${REDIS_USERNAME:-default}
-      - REDIS_PASSWORD=${REDIS_PASSWORD:?REDIS_PASSWORD is required}
-      # JWT
-      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET is required}
-      # Google OAuth2
-      - GOOGLE_CLIENT_ID_WEB=${GOOGLE_CLIENT_ID_WEB:-}
-      - GOOGLE_CLIENT_ID_ANDROID=${GOOGLE_CLIENT_ID_ANDROID:-}
-      - GOOGLE_CLIENT_ID_IOS=${GOOGLE_CLIENT_ID_IOS:-}
-      # Mail (Gmail SMTP)
-      - MAIL_USERNAME=${MAIL_USERNAME:-}
-      - MAIL_PASSWORD=${MAIL_PASSWORD:-}
+      # Override QuestDB host for Docker internal networking
+      - QUESTDB_HOST=questdb
+      - QUESTDB_PORT=8812
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        export KAFKA_CA_CERTB64=$$(printf '%b' "$$KAFKA_CA_CERTB64")
+        export KAFKA_ACCESS_CERTB64=$$(printf '%b' "$$KAFKA_ACCESS_CERTB64")
+        export KAFKA_ACCESS_KEYB64=$$(printf '%b' "$$KAFKA_ACCESS_KEYB64")
+        exec java -jar app.jar
     depends_on:
       db:
         condition: service_healthy

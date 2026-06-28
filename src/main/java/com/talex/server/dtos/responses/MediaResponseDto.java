@@ -63,4 +63,6 @@ public class MediaResponseDto {
     private String updatedBy;
     private String deletedBy;
     private Boolean isDeleted;
+    private String contentId;
+    private String copyrightId;
 }
