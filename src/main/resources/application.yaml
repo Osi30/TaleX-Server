@@ -11,7 +11,7 @@ spring:
       driver-class-name: org.postgresql.Driver
       username: ${DB_USERNAME:postgres}
       password: ${DB_PASSWORD:12345}
-      jdbc-url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:talex-db}${DB_OPTIONS:}
+      jdbc-url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:talex-db}${DB_OPTIONS:?reWriteBatchedInserts=true}
       hikari:
         connection-timeout: 30000
         maximum-pool-size: 10
@@ -27,7 +27,7 @@ spring:
   jpa:
     show-sql: ${JPA_SHOW_SQL:false}
     hibernate:
-      ddl-auto: update
+      ddl-auto: create-drop
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
@@ -109,10 +109,12 @@ spring:
       auto-offset-reset: earliest
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-      max-poll-records: 50
+      max-poll-records: 500
       properties:
+        fetch.min.bytes: 1048576 # 1MB
         fetch.max.bytes: 5242880 # 5MB
         max.partition.fetch.bytes: 1048576 # 1MB
+        fetch.max.wait.ms: 1000
     dlq:
       interaction: interaction-log-topic.DLQ
 

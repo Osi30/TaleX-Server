@@ -1,5 +1,6 @@
 package com.talex.server.workers;
 
+import com.talex.server.dtos.interaction.UserInteractionDto;
 import com.talex.server.enums.ContentType;
 import com.talex.server.exceptions.codes.InteractionErrorCode;
 import com.talex.server.exceptions.details.InteractionException;
@@ -10,19 +11,25 @@ import com.talex.server.utils.ValidationUtils;
 import io.questdb.client.Sender;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jetbrains.annotations.NotNull;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.jdbc.core.BatchPreparedStatementSetter;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 
 @Component
 @RequiredArgsConstructor
@@ -31,6 +38,7 @@ public class InteractionWorker {
     @Value("${spring.kafka.dlq.interaction}")
     private String dlqTopic;
 
+    private final JdbcTemplate postgresTemplate;
     private final Sender questDBSender;
     private final StringRedisTemplate redisTemplate;
     private final KafkaTemplate<String, String> kafkaTemplate;
@@ -78,6 +86,88 @@ public class InteractionWorker {
             log.warn("[Kafka Interaction Worker Error] Nội dung: {}", e.getMessage());
             kafkaTemplate.send(dlqTopic, message);
         }
+    }
+
+    @KafkaListener(
+            topics = "interaction-log-topic",
+            groupId = "postgres-interaction-group-local",
+            containerFactory = "batchFactory"
+    )
+    @Transactional
+    public void consumePostgresBatch(List<String> messages) {
+        try {
+            Map<String, UserInteractionDto> aggregateMap = getStringUserInteractionDtoMap(messages);
+
+            if (aggregateMap.isEmpty()) return;
+            List<UserInteractionDto> updatesList = new ArrayList<>(aggregateMap.values());
+
+            // Batch UPSERT xuống PostgreSQL
+            String postgresUpsertSql =
+                    "INSERT INTO account_interaction (id, account_id, episode_id, is_like, is_bookmark, created_at, updated_at) " +
+                            "VALUES (?, ?::uuid, ?, ?, ?, NOW(), NOW()) " +
+                            "ON CONFLICT (account_id, episode_id) " +
+                            "DO UPDATE SET " +
+                            "  is_like = CASE WHEN ? = TRUE THEN EXCLUDED.is_like ELSE account_interaction.is_like END, " +
+                            "  is_bookmark = CASE WHEN ? = TRUE THEN EXCLUDED.is_bookmark ELSE account_interaction.is_bookmark END, " +
+                            "  updated_at = NOW();";
+
+            int chunkSize = 500;
+            for (int i = 0; i < updatesList.size(); i += chunkSize) {
+                List<UserInteractionDto> chunk = updatesList.subList(i, Math.min(i + chunkSize, updatesList.size()));
+
+                postgresTemplate.batchUpdate(postgresUpsertSql, new BatchPreparedStatementSetter() {
+                    @Override
+                    public void setValues(PreparedStatement ps, int index) throws SQLException {
+                        UserInteractionDto item = chunk.get(index);
+                        ps.setString(1, UUID.randomUUID().toString());
+                        ps.setString(2, item.getAccountId());
+                        ps.setString(3, item.getEpisodeId());
+                        ps.setBoolean(4, item.isLike());
+                        ps.setBoolean(5, item.isBookmark());
+                        ps.setBoolean(6, item.isHasLikeChange());
+                        ps.setBoolean(7, item.isHasBookmarkChange());
+                    }
+
+                    @Override
+                    public int getBatchSize() {
+                        return chunk.size();
+                    }
+                });
+            }
+
+        } catch (Exception e) {
+            throw new InteractionException(InteractionErrorCode.KAFKA_PROCESSING_ERROR,
+                    "[Kafka Postgres Worker Error] Nội dung: " + e.getMessage());
+        }
+    }
+
+    @NotNull
+    private static Map<String, UserInteractionDto> getStringUserInteractionDtoMap(List<String> messages) {
+        Map<String, UserInteractionDto> aggregateMap = new LinkedHashMap<>();
+
+        // BƯỚC 1: Duyệt xuôi dòng thời gian từ đầu đến cuối Batch để cập nhật trạng thái cuối cùng trên RAM
+        for (String message : messages) {
+            String[] parts = message.split(",");
+            String accountId = parts[1];
+            String episodeId = parts[2];
+            String type = parts[3];
+
+            if (!List.of("LIKE", "UNLIKE", "BOOKMARK", "UNBOOKMARK").contains(type)) {
+                continue;
+            }
+
+            String key = accountId + "::" + episodeId;
+            UserInteractionDto dto = aggregateMap.computeIfAbsent(key, k -> new UserInteractionDto(accountId, episodeId));
+
+            if ("LIKE".equals(type) || "UNLIKE".equals(type)) {
+                dto.setHasLikeChange(true);
+                dto.setLike("LIKE".equals(type));
+            } else if ("BOOKMARK".equals(type) || "UNBOOKMARK".equals(type)) {
+                dto.setHasBookmarkChange(true);
+                dto.setBookmark("BOOKMARK".equals(type));
+            }
+        }
+        return aggregateMap;
     }
 
     @KafkaListener(topics = "watch-raw", groupId = "questdb-watch-group")

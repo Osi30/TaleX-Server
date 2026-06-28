@@ -33,7 +33,7 @@ public class InteractionService implements IInteractionService {
         // Gửi log thô qua Kafka (QuestDB tiêu thụ bằng cổng mạng TCP)
         String kafkaMessage = String.format("%s,%s,%s,%s,%s",
                 request.getSessionId(), accountId, request.getEpisodeId(), request.getInteractionType(), timestampStr);
-        kafkaTemplate.send("interaction-log-topic", request.getSessionId(), kafkaMessage);
+        kafkaTemplate.send("interaction-log-topic", accountId.toString(), kafkaMessage);
 
         // Tích lũy trên Redis
         String redisKey = String.format("interact:hash:%s:%s", accountId, request.getEpisodeId());
