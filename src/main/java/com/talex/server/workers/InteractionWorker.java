@@ -28,8 +28,8 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @Slf4j
 public class InteractionWorker {
-//    @Value("${spring.kafka.dlq.interaction}")
-//    private String dlqTopic;
+    @Value("${spring.kafka.dlq.interaction}")
+    private String dlqTopic;
 
     private final Sender questDBSender;
     private final StringRedisTemplate redisTemplate;
@@ -39,34 +39,9 @@ public class InteractionWorker {
     private final DateTimeFormatter monthYearFormatter = DateTimeFormatter.ofPattern("yyyy-MM");
 
     // Kafka pipeline for user interaction
-//    @KafkaListener(topics = "interaction-log-topic", groupId = "questdb-interaction-group",  containerFactory = "singleFactory")
-//    public void consume(String message) {
-//        try {
-//            String[] parts = message.split(",");
-//            String sessionId = parts[0];
-//            String accountId = parts[1];
-//            String episodeId = parts[2];
-//            String interactionType = parts[3];
-//            LocalDateTime timestamp = LocalDateTime.parse(parts[4]);
-//
-//            questDBSender.table("interaction_logs")
-//                    .symbol("session_id", sessionId)
-//                    .symbol("account_id", accountId)
-//                    .symbol("episode_id", episodeId)
-//                    .symbol("interaction_type", interactionType)
-//                    .at(Instant.from(timestamp.atZone(ZoneId.systemDefault()).toInstant()));
-//            // Production xóa dòng này
-//            questDBSender.flush();
-//
-//        } catch (Exception e) {
-//            throw new InteractionException(InteractionErrorCode.KAFKA_PROCESSING_ERROR,
-//                    "[Kafka Interaction Worker Error] Nội dung: " + e.getMessage());
-//        }
-//    }
-
     @KafkaListener(
             topics = "interaction-log-topic",
-            groupId = "questdb-interaction-group",
+            groupId = "questdb-interaction-group-local",
             containerFactory = "batchFactory"
     )
     public void consume(List<String> messages) {
@@ -103,7 +78,7 @@ public class InteractionWorker {
 
         } catch (Exception e) {
             log.warn("[Kafka Interaction Worker Error] Nội dung: {}", e.getMessage());
-//                    kafkaTemplate.send(dlqTopic, message);
+            kafkaTemplate.send(dlqTopic, message);
         }
     }
 
