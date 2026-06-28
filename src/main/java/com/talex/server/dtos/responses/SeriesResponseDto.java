@@ -2,7 +2,6 @@ package com.talex.server.dtos.responses;
 
 import com.talex.server.enums.ContentType;
 import com.talex.server.enums.SeriesStatus;
-import com.talex.server.enums.Visibility;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -24,7 +23,6 @@ public class SeriesResponseDto {
     private String bannerUrl;
     private ContentType contentType;
     private SeriesStatus status;
-    private Visibility visibility;
     private String ageRating;
     private String language;
     private Long totalViews;

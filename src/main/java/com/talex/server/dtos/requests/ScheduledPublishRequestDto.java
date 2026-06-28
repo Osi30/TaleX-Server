@@ -1,5 +1,6 @@
 package com.talex.server.dtos.requests;
 
+import jakarta.validation.constraints.Future;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -12,5 +13,6 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class ScheduledPublishRequestDto {
     @NotNull
+    @Future
     private LocalDateTime scheduledPublishAt;
 }

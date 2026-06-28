@@ -4,7 +4,6 @@ import com.talex.server.entities.BaseAudit;
 import com.talex.server.entities.creator.Creator;
 import com.talex.server.enums.ContentType;
 import com.talex.server.enums.SeriesStatus;
-import com.talex.server.enums.Visibility;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -19,7 +18,7 @@ import java.util.List;
         name = "series",
         indexes = {
                 @Index(name = "idx_series_creator_deleted", columnList = "creator_id,is_deleted"),
-                @Index(name = "idx_series_public_listing", columnList = "visibility,status,is_deleted")
+                @Index(name = "idx_series_public_listing", columnList = "status,is_deleted")
         })
 @Getter
 @Setter
@@ -50,10 +49,6 @@ public class Series extends BaseAudit {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
     private SeriesStatus status = SeriesStatus.DRAFT;
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 30)
-    private Visibility visibility = Visibility.PRIVATE;
 
     @Column(name = "age_rating", length = 50)
     private String ageRating;

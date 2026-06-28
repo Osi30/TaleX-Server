@@ -1,7 +1,7 @@
 package com.talex.server.services;
 
-import com.talex.server.entities.series.Episode;
 import com.talex.server.entities.Media;
+import com.talex.server.entities.series.Episode;
 import com.talex.server.entities.series.Season;
 import com.talex.server.entities.series.Series;
 import com.talex.server.enums.ContentApprovalStatus;
@@ -10,8 +10,9 @@ import com.talex.server.enums.EpisodeStatus;
 import com.talex.server.enums.MediaStatus;
 import com.talex.server.enums.SeasonStatus;
 import com.talex.server.enums.SeriesStatus;
-import com.talex.server.repositories.series.EpisodeRepository;
+import com.talex.server.exceptions.details.ContentModuleException;
 import com.talex.server.repositories.MediaRepository;
+import com.talex.server.repositories.series.EpisodeRepository;
 import com.talex.server.services.impls.EpisodeServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -24,7 +25,10 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
@@ -48,71 +52,229 @@ class EpisodeScheduledPublishServiceTest {
         episodeService = new EpisodeServiceImpl(
                 episodeRepository, mediaRepository, seasonService, contentOwnershipService);
         lenient().when(contentOwnershipService.isPrivileged()).thenReturn(true);
-        when(episodeRepository.save(any(Episode.class)))
+        lenient().when(episodeRepository.save(any(Episode.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
     }
 
     @Test
-    void schedulingFirstEpisodeOfNewSeasonHidesSeasonButKeepsPublishedSeriesVisible() {
-        Episode episode = episodeWithParents(SeriesStatus.PUBLISHED, SeasonStatus.PUBLISHED);
+    void newHierarchyStaysScheduledUntilDueThenPublishesTogether() {
+        Episode episode = episodeWithParents(SeriesStatus.DRAFT, SeasonStatus.DRAFT, "episode-1");
         Media media = approvedMedia(MediaStatus.ACTIVE);
-        stubEpisodeAndMedia(episode, media, 0, 3);
+        stubActiveEpisode(episode);
+        stubReadyMedia(episode, List.of(media));
 
-        episodeService.schedulePublish(
-                episode.getEpisodeId(), LocalDateTime.now().plusHours(1), ACTOR_ID);
+        episodeService.schedulePublish(episode.getEpisodeId(), LocalDateTime.now().plusHours(1), ACTOR_ID);
 
-        assertEquals(SeasonStatus.HIDDEN, episode.getSeason().getStatus());
+        assertEquals(SeriesStatus.SCHEDULED, episode.getSeason().getSeries().getStatus());
+        assertEquals(SeasonStatus.SCHEDULED, episode.getSeason().getStatus());
+        assertEquals(EpisodeStatus.SCHEDULED, episode.getStatus());
+        assertEquals(MediaStatus.ACTIVE, media.getStatus());
+
+        episode.setScheduledPublishAt(LocalDateTime.now().minusMinutes(1));
+        episodeService.publishScheduled(episode.getEpisodeId(), "system_cron");
+
         assertEquals(SeriesStatus.PUBLISHED, episode.getSeason().getSeries().getStatus());
-        assertEquals(EpisodeStatus.HIDDEN, episode.getStatus());
-        assertEquals(MediaStatus.HIDDEN, media.getStatus());
+        assertEquals(SeasonStatus.PUBLISHED, episode.getSeason().getStatus());
+        assertEquals(EpisodeStatus.PUBLISHED, episode.getStatus());
+        assertEquals(MediaStatus.ACTIVE, media.getStatus());
+        assertNull(episode.getScheduledPublishAt());
     }
 
     @Test
-    void publishingFirstEpisodeOfSeriesPublishesBothSeasonAndSeries() {
-        Episode episode = episodeWithParents(SeriesStatus.HIDDEN, SeasonStatus.HIDDEN);
-        episode.setStatus(EpisodeStatus.HIDDEN);
+    void addingEpisodeToPublishedHierarchySchedulesOnlyThatEpisode() {
+        Episode episode = episodeWithParents(SeriesStatus.PUBLISHED, SeasonStatus.PUBLISHED, "episode-2");
+        stubActiveEpisode(episode);
+        stubReadyMedia(episode, List.of(approvedMedia(MediaStatus.ACTIVE)));
+
+        episodeService.schedulePublish(episode.getEpisodeId(), LocalDateTime.now().plusHours(1), ACTOR_ID);
+
+        assertEquals(SeriesStatus.PUBLISHED, episode.getSeason().getSeries().getStatus());
+        assertEquals(SeasonStatus.PUBLISHED, episode.getSeason().getStatus());
+        assertEquals(EpisodeStatus.SCHEDULED, episode.getStatus());
+    }
+
+    @Test
+    void newSeasonIsScheduledWithoutChangingPublishedSeriesOrOtherHiddenSeason() {
+        Episode episode = episodeWithParents(SeriesStatus.PUBLISHED, SeasonStatus.DRAFT, "episode-new-season");
+        Season hiddenSeason = new Season();
+        hiddenSeason.setStatus(SeasonStatus.HIDDEN);
+        episode.getSeason().getSeries().getSeasons().add(hiddenSeason);
+        stubActiveEpisode(episode);
+        stubReadyMedia(episode, List.of(approvedMedia(MediaStatus.ACTIVE)));
+
+        episodeService.schedulePublish(episode.getEpisodeId(), LocalDateTime.now().plusHours(1), ACTOR_ID);
+
+        assertEquals(SeriesStatus.PUBLISHED, episode.getSeason().getSeries().getStatus());
+        assertEquals(SeasonStatus.SCHEDULED, episode.getSeason().getStatus());
+        assertEquals(SeasonStatus.HIDDEN, hiddenSeason.getStatus());
+    }
+
+    @Test
+    void manuallyHiddenParentsAreNeverAutomaticallyUnhidden() {
+        Episode episode = episodeWithParents(SeriesStatus.HIDDEN, SeasonStatus.HIDDEN, "episode-1");
+        episode.setStatus(EpisodeStatus.SCHEDULED);
         episode.setScheduledPublishAt(LocalDateTime.now().minusMinutes(1));
-        Media media = approvedMedia(MediaStatus.HIDDEN);
-        stubEpisodeAndMedia(episode, media, 0, 0);
+        stubActiveEpisode(episode);
+        stubReadyMedia(episode, List.of(approvedMedia(MediaStatus.ACTIVE)));
 
         episodeService.publishScheduled(episode.getEpisodeId(), "system_cron");
 
-        assertEquals(SeasonStatus.PUBLISHED, episode.getSeason().getStatus());
-        assertEquals(SeriesStatus.PUBLISHED, episode.getSeason().getSeries().getStatus());
+        assertEquals(SeriesStatus.HIDDEN, episode.getSeason().getSeries().getStatus());
+        assertEquals(SeasonStatus.HIDDEN, episode.getSeason().getStatus());
         assertEquals(EpisodeStatus.PUBLISHED, episode.getStatus());
-        assertEquals(MediaStatus.ACTIVE, media.getStatus());
     }
 
-    private void stubEpisodeAndMedia(
-            Episode episode,
-            Media media,
-            long publishedInSeason,
-            long publishedInSeries) {
-        when(episodeRepository.findByEpisodeIdAndIsDeletedFalse(episode.getEpisodeId()))
+    @Test
+    void hiddenSeasonPreventsEmptyDraftSeriesFromBeingAutoPublished() {
+        Episode episode = episodeWithParents(SeriesStatus.DRAFT, SeasonStatus.HIDDEN, "episode-1");
+        stubActiveEpisode(episode);
+        stubReadyMedia(episode, List.of(approvedMedia(MediaStatus.ACTIVE)));
+
+        episodeService.schedulePublish(episode.getEpisodeId(), LocalDateTime.now().plusHours(1), ACTOR_ID);
+        assertEquals(SeriesStatus.DRAFT, episode.getSeason().getSeries().getStatus());
+        assertEquals(SeasonStatus.HIDDEN, episode.getSeason().getStatus());
+
+        episode.setScheduledPublishAt(LocalDateTime.now().minusMinutes(1));
+        episodeService.publishScheduled(episode.getEpisodeId(), "system_cron");
+
+        assertEquals(SeriesStatus.DRAFT, episode.getSeason().getSeries().getStatus());
+        assertEquals(SeasonStatus.HIDDEN, episode.getSeason().getStatus());
+        assertEquals(EpisodeStatus.PUBLISHED, episode.getStatus());
+    }
+
+    @Test
+    void earliestOfMultipleScheduledEpisodesCanPublishTheirSharedNewParents() {
+        Series series = series(SeriesStatus.DRAFT);
+        Season season = season(series, SeasonStatus.DRAFT);
+        Episode laterEpisode = episode(season, "episode-later");
+        Episode earlierEpisode = episode(season, "episode-earlier");
+        stubActiveEpisode(laterEpisode);
+        stubActiveEpisode(earlierEpisode);
+        stubReadyMedia(laterEpisode, List.of(approvedMedia(MediaStatus.ACTIVE)));
+        stubReadyMedia(earlierEpisode, List.of(approvedMedia(MediaStatus.ACTIVE)));
+
+        episodeService.schedulePublish(laterEpisode.getEpisodeId(), LocalDateTime.now().plusDays(2), ACTOR_ID);
+        episodeService.schedulePublish(earlierEpisode.getEpisodeId(), LocalDateTime.now().plusDays(1), ACTOR_ID);
+        earlierEpisode.setScheduledPublishAt(LocalDateTime.now().minusMinutes(1));
+
+        episodeService.publishScheduled(earlierEpisode.getEpisodeId(), "system_cron");
+
+        assertEquals(SeriesStatus.PUBLISHED, series.getStatus());
+        assertEquals(SeasonStatus.PUBLISHED, season.getStatus());
+        assertEquals(EpisodeStatus.PUBLISHED, earlierEpisode.getStatus());
+        assertEquals(EpisodeStatus.SCHEDULED, laterEpisode.getStatus());
+    }
+
+    @Test
+    void hidingOnlyScheduledEpisodeCancelsScheduleAndRestoresNewParentsToDraft() {
+        Episode episode = episodeWithParents(SeriesStatus.DRAFT, SeasonStatus.DRAFT, "episode-1");
+        stubActiveEpisode(episode);
+        stubReadyMedia(episode, List.of(approvedMedia(MediaStatus.ACTIVE)));
+
+        episodeService.schedulePublish(episode.getEpisodeId(), LocalDateTime.now().plusHours(1), ACTOR_ID);
+        episodeService.hide(episode.getEpisodeId(), ACTOR_ID);
+
+        assertEquals(SeriesStatus.DRAFT, episode.getSeason().getSeries().getStatus());
+        assertEquals(SeasonStatus.DRAFT, episode.getSeason().getStatus());
+        assertEquals(EpisodeStatus.HIDDEN, episode.getStatus());
+        assertNull(episode.getScheduledPublishAt());
+    }
+
+    @Test
+    void schedulingRequiresFutureTimeAndNonPublishedEpisode() {
+        Episode draft = episodeWithParents(SeriesStatus.DRAFT, SeasonStatus.DRAFT, "episode-draft");
+        stubActiveEpisode(draft);
+
+        assertThrows(ContentModuleException.class, () -> episodeService.schedulePublish(
+                draft.getEpisodeId(), LocalDateTime.now().minusMinutes(1), ACTOR_ID));
+
+        Episode published = episodeWithParents(SeriesStatus.PUBLISHED, SeasonStatus.PUBLISHED, "episode-published");
+        published.setStatus(EpisodeStatus.PUBLISHED);
+        stubActiveEpisode(published);
+
+        assertThrows(ContentModuleException.class, () -> episodeService.schedulePublish(
+                published.getEpisodeId(), LocalDateTime.now().plusHours(1), ACTOR_ID));
+    }
+
+    @Test
+    void cronRejectsEpisodeThatIsNotScheduledOrNotDue() {
+        Episode draft = episodeWithParents(SeriesStatus.DRAFT, SeasonStatus.DRAFT, "episode-draft");
+        stubActiveEpisode(draft);
+        assertThrows(ContentModuleException.class,
+                () -> episodeService.publishScheduled(draft.getEpisodeId(), "system_cron"));
+
+        Episode future = episodeWithParents(SeriesStatus.SCHEDULED, SeasonStatus.SCHEDULED, "episode-future");
+        future.setStatus(EpisodeStatus.SCHEDULED);
+        future.setScheduledPublishAt(LocalDateTime.now().plusHours(1));
+        stubActiveEpisode(future);
+        assertThrows(ContentModuleException.class,
+                () -> episodeService.publishScheduled(future.getEpisodeId(), "system_cron"));
+    }
+
+    @Test
+    void cronDoesNotPublishAnythingWhenMediaIsNoLongerReady() {
+        Episode episode = episodeWithParents(SeriesStatus.SCHEDULED, SeasonStatus.SCHEDULED, "episode-1");
+        episode.setStatus(EpisodeStatus.SCHEDULED);
+        episode.setScheduledPublishAt(LocalDateTime.now().minusMinutes(1));
+        stubActiveEpisode(episode);
+        stubReadyMedia(episode, List.of());
+
+        assertThrows(ContentModuleException.class,
+                () -> episodeService.publishScheduled(episode.getEpisodeId(), "system_cron"));
+
+        assertEquals(SeriesStatus.SCHEDULED, episode.getSeason().getSeries().getStatus());
+        assertEquals(SeasonStatus.SCHEDULED, episode.getSeason().getStatus());
+        assertEquals(EpisodeStatus.SCHEDULED, episode.getStatus());
+    }
+
+    @Test
+    void deletedParentPreventsScheduling() {
+        Episode episode = episodeWithParents(SeriesStatus.DELETED, SeasonStatus.DRAFT, "episode-1");
+        stubActiveEpisode(episode);
+
+        assertThrows(ContentModuleException.class, () -> episodeService.schedulePublish(
+                episode.getEpisodeId(), LocalDateTime.now().plusHours(1), ACTOR_ID));
+    }
+
+    private void stubActiveEpisode(Episode episode) {
+        lenient().when(episodeRepository.findByEpisodeIdAndIsDeletedFalse(episode.getEpisodeId()))
                 .thenReturn(Optional.of(episode));
-        when(mediaRepository.findAllByEpisode_EpisodeIdAndMediaTypeAndStatusInAndApprovalStatusAndIsDeletedFalse(
-                any(), any(), any(), any())).thenReturn(List.of(media));
-        when(episodeRepository.countBySeasonIdExcludingEpisodeAndStatus(
-                episode.getSeason().getSeasonId(), episode.getEpisodeId(), EpisodeStatus.PUBLISHED))
-                .thenReturn(publishedInSeason);
-        when(episodeRepository.countBySeriesIdExcludingEpisodeAndStatus(
-                episode.getSeason().getSeries().getSeriesId(), episode.getEpisodeId(), EpisodeStatus.PUBLISHED))
-                .thenReturn(publishedInSeries);
+        lenient().when(episodeRepository.lockByEpisodeIdAndIsDeletedFalse(episode.getEpisodeId()))
+                .thenReturn(Optional.of(episode));
     }
 
-    private Episode episodeWithParents(SeriesStatus seriesStatus, SeasonStatus seasonStatus) {
+    private void stubReadyMedia(Episode episode, List<Media> media) {
+        when(mediaRepository.findAllByEpisode_EpisodeIdAndMediaTypeAndStatusInAndApprovalStatusAndIsDeletedFalse(
+                eq(episode.getEpisodeId()), any(), any(), eq(ContentApprovalStatus.APPROVED)))
+                .thenReturn(media);
+    }
+
+    private Episode episodeWithParents(
+            SeriesStatus seriesStatus,
+            SeasonStatus seasonStatus,
+            String episodeId) {
+        return episode(season(series(seriesStatus), seasonStatus), episodeId);
+    }
+
+    private Series series(SeriesStatus status) {
         Series series = new Series();
         series.setSeriesId("series-1");
-        series.setStatus(seriesStatus);
+        series.setStatus(status);
         series.setContentType(ContentType.COMIC);
+        return series;
+    }
 
+    private Season season(Series series, SeasonStatus status) {
         Season season = new Season();
-        season.setSeasonId("season-2");
+        season.setSeasonId("season-1");
         season.setSeries(series);
-        season.setStatus(seasonStatus);
+        season.setStatus(status);
+        return season;
+    }
 
+    private Episode episode(Season season, String episodeId) {
         Episode episode = new Episode();
-        episode.setEpisodeId("episode-1");
+        episode.setEpisodeId(episodeId);
         episode.setSeason(season);
         episode.setContentType(ContentType.COMIC);
         episode.setStatus(EpisodeStatus.DRAFT);

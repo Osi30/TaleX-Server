@@ -14,7 +14,6 @@ import com.talex.server.enums.MediaStatus;
 import com.talex.server.enums.MediaType;
 import com.talex.server.enums.SeasonStatus;
 import com.talex.server.enums.SeriesStatus;
-import com.talex.server.enums.Visibility;
 import com.talex.server.exceptions.details.ContentModuleException;
 import com.talex.server.repositories.series.EpisodeRepository;
 import com.talex.server.repositories.MediaRepository;
@@ -115,11 +114,18 @@ public class EpisodeServiceImpl implements EpisodeService {
             episode.setContentType(request.getContentType());
         }
         if (request.getStatus() != null) {
+            if (request.getStatus() == EpisodeStatus.SCHEDULED) {
+                throw ContentModuleException.badRequest("Use the schedule-publish endpoint to schedule an episode");
+            }
             if (request.getStatus() == EpisodeStatus.PUBLISHED) {
                 ensureReadyMediaForPublish(episode);
+                publishParentsImmediately(episode, accountId);
+                episode.setScheduledPublishAt(null);
                 if (episode.getPublishedAt() == null) {
                     episode.setPublishedAt(LocalDateTime.now());
                 }
+            } else if (episode.getStatus() == EpisodeStatus.SCHEDULED) {
+                cancelScheduledPublication(episode, accountId);
             }
             episode.setStatus(request.getStatus());
         }
@@ -135,17 +141,15 @@ public class EpisodeServiceImpl implements EpisodeService {
     public EpisodeResponseDto schedulePublish(String id, LocalDateTime scheduledPublishAt, String actorId) {
         Episode episode = findManageableEntity(id, actorId);
         ensureScheduledPublishAt(scheduledPublishAt);
-        List<Media> mediaToHide = findReadyMediaForPublish(episode);
-        if (mediaToHide.isEmpty()) {
-            throw ContentModuleException.badRequest("Episode must have at least one ready media before scheduling");
+        ensureEpisodeCanBeScheduled(episode);
+        if (findReadyMediaForPublish(episode).isEmpty()) {
+            throw ContentModuleException.badRequest("Episode must have at least one approved ready media before scheduling");
         }
-        ParentPublishDecision parentDecision = shouldPublishParentsWithScheduledEpisode(episode);
-        hideParentContentForSchedule(episode, parentDecision, actorId);
-        hideEpisodeMediaForSchedule(mediaToHide, actorId);
-        episode.setStatus(EpisodeStatus.HIDDEN);
+
+        prepareParentsForSchedule(episode, actorId);
+        episode.setStatus(EpisodeStatus.SCHEDULED);
         episode.setScheduledPublishAt(scheduledPublishAt);
         episode.markUpdatedBy(actorId);
-        mediaRepository.saveAll(mediaToHide);
         return toResponse(episodeRepository.save(episode));
     }
 
@@ -154,6 +158,7 @@ public class EpisodeServiceImpl implements EpisodeService {
     public EpisodeResponseDto publish(String id, String actorId) {
         Episode episode = findManageableEntity(id, actorId);
         ensureReadyMediaForPublish(episode);
+        publishParentsImmediately(episode, actorId);
 
         episode.setStatus(EpisodeStatus.PUBLISHED);
         episode.setScheduledPublishAt(null);
@@ -167,28 +172,19 @@ public class EpisodeServiceImpl implements EpisodeService {
     @Transactional
     @Override
     public EpisodeResponseDto publishScheduled(String id, String actorId) {
-        Episode episode = findActiveEntity(id);
-        List<Media> mediaToPublish = findScheduledMediaForPublish(episode);
-        if (mediaToPublish.isEmpty()) {
-            throw ContentModuleException.badRequest("Episode must have at least one scheduled or ready media before publishing");
+        Episode episode = lockActiveEntity(id);
+        ensureScheduledEpisodeIsDue(episode);
+        if (findReadyMediaForPublish(episode).isEmpty()) {
+            throw ContentModuleException.badRequest("Episode must have at least one approved ready media before publishing");
         }
 
-        ParentPublishDecision parentDecision = shouldPublishParentsWithScheduledEpisode(episode);
-        publishParentContentForSchedule(episode, parentDecision, actorId);
-
-        for (Media media : mediaToPublish) {
-            if (media.getStatus() == MediaStatus.HIDDEN) {
-                media.setStatus(MediaStatus.ACTIVE);
-            }
-            media.markUpdatedBy(actorId);
-        }
+        publishScheduledParents(episode, actorId);
         episode.setStatus(EpisodeStatus.PUBLISHED);
         episode.setScheduledPublishAt(null);
         if (episode.getPublishedAt() == null) {
             episode.setPublishedAt(LocalDateTime.now());
         }
         episode.markUpdatedBy(actorId);
-        mediaRepository.saveAll(mediaToPublish);
         return toResponse(episodeRepository.save(episode));
     }
 
@@ -196,6 +192,9 @@ public class EpisodeServiceImpl implements EpisodeService {
     @Override
     public EpisodeResponseDto hide(String id, String actorId) {
         Episode episode = findManageableEntity(id, actorId);
+        if (episode.getStatus() == EpisodeStatus.SCHEDULED) {
+            cancelScheduledPublication(episode, actorId);
+        }
         episode.setStatus(EpisodeStatus.HIDDEN);
         episode.markUpdatedBy(actorId);
         return toResponse(episodeRepository.save(episode));
@@ -206,7 +205,9 @@ public class EpisodeServiceImpl implements EpisodeService {
     public EpisodeResponseDto unhide(String id, String actorId) {
         Episode episode = findManageableEntity(id, actorId);
         ensureReadyMediaForPublish(episode);
+        publishParentsImmediately(episode, actorId);
         episode.setStatus(EpisodeStatus.PUBLISHED);
+        episode.setScheduledPublishAt(null);
         if (episode.getPublishedAt() == null) {
             episode.setPublishedAt(LocalDateTime.now());
         }
@@ -218,6 +219,9 @@ public class EpisodeServiceImpl implements EpisodeService {
     @Override
     public void delete(String id, String actorId) {
         Episode episode = findManageableEntity(id, actorId);
+        if (episode.getStatus() == EpisodeStatus.SCHEDULED) {
+            cancelScheduledPublication(episode, actorId);
+        }
         episode.setStatus(EpisodeStatus.DELETED);
         episode.softDelete(actorId);
         episodeRepository.save(episode);
@@ -226,6 +230,11 @@ public class EpisodeServiceImpl implements EpisodeService {
     @Override
     public Episode findActiveEntity(String id) {
         return episodeRepository.findByEpisodeIdAndIsDeletedFalse(id)
+                .orElseThrow(() -> ContentModuleException.notFound("Episode not found: " + id));
+    }
+
+    private Episode lockActiveEntity(String id) {
+        return episodeRepository.lockByEpisodeIdAndIsDeletedFalse(id)
                 .orElseThrow(() -> ContentModuleException.notFound("Episode not found: " + id));
     }
 
@@ -305,14 +314,6 @@ public class EpisodeServiceImpl implements EpisodeService {
                 ContentApprovalStatus.APPROVED);
     }
 
-    private List<Media> findScheduledMediaForPublish(Episode episode) {
-        return mediaRepository.findAllByEpisode_EpisodeIdAndMediaTypeAndStatusInAndApprovalStatusAndIsDeletedFalse(
-                episode.getEpisodeId(),
-                requiredMediaType(episode),
-                scheduledPublishMediaStatuses(episode),
-                ContentApprovalStatus.APPROVED);
-    }
-
     private MediaType requiredMediaType(Episode episode) {
         return episode.getContentType() == ContentType.VIDEO ? MediaType.VIDEO : MediaType.IMAGE;
     }
@@ -323,66 +324,110 @@ public class EpisodeServiceImpl implements EpisodeService {
                 : List.of(MediaStatus.ACTIVE);
     }
 
-    private List<MediaStatus> scheduledPublishMediaStatuses(Episode episode) {
-        List<MediaStatus> statuses = new java.util.ArrayList<>(readyMediaStatuses(episode));
-        statuses.add(MediaStatus.HIDDEN);
-        return statuses;
+    private void ensureEpisodeCanBeScheduled(Episode episode) {
+        if (episode.getStatus() == EpisodeStatus.PUBLISHED) {
+            throw ContentModuleException.badRequest("A published episode cannot be scheduled again; hide it first");
+        }
+        if (episode.getStatus() == EpisodeStatus.DELETED) {
+            throw ContentModuleException.badRequest("A deleted episode cannot be scheduled");
+        }
+        ensureParentsAreNotDeleted(episode);
     }
 
-    private ParentPublishDecision shouldPublishParentsWithScheduledEpisode(Episode episode) {
-        String seasonId = episode.getSeason().getSeasonId();
-        String seriesId = episode.getSeason().getSeries().getSeriesId();
-        long publishedEpisodesInSeason = episodeRepository.countBySeasonIdExcludingEpisodeAndStatus(
-                seasonId,
-                episode.getEpisodeId(),
-                EpisodeStatus.PUBLISHED);
-        long publishedEpisodes = episodeRepository.countBySeriesIdExcludingEpisodeAndStatus(
-                seriesId,
-                episode.getEpisodeId(),
-                EpisodeStatus.PUBLISHED);
-        return new ParentPublishDecision(publishedEpisodesInSeason == 0, publishedEpisodes == 0);
-    }
-
-    private void hideParentContentForSchedule(
-            Episode episode,
-            ParentPublishDecision decision,
-            String actorId) {
+    private void prepareParentsForSchedule(Episode episode, String actorId) {
         Season season = episode.getSeason();
         Series series = season.getSeries();
-        if (decision.publishSeries() && series.getStatus() != SeriesStatus.DELETED) {
-            series.setStatus(SeriesStatus.HIDDEN);
-            series.markUpdatedBy(actorId);
-        }
-        if (decision.publishSeason() && season.getStatus() != SeasonStatus.DELETED) {
-            season.setStatus(SeasonStatus.HIDDEN);
+        ensureParentsAreNotDeleted(episode);
+
+        if (season.getStatus() == SeasonStatus.DRAFT) {
+            season.setStatus(SeasonStatus.SCHEDULED);
             season.markUpdatedBy(actorId);
         }
-    }
-
-    private void publishParentContentForSchedule(
-            Episode episode,
-            ParentPublishDecision decision,
-            String actorId) {
-        Season season = episode.getSeason();
-        Series series = season.getSeries();
-        if (decision.publishSeries() && series.getStatus() != SeriesStatus.DELETED) {
-            series.setStatus(SeriesStatus.PUBLISHED);
-            series.setVisibility(Visibility.PUBLIC);
+        if (series.getStatus() == SeriesStatus.DRAFT && season.getStatus() != SeasonStatus.HIDDEN) {
+            series.setStatus(SeriesStatus.SCHEDULED);
             series.markUpdatedBy(actorId);
         }
-        if (decision.publishSeason() && season.getStatus() != SeasonStatus.DELETED) {
+    }
+
+    private void publishScheduledParents(Episode episode, String actorId) {
+        Season season = episode.getSeason();
+        Series series = season.getSeries();
+        ensureParentsAreNotDeleted(episode);
+
+        if (season.getStatus() == SeasonStatus.SCHEDULED) {
             season.setStatus(SeasonStatus.PUBLISHED);
             season.markUpdatedBy(actorId);
         }
+        if (series.getStatus() == SeriesStatus.SCHEDULED && season.getStatus() == SeasonStatus.PUBLISHED) {
+            series.setStatus(SeriesStatus.PUBLISHED);
+            series.markUpdatedBy(actorId);
+        }
     }
 
-    private record ParentPublishDecision(boolean publishSeason, boolean publishSeries) {
+    private void publishParentsImmediately(Episode episode, String actorId) {
+        Season season = episode.getSeason();
+        Series series = season.getSeries();
+        ensureParentsAreNotDeleted(episode);
+
+        if (season.getStatus() == SeasonStatus.DRAFT || season.getStatus() == SeasonStatus.SCHEDULED) {
+            season.setStatus(SeasonStatus.PUBLISHED);
+            season.markUpdatedBy(actorId);
+        }
+        if ((series.getStatus() == SeriesStatus.DRAFT || series.getStatus() == SeriesStatus.SCHEDULED)
+                && season.getStatus() == SeasonStatus.PUBLISHED) {
+            series.setStatus(SeriesStatus.PUBLISHED);
+            series.markUpdatedBy(actorId);
+        }
     }
 
-    private void hideEpisodeMediaForSchedule(List<Media> mediaToHide, String actorId) {
-        for (Media media : mediaToHide) {
-            media.setStatus(MediaStatus.HIDDEN);
-            media.markUpdatedBy(actorId);
+    private void ensureParentsAreNotDeleted(Episode episode) {
+        if (episode.getSeason().getStatus() == SeasonStatus.DELETED
+                || episode.getSeason().getSeries().getStatus() == SeriesStatus.DELETED) {
+            throw ContentModuleException.badRequest("Cannot publish an episode whose season or series is deleted");
+        }
+    }
+
+    private void cancelScheduledPublication(Episode episode, String actorId) {
+        episode.setScheduledPublishAt(null);
+        restoreSeasonAfterScheduleCancellation(episode, actorId);
+        restoreSeriesAfterScheduleCancellation(episode, actorId);
+    }
+
+    private void restoreSeasonAfterScheduleCancellation(Episode episode, String actorId) {
+        Season season = episode.getSeason();
+        if (season.getStatus() != SeasonStatus.SCHEDULED) {
+            return;
+        }
+
+        long publishedEpisodes = episodeRepository.countBySeasonIdExcludingEpisodeAndStatus(
+                season.getSeasonId(), episode.getEpisodeId(), EpisodeStatus.PUBLISHED);
+        long scheduledEpisodes = episodeRepository.countBySeasonIdExcludingEpisodeAndStatus(
+                season.getSeasonId(), episode.getEpisodeId(), EpisodeStatus.SCHEDULED);
+        if (publishedEpisodes > 0) {
+            season.setStatus(SeasonStatus.PUBLISHED);
+            season.markUpdatedBy(actorId);
+        } else if (scheduledEpisodes == 0) {
+            season.setStatus(SeasonStatus.DRAFT);
+            season.markUpdatedBy(actorId);
+        }
+    }
+
+    private void restoreSeriesAfterScheduleCancellation(Episode episode, String actorId) {
+        Series series = episode.getSeason().getSeries();
+        if (series.getStatus() != SeriesStatus.SCHEDULED) {
+            return;
+        }
+
+        long publishedEpisodes = episodeRepository.countBySeriesIdExcludingEpisodeAndStatus(
+                series.getSeriesId(), episode.getEpisodeId(), EpisodeStatus.PUBLISHED);
+        long scheduledEpisodes = episodeRepository.countBySeriesIdExcludingEpisodeAndStatus(
+                series.getSeriesId(), episode.getEpisodeId(), EpisodeStatus.SCHEDULED);
+        if (publishedEpisodes > 0) {
+            series.setStatus(SeriesStatus.PUBLISHED);
+            series.markUpdatedBy(actorId);
+        } else if (scheduledEpisodes == 0) {
+            series.setStatus(SeriesStatus.DRAFT);
+            series.markUpdatedBy(actorId);
         }
     }
 
@@ -410,6 +455,18 @@ public class EpisodeServiceImpl implements EpisodeService {
     private void ensureScheduledPublishAt(LocalDateTime scheduledPublishAt) {
         if (scheduledPublishAt == null) {
             throw ContentModuleException.badRequest("scheduledPublishAt is required");
+        }
+        if (!scheduledPublishAt.isAfter(LocalDateTime.now())) {
+            throw ContentModuleException.badRequest("scheduledPublishAt must be in the future");
+        }
+    }
+
+    private void ensureScheduledEpisodeIsDue(Episode episode) {
+        if (episode.getStatus() != EpisodeStatus.SCHEDULED || episode.getScheduledPublishAt() == null) {
+            throw ContentModuleException.badRequest("Episode is not scheduled for publishing");
+        }
+        if (episode.getScheduledPublishAt().isAfter(LocalDateTime.now())) {
+            throw ContentModuleException.badRequest("Episode is not due for publishing yet");
         }
     }
 

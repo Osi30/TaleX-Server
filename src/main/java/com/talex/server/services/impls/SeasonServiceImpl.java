@@ -84,6 +84,9 @@ public class SeasonServiceImpl implements SeasonService {
     @Override
     public SeasonResponseDto update(String id, SeasonRequestDto request, String accountId) {
         Season season = findManageableEntity(id, accountId);
+        if (request.getStatus() == SeasonStatus.SCHEDULED) {
+            throw ContentModuleException.badRequest("SCHEDULED is managed by episode publish scheduling");
+        }
         if (request.getSeasonNumber() != null) {
             season.setSeasonNumber(request.getSeasonNumber());
         }
