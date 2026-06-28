@@ -21,7 +21,7 @@ import java.util.UUID;
 public class SeasonController {
     private final SeasonService seasonService;
 
-    @PreAuthorize("hasAnyRole('CREATOR', 'STAFF', 'ADMIN')")
+    @PreAuthorize("isAuthenticated()")
     @PostMapping("/api/v1/series/{seriesId}/seasons")
     @Operation(summary = "Tạo season mới cho series", description = "Tạo một season mới thuộc về một series cụ thể. Trạng thái mặc định là DRAFT. Nếu không cung cấp số thứ tự season (seasonNumber), hệ thống sẽ tự động tăng dựa trên các season hiện có. Yêu cầu quyền quản lý series tương ứng.")
     public ResponseEntity<BaseResponse> create(
@@ -33,7 +33,7 @@ public class SeasonController {
                         seasonService.create(seriesId, request, accountId.toString())));
     }
 
-    @PreAuthorize("hasAnyRole('CREATOR', 'STAFF', 'ADMIN')")
+    @PreAuthorize("isAuthenticated()")
     @GetMapping("/api/v1/series/{seriesId}/seasons")
     @Operation(summary = "Lấy danh sách season theo series", description = "Truy xuất danh sách tất cả các season của một series, được sắp xếp tăng dần theo số thứ tự (seasonNumber). Yêu cầu quyền quản lý series đó hoặc quyền Admin/Staff.")
     public ResponseEntity<BaseResponse> listBySeries(
@@ -43,7 +43,7 @@ public class SeasonController {
                 seasonService.listBySeries(seriesId, accountId.toString())));
     }
 
-    @PreAuthorize("hasAnyRole('CREATOR', 'STAFF', 'ADMIN')")
+    @PreAuthorize("isAuthenticated()")
     @GetMapping("/api/v1/seasons/{id}")
     @Operation(summary = "Lấy chi tiết season", description = "Lấy toàn bộ thông tin của một season cụ thể. Yêu cầu quyền sở hữu nội dung (hoặc Admin/Staff).")
     public ResponseEntity<BaseResponse> getById(
@@ -52,7 +52,7 @@ public class SeasonController {
         return ResponseEntity.ok(response(200, "OK", seasonService.getById(id, accountId.toString())));
     }
 
-    @PreAuthorize("hasAnyRole('CREATOR', 'STAFF', 'ADMIN')")
+    @PreAuthorize("isAuthenticated()")
     @PutMapping("/api/v1/seasons/{id}")
     @Operation(summary = "Cập nhật thông tin season", description = "Cập nhật các trường như số thứ tự (seasonNumber), tiêu đề, mô tả và trạng thái của season. Yêu cầu quyền sở hữu nội dung.")
     public ResponseEntity<BaseResponse> update(
@@ -63,7 +63,7 @@ public class SeasonController {
                 seasonService.update(id, request, accountId.toString())));
     }
 
-    @PreAuthorize("hasAnyRole('CREATOR', 'STAFF', 'ADMIN')")
+    @PreAuthorize("isAuthenticated()")
     @PatchMapping("/api/v1/seasons/{id}/publish")
     @Operation(summary = "Xuất bản season", description = "Chuyển trạng thái của season sang PUBLISHED, cho phép hiển thị nội dung công khai (nếu series cũng đang public). Yêu cầu quyền sở hữu nội dung.")
     public ResponseEntity<BaseResponse> publish(
@@ -72,7 +72,7 @@ public class SeasonController {
         return ResponseEntity.ok(response(200, "Season published", seasonService.publish(id, accountId.toString())));
     }
 
-    @PreAuthorize("hasAnyRole('CREATOR', 'STAFF', 'ADMIN')")
+    @PreAuthorize("isAuthenticated()")
     @PatchMapping("/api/v1/seasons/{id}/hide")
     @Operation(summary = "Ẩn season", description = "Chuyển trạng thái của season sang HIDDEN. Tạm thời ẩn nội dung khỏi công chúng nhưng không xóa dữ liệu. Yêu cầu quyền sở hữu nội dung.")
     public ResponseEntity<BaseResponse> hide(
@@ -81,7 +81,7 @@ public class SeasonController {
         return ResponseEntity.ok(response(200, "Season hidden", seasonService.hide(id, accountId.toString())));
     }
 
-    @PreAuthorize("hasAnyRole('CREATOR', 'STAFF', 'ADMIN')")
+    @PreAuthorize("isAuthenticated()")
     @PatchMapping("/api/v1/seasons/{id}/unhide")
     @Operation(summary = "Bỏ ẩn season", description = "Khôi phục trạng thái season từ HIDDEN về lại PUBLISHED. Yêu cầu quyền sở hữu nội dung.")
     public ResponseEntity<BaseResponse> unhide(
@@ -90,7 +90,7 @@ public class SeasonController {
         return ResponseEntity.ok(response(200, "Season visible", seasonService.unhide(id, accountId.toString())));
     }
 
-    @PreAuthorize("hasAnyRole('CREATOR', 'STAFF', 'ADMIN')")
+    @PreAuthorize("isAuthenticated()")
     @DeleteMapping("/api/v1/seasons/{id}")
     @Operation(summary = "Xóa season", description = "Thực hiện xóa mềm (soft-delete) season bằng cách đổi trạng thái sang DELETED. Yêu cầu quyền sở hữu nội dung.")
     public ResponseEntity<BaseResponse> delete(

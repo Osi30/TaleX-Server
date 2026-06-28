@@ -2,14 +2,14 @@ package com.talex.server.services;
 
 import com.talex.server.dtos.requests.EpisodeRequestDto;
 import com.talex.server.dtos.requests.SeasonRequestDto;
-import com.talex.server.entities.Episode;
-import com.talex.server.entities.Season;
-import com.talex.server.entities.Series;
+import com.talex.server.entities.series.Episode;
+import com.talex.server.entities.series.Season;
+import com.talex.server.entities.series.Series;
 import com.talex.server.entities.creator.Creator;
 import com.talex.server.exceptions.details.ContentModuleException;
-import com.talex.server.repositories.EpisodeRepository;
+import com.talex.server.repositories.series.EpisodeRepository;
 import com.talex.server.repositories.MediaRepository;
-import com.talex.server.repositories.SeasonRepository;
+import com.talex.server.repositories.series.SeasonRepository;
 import com.talex.server.services.creator.ICreatorService;
 import com.talex.server.services.impls.EpisodeServiceImpl;
 import com.talex.server.services.impls.SeasonServiceImpl;
@@ -131,7 +131,9 @@ class ContentCrudOwnershipServiceTest {
     private Series seriesOwnedBy(String creatorId) {
         Series series = new Series();
         series.setSeriesId("series-other");
-        series.setCreatorId(creatorId);
+        series.setCreator(Creator.builder()
+                .creatorId(creatorId)
+                .build());
         return series;
     }
 

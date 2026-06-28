@@ -27,10 +27,8 @@ public interface SubscriptionStatRepository extends JpaRepository<SubscriptionSt
             @Param("timestamp") LocalDateTime timestamp
     );
 
-    @Query("SELECT ser.creatorId, e.totalDuration, e.contentType " +
+    @Query("SELECT e.creatorId, e.totalDuration, e.contentType " +
             "FROM Episode e " +
-            "JOIN e.season sea " +
-            "JOIN sea.series ser " +
             "WHERE e.episodeId = :episodeId")
     EpisodeDetails findEpisodeDetails(@Param("episodeId") String episodeId);
 

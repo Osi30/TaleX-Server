@@ -1,5 +1,6 @@
-package com.talex.server.entities;
+package com.talex.server.entities.series;
 
+import com.talex.server.entities.BaseAudit;
 import jakarta.persistence.EmbeddedId;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -15,18 +16,18 @@ import lombok.Setter;
 
 @Entity
 @Table(
-        name = "series_tags",
+        name = "series_categories",
         indexes = {
-                @Index(name = "idx_series_tags_series_deleted", columnList = "series_id,is_deleted"),
-                @Index(name = "idx_series_tags_tag_deleted", columnList = "tag_id,is_deleted")
+                @Index(name = "idx_series_categories_series_deleted", columnList = "series_id,is_deleted"),
+                @Index(name = "idx_series_categories_category_deleted", columnList = "category_id,is_deleted")
         })
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class SeriesTag extends BaseAudit {
+public class SeriesCategory extends BaseAudit {
     @EmbeddedId
-    private SeriesTagId id = new SeriesTagId();
+    private SeriesCategoryId id = new SeriesCategoryId();
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @MapsId("seriesId")
@@ -34,13 +35,13 @@ public class SeriesTag extends BaseAudit {
     private Series series;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @MapsId("tagId")
-    @JoinColumn(name = "tag_id", nullable = false)
-    private Tag tag;
+    @MapsId("categoryId")
+    @JoinColumn(name = "category_id", nullable = false)
+    private Category category;
 
-    public SeriesTag(Series series, Tag tag) {
+    public SeriesCategory(Series series, Category category) {
         this.series = series;
-        this.tag = tag;
-        this.id = new SeriesTagId(series.getSeriesId(), tag.getTagId());
+        this.category = category;
+        this.id = new SeriesCategoryId(series.getSeriesId(), category.getCategoryId());
     }
 }

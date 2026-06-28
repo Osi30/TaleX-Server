@@ -2,7 +2,7 @@ package com.talex.server.services;
 
 import com.talex.server.dtos.requests.EpisodeRequestDto;
 import com.talex.server.dtos.responses.EpisodeResponseDto;
-import com.talex.server.entities.Episode;
+import com.talex.server.entities.series.Episode;
 
 import java.time.LocalDateTime;
 import java.util.List;

@@ -52,6 +52,16 @@ public class Account {
     @Builder.Default
     private AccountStatus status = AccountStatus.VERIFYING;
 
+    @Column(name = "google_sub_id", unique = true)
+    private String googleSubId;
+
+    @Column(name = "avatar_url")
+    private String avatarUrl;
+
+    @Column(name = "total_followers", nullable = false)
+    @Builder.Default
+    private Long totalFollowers = 0L;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
@@ -71,10 +81,4 @@ public class Account {
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "role_id", nullable = false)
     private Role role;
-
-    @Column(name = "google_sub_id", unique = true)
-    private String googleSubId;
-
-    @Column(name = "avatar_url")
-    private String avatarUrl;
 }

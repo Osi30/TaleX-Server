@@ -3,10 +3,12 @@ package com.talex.server.services;
 import com.talex.server.dtos.BasePageResponse;
 import com.talex.server.dtos.requests.SeriesRequestDto;
 import com.talex.server.dtos.responses.SeriesResponseDto;
-import com.talex.server.entities.Series;
+import com.talex.server.entities.series.Series;
+
+import java.util.UUID;
 
 public interface SeriesService {
-    SeriesResponseDto create(SeriesRequestDto request, String accountId);
+    SeriesResponseDto create(SeriesRequestDto request, UUID accountId);
 
     SeriesResponseDto getById(String id, String accountId);
 
@@ -14,7 +16,7 @@ public interface SeriesService {
 
     BasePageResponse<SeriesResponseDto> list(Integer page, Integer pageSize);
 
-    BasePageResponse<SeriesResponseDto> listByCreator(String accountId, Integer page, Integer pageSize);
+    BasePageResponse<SeriesResponseDto> listByCreator(UUID accountId, Integer page, Integer pageSize);
 
     BasePageResponse<SeriesResponseDto> listPublic(Integer page, Integer pageSize);
 

@@ -3,7 +3,7 @@ package com.talex.server.services;
 import com.talex.server.dtos.BasePageResponse;
 import com.talex.server.dtos.requests.CategoryRequestDto;
 import com.talex.server.dtos.responses.CategoryResponseDto;
-import com.talex.server.entities.Category;
+import com.talex.server.entities.series.Category;
 
 public interface CategoryService {
     CategoryResponseDto create(CategoryRequestDto request);

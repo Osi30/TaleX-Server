@@ -2,7 +2,7 @@ package com.talex.server.services;
 
 import com.talex.server.dtos.requests.SeasonRequestDto;
 import com.talex.server.dtos.responses.SeasonResponseDto;
-import com.talex.server.entities.Season;
+import com.talex.server.entities.series.Season;
 
 import java.util.List;
 

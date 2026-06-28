@@ -1,6 +1,6 @@
 package com.talex.server.entities.campaign;
 
-import com.talex.server.entities.Episode;
+import com.talex.server.entities.series.Episode;
 import com.talex.server.enums.engagement.CampaignStatus;
 import com.talex.server.enums.engagement.EngagementTarget;
 import jakarta.persistence.*;

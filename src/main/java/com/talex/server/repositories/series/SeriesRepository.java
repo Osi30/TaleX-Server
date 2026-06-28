@@ -1,6 +1,6 @@
-package com.talex.server.repositories;
+package com.talex.server.repositories.series;
 
-import com.talex.server.entities.Series;
+import com.talex.server.entities.series.Series;
 import com.talex.server.enums.SeriesStatus;
 import com.talex.server.enums.Visibility;
 import org.springframework.data.domain.Page;
@@ -18,21 +18,10 @@ public interface SeriesRepository extends JpaRepository<Series, String> {
 
     Page<Series> findAllByIsDeletedFalse(Pageable pageable);
 
-    Page<Series> findAllByCreatorIdAndIsDeletedFalse(String creatorId, Pageable pageable);
+    Page<Series> findAllByCreator_CreatorIdAndIsDeletedFalse(String creatorId, Pageable pageable);
 
     Page<Series> findAllByVisibilityAndStatusAndIsDeletedFalse(
             Visibility visibility,
             SeriesStatus status,
             Pageable pageable);
-
-    @Modifying(clearAutomatically = true, flushAutomatically = true)
-    @Query(value = """
-            update series s
-            set creator_id = c.creator_id
-            from creator c
-            where (s.creator_id = cast(c.account_id as varchar)
-                   or (s.creator_id is null and s.created_by = cast(c.account_id as varchar)))
-              and s.creator_id is distinct from c.creator_id
-            """, nativeQuery = true)
-    int migrateAccountIdsToCreatorIds();
 }

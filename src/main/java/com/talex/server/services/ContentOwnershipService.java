@@ -1,8 +1,8 @@
 package com.talex.server.services;
 
-import com.talex.server.entities.Episode;
-import com.talex.server.entities.Season;
-import com.talex.server.entities.Series;
+import com.talex.server.entities.series.Episode;
+import com.talex.server.entities.series.Season;
+import com.talex.server.entities.series.Series;
 import com.talex.server.exceptions.details.ContentModuleException;
 import com.talex.server.services.creator.ICreatorService;
 import lombok.RequiredArgsConstructor;
@@ -24,7 +24,7 @@ public class ContentOwnershipService {
         if (isPrivileged()) {
             return;
         }
-        assertOwnerIds(requireCurrentCreatorId(accountId), series.getCreatorId());
+        assertOwnerIds(requireCurrentCreatorId(accountId), series.getCreator().getCreatorId());
     }
 
     public void assertCanManage(Season season, String accountId) {
@@ -37,8 +37,7 @@ public class ContentOwnershipService {
     public void assertOwnedByCreator(Season season, String creatorId) {
         assertOwnerIds(
                 creatorId,
-                season.getCreatorId(),
-                season.getSeries().getCreatorId());
+                season.getSeries().getCreator().getCreatorId());
     }
 
     public void assertCanManage(Episode episode, String accountId) {
@@ -51,9 +50,7 @@ public class ContentOwnershipService {
     public void assertOwnedByCreator(Episode episode, String creatorId) {
         assertOwnerIds(
                 creatorId,
-                episode.getCreatorId(),
-                episode.getSeason().getCreatorId(),
-                episode.getSeason().getSeries().getCreatorId());
+                episode.getCreatorId());
     }
 
     private void assertOwnerIds(String currentCreatorId, String... ownerCreatorIds) {
@@ -74,7 +71,7 @@ public class ContentOwnershipService {
     }
 
     public String requireCurrentCreatorId(String accountId) {
-        if (!hasRole("ROLE_CREATOR") || accountId == null) {
+        if ((!hasRole("ROLE_CREATOR") && !hasRole("ROLE_VIEWER")) || accountId == null) {
             throwForbidden();
         }
         return creatorService

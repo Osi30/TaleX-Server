@@ -1,5 +1,6 @@
 package com.talex.server.entities;
 
+import com.talex.server.entities.series.Episode;
 import com.talex.server.enums.ContentApprovalStatus;
 import com.talex.server.enums.MediaPlaybackPolicy;
 import com.talex.server.enums.MediaProtectionType;

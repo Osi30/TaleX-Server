@@ -1,7 +1,7 @@
-package com.talex.server.repositories;
+package com.talex.server.repositories.series;
 
-import com.talex.server.entities.SeriesCategory;
-import com.talex.server.entities.SeriesCategoryId;
+import com.talex.server.entities.series.SeriesCategory;
+import com.talex.server.entities.series.SeriesCategoryId;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;

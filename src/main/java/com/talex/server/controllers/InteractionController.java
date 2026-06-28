@@ -4,15 +4,14 @@ import com.talex.server.annotations.CurrentAccountId;
 import com.talex.server.dtos.BaseResponse;
 import com.talex.server.dtos.requests.interaction.InteractionRequest;
 import com.talex.server.dtos.requests.interaction.WatchTimeRequest;
+import com.talex.server.schedulers.InteractionDataSyncScheduler;
 import com.talex.server.services.IInteractionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
 
@@ -22,7 +21,9 @@ import java.util.UUID;
 @Tag(name = "Tương tác người dùng", description = "API ghi nhận tương tác nội dung và telemetry xem video của người dùng")
 public class InteractionController {
         private final IInteractionService interactionService;
+        private final InteractionDataSyncScheduler dataSyncScheduler;
 
+        @PreAuthorize("isAuthenticated()")
         @PostMapping()
         @Operation(summary = "Ghi nhận tương tác nội dung", description = "Ghi nhận tương tác của người dùng với nội dung trên nền tảng.")
         public ResponseEntity<BaseResponse> userInteractContent(
@@ -55,6 +56,13 @@ public class InteractionController {
                         @CurrentAccountId UUID accountId,
                         @RequestBody InteractionRequest request) {
                 interactionService.handleInteraction(accountId, request);
+                return ResponseEntity.ok("Xử lý tương tác thành công!");
+        }
+
+        @GetMapping
+        public ResponseEntity<String> interact( ){
+//                InteractionDataSyncScheduler syncScheduler = new InteractionDataSyncScheduler();
+                dataSyncScheduler.performSyncFlow();
                 return ResponseEntity.ok("Xử lý tương tác thành công!");
         }
 }

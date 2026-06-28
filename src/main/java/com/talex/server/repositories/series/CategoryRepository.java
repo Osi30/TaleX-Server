@@ -1,6 +1,6 @@
-package com.talex.server.repositories;
+package com.talex.server.repositories.series;
 
-import com.talex.server.entities.Category;
+import com.talex.server.entities.series.Category;
 import com.talex.server.enums.CategoryStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;

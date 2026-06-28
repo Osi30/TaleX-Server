@@ -1,4 +1,4 @@
-package com.talex.server.entities;
+package com.talex.server.entities.series;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;
@@ -12,10 +12,10 @@ import java.io.Serializable;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class SeriesTagId implements Serializable {
+public class SeriesCategoryId implements Serializable {
     @Column(name = "series_id")
     private String seriesId;
 
-    @Column(name = "tag_id")
-    private String tagId;
+    @Column(name = "category_id")
+    private String categoryId;
 }

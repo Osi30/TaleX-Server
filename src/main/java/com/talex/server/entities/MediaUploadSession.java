@@ -1,5 +1,6 @@
 package com.talex.server.entities;
 
+import com.talex.server.entities.series.Episode;
 import com.talex.server.enums.MediaProvider;
 import com.talex.server.enums.MediaUploadSessionStatus;
 import jakarta.persistence.Column;

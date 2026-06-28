@@ -1,5 +1,7 @@
-package com.talex.server.entities;
+package com.talex.server.entities.series;
 
+import com.talex.server.entities.BaseAudit;
+import com.talex.server.entities.Media;
 import com.talex.server.enums.ContentType;
 import com.talex.server.enums.EpisodeStatus;
 import com.talex.server.enums.EpisodeUnlockType;

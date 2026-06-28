@@ -2,12 +2,11 @@ package com.talex.server.services.impls;
 
 import com.talex.server.dtos.requests.SeasonRequestDto;
 import com.talex.server.dtos.responses.SeasonResponseDto;
-import com.talex.server.entities.Season;
-import com.talex.server.entities.Series;
-import com.talex.server.enums.ContentApprovalStatus;
+import com.talex.server.entities.series.Season;
+import com.talex.server.entities.series.Series;
 import com.talex.server.enums.SeasonStatus;
 import com.talex.server.exceptions.details.ContentModuleException;
-import com.talex.server.repositories.SeasonRepository;
+import com.talex.server.repositories.series.SeasonRepository;
 import com.talex.server.services.ContentOwnershipService;
 import com.talex.server.services.SeasonService;
 import com.talex.server.services.SeriesService;
@@ -15,7 +14,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -33,7 +31,7 @@ public class SeasonServiceImpl implements SeasonService {
 
         Season season = new Season();
         season.setSeries(series);
-        season.setCreatorId(series.getCreatorId());
+        season.setCreatorId(series.getCreator().getCreatorId());
         season.setSeasonNumber(request.getSeasonNumber() != null
                 ? request.getSeasonNumber()
                 : nextSeasonNumber(seriesId));

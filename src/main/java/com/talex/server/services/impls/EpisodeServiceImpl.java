@@ -2,10 +2,10 @@ package com.talex.server.services.impls;
 
 import com.talex.server.dtos.requests.EpisodeRequestDto;
 import com.talex.server.dtos.responses.EpisodeResponseDto;
-import com.talex.server.entities.Episode;
+import com.talex.server.entities.series.Episode;
 import com.talex.server.entities.Media;
-import com.talex.server.entities.Season;
-import com.talex.server.entities.Series;
+import com.talex.server.entities.series.Season;
+import com.talex.server.entities.series.Series;
 import com.talex.server.enums.ContentApprovalStatus;
 import com.talex.server.enums.ContentType;
 import com.talex.server.enums.EpisodeStatus;
@@ -16,7 +16,7 @@ import com.talex.server.enums.SeasonStatus;
 import com.talex.server.enums.SeriesStatus;
 import com.talex.server.enums.Visibility;
 import com.talex.server.exceptions.details.ContentModuleException;
-import com.talex.server.repositories.EpisodeRepository;
+import com.talex.server.repositories.series.EpisodeRepository;
 import com.talex.server.repositories.MediaRepository;
 import com.talex.server.services.ContentOwnershipService;
 import com.talex.server.services.EpisodeService;
@@ -48,7 +48,7 @@ public class EpisodeServiceImpl implements EpisodeService {
 
         Episode episode = new Episode();
         episode.setSeason(season);
-        episode.setCreatorId(season.getSeries().getCreatorId());
+        episode.setCreatorId(season.getSeries().getCreator().getCreatorId());
         episode.setEpisodeNumber(request.getEpisodeNumber() != null
                 ? request.getEpisodeNumber()
                 : nextEpisodeNumber(seasonId));

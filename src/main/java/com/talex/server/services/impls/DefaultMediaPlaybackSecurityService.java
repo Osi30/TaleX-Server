@@ -3,7 +3,7 @@ package com.talex.server.services.impls;
 import com.talex.server.configs.properties.MediaProperties;
 import com.talex.server.dtos.responses.DrmPlaybackConfigDto;
 import com.talex.server.dtos.responses.EpisodePlaybackResponseDto;
-import com.talex.server.entities.Episode;
+import com.talex.server.entities.series.Episode;
 import com.talex.server.entities.Media;
 import com.talex.server.entities.MediaPlaybackSession;
 import com.talex.server.enums.MediaPlaybackPolicy;

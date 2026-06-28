@@ -1,5 +1,7 @@
-package com.talex.server.entities;
+package com.talex.server.entities.series;
 
+import com.talex.server.entities.BaseAudit;
+import com.talex.server.entities.creator.Creator;
 import com.talex.server.enums.ContentType;
 import com.talex.server.enums.SeriesStatus;
 import com.talex.server.enums.Visibility;
@@ -28,9 +30,6 @@ public class Series extends BaseAudit {
     @GeneratedValue(strategy = GenerationType.UUID)
     @Column(name = "series_id")
     private String seriesId;
-
-    @Column(name = "creator_id")
-    private String creatorId;
 
     @Column(nullable = false, length = 250)
     private String title;
@@ -67,6 +66,10 @@ public class Series extends BaseAudit {
 
     @Column(name = "total_subscriptions", nullable = false)
     private Long totalSubscriptions = 0L;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "creator_id", nullable = false)
+    private Creator creator;
 
     @OneToMany(mappedBy = "series")
     private List<SeriesCategory> seriesCategories = new ArrayList<>();

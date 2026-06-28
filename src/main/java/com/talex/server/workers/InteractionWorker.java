@@ -67,8 +67,6 @@ public class InteractionWorker {
             String interactionType = parts[3];
             LocalDateTime timestamp = LocalDateTime.parse(parts[4]);
 
-            if (ValidationUtils.isNullOrEmpty(accountId)) return;
-
             questDBSender.table("interaction_logs")
                     .symbol("session_id", sessionId)
                     .symbol("account_id", accountId)

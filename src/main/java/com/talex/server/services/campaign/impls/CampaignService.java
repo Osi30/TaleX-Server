@@ -5,7 +5,7 @@ import com.talex.server.dtos.requests.campaign.CampaignRequestDto;
 import com.talex.server.dtos.requests.campaign.CampaignUpdateDto;
 import com.talex.server.dtos.requests.filters.CampaignFilterRequestDto;
 import com.talex.server.dtos.responses.campaign.CampaignResponseDto;
-import com.talex.server.entities.Episode;
+import com.talex.server.entities.series.Episode;
 import com.talex.server.entities.campaign.Campaign;
 import com.talex.server.entities.campaign.EngagementService;
 import com.talex.server.enums.engagement.CampaignStatus;

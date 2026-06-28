@@ -25,10 +25,6 @@ public class Creator {
     @Column(name = "creator_id")
     private String creatorId;
 
-    @Column(name = "follower_count", nullable = false)
-    @Builder.Default
-    private Long followerCount = 0L;
-
     @Column(name = "total_views", nullable = false)
     @Builder.Default
     private Long totalViews = 0L;

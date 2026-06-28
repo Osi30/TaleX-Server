@@ -3,7 +3,7 @@ package com.talex.server.services;
 import com.talex.server.dtos.BasePageResponse;
 import com.talex.server.dtos.requests.TagRequestDto;
 import com.talex.server.dtos.responses.TagResponseDto;
-import com.talex.server.entities.Tag;
+import com.talex.server.entities.series.Tag;
 
 public interface TagService {
     TagResponseDto create(TagRequestDto request);

@@ -20,7 +20,7 @@ public class CreatorMapperImpl implements ICreatorMapper {
                 .comments(creator.getComments())
                 .shares(creator.getShares())
                 .totalViews(creator.getTotalViews())
-                .followerCount(creator.getFollowerCount())
+                .followerCount(creator.getAccount().getTotalFollowers())
                 .totalWatchTime(creator.getTotalWatchTime())
                 .createdAt(creator.getCreatedAt())
                 .updatedAt(creator.getUpdatedAt())

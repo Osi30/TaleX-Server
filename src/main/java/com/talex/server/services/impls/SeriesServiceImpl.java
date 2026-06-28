@@ -3,18 +3,14 @@ package com.talex.server.services.impls;
 import com.talex.server.dtos.BasePageResponse;
 import com.talex.server.dtos.requests.SeriesRequestDto;
 import com.talex.server.dtos.responses.SeriesResponseDto;
-import com.talex.server.entities.*;
-import com.talex.server.enums.ContentApprovalStatus;
+import com.talex.server.entities.creator.Creator;
+import com.talex.server.entities.series.*;
 import com.talex.server.enums.CategoryStatus;
 import com.talex.server.enums.SeriesStatus;
 import com.talex.server.enums.TagStatus;
 import com.talex.server.enums.Visibility;
 import com.talex.server.exceptions.details.ContentModuleException;
-import com.talex.server.repositories.CategoryRepository;
-import com.talex.server.repositories.SeriesCategoryRepository;
-import com.talex.server.repositories.SeriesRepository;
-import com.talex.server.repositories.SeriesTagRepository;
-import com.talex.server.repositories.TagRepository;
+import com.talex.server.repositories.series.*;
 import com.talex.server.services.CategoryService;
 import com.talex.server.services.ContentOwnershipService;
 import com.talex.server.services.SeriesService;
@@ -26,15 +22,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -53,16 +41,19 @@ public class SeriesServiceImpl implements SeriesService {
 
     @Transactional
     @Override
-    public SeriesResponseDto create(SeriesRequestDto request, String accountId) {
+    public SeriesResponseDto create(SeriesRequestDto request, UUID accountId) {
+        Creator creator = creatorService.getEntityByAccountId(accountId);
+        String accountIdStr = accountId.toString();
+
         Series series = new Series();
         applyMutableFields(series, request);
         series.setStatus(SeriesStatus.DRAFT);
-        series.setCreatorId(resolveCreatorIdForCreate(request, accountId));
-        series.markCreatedBy(accountId);
+        series.setCreator(creator);
+        series.markCreatedBy(accountIdStr);
 
         Series saved = seriesRepository.save(series);
-        syncCategories(saved, request.getCategoryIds(), accountId);
-        syncTags(saved, request.getTagIds(), accountId);
+        syncCategories(saved, request.getCategoryIds(), accountIdStr);
+        syncTags(saved, request.getTagIds(), accountIdStr);
 
         return toResponse(saved);
     }
@@ -90,10 +81,10 @@ public class SeriesServiceImpl implements SeriesService {
 
     @Transactional(readOnly = true)
     @Override
-    public BasePageResponse<SeriesResponseDto> listByCreator(String accountId, Integer page, Integer pageSize) {
-        String creatorId = resolveCreatorId(accountId);
+    public BasePageResponse<SeriesResponseDto> listByCreator(UUID accountId, Integer page, Integer pageSize) {
+        String creatorId = creatorService.getEntityByAccountId(accountId).getCreatorId();
         Page<Series> result = seriesRepository
-                .findAllByCreatorIdAndIsDeletedFalse(creatorId, PageUtils.buildPageable(page, pageSize));
+                .findAllByCreator_CreatorIdAndIsDeletedFalse(creatorId, PageUtils.buildPageable(page, pageSize));
         return toPageResponse(result, toResponses(result.getContent()));
     }
 
@@ -182,7 +173,7 @@ public class SeriesServiceImpl implements SeriesService {
 
     @Override
     public SeriesResponseDto toResponse(Series series) {
-        return toResponses(List.of(series)).get(0);
+        return toResponses(List.of(series)).getFirst();
     }
 
     private List<SeriesResponseDto> toResponses(List<Series> seriesList) {
@@ -212,7 +203,7 @@ public class SeriesServiceImpl implements SeriesService {
             List<com.talex.server.dtos.responses.TagResponseDto> tags) {
         return SeriesResponseDto.builder()
                 .seriesId(series.getSeriesId())
-                .creatorId(series.getCreatorId())
+                .creatorId(series.getCreator().getCreatorId())
                 .title(series.getTitle())
                 .description(series.getDescription())
                 .coverUrl(series.getCoverUrl())
@@ -401,24 +392,6 @@ public class SeriesServiceImpl implements SeriesService {
             }
         }
         return tagsById;
-    }
-
-    private String resolveCreatorIdForCreate(SeriesRequestDto request, String accountId) {
-        if (contentOwnershipService.isPrivileged()) {
-            if (request.getCreatorId() == null || request.getCreatorId().isBlank()) {
-                throw ContentModuleException.badRequest(
-                        "creatorId is required when staff or admin creates a series");
-            }
-            return creatorService.getEntityById(request.getCreatorId()).getCreatorId();
-        }
-        return resolveCreatorId(accountId);
-    }
-
-    private String resolveCreatorId(String accountId) {
-        if (accountId == null || accountId.isBlank()) {
-            throw ContentModuleException.badRequest("accountId is required");
-        }
-        return creatorService.getEntityByAccountId(UUID.fromString(accountId)).getCreatorId();
     }
 
     private BasePageResponse<SeriesResponseDto> toPageResponse(Page<Series> page, List<SeriesResponseDto> content) {

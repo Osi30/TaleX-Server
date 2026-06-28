@@ -1,9 +1,9 @@
 package com.talex.server.services;
 
-import com.talex.server.entities.Episode;
-import com.talex.server.entities.Season;
-import com.talex.server.entities.Series;
 import com.talex.server.entities.creator.Creator;
+import com.talex.server.entities.series.Episode;
+import com.talex.server.entities.series.Season;
+import com.talex.server.entities.series.Series;
 import com.talex.server.exceptions.details.ContentModuleException;
 import com.talex.server.services.creator.ICreatorService;
 import org.junit.jupiter.api.AfterEach;
@@ -20,9 +20,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import java.util.List;
 import java.util.UUID;
 
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -104,7 +102,9 @@ class ContentOwnershipServiceTest {
 
     private Episode episodeOwnedBy(String creatorId) {
         Series series = new Series();
-        series.setCreatorId(creatorId);
+        series.setCreator(Creator.builder()
+                .creatorId(creatorId)
+                .build());
 
         Season season = new Season();
         season.setSeries(series);

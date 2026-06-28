@@ -1,5 +1,6 @@
 package com.talex.server.dtos.requests;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.talex.server.enums.ContentType;
 import com.talex.server.enums.SeriesStatus;
 import com.talex.server.enums.Visibility;
@@ -15,8 +16,8 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class SeriesRequestDto {
-    private String creatorId;
-
+//    @JsonIgnore
+//    private String creatorId;
 
     @NotBlank
     private String title;

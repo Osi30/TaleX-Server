@@ -43,7 +43,7 @@ public class MediaController {
     private final com.talex.server.services.media.MediaProviderService mediaProviderService;
 
     @PostMapping("/api/v1/media/image/presigned-upload")
-    @PreAuthorize("hasAnyRole('CREATOR', 'STAFF', 'ADMIN')")
+     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<BaseResponse> createImagePresignedUpload(
             @Valid @RequestBody ImagePresignedUploadRequestDto request) {
         return ResponseEntity.ok(response(200, "Image presigned upload URL created",
@@ -51,7 +51,7 @@ public class MediaController {
     }
 
     @PostMapping("/api/v1/episodes/{episodeId}/media/video/upload-session")
-    @PreAuthorize("hasAnyRole('CREATOR', 'STAFF', 'ADMIN')")
+     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<BaseResponse> createVideoUploadSession(
             @PathVariable String episodeId,
             @Valid @RequestBody VideoUploadSessionRequestDto request) {
@@ -61,13 +61,13 @@ public class MediaController {
     }
 
     @GetMapping("/api/v1/media/upload-sessions/{uploadSessionId}")
-    @PreAuthorize("hasAnyRole('CREATOR', 'STAFF', 'ADMIN')")
+     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<BaseResponse> getUploadSession(@PathVariable String uploadSessionId) {
         return ResponseEntity.ok(response(200, "OK", mediaUploadSessionService.getSession(uploadSessionId)));
     }
 
     @PatchMapping("/api/v1/media/upload-sessions/{uploadSessionId}/progress")
-    @PreAuthorize("hasAnyRole('CREATOR', 'STAFF', 'ADMIN')")
+     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<BaseResponse> updateUploadProgress(
             @PathVariable String uploadSessionId,
             @Valid @RequestBody MediaUploadProgressRequestDto request) {
@@ -76,7 +76,7 @@ public class MediaController {
     }
 
     @PatchMapping("/api/v1/media/upload-sessions/{uploadSessionId}/pause")
-    @PreAuthorize("hasAnyRole('CREATOR', 'STAFF', 'ADMIN')")
+     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<BaseResponse> pauseUpload(
             @PathVariable String uploadSessionId,
             @CurrentAccountId UUID accountId) {
@@ -85,7 +85,7 @@ public class MediaController {
     }
 
     @PatchMapping("/api/v1/media/upload-sessions/{uploadSessionId}/fail")
-    @PreAuthorize("hasAnyRole('CREATOR', 'STAFF', 'ADMIN')")
+     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<BaseResponse> failUpload(
             @PathVariable String uploadSessionId,
             @RequestBody(required = false) MediaUploadFailRequestDto request) {
@@ -94,7 +94,7 @@ public class MediaController {
     }
 
     @PatchMapping("/api/v1/media/upload-sessions/{uploadSessionId}/cancel")
-    @PreAuthorize("hasAnyRole('CREATOR', 'STAFF', 'ADMIN')")
+     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<BaseResponse> cancelUpload(
             @PathVariable String uploadSessionId,
             @CurrentAccountId UUID accountId) {
@@ -103,7 +103,7 @@ public class MediaController {
     }
 
     @PostMapping("/api/v1/media/upload-sessions/{uploadSessionId}/complete")
-    @PreAuthorize("hasAnyRole('CREATOR', 'STAFF', 'ADMIN')")
+     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<BaseResponse> completeUpload(
             @PathVariable String uploadSessionId,
             @Valid @RequestBody MediaUploadCompleteRequestDto request) {
@@ -112,7 +112,7 @@ public class MediaController {
     }
 
     @PostMapping("/api/v1/episodes/{episodeId}/media")
-    @PreAuthorize("hasAnyRole('CREATOR', 'STAFF', 'ADMIN')")
+     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<BaseResponse> createFromUrl(
             @PathVariable String episodeId,
             @RequestBody MediaMetadataRequestDto request) {
@@ -121,7 +121,7 @@ public class MediaController {
     }
 
     @PostMapping("/api/v1/episodes/{episodeId}/media/comic-pages")
-    @PreAuthorize("hasAnyRole('CREATOR', 'STAFF', 'ADMIN')")
+     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<BaseResponse> createComicPagesFromUrls(
             @PathVariable String episodeId,
             @RequestBody MediaComicPagesRequestDto request) {
@@ -131,13 +131,13 @@ public class MediaController {
     }
 
     @GetMapping("/api/v1/episodes/{episodeId}/media")
-    @PreAuthorize("hasAnyRole('CREATOR', 'STAFF', 'ADMIN')")
+     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<BaseResponse> listByEpisode(@PathVariable String episodeId) {
         return ResponseEntity.ok(response(200, "OK", mediaService.listByEpisode(episodeId)));
     }
 
     @GetMapping("/api/v1/episodes/{episodeId}/playback")
-    @PreAuthorize("hasAnyRole('CREATOR', 'STAFF', 'ADMIN')")
+     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<BaseResponse> getCreatorEpisodePlayback(
             @PathVariable String episodeId,
             @RequestParam(required = false) String viewerId,
@@ -151,14 +151,14 @@ public class MediaController {
     }
 
     @GetMapping("/api/v1/media/{id}")
-    @PreAuthorize("hasAnyRole('CREATOR', 'STAFF', 'ADMIN')")
+     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<BaseResponse> getById(@PathVariable String id) {
         return ResponseEntity.ok(response(200, "OK", mediaService.getById(id)));
     }
 
     // Returns copyright + moderation violations for a specific media (creator view)
     @GetMapping("/api/v1/media/{mediaId}/violations")
-    @PreAuthorize("hasAnyRole('CREATOR', 'STAFF', 'ADMIN')")
+     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<BaseResponse> getMediaViolations(@PathVariable String mediaId) {
         return ResponseEntity.ok(response(200, "OK", mediaService.getMediaViolations(mediaId)));
     }
@@ -173,7 +173,7 @@ public class MediaController {
     }
 
     @PutMapping("/api/v1/media/{id}")
-    @PreAuthorize("hasAnyRole('CREATOR', 'STAFF', 'ADMIN')")
+     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<BaseResponse> update(
             @PathVariable String id,
             @RequestBody MediaUpdateRequestDto request) {
@@ -181,7 +181,7 @@ public class MediaController {
     }
 
     @PutMapping("/api/v1/media/{id}/url")
-    @PreAuthorize("hasAnyRole('CREATOR', 'STAFF', 'ADMIN')")
+     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<BaseResponse> replaceUrl(
             @PathVariable String id,
             @RequestBody MediaMetadataRequestDto request) {
@@ -189,7 +189,7 @@ public class MediaController {
     }
 
     @PutMapping("/api/v1/episodes/{episodeId}/media/reorder")
-    @PreAuthorize("hasAnyRole('CREATOR', 'STAFF', 'ADMIN')")
+     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<BaseResponse> reorder(
             @PathVariable String episodeId,
             @Valid @RequestBody MediaReorderRequestDto request) {
@@ -197,7 +197,7 @@ public class MediaController {
     }
 
     @PatchMapping("/api/v1/media/{id}/hide")
-    @PreAuthorize("hasAnyRole('CREATOR', 'STAFF', 'ADMIN')")
+     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<BaseResponse> hide(
             @PathVariable String id,
             @CurrentAccountId UUID accountId) {
@@ -205,7 +205,7 @@ public class MediaController {
     }
 
     @PatchMapping("/api/v1/media/{id}/unhide")
-    @PreAuthorize("hasAnyRole('CREATOR', 'STAFF', 'ADMIN')")
+     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<BaseResponse> unhide(
             @PathVariable String id,
             @CurrentAccountId UUID accountId) {
@@ -231,7 +231,7 @@ public class MediaController {
     }
 
     @PatchMapping("/api/v1/media/{id}/status")
-    @PreAuthorize("hasAnyRole('CREATOR', 'STAFF', 'ADMIN')")
+     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<BaseResponse> updateStatus(
             @PathVariable String id,
             @Valid @RequestBody MediaStatusRequestDto request) {
@@ -239,7 +239,7 @@ public class MediaController {
     }
 
     @DeleteMapping("/api/v1/media/{id}")
-    @PreAuthorize("hasAnyRole('CREATOR', 'STAFF', 'ADMIN')")
+     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<BaseResponse> delete(
             @PathVariable String id,
             @CurrentAccountId UUID accountId) {
