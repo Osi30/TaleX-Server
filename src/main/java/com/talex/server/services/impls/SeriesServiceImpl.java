@@ -117,16 +117,6 @@ public class SeriesServiceImpl implements SeriesService {
 
     @Transactional
     @Override
-    public SeriesResponseDto publish(String id, String actorId) {
-        Series series = findActiveEntity(id);
-        contentOwnershipService.assertCanManage(series, actorId);
-        series.setStatus(SeriesStatus.PUBLISHED);
-        series.markUpdatedBy(actorId);
-        return toResponse(seriesRepository.save(series));
-    }
-
-    @Transactional
-    @Override
     public SeriesResponseDto hide(String id, String actorId) {
         Series series = findActiveEntity(id);
         contentOwnershipService.assertCanManage(series, actorId);

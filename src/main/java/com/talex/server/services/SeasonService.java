@@ -19,8 +19,6 @@ public interface SeasonService {
 
     SeasonResponseDto update(String id, SeasonRequestDto request, String accountId);
 
-    SeasonResponseDto publish(String id, String actorId);
-
     SeasonResponseDto hide(String id, String actorId);
 
     SeasonResponseDto unhide(String id, String actorId);

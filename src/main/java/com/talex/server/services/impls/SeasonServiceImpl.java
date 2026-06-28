@@ -102,15 +102,6 @@ public class SeasonServiceImpl implements SeasonService {
 
     @Transactional
     @Override
-    public SeasonResponseDto publish(String id, String actorId) {
-        Season season = findManageableEntity(id, actorId);
-        season.setStatus(SeasonStatus.PUBLISHED);
-        season.markUpdatedBy(actorId);
-        return toResponse(seasonRepository.save(season));
-    }
-
-    @Transactional
-    @Override
     public SeasonResponseDto hide(String id, String actorId) {
         Season season = findManageableEntity(id, actorId);
         season.setStatus(SeasonStatus.HIDDEN);
