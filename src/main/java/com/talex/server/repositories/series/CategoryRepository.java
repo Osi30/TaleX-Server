@@ -1,7 +1,7 @@
 package com.talex.server.repositories.series;
 
 import com.talex.server.entities.series.Category;
-import com.talex.server.enums.CategoryStatus;
+import com.talex.server.enums.series.CategoryStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;

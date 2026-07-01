@@ -1,6 +1,6 @@
 package com.talex.server.repositories;
 
-import com.talex.server.entities.MediaCopyright;
+import com.talex.server.entities.media.MediaCopyright;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

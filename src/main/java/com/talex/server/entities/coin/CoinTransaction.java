@@ -1,6 +1,7 @@
 package com.talex.server.entities.coin;
 
-import com.talex.server.enums.CoinTransactionType;
+import com.talex.server.enums.coin.CoinReferenceType;
+import com.talex.server.enums.coin.CoinTransactionType;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -68,8 +69,9 @@ public class CoinTransaction {
      * Phân loại nguồn gốc giao dịch (ví dụ: "DAILY_CHECK_IN", "PURCHASE", "MISSION_REWARD").
      * Dùng để filter trong lịch sử giao dịch.
      */
+    @Enumerated(EnumType.STRING)
     @Column(name = "reference_type", length = 100)
-    private String referenceType;
+    private CoinReferenceType referenceType;
 
     /**
      * ID của bản ghi nguồn gốc (ví dụ: checkinId từ bảng daily_check_ins).

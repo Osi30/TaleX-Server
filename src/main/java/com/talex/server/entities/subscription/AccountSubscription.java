@@ -47,6 +47,9 @@ public class AccountSubscription {
     @Builder.Default
     private Boolean isCancelled = false;
 
+    @Column(name = "order_id")
+    private String orderId;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "account_id", nullable = false)
     private Account account;

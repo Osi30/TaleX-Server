@@ -1,8 +1,8 @@
 package com.talex.server.dtos.responses;
 
-import com.talex.server.enums.MediaProtectionType;
-import com.talex.server.enums.MediaProvider;
-import com.talex.server.enums.MediaType;
+import com.talex.server.enums.media.MediaProtectionType;
+import com.talex.server.enums.media.MediaProvider;
+import com.talex.server.enums.media.MediaType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

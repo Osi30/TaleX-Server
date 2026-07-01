@@ -1,7 +1,7 @@
 package com.talex.server.schedulers;
 
 import com.talex.server.entities.series.Episode;
-import com.talex.server.enums.EpisodeStatus;
+import com.talex.server.enums.series.EpisodeStatus;
 import com.talex.server.repositories.series.EpisodeRepository;
 import com.talex.server.services.EpisodeService;
 import lombok.RequiredArgsConstructor;

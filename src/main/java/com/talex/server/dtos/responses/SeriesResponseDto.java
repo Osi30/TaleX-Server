@@ -1,7 +1,7 @@
 package com.talex.server.dtos.responses;
 
-import com.talex.server.enums.ContentType;
-import com.talex.server.enums.SeriesStatus;
+import com.talex.server.enums.series.ContentType;
+import com.talex.server.enums.series.SeriesStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

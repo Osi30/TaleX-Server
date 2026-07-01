@@ -31,7 +31,7 @@ public class Campaign {
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
     @Builder.Default
-    private CampaignStatus status = CampaignStatus.AWAITING;
+    private CampaignStatus status = CampaignStatus.RUNNING;
 
     @Column(name = "start_at")
     private LocalDateTime startAt;
@@ -56,13 +56,16 @@ public class Campaign {
     @Column(name = "account_id")
     private UUID accountId;
 
+    @Column(name = "order_id")
+    private String orderId;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "engagement_target", nullable = false)
     private EngagementTarget engagementTarget;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "episode_id", nullable = false)
-    private Episode episode;
+    @OneToMany(mappedBy = "campaign", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<CampaignEpisode> campaignEpisodes = new ArrayList<>();
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "engagement_service_id", nullable = false)
@@ -71,4 +74,12 @@ public class Campaign {
     @OneToMany(mappedBy = "campaign", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<CampaignLog> campaignLogs = new ArrayList<>();
+
+    public void addEpisode(Episode episode) {
+        CampaignEpisode campaignEpisode = CampaignEpisode.builder()
+                .campaign(this)
+                .episode(episode)
+                .build();
+        this.campaignEpisodes.add(campaignEpisode);
+    }
 }

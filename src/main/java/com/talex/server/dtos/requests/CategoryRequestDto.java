@@ -1,6 +1,6 @@
 package com.talex.server.dtos.requests;
 
-import com.talex.server.enums.CategoryStatus;
+import com.talex.server.enums.series.CategoryStatus;
 import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
 import lombok.Data;

@@ -3,6 +3,7 @@ package com.talex.server.services.coin.impls;
 import com.talex.server.dtos.BasePageResponse;
 import com.talex.server.dtos.responses.coin.CoinTransactionResponseDto;
 import com.talex.server.entities.coin.CoinWallet;
+import com.talex.server.enums.coin.CoinReferenceType;
 import com.talex.server.exceptions.codes.CoinErrorCode;
 import com.talex.server.exceptions.details.CoinException;
 import com.talex.server.repositories.coin.CoinTransactionRepository;
@@ -70,7 +71,7 @@ public class CoinWalletServiceImpl implements ICoinWalletService {
      */
     @Override
     public CoinWallet creditCoin(UUID accountId, BigDecimal amount,
-                                 String referenceType, String referenceId, String description) {
+                                 CoinReferenceType referenceType, String referenceId, String description) {
         validateAmount(amount);
 
         String lockKey = LOCK_PREFIX + accountId;
@@ -94,7 +95,7 @@ public class CoinWalletServiceImpl implements ICoinWalletService {
      */
     @Override
     public CoinWallet debitCoin(UUID accountId, BigDecimal amount,
-                                String referenceType, String referenceId, String description) {
+                                CoinReferenceType referenceType, String referenceId, String description) {
         validateAmount(amount);
 
         String lockKey = LOCK_PREFIX + accountId;

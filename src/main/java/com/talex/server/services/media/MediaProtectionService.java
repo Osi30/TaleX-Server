@@ -1,8 +1,8 @@
 package com.talex.server.services.media;
 
 import com.talex.server.dtos.responses.DrmPlaybackConfigDto;
-import com.talex.server.entities.Media;
-import com.talex.server.enums.MediaProtectionType;
+import com.talex.server.entities.media.Media;
+import com.talex.server.enums.media.MediaProtectionType;
 
 import java.time.LocalDateTime;
 

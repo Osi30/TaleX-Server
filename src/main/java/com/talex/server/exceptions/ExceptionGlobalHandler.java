@@ -166,6 +166,17 @@ public class ExceptionGlobalHandler {
         return new ResponseEntity<>(exceptionResponse, ex.getErrorCode().getHttpStatus());
     }
 
+    @ExceptionHandler(CampaignException.class)
+    public ResponseEntity<BaseResponse> handleCampaignException(CampaignException ex, WebRequest request) {
+        BaseResponse exceptionResponse = BaseResponse.builder()
+                .message(ex.getMessage())
+                .code(ex.getErrorCode().getCode())
+                .data(request.getDescription(false))
+                .build();
+
+        return new ResponseEntity<>(exceptionResponse, ex.getErrorCode().getHttpStatus());
+    }
+
     @ExceptionHandler(EngagementServiceException.class)
     public ResponseEntity<BaseResponse> handleEngagementServiceException(EngagementServiceException ex, WebRequest request) {
         BaseResponse exceptionResponse = BaseResponse.builder()

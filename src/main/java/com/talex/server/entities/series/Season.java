@@ -1,7 +1,7 @@
 package com.talex.server.entities.series;
 
 import com.talex.server.entities.BaseAudit;
-import com.talex.server.enums.SeasonStatus;
+import com.talex.server.enums.series.SeasonStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;

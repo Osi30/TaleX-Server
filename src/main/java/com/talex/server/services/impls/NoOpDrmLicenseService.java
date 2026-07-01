@@ -1,7 +1,7 @@
 package com.talex.server.services.impls;
 
 import com.talex.server.dtos.responses.DrmPlaybackConfigDto;
-import com.talex.server.entities.Media;
+import com.talex.server.entities.media.Media;
 import com.talex.server.exceptions.details.ContentModuleException;
 import com.talex.server.services.media.DrmLicenseService;
 import lombok.extern.slf4j.Slf4j;

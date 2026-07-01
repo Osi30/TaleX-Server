@@ -1,7 +1,7 @@
 package com.talex.server.services.impls;
 
 import com.talex.server.configs.properties.MediaProperties;
-import com.talex.server.entities.Media;
+import com.talex.server.entities.media.Media;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;

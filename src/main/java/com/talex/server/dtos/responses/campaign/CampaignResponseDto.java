@@ -16,7 +16,7 @@ import java.time.LocalDateTime;
 public class CampaignResponseDto {
     private String campaignId;
     private String engagementServiceId;
-    private String episodeId;
+    private String orderId;
     private CampaignStatus status;
     private LocalDateTime startAt;
     private LocalDateTime endAt;

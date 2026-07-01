@@ -8,7 +8,7 @@ import com.talex.server.dtos.requests.MediaStatusRequestDto;
 import com.talex.server.dtos.requests.MediaUpdateRequestDto;
 import com.talex.server.dtos.responses.MediaResponseDto;
 import com.talex.server.dtos.responses.MediaViolationsResponseDto;
-import com.talex.server.entities.Media;
+import com.talex.server.entities.media.Media;
 import org.springframework.data.domain.Page;
 
 import java.util.List;

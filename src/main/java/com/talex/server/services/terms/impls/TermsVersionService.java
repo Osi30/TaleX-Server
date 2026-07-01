@@ -100,7 +100,8 @@ public class TermsVersionService implements ITermsVersionService {
 
     @Override
     @Transactional(readOnly = true)
-    @Cacheable(value = "active_terms", key = "#type.name()", cacheManager = "redisCacheManager")
+    @Cacheable(value = "active_terms", key = "#type.name()",
+            cacheManager = "redisCacheManager")
     public TermsVersionResponseDto getActiveByType(TermsType type) {
         return repository.findByTypeAndIsActiveTrue(type)
                 .map(mapper::toResponseDto)

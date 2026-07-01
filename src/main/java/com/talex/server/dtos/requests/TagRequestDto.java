@@ -1,6 +1,6 @@
 package com.talex.server.dtos.requests;
 
-import com.talex.server.enums.TagStatus;
+import com.talex.server.enums.series.TagStatus;
 import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
 import lombok.Data;

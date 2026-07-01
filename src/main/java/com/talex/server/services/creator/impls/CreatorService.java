@@ -24,6 +24,7 @@ import com.talex.server.services.terms.ITermsVersionService;
 import com.talex.server.specifications.CreatorSpec;
 import com.talex.server.utils.ValidationUtils;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -140,20 +141,7 @@ public class CreatorService implements ICreatorService {
         Creator creator = getEntityByAccountId(accountId);
 
         // 2. Lấy bản điều khoản hiện hành loại CREATOR
-        TermsVersionResponseDto activeTerm;
-        try {
-            Object raw = termsVersionService.getActiveByType(TermsType.CREATOR);
-            if (raw instanceof TermsVersionResponseDto dto) {
-                activeTerm = dto;
-            } else {
-                // Redis cache returns LinkedHashMap — convert via ObjectMapper
-                com.fasterxml.jackson.databind.ObjectMapper om = new com.fasterxml.jackson.databind.ObjectMapper();
-                om.findAndRegisterModules();
-                activeTerm = om.convertValue(raw, TermsVersionResponseDto.class);
-            }
-        } catch (Exception e) {
-            activeTerm = null;
-        }
+        TermsVersionResponseDto activeTerm = termsVersionService.getActiveByType(TermsType.CREATOR);
 
         // 3. Kiểm tra đã đồng ý với term hiện hành chưa
         boolean hasAcceptedLatest = activeTerm != null && creatorTermsLogService.existsByAccountAndTerm(accountId, activeTerm.getId());
@@ -195,6 +183,19 @@ public class CreatorService implements ICreatorService {
         return creatorRepository.findByAccount_AccountId(id)
                 .orElseThrow(() -> new CreatorException(CreatorErrorCode.CREATOR_NOT_FOUND,
                         "Tài khoản này hiện tại chưa đăng ký thông tin nhà sáng tạo."));
+    }
+
+    @Cacheable(
+            value = "accountToCreator",
+            key = "#accountId",
+            unless = "#result == null",
+            cacheManager = "redisCacheManager"
+    )
+    @Override
+    @Transactional(readOnly = true)
+    public String getIdByAccountId(UUID accountId) {
+        return creatorRepository.findCreatorIdByAccountId(accountId)
+                .orElseThrow(() -> new CreatorException(CreatorErrorCode.CREATOR_NOT_FOUND, "Không tìm thấy hồ sơ Creator cho tài khoản."));
     }
 
     private Sort getSort(CreatorFilterRequestDto filterRequest) {

@@ -4,7 +4,7 @@ import com.talex.server.dtos.BasePageResponse;
 import com.talex.server.dtos.requests.CategoryRequestDto;
 import com.talex.server.dtos.responses.CategoryResponseDto;
 import com.talex.server.entities.series.Category;
-import com.talex.server.enums.CategoryStatus;
+import com.talex.server.enums.series.CategoryStatus;
 import com.talex.server.exceptions.details.ContentModuleException;
 import com.talex.server.repositories.series.CategoryRepository;
 import com.talex.server.services.CategoryService;

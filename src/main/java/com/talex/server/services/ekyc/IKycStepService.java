@@ -1,6 +1,6 @@
 package com.talex.server.services.ekyc;
 
-import com.talex.server.dtos.responses.KycStepResponseDto;
+import com.talex.server.dtos.responses.kyc.KycStepResponseDto;
 import com.talex.server.entities.kyc.KycSession;
 import com.talex.server.entities.kyc.KycStep;
 import com.talex.server.enums.kyc.StepType;

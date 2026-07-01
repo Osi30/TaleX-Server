@@ -1,6 +1,7 @@
 package com.talex.server.dtos.responses.coin;
 
 import com.talex.server.entities.coin.CoinTransaction;
+import com.talex.server.enums.coin.CoinReferenceType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -32,7 +33,7 @@ public class CoinTransactionResponseDto {
     private BigDecimal balanceAfter;
 
     /** Phân loại nguồn gốc (ví dụ: "DAILY_CHECK_IN", "PURCHASE"). */
-    private String referenceType;
+    private CoinReferenceType referenceType;
 
     /** Mô tả thân thiện với người dùng. */
     private String description;

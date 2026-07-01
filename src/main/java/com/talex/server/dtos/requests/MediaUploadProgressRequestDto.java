@@ -1,6 +1,6 @@
 package com.talex.server.dtos.requests;
 
-import com.talex.server.enums.MediaUploadSessionStatus;
+import com.talex.server.enums.media.MediaUploadSessionStatus;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
 import lombok.AllArgsConstructor;

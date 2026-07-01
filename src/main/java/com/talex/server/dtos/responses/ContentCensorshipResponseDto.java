@@ -1,6 +1,6 @@
 package com.talex.server.dtos.responses;
 
-import com.talex.server.enums.CensorshipStatus;
+import com.talex.server.enums.media.CensorshipStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

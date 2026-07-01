@@ -4,6 +4,7 @@ import com.talex.server.dtos.requests.coin.MissionRequestDto;
 import com.talex.server.dtos.responses.coin.MissionProgressResponseDto;
 import com.talex.server.entities.coin.Mission;
 import com.talex.server.entities.coin.UserMissionProgress;
+import com.talex.server.enums.coin.CoinReferenceType;
 import com.talex.server.exceptions.codes.CoinErrorCode;
 import com.talex.server.exceptions.details.CoinException;
 import com.talex.server.repositories.coin.MissionRepository;
@@ -97,7 +98,7 @@ public class MissionServiceImpl implements IMissionService {
 
             progress = userMissionProgressRepository.save(progress);
 
-            coinWalletService.creditCoin(accountId, mission.getRewardAmount(), "MISSION_REWARD",
+            coinWalletService.creditCoin(accountId, mission.getRewardAmount(), CoinReferenceType.MISSION_REWARD,
                     progress.getProgressId().toString(), "Hoàn thành nhiệm vụ: " + mission.getTitle());
         } else {
             userMissionProgressRepository.save(progress);

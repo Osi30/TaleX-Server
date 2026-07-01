@@ -1,8 +1,8 @@
 package com.talex.server.dtos.requests;
 
-import com.talex.server.enums.ContentType;
-import com.talex.server.enums.EpisodeStatus;
-import com.talex.server.enums.EpisodeUnlockType;
+import com.talex.server.enums.series.ContentType;
+import com.talex.server.enums.series.EpisodeStatus;
+import com.talex.server.enums.series.EpisodeUnlockType;
 import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
 import lombok.Data;

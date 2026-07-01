@@ -4,7 +4,7 @@ import com.talex.server.dtos.BasePageResponse;
 import com.talex.server.dtos.requests.TagRequestDto;
 import com.talex.server.dtos.responses.TagResponseDto;
 import com.talex.server.entities.series.Tag;
-import com.talex.server.enums.TagStatus;
+import com.talex.server.enums.series.TagStatus;
 import com.talex.server.exceptions.details.ContentModuleException;
 import com.talex.server.repositories.series.TagRepository;
 import com.talex.server.services.TagService;

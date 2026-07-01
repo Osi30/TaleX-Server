@@ -1,10 +1,10 @@
 package com.talex.server.repositories;
 
-import com.talex.server.entities.Media;
-import com.talex.server.enums.ContentApprovalStatus;
-import com.talex.server.enums.MediaProvider;
-import com.talex.server.enums.MediaStatus;
-import com.talex.server.enums.MediaType;
+import com.talex.server.entities.media.Media;
+import com.talex.server.enums.series.ContentApprovalStatus;
+import com.talex.server.enums.media.MediaProvider;
+import com.talex.server.enums.media.MediaStatus;
+import com.talex.server.enums.media.MediaType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;

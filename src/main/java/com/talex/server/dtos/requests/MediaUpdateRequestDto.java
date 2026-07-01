@@ -1,6 +1,6 @@
 package com.talex.server.dtos.requests;
 
-import com.talex.server.enums.MediaStatus;
+import com.talex.server.enums.media.MediaStatus;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;

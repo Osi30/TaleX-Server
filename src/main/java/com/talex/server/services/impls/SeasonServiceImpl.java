@@ -4,7 +4,7 @@ import com.talex.server.dtos.requests.SeasonRequestDto;
 import com.talex.server.dtos.responses.SeasonResponseDto;
 import com.talex.server.entities.series.Season;
 import com.talex.server.entities.series.Series;
-import com.talex.server.enums.SeasonStatus;
+import com.talex.server.enums.series.SeasonStatus;
 import com.talex.server.exceptions.details.ContentModuleException;
 import com.talex.server.repositories.series.SeasonRepository;
 import com.talex.server.services.ContentOwnershipService;

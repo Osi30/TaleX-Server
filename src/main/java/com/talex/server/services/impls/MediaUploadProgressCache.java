@@ -1,7 +1,7 @@
 package com.talex.server.services.impls;
 
-import com.talex.server.entities.MediaUploadSession;
-import com.talex.server.enums.MediaUploadSessionStatus;
+import com.talex.server.entities.media.MediaUploadSession;
+import com.talex.server.enums.media.MediaUploadSessionStatus;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;

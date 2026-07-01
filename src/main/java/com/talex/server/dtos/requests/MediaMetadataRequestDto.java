@@ -1,9 +1,9 @@
 package com.talex.server.dtos.requests;
 
-import com.talex.server.enums.MediaPlaybackPolicy;
-import com.talex.server.enums.MediaProtectionType;
-import com.talex.server.enums.MediaProvider;
-import com.talex.server.enums.MediaType;
+import com.talex.server.enums.media.MediaPlaybackPolicy;
+import com.talex.server.enums.media.MediaProtectionType;
+import com.talex.server.enums.media.MediaProvider;
+import com.talex.server.enums.media.MediaType;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;

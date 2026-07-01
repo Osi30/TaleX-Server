@@ -3,8 +3,8 @@ package com.talex.server.services.media;
 import com.talex.server.dtos.requests.ImagePresignedUploadRequestDto;
 import com.talex.server.dtos.requests.MediaUploadCompleteRequestDto;
 import com.talex.server.dtos.responses.ImagePresignedUploadResponseDto;
-import com.talex.server.entities.Media;
-import com.talex.server.entities.MediaUploadSession;
+import com.talex.server.entities.media.Media;
+import com.talex.server.entities.media.MediaUploadSession;
 
 import java.time.LocalDateTime;
 

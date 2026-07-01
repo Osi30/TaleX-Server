@@ -1,7 +1,7 @@
 package com.talex.server.controllers.kyc;
 
 import com.talex.server.dtos.BaseResponse;
-import com.talex.server.dtos.responses.KycStepResponseDto;
+import com.talex.server.dtos.responses.kyc.KycStepResponseDto;
 import com.talex.server.services.ekyc.IKycStepService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;

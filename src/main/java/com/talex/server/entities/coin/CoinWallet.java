@@ -3,8 +3,11 @@ package com.talex.server.entities.coin;
 import com.talex.server.entities.BaseAudit;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 /**
@@ -56,4 +59,12 @@ public class CoinWallet extends BaseAudit {
     @Column(name = "total_spent", nullable = false, precision = 19, scale = 4)
     @Builder.Default
     private BigDecimal totalSpent = BigDecimal.ZERO;
+
+    @UpdateTimestamp
+    @Column(name = "last_updated")
+    private LocalDateTime lastUpdated;
+
+    @CreationTimestamp
+    @Column(name = "created_at", updatable = false)
+    private LocalDateTime createdAt;
 }

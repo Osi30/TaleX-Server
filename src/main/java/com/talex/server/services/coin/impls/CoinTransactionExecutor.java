@@ -2,7 +2,8 @@ package com.talex.server.services.coin.impls;
 
 import com.talex.server.entities.coin.CoinTransaction;
 import com.talex.server.entities.coin.CoinWallet;
-import com.talex.server.enums.CoinTransactionType;
+import com.talex.server.enums.coin.CoinReferenceType;
+import com.talex.server.enums.coin.CoinTransactionType;
 import com.talex.server.exceptions.codes.CoinErrorCode;
 import com.talex.server.exceptions.details.CoinException;
 import com.talex.server.repositories.coin.CoinTransactionRepository;
@@ -69,7 +70,7 @@ public class CoinTransactionExecutor {
      */
     @Transactional(rollbackFor = Exception.class)
     public CoinWallet executeCredit(UUID accountId, BigDecimal amount,
-                                    String referenceType, String referenceId, String description) {
+                                    CoinReferenceType referenceType, String referenceId, String description) {
         // Lazy Init: tạo ví nếu user chưa có bất kỳ giao dịch nào trước đây
         CoinWallet wallet = coinWalletRepository.findByAccountId(accountId)
                 .orElseGet(() -> {
@@ -91,7 +92,7 @@ public class CoinTransactionExecutor {
         // 1. Cập nhật ví (audit: ghi lại loại giao dịch đã kích hoạt lần cập nhật này)
         wallet.setBalance(balanceAfter);
         wallet.setTotalEarned(wallet.getTotalEarned().add(amount));
-        wallet.markUpdatedBy(referenceType);
+//        wallet.markUpdatedBy(referenceType);
         CoinWallet savedWallet = coinWalletRepository.save(wallet);
 
         // 2. Ghi lịch sử giao dịch (immutable append-only log)
@@ -129,7 +130,7 @@ public class CoinTransactionExecutor {
      */
     @Transactional(rollbackFor = Exception.class)
     public CoinWallet executeDebit(UUID accountId, BigDecimal amount,
-                                   String referenceType, String referenceId, String description) {
+                                   CoinReferenceType referenceType, String referenceId, String description) {
         CoinWallet wallet = coinWalletRepository.findByAccountId(accountId)
                 .orElseThrow(() -> new CoinException(CoinErrorCode.WALLET_NOT_FOUND));
 
@@ -147,7 +148,7 @@ public class CoinTransactionExecutor {
         // 1. Cập nhật ví (audit: ghi lại loại giao dịch đã kích hoạt lần cập nhật này)
         wallet.setBalance(balanceAfter);
         wallet.setTotalSpent(wallet.getTotalSpent().add(amount));
-        wallet.markUpdatedBy(referenceType);
+//        wallet.markUpdatedBy(referenceType);
         CoinWallet savedWallet = coinWalletRepository.save(wallet);
 
         // 2. Ghi lịch sử giao dịch (immutable append-only log)

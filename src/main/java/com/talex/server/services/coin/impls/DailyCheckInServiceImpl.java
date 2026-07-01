@@ -4,6 +4,7 @@ import com.talex.server.dtos.responses.coin.CoinEconomyConfigResponseDto;
 import com.talex.server.dtos.responses.coin.DailyCheckInResponseDto;
 import com.talex.server.dtos.responses.coin.DailyCheckInStatusDto;
 import com.talex.server.entities.coin.DailyCheckIn;
+import com.talex.server.enums.coin.CoinReferenceType;
 import com.talex.server.exceptions.codes.CoinErrorCode;
 import com.talex.server.exceptions.details.CoinException;
 import com.talex.server.repositories.coin.DailyCheckInRepository;
@@ -171,7 +172,7 @@ public class DailyCheckInServiceImpl implements IDailyCheckInService {
         coinWalletService.creditCoin(
                 accountId,
                 reward,
-                "DAILY_CHECK_IN",                        // referenceType: phân loại giao dịch
+                CoinReferenceType.DAILY_CHECK_IN,                        // referenceType: phân loại giao dịch
                 savedRecord.getCheckinId().toString(),   // referenceId: trỏ đến DailyCheckIn record
                 description
         );

@@ -1,6 +1,6 @@
 package com.talex.server.repositories;
 
-import com.talex.server.entities.ContentCensorship;
+import com.talex.server.entities.media.ContentCensorship;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

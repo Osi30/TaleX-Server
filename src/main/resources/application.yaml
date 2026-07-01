@@ -27,14 +27,14 @@ spring:
   jpa:
     show-sql: ${JPA_SHOW_SQL:false}
     hibernate:
-      ddl-auto: create-drop
+      ddl-auto: update
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         jdbc:
           batch_size: 50
-        order_inserts: true
-        order_updates: true
+          order_inserts: true
+          order_updates: true
 
   servlet:
     multipart:

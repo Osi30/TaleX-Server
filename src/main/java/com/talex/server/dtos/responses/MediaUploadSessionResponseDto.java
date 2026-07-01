@@ -1,7 +1,7 @@
 package com.talex.server.dtos.responses;
 
-import com.talex.server.enums.MediaProvider;
-import com.talex.server.enums.MediaUploadSessionStatus;
+import com.talex.server.enums.media.MediaProvider;
+import com.talex.server.enums.media.MediaUploadSessionStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

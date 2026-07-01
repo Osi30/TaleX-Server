@@ -2,11 +2,11 @@ package com.talex.server.services.impls;
 
 import com.talex.server.configs.properties.MediaProperties;
 import com.talex.server.dtos.requests.MediaUploadCompleteRequestDto;
-import com.talex.server.entities.Media;
-import com.talex.server.entities.MediaUploadSession;
-import com.talex.server.enums.MediaProvider;
-import com.talex.server.enums.MediaStatus;
-import com.talex.server.enums.MediaType;
+import com.talex.server.entities.media.Media;
+import com.talex.server.entities.media.MediaUploadSession;
+import com.talex.server.enums.media.MediaProvider;
+import com.talex.server.enums.media.MediaStatus;
+import com.talex.server.enums.media.MediaType;
 import com.talex.server.exceptions.details.ContentModuleException;
 import com.talex.server.services.media.MediaPackagingService;
 import com.talex.server.services.media.MediaProviderService;

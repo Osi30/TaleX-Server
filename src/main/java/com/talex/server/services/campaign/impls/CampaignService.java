@@ -5,18 +5,20 @@ import com.talex.server.dtos.requests.campaign.CampaignRequestDto;
 import com.talex.server.dtos.requests.campaign.CampaignUpdateDto;
 import com.talex.server.dtos.requests.filters.CampaignFilterRequestDto;
 import com.talex.server.dtos.responses.campaign.CampaignResponseDto;
-import com.talex.server.entities.series.Episode;
 import com.talex.server.entities.campaign.Campaign;
 import com.talex.server.entities.campaign.EngagementService;
+import com.talex.server.entities.series.Episode;
 import com.talex.server.enums.engagement.CampaignStatus;
 import com.talex.server.enums.engagement.EngagementTarget;
+import com.talex.server.enums.series.EpisodeStatus;
 import com.talex.server.exceptions.codes.CampaignErrorCode;
 import com.talex.server.exceptions.details.CampaignException;
 import com.talex.server.mappers.campaign.ICampaignMapper;
 import com.talex.server.repositories.campaign.CampaignRepository;
-import com.talex.server.services.EpisodeService;
+import com.talex.server.repositories.series.EpisodeRepository;
 import com.talex.server.services.campaign.ICampaignService;
 import com.talex.server.services.campaign.IEngagementServiceService;
+import com.talex.server.services.creator.ICreatorService;
 import com.talex.server.specifications.CampaignSpec;
 import com.talex.server.utils.PageUtils;
 import com.talex.server.utils.ValidationUtils;
@@ -28,41 +30,59 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
 public class CampaignService implements ICampaignService {
     private final CampaignRepository campaignRepository;
+    private final EpisodeRepository episodeRepository;
+    private final ICreatorService creatorService;
     private final IEngagementServiceService engagementService;
-    private final EpisodeService episodeService;
     private final ICampaignMapper campaignMapper;
 
     @Override
     @Transactional
     public CampaignResponseDto createCampaign(CampaignRequestDto requestDto) {
+        // 1. Loại bỏ các ID trùng lặp
+        Set<String> uniqueEpisodeIds = new HashSet<>(requestDto.getEpisodeIds());
+        if (uniqueEpisodeIds.isEmpty()) {
+            throw new CampaignException(CampaignErrorCode.INVALID_REQUEST, "Danh sách tập phim không được để trống");
+        }
+
+        // 2. Kiểm tra nhanh số lượng tập phim hợp lệ
+        String creatorId = creatorService.getIdByAccountId(requestDto.getAccountId());
+        long validEpisodesCount = episodeRepository.countByEpisodeIdInAndStatusAndIsDeletedFalseAndCreatorId(
+                uniqueEpisodeIds,
+                EpisodeStatus.PUBLISHED,
+                creatorId
+        );
+        // Nếu số lượng trong DB không khớp với số lượng ID
+        if (validEpisodesCount != uniqueEpisodeIds.size()) {
+            throw new CampaignException(CampaignErrorCode.INVALID_REQUEST, "Có tập phim không hợp lệ hoặc chưa được xuất bản");
+        }
+
+        // 3. Lấy thông tin dịch vụ tương tác
+        EngagementService service = engagementService.findById(requestDto.getEngagementServiceId());
+
+        // 4. Khởi tạo Campaign
         Campaign campaign = new Campaign();
         campaign.setAccountId(requestDto.getAccountId());
-
-        EngagementService service = engagementService.findById(requestDto.getEngagementServiceId());
+        campaign.setOrderId(requestDto.getOrderId());
         campaign.setEngagementService(service);
         campaign.setTargetValue(service.getTargetValue());
         campaign.setEngagementTarget(service.getEngagementTarget());
+        campaign.setStatus(CampaignStatus.RUNNING);
+        campaign.setStartAt(LocalDateTime.now());
 
-        Episode episode = episodeService.findActiveEntity(requestDto.getEpisodeId());
-        campaign.setEpisode(episode);
-
-        switch (episode.getStatus()) {
-            case DRAFT:
-                campaign.setStatus(CampaignStatus.AWAITING);
-                break;
-            case PUBLISHED:
-                campaign.setStatus(CampaignStatus.RUNNING);
-                campaign.setStartAt(LocalDateTime.now());
-                break;
-            default:
-                throw new CampaignException(CampaignErrorCode.INVALID_REQUEST, "Yêu cầu chiến dịch cho phim/truyện không hợp lệ");
+        // 5. Liên kết các Episode vào Campaign (không chọc DB)
+        for (String episodeId : uniqueEpisodeIds) {
+            // getReferenceById tạo ra một Hibernate Proxy object
+            Episode episodeProxy = episodeRepository.getReferenceById(episodeId);
+            campaign.addEpisode(episodeProxy);
         }
 
         Campaign saved = campaignRepository.save(campaign);
@@ -118,7 +138,6 @@ public class CampaignService implements ICampaignService {
             }
             existing.setStatus(s);
         });
-        Optional.ofNullable(requestDto.getStartAt()).ifPresent(existing::setStartAt);
         Optional.ofNullable(requestDto.getEndAt()).ifPresent(existing::setEndAt);
 
         Campaign updated = campaignRepository.save(existing);
@@ -137,9 +156,6 @@ public class CampaignService implements ICampaignService {
                 campaign.setStatus(CampaignStatus.CANCELLED);
                 break;
             case PAUSED:
-                campaign.setStatus(CampaignStatus.CANCELLED);
-                break;
-            case AWAITING:
                 campaign.setStatus(CampaignStatus.CANCELLED);
                 break;
             case FAILED:

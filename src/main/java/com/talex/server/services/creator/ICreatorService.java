@@ -18,6 +18,8 @@ public interface ICreatorService {
 
     Creator getEntityByAccountId(UUID accountId);
 
+    String getIdByAccountId(UUID accountId);
+
     Creator getEntityById(String creatorId);
 
     BasePageResponse<CreatorResponseDto> filterCreators(CreatorFilterRequestDto filterRequest);

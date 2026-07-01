@@ -22,7 +22,7 @@ public class CampaignMapperImpl implements ICampaignMapper {
                 .engagementTarget(entity.getEngagementTarget())
                 .startAt(entity.getStartAt())
                 .endAt(entity.getEndAt())
-                .episodeId(entity.getEpisode() != null ? entity.getEpisode().getEpisodeId() : null)
+                .orderId(entity.getOrderId())
                 .engagementServiceId(
                         entity.getEngagementService() != null ? entity.getEngagementService().getEngagementServiceId()
                                 : null)

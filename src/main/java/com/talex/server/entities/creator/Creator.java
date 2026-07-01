@@ -9,6 +9,7 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -25,6 +26,7 @@ public class Creator {
     @Column(name = "creator_id")
     private String creatorId;
 
+    // Tổng quan tương tác
     @Column(name = "total_views", nullable = false)
     @Builder.Default
     private Long totalViews = 0L;
@@ -50,6 +52,19 @@ public class Creator {
     @Builder.Default
     private Long comments = 0L;
 
+    // Tổng quan doanh thu
+    @Column(name = "current_balance", nullable = false)
+    @Builder.Default
+    private BigDecimal currentBalance = BigDecimal.ZERO;
+
+    @Column(name = "total_balance", nullable = false)
+    @Builder.Default
+    private BigDecimal totalBalance = BigDecimal.ZERO;
+
+    @Column(name = "estimated_net_balance", nullable = false)
+    @Builder.Default
+    private BigDecimal estimatedNetBalance = BigDecimal.ZERO;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
@@ -69,9 +84,10 @@ public class Creator {
     @OneToOne(mappedBy = "creator")
     private CreatorIdentity creatorIdentity;
 
-    @OneToOne(mappedBy = "creator", cascade = CascadeType.ALL)
-    private CreatorWallet creatorWallet;
-
     @OneToMany(mappedBy = "creator", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<PaymentProfile> paymentProfiles = new ArrayList<>();
+
+    @OneToMany(mappedBy = "creator", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<RevenueTransaction> revenueTransactions = new ArrayList<>();
 }

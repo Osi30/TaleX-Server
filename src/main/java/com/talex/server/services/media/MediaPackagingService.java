@@ -1,6 +1,6 @@
 package com.talex.server.services.media;
 
-import com.talex.server.entities.Media;
+import com.talex.server.entities.media.Media;
 
 public interface MediaPackagingService {
     String createHlsPackaging(Media media);

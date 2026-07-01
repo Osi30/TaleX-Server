@@ -1,6 +1,6 @@
 package com.talex.server.dtos.responses;
 
-import com.talex.server.enums.SeasonStatus;
+import com.talex.server.enums.series.SeasonStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

@@ -1,8 +1,7 @@
 package com.talex.server.dtos.requests;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.talex.server.enums.ContentType;
-import com.talex.server.enums.SeriesStatus;
+import com.talex.server.enums.series.ContentType;
+import com.talex.server.enums.series.SeriesStatus;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;

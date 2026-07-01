@@ -1,6 +1,6 @@
 package com.talex.server.dtos.responses;
 
-import com.talex.server.enums.TagStatus;
+import com.talex.server.enums.series.TagStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

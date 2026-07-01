@@ -1,9 +1,8 @@
 package com.talex.server.services.impls;
 
-import com.talex.server.entities.MediaUploadSession;
-import com.talex.server.enums.MediaStatus;
-import com.talex.server.enums.MediaUploadSessionStatus;
-import com.talex.server.repositories.MediaPlaybackSessionRepository;
+import com.talex.server.entities.media.Media;
+import com.talex.server.enums.media.MediaStatus;
+import com.talex.server.enums.media.MediaUploadSessionStatus;
 import com.talex.server.repositories.MediaRepository;
 import com.talex.server.repositories.MediaUploadSessionRepository;
 import com.talex.server.services.MediaCleanupService;
@@ -36,7 +35,7 @@ public class DefaultMediaCleanupService implements MediaCleanupService {
         var sessions = uploadSessionRepository.findAllByStatusInAndExpiredAtBeforeAndIsDeletedFalse(
                 openStatuses,
                 LocalDateTime.now());
-        List<com.talex.server.entities.Media> failedMedia = new ArrayList<>();
+        List<Media> failedMedia = new ArrayList<>();
         sessions.forEach(session -> {
             session.setStatus(MediaUploadSessionStatus.EXPIRED);
             if (session.getMedia() != null && session.getMedia().getStatus() == MediaStatus.PROCESSING) {

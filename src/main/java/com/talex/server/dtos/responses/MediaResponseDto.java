@@ -1,11 +1,11 @@
 package com.talex.server.dtos.responses;
 
-import com.talex.server.enums.MediaPlaybackPolicy;
-import com.talex.server.enums.MediaProtectionType;
-import com.talex.server.enums.MediaProvider;
-import com.talex.server.enums.MediaStatus;
-import com.talex.server.enums.MediaType;
-import com.talex.server.enums.ContentApprovalStatus;
+import com.talex.server.enums.media.MediaPlaybackPolicy;
+import com.talex.server.enums.media.MediaProtectionType;
+import com.talex.server.enums.media.MediaProvider;
+import com.talex.server.enums.media.MediaStatus;
+import com.talex.server.enums.media.MediaType;
+import com.talex.server.enums.series.ContentApprovalStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

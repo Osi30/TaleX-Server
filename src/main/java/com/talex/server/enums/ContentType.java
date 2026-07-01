@@ -1,6 +1,0 @@
-package com.talex.server.enums;
-
-public enum ContentType {
-    VIDEO,
-    COMIC
-}

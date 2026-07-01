@@ -1,7 +1,7 @@
 package com.talex.server.repositories.series;
 
 import com.talex.server.entities.series.Episode;
-import com.talex.server.enums.EpisodeStatus;
+import com.talex.server.enums.series.EpisodeStatus;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
@@ -59,4 +59,6 @@ public interface EpisodeRepository extends JpaRepository<Episode, String> {
             @Param("seasonId") String seasonId,
             @Param("episodeId") String episodeId,
             @Param("status") EpisodeStatus status);
+
+    long countByEpisodeIdInAndStatusAndIsDeletedFalseAndCreatorId(Collection<String> episodeIds, EpisodeStatus status, String creatorId);
 }

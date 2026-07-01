@@ -1,7 +1,7 @@
 package com.talex.server.configs.properties;
 
-import com.talex.server.enums.MediaProtectionType;
-import com.talex.server.enums.MediaProvider;
+import com.talex.server.enums.media.MediaProtectionType;
+import com.talex.server.enums.media.MediaProvider;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;

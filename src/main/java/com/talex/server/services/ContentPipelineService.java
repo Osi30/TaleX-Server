@@ -2,7 +2,7 @@ package com.talex.server.services;
 
 import com.talex.server.dtos.kafka.CopyrightResultMessage;
 import com.talex.server.dtos.kafka.ModerationResultMessage;
-import com.talex.server.entities.Media;
+import com.talex.server.entities.media.Media;
 
 /**
  * Orchestrates the content pipeline state machine:

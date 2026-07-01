@@ -1,7 +1,7 @@
 package com.talex.server.repositories;
 
-import com.talex.server.entities.MediaPlaybackSession;
-import com.talex.server.enums.MediaPlaybackSessionStatus;
+import com.talex.server.entities.media.MediaPlaybackSession;
+import com.talex.server.enums.media.MediaPlaybackSessionStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

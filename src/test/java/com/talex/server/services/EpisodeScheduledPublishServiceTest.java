@@ -1,15 +1,15 @@
 package com.talex.server.services;
 
-import com.talex.server.entities.Media;
+import com.talex.server.entities.media.Media;
 import com.talex.server.entities.series.Episode;
 import com.talex.server.entities.series.Season;
 import com.talex.server.entities.series.Series;
-import com.talex.server.enums.ContentApprovalStatus;
-import com.talex.server.enums.ContentType;
-import com.talex.server.enums.EpisodeStatus;
-import com.talex.server.enums.MediaStatus;
-import com.talex.server.enums.SeasonStatus;
-import com.talex.server.enums.SeriesStatus;
+import com.talex.server.enums.series.ContentApprovalStatus;
+import com.talex.server.enums.series.ContentType;
+import com.talex.server.enums.series.EpisodeStatus;
+import com.talex.server.enums.media.MediaStatus;
+import com.talex.server.enums.series.SeasonStatus;
+import com.talex.server.enums.series.SeriesStatus;
 import com.talex.server.exceptions.details.ContentModuleException;
 import com.talex.server.repositories.MediaRepository;
 import com.talex.server.repositories.series.EpisodeRepository;

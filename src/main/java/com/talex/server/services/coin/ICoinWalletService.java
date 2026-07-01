@@ -3,6 +3,7 @@ package com.talex.server.services.coin;
 import com.talex.server.dtos.BasePageResponse;
 import com.talex.server.dtos.responses.coin.CoinTransactionResponseDto;
 import com.talex.server.entities.coin.CoinWallet;
+import com.talex.server.enums.coin.CoinReferenceType;
 
 import java.math.BigDecimal;
 import java.util.UUID;
@@ -31,7 +32,7 @@ public interface ICoinWalletService {
      * @return Ví sau khi đã cộng coin
      */
     CoinWallet creditCoin(UUID accountId, BigDecimal amount,
-                          String referenceType, String referenceId, String description);
+                          CoinReferenceType referenceType, String referenceId, String description);
 
     /**
      * Trừ coin khỏi ví (DEBIT).
@@ -49,7 +50,7 @@ public interface ICoinWalletService {
      * @return Ví sau khi đã trừ coin
      */
     CoinWallet debitCoin(UUID accountId, BigDecimal amount,
-                         String referenceType, String referenceId, String description);
+                         CoinReferenceType referenceType, String referenceId, String description);
 
     /**
      * Lấy thông tin ví hiện tại của tài khoản.

@@ -1,6 +1,6 @@
 package com.talex.server.dtos.responses;
 
-import com.talex.server.enums.ViolationType;
+import com.talex.server.enums.media.ViolationType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

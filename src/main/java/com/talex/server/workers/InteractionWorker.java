@@ -1,7 +1,7 @@
 package com.talex.server.workers;
 
 import com.talex.server.dtos.interaction.UserInteractionDto;
-import com.talex.server.enums.ContentType;
+import com.talex.server.enums.series.ContentType;
 import com.talex.server.exceptions.codes.InteractionErrorCode;
 import com.talex.server.exceptions.details.InteractionException;
 import com.talex.server.records.EpisodeDetails;
@@ -12,7 +12,6 @@ import io.questdb.client.Sender;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.jdbc.core.BatchPreparedStatementSetter;

@@ -1,7 +1,7 @@
 package com.talex.server.repositories.series;
 
 import com.talex.server.entities.series.Season;
-import com.talex.server.enums.SeasonStatus;
+import com.talex.server.enums.series.SeasonStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

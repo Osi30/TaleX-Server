@@ -1,10 +1,10 @@
 package com.talex.server.entities.series;
 
 import com.talex.server.entities.BaseAudit;
-import com.talex.server.entities.Media;
-import com.talex.server.enums.ContentType;
-import com.talex.server.enums.EpisodeStatus;
-import com.talex.server.enums.EpisodeUnlockType;
+import com.talex.server.entities.media.Media;
+import com.talex.server.enums.series.ContentType;
+import com.talex.server.enums.series.EpisodeStatus;
+import com.talex.server.enums.series.EpisodeUnlockType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;

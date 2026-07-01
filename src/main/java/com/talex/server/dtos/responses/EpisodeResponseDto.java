@@ -1,8 +1,8 @@
 package com.talex.server.dtos.responses;
 
-import com.talex.server.enums.ContentType;
-import com.talex.server.enums.EpisodeStatus;
-import com.talex.server.enums.EpisodeUnlockType;
+import com.talex.server.enums.series.ContentType;
+import com.talex.server.enums.series.EpisodeStatus;
+import com.talex.server.enums.series.EpisodeUnlockType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

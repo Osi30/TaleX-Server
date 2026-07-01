@@ -2,7 +2,7 @@ package com.talex.server.services.ekyc.impls;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.talex.server.dtos.requests.kyc.KycStepRequestDto;
-import com.talex.server.dtos.responses.KycStepResponseDto;
+import com.talex.server.dtos.responses.kyc.KycStepResponseDto;
 import com.talex.server.dtos.responses.idrecognition.back.FptAiIdBackResponse;
 import com.talex.server.dtos.responses.idrecognition.front.FptAiIdFrontResponse;
 import com.talex.server.dtos.responses.idrecognition.front.FrontData;
