@@ -3,6 +3,7 @@ package com.talex.server.services;
 import com.talex.server.entities.series.Episode;
 import com.talex.server.entities.series.Season;
 import com.talex.server.entities.series.Series;
+import com.talex.server.entities.series.ComboEpisode;
 import com.talex.server.exceptions.details.ContentModuleException;
 import com.talex.server.services.creator.ICreatorService;
 import lombok.RequiredArgsConstructor;
@@ -51,6 +52,19 @@ public class ContentOwnershipService {
         assertOwnerIds(
                 creatorId,
                 episode.getCreatorId());
+    }
+
+    public void assertCanManage(ComboEpisode combo, String accountId) {
+        if (isPrivileged()) {
+            return;
+        }
+        assertOwnedByCreator(combo, requireCurrentCreatorId(accountId));
+    }
+
+    public void assertOwnedByCreator(ComboEpisode combo, String creatorId) {
+        assertOwnerIds(
+                creatorId,
+                combo.getCreatorId());
     }
 
     private void assertOwnerIds(String currentCreatorId, String... ownerCreatorIds) {
