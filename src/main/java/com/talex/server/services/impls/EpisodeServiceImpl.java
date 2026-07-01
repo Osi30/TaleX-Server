@@ -155,6 +155,19 @@ public class EpisodeServiceImpl implements EpisodeService {
 
     @Transactional
     @Override
+    public EpisodeResponseDto cancelSchedule(String id, String actorId) {
+        Episode episode = findManageableEntity(id, actorId);
+        if (episode.getStatus() != EpisodeStatus.SCHEDULED) {
+            throw ContentModuleException.badRequest("Episode is not scheduled");
+        }
+        cancelScheduledPublication(episode, actorId);
+        episode.setStatus(EpisodeStatus.DRAFT);
+        episode.markUpdatedBy(actorId);
+        return toResponse(episodeRepository.save(episode));
+    }
+
+    @Transactional
+    @Override
     public EpisodeResponseDto publish(String id, String actorId) {
         Episode episode = findManageableEntity(id, actorId);
         ensureReadyMediaForPublish(episode);
@@ -369,12 +382,11 @@ public class EpisodeServiceImpl implements EpisodeService {
         Series series = season.getSeries();
         ensureParentsAreNotDeleted(episode);
 
-        if (season.getStatus() == SeasonStatus.DRAFT || season.getStatus() == SeasonStatus.SCHEDULED) {
+        if (season.getStatus() != SeasonStatus.PUBLISHED) {
             season.setStatus(SeasonStatus.PUBLISHED);
             season.markUpdatedBy(actorId);
         }
-        if ((series.getStatus() == SeriesStatus.DRAFT || series.getStatus() == SeriesStatus.SCHEDULED)
-                && season.getStatus() == SeasonStatus.PUBLISHED) {
+        if (series.getStatus() != SeriesStatus.PUBLISHED) {
             series.setStatus(SeriesStatus.PUBLISHED);
             series.markUpdatedBy(actorId);
         }

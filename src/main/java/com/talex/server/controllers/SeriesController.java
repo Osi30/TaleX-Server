@@ -75,15 +75,6 @@ public class SeriesController {
                 seriesService.update(id, request, accountId.toString())));
     }
 
-    @PatchMapping("/{id}/publish")
-    @PreAuthorize("isAuthenticated()")
-    @Operation(summary = "Xuất bản series", description = "Cập nhật trạng thái series thành PUBLISHED và đặt quyền hiển thị thành PUBLIC. Yêu cầu quyền sở hữu nội dung.")
-    public ResponseEntity<BaseResponse> publish(
-            @PathVariable String id,
-            @CurrentAccountId UUID accountId) {
-        return ResponseEntity.ok(response(200, "Series published", seriesService.publish(id, accountId.toString())));
-    }
-
     @PatchMapping("/{id}/hide")
     @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Ẩn series", description = "Cập nhật trạng thái series thành HIDDEN, gỡ series khỏi chế độ xem công khai mà không xóa nó. Yêu cầu quyền sở hữu nội dung.")

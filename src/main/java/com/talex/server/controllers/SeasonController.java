@@ -64,15 +64,6 @@ public class SeasonController {
     }
 
     @PreAuthorize("isAuthenticated()")
-    @PatchMapping("/api/v1/seasons/{id}/publish")
-    @Operation(summary = "Xuất bản season", description = "Chuyển trạng thái của season sang PUBLISHED, cho phép hiển thị nội dung công khai (nếu series cũng đang public). Yêu cầu quyền sở hữu nội dung.")
-    public ResponseEntity<BaseResponse> publish(
-            @PathVariable String id,
-            @CurrentAccountId UUID accountId) {
-        return ResponseEntity.ok(response(200, "Season published", seasonService.publish(id, accountId.toString())));
-    }
-
-    @PreAuthorize("isAuthenticated()")
     @PatchMapping("/api/v1/seasons/{id}/hide")
     @Operation(summary = "Ẩn season", description = "Chuyển trạng thái của season sang HIDDEN. Tạm thời ẩn nội dung khỏi công chúng nhưng không xóa dữ liệu. Yêu cầu quyền sở hữu nội dung.")
     public ResponseEntity<BaseResponse> hide(

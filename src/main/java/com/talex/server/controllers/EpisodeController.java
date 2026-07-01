@@ -75,6 +75,15 @@ public class EpisodeController {
                 episodeService.schedulePublish(id, request.getScheduledPublishAt(), accountId.toString())));
     }
 
+    @PatchMapping("/api/v1/episodes/{id}/cancel-schedule")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Hủy lịch xuất bản episode", description = "Hủy lịch xuất bản đã đặt cho episode và chuyển trạng thái về DRAFT. Yêu cầu quyền sở hữu nội dung.")
+    public ResponseEntity<BaseResponse> cancelSchedule(
+            @PathVariable String id,
+            @CurrentAccountId UUID accountId) {
+        return ResponseEntity.ok(response(200, "Episode schedule canceled", episodeService.cancelSchedule(id, accountId.toString())));
+    }
+
      @PreAuthorize("isAuthenticated()")
     @PatchMapping("/api/v1/episodes/{id}/publish")
     @Operation(summary = "Xuất bản tập ngay lập tức", description = "Chuyển trạng thái tập sang PUBLISHED. Yêu cầu bắt buộc phải có ít nhất một media (Video hoặc Image) đã xử lý xong và được duyệt (APPROVED). Yêu cầu quyền sở hữu nội dung.")

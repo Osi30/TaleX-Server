@@ -22,6 +22,8 @@ public interface EpisodeService {
 
     EpisodeResponseDto schedulePublish(String id, LocalDateTime scheduledPublishAt, String actorId);
 
+    EpisodeResponseDto cancelSchedule(String id, String actorId);
+
     EpisodeResponseDto publish(String id, String actorId);
 
     EpisodeResponseDto publishScheduled(String id, String actorId);

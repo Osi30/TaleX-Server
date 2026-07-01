@@ -6,12 +6,17 @@ import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Info;
 import io.swagger.v3.oas.models.security.SecurityRequirement;
 import io.swagger.v3.oas.models.security.SecurityScheme;
+import io.swagger.v3.oas.models.servers.Server;
 import org.springdoc.core.utils.SpringDocUtils;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
 public class OpenApiConfig {
+
+    @Value("${app.env:local}")
+    private String appEnv;
 
     static {
         SpringDocUtils.getConfig().addAnnotationsToIgnore(CurrentAccountId.class);
@@ -21,7 +26,7 @@ public class OpenApiConfig {
     public OpenAPI customOpenAPI() {
         final String securitySchemeName = "bearerAuth";
 
-        return new OpenAPI()
+        OpenAPI openAPI = new OpenAPI()
                 .info(new Info()
                         .title("Talex Server API")
                         .version("1.0.0")
@@ -34,6 +39,13 @@ public class OpenApiConfig {
                                         .name(securitySchemeName)
                                         .type(SecurityScheme.Type.HTTP)
                                         .scheme("bearer")
-                                        .bearerFormat("JWT"))); // Định dạng là JWT
+                                        .bearerFormat("JWT")));
+
+        if (!"local".equals(appEnv)) {
+            openAPI.addServersItem(new Server().url("https://api.talex.pro.vn").description("Production"));
+        }
+        openAPI.addServersItem(new Server().url("http://localhost:8080").description("Local"));
+
+        return openAPI;
     }
 }

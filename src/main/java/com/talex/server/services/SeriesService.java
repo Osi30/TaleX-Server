@@ -22,8 +22,6 @@ public interface SeriesService {
 
     SeriesResponseDto update(String id, SeriesRequestDto request, String accountId);
 
-    SeriesResponseDto publish(String id, String actorId);
-
     SeriesResponseDto hide(String id, String actorId);
 
     SeriesResponseDto unhide(String id, String actorId);
