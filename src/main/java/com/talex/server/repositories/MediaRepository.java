@@ -78,6 +78,14 @@ public interface MediaRepository extends JpaRepository<Media, String> {
             Collection<MediaStatus> statuses,
             ContentApprovalStatus approvalStatus);
 
+    long countByEpisode_EpisodeIdAndIsDeletedFalse(String episodeId);
+
+    long countByEpisode_EpisodeIdAndMediaTypeAndStatusInAndApprovalStatusAndIsDeletedFalse(
+            String episodeId,
+            MediaType mediaType,
+            Collection<MediaStatus> statuses,
+            ContentApprovalStatus approvalStatus);
+
     boolean existsByEpisode_EpisodeIdAndMediaTypeAndStatusInAndIsDeletedFalseAndMediaIdNot(
             String episodeId,
             MediaType mediaType,

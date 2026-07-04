@@ -272,12 +272,13 @@ class EpisodeScheduledPublishServiceTest {
     }
 
     private void stubReadyMedia(Episode episode, List<Media> media) {
-        lenient().when(mediaRepository.findAllByEpisode_EpisodeIdAndMediaTypeAndStatusInAndApprovalStatusAndIsDeletedFalse(
+        long count = media.size();
+        lenient().when(mediaRepository.countByEpisode_EpisodeIdAndIsDeletedFalse(
+                eq(episode.getEpisodeId())))
+                .thenReturn(count);
+        lenient().when(mediaRepository.countByEpisode_EpisodeIdAndMediaTypeAndStatusInAndApprovalStatusAndIsDeletedFalse(
                 eq(episode.getEpisodeId()), any(), any(), eq(ContentApprovalStatus.APPROVED)))
-                .thenReturn(media);
-        lenient().when(mediaRepository.existsByEpisode_EpisodeIdAndMediaTypeAndStatusInAndApprovalStatusAndIsDeletedFalse(
-                eq(episode.getEpisodeId()), any(), any(), eq(ContentApprovalStatus.APPROVED)))
-                .thenReturn(!media.isEmpty());
+                .thenReturn(count);
     }
 
     private Episode episodeWithParents(

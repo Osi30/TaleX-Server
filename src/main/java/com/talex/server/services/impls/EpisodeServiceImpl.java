@@ -142,9 +142,7 @@ public class EpisodeServiceImpl implements EpisodeService {
         Episode episode = findManageableEntity(id, actorId);
         ensureScheduledPublishAt(scheduledPublishAt);
         ensureEpisodeCanBeScheduled(episode);
-        if (findReadyMediaForPublish(episode).isEmpty()) {
-            throw ContentModuleException.badRequest("Episode must have at least one approved ready media before scheduling");
-        }
+        ensureReadyMediaForPublish(episode);
 
         prepareParentsForSchedule(episode, actorId);
         episode.setStatus(EpisodeStatus.SCHEDULED);
@@ -187,9 +185,7 @@ public class EpisodeServiceImpl implements EpisodeService {
     public EpisodeResponseDto publishScheduled(String id, String actorId) {
         Episode episode = lockActiveEntity(id);
         ensureScheduledEpisodeIsDue(episode);
-        if (findReadyMediaForPublish(episode).isEmpty()) {
-            throw ContentModuleException.badRequest("Episode must have at least one approved ready media before publishing");
-        }
+        ensureReadyMediaForPublish(episode);
 
         publishScheduledParents(episode, actorId);
         episode.setStatus(EpisodeStatus.PUBLISHED);
@@ -309,22 +305,20 @@ public class EpisodeServiceImpl implements EpisodeService {
     }
 
     private void ensureReadyMediaForPublish(Episode episode) {
-        boolean hasReadyMedia = mediaRepository.existsByEpisode_EpisodeIdAndMediaTypeAndStatusInAndApprovalStatusAndIsDeletedFalse(
-                episode.getEpisodeId(),
-                requiredMediaType(episode),
-                readyMediaStatuses(episode),
-                ContentApprovalStatus.APPROVED);
-        if (!hasReadyMedia) {
-            throw ContentModuleException.badRequest("Episode must have at least one approved ready media before publishing");
+        long totalMedia = mediaRepository.countByEpisode_EpisodeIdAndIsDeletedFalse(episode.getEpisodeId());
+        if (totalMedia == 0) {
+            throw ContentModuleException.badRequest("Episode must have at least one media before publishing");
         }
-    }
 
-    private List<Media> findReadyMediaForPublish(Episode episode) {
-        return mediaRepository.findAllByEpisode_EpisodeIdAndMediaTypeAndStatusInAndApprovalStatusAndIsDeletedFalse(
+        long readyMedia = mediaRepository.countByEpisode_EpisodeIdAndMediaTypeAndStatusInAndApprovalStatusAndIsDeletedFalse(
                 episode.getEpisodeId(),
                 requiredMediaType(episode),
                 readyMediaStatuses(episode),
                 ContentApprovalStatus.APPROVED);
+
+        if (totalMedia != readyMedia) {
+            throw ContentModuleException.badRequest("All media in the episode must be approved and ready before publishing");
+        }
     }
 
     private MediaType requiredMediaType(Episode episode) {
