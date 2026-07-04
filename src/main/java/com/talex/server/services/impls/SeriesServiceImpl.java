@@ -37,6 +37,7 @@ public class SeriesServiceImpl implements SeriesService {
     private final TagService tagService;
     private final ContentOwnershipService contentOwnershipService;
     private final ICreatorService creatorService;
+    private final SeasonRepository seasonRepository;
 
     @Transactional
     @Override
@@ -54,7 +55,22 @@ public class SeriesServiceImpl implements SeriesService {
         syncCategories(saved, request.getCategoryIds(), accountIdStr);
         syncTags(saved, request.getTagIds(), accountIdStr);
 
+        createDefaultSeason(saved, creator, accountIdStr);
+
         return toResponse(saved);
+    }
+
+    private void createDefaultSeason(Series series, Creator creator, String accountIdStr) {
+        Season season = new Season();
+        season.setSeries(series);
+        season.setCreatorId(creator.getCreatorId());
+        season.setSeasonNumber(1);
+        season.setTitle("Season 1");
+        season.setDescription("Phần đầu tiên của series");
+        season.setStatus(com.talex.server.enums.series.SeasonStatus.DRAFT);
+        season.markCreatedBy(accountIdStr);
+        
+        seasonRepository.save(season);
     }
 
     @Transactional(readOnly = true)
