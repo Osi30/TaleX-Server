@@ -477,10 +477,6 @@ public class EpisodeServiceImpl implements EpisodeService {
     }
 
     private int nextEpisodeNumber(String seasonId) {
-        return episodeRepository.findAllBySeason_SeasonIdAndIsDeletedFalseOrderByEpisodeNumberAsc(seasonId)
-                .stream()
-                .map(Episode::getEpisodeNumber)
-                .max(Integer::compareTo)
-                .orElse(0) + 1;
+        return episodeRepository.findMaxEpisodeNumberBySeasonId(seasonId) + 1;
     }
 }

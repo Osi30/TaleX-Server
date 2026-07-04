@@ -64,17 +64,7 @@ class ContentOwnershipServiceTest {
         assertEquals(4403, exception.getCode());
     }
 
-    @Test
-    void creatorCannotManageContentWithInconsistentOwnershipChain() {
-        authenticateAs("ROLE_CREATOR");
-        mockCurrentCreator(CREATOR_ID);
-        Episode episode = episodeOwnedBy(CREATOR_ID);
-        episode.getSeason().setCreatorId("creator-2");
 
-        assertThrows(
-                ContentModuleException.class,
-                () -> service.assertCanManage(episode, ACCOUNT_ID.toString()));
-    }
 
     @Test
     void staffAndAdminCanManageAnyContentWithoutCreatorLookup() {

@@ -177,11 +177,7 @@ public class SeasonServiceImpl implements SeasonService {
     }
 
     private int nextSeasonNumber(String seriesId) {
-        return seasonRepository.findAllBySeries_SeriesIdAndIsDeletedFalseOrderBySeasonNumberAsc(seriesId)
-                .stream()
-                .map(Season::getSeasonNumber)
-                .max(Integer::compareTo)
-                .orElse(0) + 1;
+        return seasonRepository.findMaxSeasonNumberBySeriesId(seriesId) + 1;
     }
 
 }

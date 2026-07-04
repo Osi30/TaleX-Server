@@ -3,6 +3,8 @@ package com.talex.server.repositories.series;
 import com.talex.server.entities.series.Season;
 import com.talex.server.enums.series.SeasonStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -19,4 +21,7 @@ public interface SeasonRepository extends JpaRepository<Season, String> {
     List<Season> findAllBySeries_SeriesIdAndStatusAndIsDeletedFalseOrderBySeasonNumberAsc(
             String seriesId,
             SeasonStatus status);
+
+    @Query("select coalesce(max(s.seasonNumber), 0) from Season s where s.series.seriesId = :seriesId and s.isDeleted = false")
+    Integer findMaxSeasonNumberBySeriesId(@Param("seriesId") String seriesId);
 }
