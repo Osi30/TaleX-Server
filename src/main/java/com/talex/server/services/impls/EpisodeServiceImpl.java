@@ -20,6 +20,7 @@ import com.talex.server.repositories.MediaRepository;
 import com.talex.server.services.ContentOwnershipService;
 import com.talex.server.services.EpisodeService;
 import com.talex.server.services.SeasonService;
+import com.talex.server.services.audit.ContentAuditLogger;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,6 +35,7 @@ public class EpisodeServiceImpl implements EpisodeService {
     private final MediaRepository mediaRepository;
     private final SeasonService seasonService;
     private final ContentOwnershipService contentOwnershipService;
+    private final ContentAuditLogger contentAuditLogger;
 
     @Transactional
     @Override
@@ -58,9 +60,9 @@ public class EpisodeServiceImpl implements EpisodeService {
         episode.setScheduledPublishAt(null);
         episode.setTotalPage(request.getTotalPage());
         applyUnlockSettings(episode, request);
-        episode.markCreatedBy(accountId);
-
-        return toResponse(episodeRepository.save(episode));
+        episodeRepository.save(episode);
+        contentAuditLogger.logAction("Episode", episode.getEpisodeId(), "CREATE", accountId, episode.getCreatorId());
+        return toResponse(episode);
     }
 
     @Transactional(readOnly = true)
@@ -124,6 +126,8 @@ public class EpisodeServiceImpl implements EpisodeService {
                 if (episode.getPublishedAt() == null) {
                     episode.setPublishedAt(LocalDateTime.now());
                 }
+            } else if (request.getStatus() == EpisodeStatus.SCHEDULED) {
+                throw ContentModuleException.badRequest("Cannot set status to SCHEDULED directly via update. Use schedule endpoints.");
             } else if (episode.getStatus() == EpisodeStatus.SCHEDULED) {
                 cancelScheduledPublication(episode, accountId);
             }
@@ -131,9 +135,9 @@ public class EpisodeServiceImpl implements EpisodeService {
         }
         episode.setTotalPage(request.getTotalPage());
         applyUnlockSettings(episode, request);
-        episode.markUpdatedBy(accountId);
-
-        return toResponse(episodeRepository.save(episode));
+        episodeRepository.save(episode);
+        contentAuditLogger.logAction("Episode", episode.getEpisodeId(), "UPDATE", accountId, episode.getCreatorId());
+        return toResponse(episode);
     }
 
     @Transactional
@@ -142,15 +146,14 @@ public class EpisodeServiceImpl implements EpisodeService {
         Episode episode = findManageableEntity(id, actorId);
         ensureScheduledPublishAt(scheduledPublishAt);
         ensureEpisodeCanBeScheduled(episode);
-        if (findReadyMediaForPublish(episode).isEmpty()) {
-            throw ContentModuleException.badRequest("Episode must have at least one approved ready media before scheduling");
-        }
+        ensureReadyMediaForPublish(episode);
 
         prepareParentsForSchedule(episode, actorId);
         episode.setStatus(EpisodeStatus.SCHEDULED);
         episode.setScheduledPublishAt(scheduledPublishAt);
-        episode.markUpdatedBy(actorId);
-        return toResponse(episodeRepository.save(episode));
+        episodeRepository.save(episode);
+        contentAuditLogger.logAction("Episode", episode.getEpisodeId(), "SCHEDULE", actorId, episode.getCreatorId());
+        return toResponse(episode);
     }
 
     @Transactional
@@ -162,8 +165,9 @@ public class EpisodeServiceImpl implements EpisodeService {
         }
         cancelScheduledPublication(episode, actorId);
         episode.setStatus(EpisodeStatus.DRAFT);
-        episode.markUpdatedBy(actorId);
-        return toResponse(episodeRepository.save(episode));
+        episodeRepository.save(episode);
+        contentAuditLogger.logAction("Episode", episode.getEpisodeId(), "CANCEL_SCHEDULE", actorId, episode.getCreatorId());
+        return toResponse(episode);
     }
 
     @Transactional
@@ -178,8 +182,9 @@ public class EpisodeServiceImpl implements EpisodeService {
         if (episode.getPublishedAt() == null) {
             episode.setPublishedAt(LocalDateTime.now());
         }
-        episode.markUpdatedBy(actorId);
-        return toResponse(episodeRepository.save(episode));
+        episodeRepository.save(episode);
+        contentAuditLogger.logAction("Episode", episode.getEpisodeId(), "PUBLISH", actorId, episode.getCreatorId());
+        return toResponse(episode);
     }
 
     @Transactional
@@ -187,9 +192,7 @@ public class EpisodeServiceImpl implements EpisodeService {
     public EpisodeResponseDto publishScheduled(String id, String actorId) {
         Episode episode = lockActiveEntity(id);
         ensureScheduledEpisodeIsDue(episode);
-        if (findReadyMediaForPublish(episode).isEmpty()) {
-            throw ContentModuleException.badRequest("Episode must have at least one approved ready media before publishing");
-        }
+        ensureReadyMediaForPublish(episode);
 
         publishScheduledParents(episode, actorId);
         episode.setStatus(EpisodeStatus.PUBLISHED);
@@ -197,8 +200,9 @@ public class EpisodeServiceImpl implements EpisodeService {
         if (episode.getPublishedAt() == null) {
             episode.setPublishedAt(LocalDateTime.now());
         }
-        episode.markUpdatedBy(actorId);
-        return toResponse(episodeRepository.save(episode));
+        episodeRepository.save(episode);
+        contentAuditLogger.logAction("Episode", episode.getEpisodeId(), "PUBLISH_SCHEDULED", actorId, episode.getCreatorId());
+        return toResponse(episode);
     }
 
     @Transactional
@@ -209,8 +213,9 @@ public class EpisodeServiceImpl implements EpisodeService {
             cancelScheduledPublication(episode, actorId);
         }
         episode.setStatus(EpisodeStatus.HIDDEN);
-        episode.markUpdatedBy(actorId);
-        return toResponse(episodeRepository.save(episode));
+        episodeRepository.save(episode);
+        contentAuditLogger.logAction("Episode", episode.getEpisodeId(), "HIDE", actorId, episode.getCreatorId());
+        return toResponse(episode);
     }
 
     @Transactional
@@ -224,8 +229,9 @@ public class EpisodeServiceImpl implements EpisodeService {
         if (episode.getPublishedAt() == null) {
             episode.setPublishedAt(LocalDateTime.now());
         }
-        episode.markUpdatedBy(actorId);
-        return toResponse(episodeRepository.save(episode));
+        episodeRepository.save(episode);
+        contentAuditLogger.logAction("Episode", episode.getEpisodeId(), "UNHIDE", actorId, episode.getCreatorId());
+        return toResponse(episode);
     }
 
     @Transactional
@@ -236,8 +242,9 @@ public class EpisodeServiceImpl implements EpisodeService {
             cancelScheduledPublication(episode, actorId);
         }
         episode.setStatus(EpisodeStatus.DELETED);
-        episode.softDelete(actorId);
+        episode.softDelete();
         episodeRepository.save(episode);
+        contentAuditLogger.logAction("Episode", episode.getEpisodeId(), "DELETE", actorId, episode.getCreatorId());
     }
 
     @Override
@@ -295,9 +302,6 @@ public class EpisodeServiceImpl implements EpisodeService {
                 .createdAt(episode.getCreatedAt())
                 .updatedAt(episode.getUpdatedAt())
                 .deletedAt(episode.getDeletedAt())
-                .createdBy(episode.getCreatedBy())
-                .updatedBy(episode.getUpdatedBy())
-                .deletedBy(episode.getDeletedBy())
                 .isDeleted(episode.getIsDeleted())
                 .build();
     }
@@ -309,22 +313,27 @@ public class EpisodeServiceImpl implements EpisodeService {
     }
 
     private void ensureReadyMediaForPublish(Episode episode) {
-        boolean hasReadyMedia = mediaRepository.existsByEpisode_EpisodeIdAndMediaTypeAndStatusInAndApprovalStatusAndIsDeletedFalse(
-                episode.getEpisodeId(),
-                requiredMediaType(episode),
-                readyMediaStatuses(episode),
-                ContentApprovalStatus.APPROVED);
-        if (!hasReadyMedia) {
-            throw ContentModuleException.badRequest("Episode must have at least one approved ready media before publishing");
+        long totalMedia = mediaRepository.countByEpisode_EpisodeIdAndIsDeletedFalse(episode.getEpisodeId());
+        if (totalMedia == 0) {
+            throw ContentModuleException.badRequest("Episode must have at least one media before publishing");
         }
-    }
 
-    private List<Media> findReadyMediaForPublish(Episode episode) {
-        return mediaRepository.findAllByEpisode_EpisodeIdAndMediaTypeAndStatusInAndApprovalStatusAndIsDeletedFalse(
+        boolean hasUnapprovedMedia = mediaRepository.existsByEpisode_EpisodeIdAndApprovalStatusNotAndIsDeletedFalse(
+                episode.getEpisodeId(),
+                ContentApprovalStatus.APPROVED);
+
+        if (hasUnapprovedMedia) {
+            throw ContentModuleException.badRequest("All media in the episode must have approval_status as APPROVED (pending_review or rejected are not allowed)");
+        }
+
+        long readyMedia = mediaRepository.countByEpisode_EpisodeIdAndMediaTypeAndStatusInAndIsDeletedFalse(
                 episode.getEpisodeId(),
                 requiredMediaType(episode),
-                readyMediaStatuses(episode),
-                ContentApprovalStatus.APPROVED);
+                readyMediaStatuses(episode));
+
+        if (totalMedia != readyMedia) {
+            throw ContentModuleException.badRequest("All media must be processed and ready (e.g., ACTIVE or HLS_READY) before publishing");
+        }
     }
 
     private MediaType requiredMediaType(Episode episode) {
@@ -354,11 +363,9 @@ public class EpisodeServiceImpl implements EpisodeService {
 
         if (season.getStatus() == SeasonStatus.DRAFT) {
             season.setStatus(SeasonStatus.SCHEDULED);
-            season.markUpdatedBy(actorId);
         }
         if (series.getStatus() == SeriesStatus.DRAFT && season.getStatus() != SeasonStatus.HIDDEN) {
             series.setStatus(SeriesStatus.SCHEDULED);
-            series.markUpdatedBy(actorId);
         }
     }
 
@@ -369,11 +376,9 @@ public class EpisodeServiceImpl implements EpisodeService {
 
         if (season.getStatus() == SeasonStatus.SCHEDULED) {
             season.setStatus(SeasonStatus.PUBLISHED);
-            season.markUpdatedBy(actorId);
         }
         if (series.getStatus() == SeriesStatus.SCHEDULED && season.getStatus() == SeasonStatus.PUBLISHED) {
             series.setStatus(SeriesStatus.PUBLISHED);
-            series.markUpdatedBy(actorId);
         }
     }
 
@@ -384,11 +389,9 @@ public class EpisodeServiceImpl implements EpisodeService {
 
         if (season.getStatus() != SeasonStatus.PUBLISHED) {
             season.setStatus(SeasonStatus.PUBLISHED);
-            season.markUpdatedBy(actorId);
         }
         if (series.getStatus() != SeriesStatus.PUBLISHED) {
             series.setStatus(SeriesStatus.PUBLISHED);
-            series.markUpdatedBy(actorId);
         }
     }
 
@@ -417,10 +420,8 @@ public class EpisodeServiceImpl implements EpisodeService {
                 season.getSeasonId(), episode.getEpisodeId(), EpisodeStatus.SCHEDULED);
         if (publishedEpisodes > 0) {
             season.setStatus(SeasonStatus.PUBLISHED);
-            season.markUpdatedBy(actorId);
         } else if (scheduledEpisodes == 0) {
             season.setStatus(SeasonStatus.DRAFT);
-            season.markUpdatedBy(actorId);
         }
     }
 
@@ -436,10 +437,8 @@ public class EpisodeServiceImpl implements EpisodeService {
                 series.getSeriesId(), episode.getEpisodeId(), EpisodeStatus.SCHEDULED);
         if (publishedEpisodes > 0) {
             series.setStatus(SeriesStatus.PUBLISHED);
-            series.markUpdatedBy(actorId);
         } else if (scheduledEpisodes == 0) {
             series.setStatus(SeriesStatus.DRAFT);
-            series.markUpdatedBy(actorId);
         }
     }
 
@@ -483,10 +482,6 @@ public class EpisodeServiceImpl implements EpisodeService {
     }
 
     private int nextEpisodeNumber(String seasonId) {
-        return episodeRepository.findAllBySeason_SeasonIdAndIsDeletedFalseOrderByEpisodeNumberAsc(seasonId)
-                .stream()
-                .map(Episode::getEpisodeNumber)
-                .max(Integer::compareTo)
-                .orElse(0) + 1;
+        return episodeRepository.findMaxEpisodeNumberBySeasonId(seasonId) + 1;
     }
 }

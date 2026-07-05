@@ -11,6 +11,7 @@ import com.talex.server.entities.media.Media;
 import com.talex.server.entities.media.MediaCopyright;
 import com.talex.server.entities.media.ViolationDetail;
 import com.talex.server.enums.media.CensorshipStatus;
+import com.talex.server.enums.series.ContentApprovalStatus;
 import com.talex.server.enums.media.MediaStatus;
 import com.talex.server.enums.media.ViolationType;
 import com.talex.server.repositories.ContentCensorshipRepository;
@@ -97,6 +98,9 @@ public class ContentPipelineServiceImpl implements ContentPipelineService {
         if (Boolean.FALSE.equals(result.getSuccess())) {
             log.error("Copyright check failed for mediaId={}: {}", result.getMediaId(), result.getErrorMessage());
             media.setStatus(MediaStatus.FAILED);
+            media.setApprovalStatus(ContentApprovalStatus.REJECTED);
+            media.setApprovalReviewedBy(PIPELINE_ACTOR);
+            media.setApprovalReviewedAt(LocalDateTime.now());
             media.setErrorMessage("Copyright check failed: " + result.getErrorMessage());
             media.markUpdatedBy(PIPELINE_ACTOR);
             mediaRepository.save(media);
@@ -111,6 +115,9 @@ public class ContentPipelineServiceImpl implements ContentPipelineService {
             if (!allViolationsCC0) {
                 log.warn("Non-CC0 copyright violation: mediaId={} blocked", result.getMediaId());
                 media.setStatus(MediaStatus.INACTIVE);
+                media.setApprovalStatus(ContentApprovalStatus.REJECTED);
+                media.setApprovalReviewedBy(PIPELINE_ACTOR);
+                media.setApprovalReviewedAt(LocalDateTime.now());
                 media.markUpdatedBy(PIPELINE_ACTOR);
                 mediaRepository.save(media);
                 pushSseEvent(media, "pipeline:copyright_complete", PipelineEventPayload.builder()
@@ -150,12 +157,16 @@ public class ContentPipelineServiceImpl implements ContentPipelineService {
 
         if (Boolean.TRUE.equals(result.getIsSafe())) {
             media.setStatus(MediaStatus.ACTIVE);
+            media.setApprovalStatus(ContentApprovalStatus.APPROVED);
             log.info("Moderation passed — media ACTIVE: mediaId={}", result.getMediaId());
         } else {
             media.setStatus(MediaStatus.INACTIVE);
+            media.setApprovalStatus(ContentApprovalStatus.REJECTED);
             log.warn("Moderation failed — media INACTIVE: mediaId={} label={}", result.getMediaId(), result.getPrimaryLabel());
         }
 
+        media.setApprovalReviewedBy(PIPELINE_ACTOR);
+        media.setApprovalReviewedAt(LocalDateTime.now());
         media.markUpdatedBy(PIPELINE_ACTOR);
         mediaRepository.save(media);
 
@@ -295,7 +306,7 @@ public class ContentPipelineServiceImpl implements ContentPipelineService {
 
     private String resolveCreatorAccountId(Media media) {
         try {
-            return media.getEpisode().getSeason().getSeries().getCreatedBy();
+            return media.getEpisode().getSeason().getSeries().getCreator().getAccount().getAccountId().toString();
         } catch (Exception e) {
             log.warn("Could not resolve creator accountId for media: {}", media.getMediaId());
             return null;

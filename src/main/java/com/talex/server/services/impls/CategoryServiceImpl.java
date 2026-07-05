@@ -10,6 +10,7 @@ import com.talex.server.repositories.series.CategoryRepository;
 import com.talex.server.services.CategoryService;
 import com.talex.server.utils.PageUtils;
 import com.talex.server.utils.SlugUtils;
+import com.talex.server.services.audit.ContentAuditLogger;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -20,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class CategoryServiceImpl implements CategoryService {
     private final CategoryRepository categoryRepository;
+    private final ContentAuditLogger contentAuditLogger;
 
     @Transactional
     @Override
@@ -32,9 +34,10 @@ public class CategoryServiceImpl implements CategoryService {
         category.setDescription(request.getDescription());
         category.setSlug(slug);
         category.setStatus(request.getStatus() != null ? request.getStatus() : CategoryStatus.ACTIVE);
-        category.markCreatedBy(request.getActorId());
 
-        return toResponse(categoryRepository.save(category));
+        Category saved = categoryRepository.save(category);
+        contentAuditLogger.logAction("Category", saved.getCategoryId(), "CREATE", request.getActorId(), "");
+        return toResponse(saved);
     }
 
     @Transactional(readOnly = true)
@@ -75,9 +78,10 @@ public class CategoryServiceImpl implements CategoryService {
         if (request.getStatus() != null) {
             category.setStatus(request.getStatus());
         }
-        category.markUpdatedBy(request.getActorId());
 
-        return toResponse(categoryRepository.save(category));
+        Category saved = categoryRepository.save(category);
+        contentAuditLogger.logAction("Category", saved.getCategoryId(), "UPDATE", request.getActorId(), "");
+        return toResponse(saved);
     }
 
     @Transactional
@@ -85,8 +89,9 @@ public class CategoryServiceImpl implements CategoryService {
     public CategoryResponseDto hide(String id, String actorId) {
         Category category = findActiveEntity(id);
         category.setStatus(CategoryStatus.INACTIVE);
-        category.markUpdatedBy(actorId);
-        return toResponse(categoryRepository.save(category));
+        Category saved = categoryRepository.save(category);
+        contentAuditLogger.logAction("Category", saved.getCategoryId(), "HIDE", actorId, "");
+        return toResponse(saved);
     }
 
     @Transactional
@@ -94,8 +99,9 @@ public class CategoryServiceImpl implements CategoryService {
     public CategoryResponseDto unhide(String id, String actorId) {
         Category category = findActiveEntity(id);
         category.setStatus(CategoryStatus.ACTIVE);
-        category.markUpdatedBy(actorId);
-        return toResponse(categoryRepository.save(category));
+        Category saved = categoryRepository.save(category);
+        contentAuditLogger.logAction("Category", saved.getCategoryId(), "UNHIDE", actorId, "");
+        return toResponse(saved);
     }
 
     @Transactional
@@ -103,8 +109,9 @@ public class CategoryServiceImpl implements CategoryService {
     public void delete(String id, String actorId) {
         Category category = findActiveEntity(id);
         category.setStatus(CategoryStatus.DELETED);
-        category.softDelete(actorId);
+        category.softDelete();
         categoryRepository.save(category);
+        contentAuditLogger.logAction("Category", category.getCategoryId(), "DELETE", actorId, "");
     }
 
     @Override
@@ -133,9 +140,6 @@ public class CategoryServiceImpl implements CategoryService {
                 .createdAt(category.getCreatedAt())
                 .updatedAt(category.getUpdatedAt())
                 .deletedAt(category.getDeletedAt())
-                .createdBy(category.getCreatedBy())
-                .updatedBy(category.getUpdatedBy())
-                .deletedBy(category.getDeletedBy())
                 .isDeleted(category.getIsDeleted())
                 .build();
     }

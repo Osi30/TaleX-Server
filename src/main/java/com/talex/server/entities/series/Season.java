@@ -1,6 +1,6 @@
 package com.talex.server.entities.series;
 
-import com.talex.server.entities.BaseAudit;
+import com.talex.server.entities.BaseTimeEntity;
 import com.talex.server.enums.series.SeasonStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -34,7 +34,7 @@ import java.util.List;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class Season extends BaseAudit {
+public class Season extends BaseTimeEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     @Column(name = "season_id")

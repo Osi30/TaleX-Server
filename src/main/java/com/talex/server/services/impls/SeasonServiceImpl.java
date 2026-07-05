@@ -10,6 +10,7 @@ import com.talex.server.repositories.series.SeasonRepository;
 import com.talex.server.services.ContentOwnershipService;
 import com.talex.server.services.SeasonService;
 import com.talex.server.services.SeriesService;
+import com.talex.server.services.audit.ContentAuditLogger;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,6 +23,7 @@ public class SeasonServiceImpl implements SeasonService {
     private final SeasonRepository seasonRepository;
     private final SeriesService seriesService;
     private final ContentOwnershipService contentOwnershipService;
+    private final ContentAuditLogger contentAuditLogger;
 
     @Transactional
     @Override
@@ -38,9 +40,10 @@ public class SeasonServiceImpl implements SeasonService {
         season.setTitle(request.getTitle());
         season.setDescription(request.getDescription());
         season.setStatus(SeasonStatus.DRAFT);
-        season.markCreatedBy(accountId);
 
-        return toResponse(seasonRepository.save(season));
+        Season saved = seasonRepository.save(season);
+        contentAuditLogger.logAction("Season", saved.getSeasonId(), "CREATE", accountId, saved.getCreatorId());
+        return toResponse(saved);
     }
 
     @Transactional(readOnly = true)
@@ -95,9 +98,10 @@ public class SeasonServiceImpl implements SeasonService {
         if (request.getStatus() != null) {
             season.setStatus(request.getStatus());
         }
-        season.markUpdatedBy(accountId);
 
-        return toResponse(seasonRepository.save(season));
+        Season saved = seasonRepository.save(season);
+        contentAuditLogger.logAction("Season", saved.getSeasonId(), "UPDATE", accountId, saved.getCreatorId());
+        return toResponse(saved);
     }
 
     @Transactional
@@ -105,8 +109,9 @@ public class SeasonServiceImpl implements SeasonService {
     public SeasonResponseDto hide(String id, String actorId) {
         Season season = findManageableEntity(id, actorId);
         season.setStatus(SeasonStatus.HIDDEN);
-        season.markUpdatedBy(actorId);
-        return toResponse(seasonRepository.save(season));
+        Season saved = seasonRepository.save(season);
+        contentAuditLogger.logAction("Season", saved.getSeasonId(), "HIDE", actorId, saved.getCreatorId());
+        return toResponse(saved);
     }
 
     @Transactional
@@ -114,8 +119,9 @@ public class SeasonServiceImpl implements SeasonService {
     public SeasonResponseDto unhide(String id, String actorId) {
         Season season = findManageableEntity(id, actorId);
         season.setStatus(SeasonStatus.PUBLISHED);
-        season.markUpdatedBy(actorId);
-        return toResponse(seasonRepository.save(season));
+        Season saved = seasonRepository.save(season);
+        contentAuditLogger.logAction("Season", saved.getSeasonId(), "UNHIDE", actorId, saved.getCreatorId());
+        return toResponse(saved);
     }
 
     @Transactional
@@ -123,8 +129,9 @@ public class SeasonServiceImpl implements SeasonService {
     public void delete(String id, String actorId) {
         Season season = findManageableEntity(id, actorId);
         season.setStatus(SeasonStatus.DELETED);
-        season.softDelete(actorId);
+        season.softDelete();
         seasonRepository.save(season);
+        contentAuditLogger.logAction("Season", season.getSeasonId(), "DELETE", actorId, season.getCreatorId());
     }
 
     @Override
@@ -169,19 +176,12 @@ public class SeasonServiceImpl implements SeasonService {
                 .createdAt(season.getCreatedAt())
                 .updatedAt(season.getUpdatedAt())
                 .deletedAt(season.getDeletedAt())
-                .createdBy(season.getCreatedBy())
-                .updatedBy(season.getUpdatedBy())
-                .deletedBy(season.getDeletedBy())
                 .isDeleted(season.getIsDeleted())
                 .build();
     }
 
     private int nextSeasonNumber(String seriesId) {
-        return seasonRepository.findAllBySeries_SeriesIdAndIsDeletedFalseOrderBySeasonNumberAsc(seriesId)
-                .stream()
-                .map(Season::getSeasonNumber)
-                .max(Integer::compareTo)
-                .orElse(0) + 1;
+        return seasonRepository.findMaxSeasonNumberBySeriesId(seriesId) + 1;
     }
 
 }
