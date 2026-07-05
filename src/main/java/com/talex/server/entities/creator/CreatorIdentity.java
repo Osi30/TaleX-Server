@@ -1,6 +1,7 @@
 package com.talex.server.entities.creator;
 
 import com.talex.server.entities.kyc.KycSession;
+import com.talex.server.enums.creator.CreatorIdentityStatus;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -37,11 +38,14 @@ public class CreatorIdentity {
     // Date of expiry
     private LocalDate doe;
 
-    @Column(name = "is_verified")
-    private Boolean isVerified;
+    @Column(name = "status")
+    private CreatorIdentityStatus status;
 
     @Column(name = "verified_at")
     private LocalDateTime verifiedAt;
+
+    @Column(name = "verified_note")
+    private String verifiedNote;
 
     @Column(name = "tax_id", length = 50)
     private String taxId;

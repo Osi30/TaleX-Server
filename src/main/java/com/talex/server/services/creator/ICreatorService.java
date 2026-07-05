@@ -6,11 +6,18 @@ import com.talex.server.dtos.requests.creator.CreatorRequestDto;
 import com.talex.server.dtos.requests.filters.CreatorFilterRequestDto;
 import com.talex.server.dtos.responses.CreatorResponseDto;
 import com.talex.server.entities.creator.Creator;
+import com.talex.server.records.CreatorVerificationStatus;
 
 import java.util.UUID;
 
 public interface ICreatorService {
     CreatorResponseDto createCreator(CreatorRegisterDto dto);
+
+    String verifyCreator(CreatorRegisterDto dto);
+
+    CreatorVerificationStatus checkAndGetVerificationStatus(UUID accountId);
+
+//    void enableMonetization();
 
     CreatorResponseDto getById(String id);
 

@@ -7,6 +7,7 @@ import com.talex.server.dtos.requests.creator.CreatorRegisterDto;
 import com.talex.server.dtos.requests.creator.CreatorRequestDto;
 import com.talex.server.dtos.requests.filters.CreatorFilterRequestDto;
 import com.talex.server.dtos.responses.CreatorResponseDto;
+import com.talex.server.records.CreatorVerificationStatus;
 import com.talex.server.services.creator.ICreatorService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -40,6 +41,37 @@ public class CreatorController {
                         .code(201)
                         .message("Creator created")
                         .data(resp)
+                        .build());
+    }
+
+    @PostMapping
+    @PreAuthorize("hasRole('VIEWER')")
+    @Operation(summary = "Đăng ký xác thực", description = "Đăng ký xác thực để sử dụng các tính năng cao hơn.")
+    public ResponseEntity<BaseResponse> verifyAccount(
+            @CurrentAccountId UUID accountId,
+            @Valid @RequestBody CreatorRegisterDto dto
+    ) {
+        dto.setAccountId(accountId);
+        String resp = creatorService.verifyCreator(dto);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(BaseResponse.builder()
+                        .code(201)
+                        .message("Session id returned for verifying")
+                        .data(resp)
+                        .build());
+    }
+
+    @PreAuthorize("isAuthenticated()")
+    @GetMapping("/verification-status")
+    public ResponseEntity<BaseResponse> getDetailedStatus(
+            @CurrentAccountId UUID accountId
+    ) {
+        CreatorVerificationStatus status = creatorService.checkAndGetVerificationStatus(accountId);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(BaseResponse.builder()
+                        .code(200)
+                        .message("Creator verification status")
+                        .data(status)
                         .build());
     }
 

@@ -15,10 +15,13 @@ import com.talex.server.enums.TermsType;
 import com.talex.server.exceptions.codes.CreatorErrorCode;
 import com.talex.server.exceptions.details.CreatorException;
 import com.talex.server.mappers.ICreatorMapper;
+import com.talex.server.records.CreatorVerificationStatus;
 import com.talex.server.repositories.AccountRepository;
 import com.talex.server.repositories.creator.CreatorRepository;
+import com.talex.server.services.creator.ICreatorIdentityService;
 import com.talex.server.services.creator.ICreatorService;
 import com.talex.server.services.creator.ICreatorTierService;
+import com.talex.server.services.ekyc.IKycSessionService;
 import com.talex.server.services.terms.ITermsLogService;
 import com.talex.server.services.terms.ITermsVersionService;
 import com.talex.server.specifications.CreatorSpec;
@@ -41,6 +44,8 @@ public class CreatorService implements ICreatorService {
     private final ITermsVersionService termsVersionService;
     private final ITermsLogService creatorTermsLogService;
     private final ICreatorTierService creatorTierService;
+    private final ICreatorIdentityService creatorIdentityService;
+    private final IKycSessionService kycSessionService;
     private final CreatorRepository creatorRepository;
     private final AccountRepository accountRepository;
     private final ICreatorMapper creatorMapper;
@@ -70,42 +75,46 @@ public class CreatorService implements ICreatorService {
     }
 
 
-//    @Override
-//    @Transactional
-//    public String createCreator(CreatorRegisterDto dto) {
-//        Creator creator;
-//
-//        if (ValidationUtils.isNullOrEmpty(dto.getTermsId())) {
-//            throw new CreatorException(CreatorErrorCode.INVALID_CREATOR_REQUEST);
-//        }
-//
-//        // Đã đồng ý điều khoản
-//        if (creatorTermsLogService.existsByAccountAndTerm(dto.getAccountId(), dto.getTermsId())) {
-//            creator = findCreatorByAccountId(dto.getAccountId());
-//        }
-//        // Chưa đồng ý điều khoản
-//        else {
-//            // 1. Creator
-//            Account account = accountRepository.findById(dto.getAccountId()).orElseThrow(
-//                    () -> new CreatorException(CreatorErrorCode.CREATOR_NOT_FOUND));
-//            creator = creatorRepository.save(Creator.builder()
-//                    .account(account)
-//                    .build());
-//
-//            // 2. Log
-//            creatorTermsLogService.create(
-//                    dto.getAccountId(),
-//                    CreatorTermsLogRequestDto.builder()
-//                            .versionId(dto.getTermsId())
-//                            .build());
-//
-//            // 3. Identity
-//            creatorIdentityService.create(creator);
-//        }
-//
-//        // 4. Session
-//        return kycSessionService.createSession(creator);
-//    }
+    @Override
+    @Transactional
+    public String verifyCreator(CreatorRegisterDto dto) {
+        Creator creator = getEntityByAccountId(dto.getAccountId());
+
+        if (ValidationUtils.isNullOrEmpty(dto.getTermsId())) {
+            throw new CreatorException(CreatorErrorCode.INVALID_CREATOR_REQUEST);
+        }
+
+        // Chưa đồng ý điều khoản
+        if (!creatorTermsLogService.existsByAccountAndTerm(dto.getAccountId(), dto.getTermsId())) {
+            // Log
+            creatorTermsLogService.create(
+                    dto.getAccountId(),
+                    CreatorTermsLogRequestDto.builder()
+                            .versionId(dto.getTermsId())
+                            .build());
+            // Identity
+            creatorIdentityService.create(creator);
+        }
+
+        // Session
+        return kycSessionService.createSession(creator);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public CreatorVerificationStatus checkAndGetVerificationStatus(UUID accountId) {
+        CreatorVerificationStatus status = creatorRepository.getVerificationStatusByAccountId(accountId.toString())
+                .orElseThrow(() -> new CreatorException(CreatorErrorCode.CREATOR_NOT_FOUND,
+                        "Không tìm thấy hồ sơ Creator liên kết với tài khoản này."));
+
+        // Kiểm tra xem Creator đã được verify (eKYC) chưa
+        if (!Boolean.TRUE.equals(status.isCreatorVerified())) {
+            throw new CreatorException(CreatorErrorCode.CREATOR_NOT_VERIFIED,
+                    "Tài khoản này chưa hoàn tất các bước xác minh nhà sáng tạo.");
+        }
+
+        return status;
+    }
 
     @Override
     @Transactional(readOnly = true)

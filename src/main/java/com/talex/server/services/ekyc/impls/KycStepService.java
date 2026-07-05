@@ -2,12 +2,12 @@ package com.talex.server.services.ekyc.impls;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.talex.server.dtos.requests.kyc.KycStepRequestDto;
-import com.talex.server.dtos.responses.kyc.KycStepResponseDto;
 import com.talex.server.dtos.responses.idrecognition.back.FptAiIdBackResponse;
 import com.talex.server.dtos.responses.idrecognition.front.FptAiIdFrontResponse;
 import com.talex.server.dtos.responses.idrecognition.front.FrontData;
+import com.talex.server.dtos.responses.kyc.KycStepResponseDto;
 import com.talex.server.dtos.responses.liveness.FptAiLivenessResponse;
-import com.talex.server.entities.Account;
+import com.talex.server.entities.creator.Creator;
 import com.talex.server.entities.creator.CreatorIdentity;
 import com.talex.server.entities.kyc.KycSession;
 import com.talex.server.entities.kyc.KycStep;
@@ -17,14 +17,13 @@ import com.talex.server.exceptions.codes.KycStepErrorCode;
 import com.talex.server.exceptions.details.KycStepException;
 import com.talex.server.mappers.kyc.IKycStepMapper;
 import com.talex.server.records.EKycResult;
-import com.talex.server.repositories.*;
 import com.talex.server.repositories.creator.CreatorIdentityRepository;
+import com.talex.server.repositories.creator.CreatorRepository;
 import com.talex.server.repositories.kyc.KycSessionRepository;
 import com.talex.server.repositories.kyc.KycStepRepository;
 import com.talex.server.services.ekyc.IEKycService;
 import com.talex.server.services.ekyc.IKycSessionService;
 import com.talex.server.services.ekyc.IKycStepService;
-import com.talex.server.services.IRoleService;
 import com.talex.server.specifications.KycStepSpec;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -48,8 +47,7 @@ public class KycStepService implements IKycStepService {
     private final KycStepRepository kycStepRepository;
     private final KycSessionRepository kycSessionRepository;
     private final CreatorIdentityRepository creatorIdentityRepository;
-    private final AccountRepository accountRepository;
-    private final IRoleService roleService;
+    private final CreatorRepository creatorRepository;
     private final IKycSessionService kycSessionService;
     private final IEKycService eKycService;
     private final IKycStepMapper kycStepMapper;
@@ -137,9 +135,9 @@ public class KycStepService implements IKycStepService {
                 identity.setKycSession(kycSession);
                 creatorIdentityRepository.save(identity);
 
-                Account account = kycSession.getCreator().getAccount();
-                account.setRole(roleService.findByCode("CREATOR"));
-                accountRepository.save(account);
+                Creator creator = kycSession.getCreator();
+                creator.setIsVerified(true);
+                creatorRepository.save(creator);
             }
 
         } catch (Exception ex) {

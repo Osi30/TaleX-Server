@@ -31,7 +31,7 @@ public class Invoice {
     @Column(name = "invoice_url")
     private String invoiceUrl;
     
-    @ManyToOne(fetch = FetchType.LAZY)
+    @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "transaction_id", nullable = false)
     private Transaction transaction;
 }

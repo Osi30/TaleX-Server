@@ -26,6 +26,10 @@ public class Creator {
     @Column(name = "creator_id")
     private String creatorId;
 
+    @Column(name = "is_verified")
+    @Builder.Default
+    private Boolean isVerified = false;
+
     // Tổng quan tương tác
     @Column(name = "total_views", nullable = false)
     @Builder.Default

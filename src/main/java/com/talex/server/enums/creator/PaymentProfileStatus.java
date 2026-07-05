@@ -6,6 +6,7 @@ import lombok.Getter;
 @Getter
 @AllArgsConstructor
 public enum PaymentProfileStatus {
+    AWAITING_FILL_IN("Đang chờ nhập"),
     PENDING("Đang chờ duyệt"),
     VERIFIED("Đã được duyệt"),
     REJECTED("Bị từ chối"),

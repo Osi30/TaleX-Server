@@ -31,7 +31,7 @@ public class PaymentProfile {
     @Column(name = "account_name", length = 200)
     private String accountName;
 
-    @Column(name = "is_primary")
+    @Column(name = "is_primary", unique = true)
     private Boolean isPrimary = false;
 
     @Column(name = "verified_at")
