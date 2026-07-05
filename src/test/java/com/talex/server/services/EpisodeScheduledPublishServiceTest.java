@@ -14,6 +14,7 @@ import com.talex.server.exceptions.details.ContentModuleException;
 import com.talex.server.repositories.MediaRepository;
 import com.talex.server.repositories.series.EpisodeRepository;
 import com.talex.server.services.impls.EpisodeServiceImpl;
+import com.talex.server.services.audit.ContentAuditLogger;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -44,13 +45,15 @@ class EpisodeScheduledPublishServiceTest {
     private SeasonService seasonService;
     @Mock
     private ContentOwnershipService contentOwnershipService;
+    @Mock
+    private ContentAuditLogger contentAuditLogger;
 
     private EpisodeServiceImpl episodeService;
 
     @BeforeEach
     void setUp() {
         episodeService = new EpisodeServiceImpl(
-                episodeRepository, mediaRepository, seasonService, contentOwnershipService);
+                episodeRepository, mediaRepository, seasonService, contentOwnershipService, contentAuditLogger);
         lenient().when(contentOwnershipService.isPrivileged()).thenReturn(true);
         lenient().when(episodeRepository.save(any(Episode.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
@@ -276,8 +279,11 @@ class EpisodeScheduledPublishServiceTest {
         lenient().when(mediaRepository.countByEpisode_EpisodeIdAndIsDeletedFalse(
                 eq(episode.getEpisodeId())))
                 .thenReturn(count);
-        lenient().when(mediaRepository.countByEpisode_EpisodeIdAndMediaTypeAndStatusInAndApprovalStatusAndIsDeletedFalse(
-                eq(episode.getEpisodeId()), any(), any(), eq(ContentApprovalStatus.APPROVED)))
+        lenient().when(mediaRepository.existsByEpisode_EpisodeIdAndApprovalStatusNotAndIsDeletedFalse(
+                eq(episode.getEpisodeId()), eq(ContentApprovalStatus.APPROVED)))
+                .thenReturn(false);
+        lenient().when(mediaRepository.countByEpisode_EpisodeIdAndMediaTypeAndStatusInAndIsDeletedFalse(
+                eq(episode.getEpisodeId()), any(), any()))
                 .thenReturn(count);
     }
 

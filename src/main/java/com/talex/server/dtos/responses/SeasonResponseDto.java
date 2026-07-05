@@ -23,8 +23,5 @@ public class SeasonResponseDto {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private LocalDateTime deletedAt;
-    private String createdBy;
-    private String updatedBy;
-    private String deletedBy;
     private Boolean isDeleted;
 }

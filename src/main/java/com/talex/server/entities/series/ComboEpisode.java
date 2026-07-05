@@ -1,6 +1,6 @@
 package com.talex.server.entities.series;
 
-import com.talex.server.entities.BaseAudit;
+import com.talex.server.entities.BaseTimeEntity;
 import com.talex.server.enums.series.EpisodeStatus;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -17,7 +17,7 @@ import java.util.List;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class ComboEpisode extends BaseAudit {
+public class ComboEpisode extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)

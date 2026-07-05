@@ -14,6 +14,7 @@ import com.talex.server.services.CategoryService;
 import com.talex.server.services.ContentOwnershipService;
 import com.talex.server.services.SeriesService;
 import com.talex.server.services.TagService;
+import com.talex.server.services.audit.ContentAuditLogger;
 import com.talex.server.services.creator.ICreatorService;
 import com.talex.server.utils.PageUtils;
 import lombok.RequiredArgsConstructor;
@@ -38,6 +39,7 @@ public class SeriesServiceImpl implements SeriesService {
     private final ContentOwnershipService contentOwnershipService;
     private final ICreatorService creatorService;
     private final SeasonRepository seasonRepository;
+    private final ContentAuditLogger contentAuditLogger;
 
     @Transactional
     @Override
@@ -49,13 +51,14 @@ public class SeriesServiceImpl implements SeriesService {
         applyMutableFields(series, request);
         series.setStatus(SeriesStatus.DRAFT);
         series.setCreator(creator);
-        series.markCreatedBy(accountIdStr);
 
         Series saved = seriesRepository.save(series);
         syncCategories(saved, request.getCategoryIds(), accountIdStr);
         syncTags(saved, request.getTagIds(), accountIdStr);
 
         createDefaultSeason(saved, creator, accountIdStr);
+        
+        contentAuditLogger.logAction("Series", saved.getSeriesId(), "CREATE", accountIdStr, creator.getCreatorId());
 
         return toResponse(saved);
     }
@@ -68,9 +71,9 @@ public class SeriesServiceImpl implements SeriesService {
         season.setTitle("Season 1");
         season.setDescription("Phần đầu tiên của series");
         season.setStatus(com.talex.server.enums.series.SeasonStatus.DRAFT);
-        season.markCreatedBy(accountIdStr);
         
         seasonRepository.save(season);
+        contentAuditLogger.logAction("Season", season.getSeasonId(), "CREATE", accountIdStr, creator.getCreatorId());
     }
 
     @Transactional(readOnly = true)
@@ -122,11 +125,12 @@ public class SeriesServiceImpl implements SeriesService {
             throw ContentModuleException.badRequest("SCHEDULED is managed by episode publish scheduling");
         }
         applyMutableFields(series, request);
-        series.markUpdatedBy(accountId);
 
         Series saved = seriesRepository.save(series);
         syncCategories(saved, request.getCategoryIds(), accountId);
         syncTags(saved, request.getTagIds(), accountId);
+
+        contentAuditLogger.logAction("Series", saved.getSeriesId(), "UPDATE", accountId, series.getCreator().getCreatorId());
 
         return toResponse(saved);
     }
@@ -137,8 +141,9 @@ public class SeriesServiceImpl implements SeriesService {
         Series series = findActiveEntity(id);
         contentOwnershipService.assertCanManage(series, actorId);
         series.setStatus(SeriesStatus.HIDDEN);
-        series.markUpdatedBy(actorId);
-        return toResponse(seriesRepository.save(series));
+        Series saved = seriesRepository.save(series);
+        contentAuditLogger.logAction("Series", saved.getSeriesId(), "HIDE", actorId, series.getCreator().getCreatorId());
+        return toResponse(saved);
     }
 
     @Transactional
@@ -147,8 +152,9 @@ public class SeriesServiceImpl implements SeriesService {
         Series series = findActiveEntity(id);
         contentOwnershipService.assertCanManage(series, actorId);
         series.setStatus(SeriesStatus.PUBLISHED);
-        series.markUpdatedBy(actorId);
-        return toResponse(seriesRepository.save(series));
+        Series saved = seriesRepository.save(series);
+        contentAuditLogger.logAction("Series", saved.getSeriesId(), "UNHIDE", actorId, series.getCreator().getCreatorId());
+        return toResponse(saved);
     }
 
     @Transactional
@@ -157,8 +163,9 @@ public class SeriesServiceImpl implements SeriesService {
         Series series = findActiveEntity(id);
         contentOwnershipService.assertCanManage(series, actorId);
         series.setStatus(SeriesStatus.DELETED);
-        series.softDelete(actorId);
+        series.softDelete();
         seriesRepository.save(series);
+        contentAuditLogger.logAction("Series", series.getSeriesId(), "DELETE", actorId, series.getCreator().getCreatorId());
     }
 
     @Override
@@ -224,9 +231,6 @@ public class SeriesServiceImpl implements SeriesService {
                 .createdAt(series.getCreatedAt())
                 .updatedAt(series.getUpdatedAt())
                 .deletedAt(series.getDeletedAt())
-                .createdBy(series.getCreatedBy())
-                .updatedBy(series.getUpdatedBy())
-                .deletedBy(series.getDeletedBy())
                 .isDeleted(series.getIsDeleted())
                 .build();
     }
@@ -282,7 +286,7 @@ public class SeriesServiceImpl implements SeriesService {
         for (SeriesCategory relation : existingByCategoryId.values()) {
             String categoryId = relation.getId().getCategoryId();
             if (!requestedIds.contains(categoryId) && !Boolean.TRUE.equals(relation.getIsDeleted())) {
-                relation.softDelete(actorId);
+                relation.softDelete();
                 changedRelations.add(relation);
             }
         }
@@ -292,14 +296,14 @@ public class SeriesServiceImpl implements SeriesService {
             SeriesCategory existing = existingByCategoryId.get(categoryId);
             if (existing != null) {
                 if (Boolean.TRUE.equals(existing.getIsDeleted())) {
-                    existing.restore(actorId);
+                    existing.restore();
                     changedRelations.add(existing);
                 }
                 continue;
             }
 
             SeriesCategory relation = new SeriesCategory(series, category);
-            relation.markCreatedBy(actorId);
+
             changedRelations.add(relation);
         }
 
@@ -324,7 +328,7 @@ public class SeriesServiceImpl implements SeriesService {
         for (SeriesTag relation : existingByTagId.values()) {
             String tagId = relation.getId().getTagId();
             if (!requestedIds.contains(tagId) && !Boolean.TRUE.equals(relation.getIsDeleted())) {
-                relation.softDelete(actorId);
+                relation.softDelete();
                 changedRelations.add(relation);
             }
         }
@@ -334,14 +338,14 @@ public class SeriesServiceImpl implements SeriesService {
             SeriesTag existing = existingByTagId.get(tagId);
             if (existing != null) {
                 if (Boolean.TRUE.equals(existing.getIsDeleted())) {
-                    existing.restore(actorId);
+                    existing.restore();
                     changedRelations.add(existing);
                 }
                 continue;
             }
 
             SeriesTag relation = new SeriesTag(series, tag);
-            relation.markCreatedBy(actorId);
+
             changedRelations.add(relation);
         }
 

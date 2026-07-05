@@ -1,7 +1,7 @@
 package com.talex.server.entities.series;
 
 import com.talex.server.entities.Account;
-import com.talex.server.entities.BaseAudit;
+import com.talex.server.entities.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -14,7 +14,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class EpisodeUnlockedContent extends BaseAudit {
+public class EpisodeUnlockedContent extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)

@@ -13,6 +13,7 @@ import com.talex.server.repositories.series.SeasonRepository;
 import com.talex.server.services.creator.ICreatorService;
 import com.talex.server.services.impls.EpisodeServiceImpl;
 import com.talex.server.services.impls.SeasonServiceImpl;
+import com.talex.server.services.audit.ContentAuditLogger;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -50,6 +51,8 @@ class ContentCrudOwnershipServiceTest {
     private EpisodeRepository episodeRepository;
     @Mock
     private MediaRepository mediaRepository;
+    @Mock
+    private ContentAuditLogger contentAuditLogger;
 
     private SeasonServiceImpl seasonServiceImpl;
     private EpisodeServiceImpl episodeServiceImpl;
@@ -62,12 +65,13 @@ class ContentCrudOwnershipServiceTest {
         when(creatorService.getEntityByAccountId(ACCOUNT_ID)).thenReturn(creator);
 
         ContentOwnershipService ownershipService = new ContentOwnershipService(creatorService);
-        seasonServiceImpl = new SeasonServiceImpl(seasonRepository, seriesService, ownershipService);
+        seasonServiceImpl = new SeasonServiceImpl(seasonRepository, seriesService, ownershipService, contentAuditLogger);
         episodeServiceImpl = new EpisodeServiceImpl(
                 episodeRepository,
                 mediaRepository,
                 seasonService,
-                ownershipService);
+                ownershipService,
+                contentAuditLogger);
     }
 
     @AfterEach

@@ -11,6 +11,7 @@ import com.talex.server.repositories.series.EpisodeUnlockedContentRepository;
 import com.talex.server.repositories.transaction.OrderRepository;
 import com.talex.server.entities.transaction.Order;
 import com.talex.server.services.EpisodeUnlockedContentService;
+import com.talex.server.services.audit.ContentAuditLogger;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -30,6 +31,7 @@ public class EpisodeUnlockedContentServiceImpl implements EpisodeUnlockedContent
     private final ComboEpisodeRepository comboEpisodeRepository;
     private final AccountRepository accountRepository;
     private final OrderRepository orderRepository;
+    private final ContentAuditLogger contentAuditLogger;
 
     @Override
     @Transactional
@@ -77,7 +79,11 @@ public class EpisodeUnlockedContentServiceImpl implements EpisodeUnlockedContent
         }
 
         if (!unlockedContents.isEmpty()) {
-            return episodeUnlockedContentRepository.saveAll(unlockedContents);
+            List<EpisodeUnlockedContent> saved = episodeUnlockedContentRepository.saveAll(unlockedContents);
+            for (EpisodeUnlockedContent content : saved) {
+                contentAuditLogger.logAction("EpisodeUnlockedContent", content.getId().toString(), "CREATE", accountId.toString(), content.getEpisode().getCreatorId());
+            }
+            return saved;
         }
 
         return unlockedContents;
