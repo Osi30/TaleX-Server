@@ -52,6 +52,15 @@ public class Order {
     @Column(name = "item_id")
     private String itemId;
 
+    @Column(name = "payment_code", unique = true)
+    private String paymentCode;
+
+    @Column(name = "expires_at")
+    private LocalDateTime expiresAt;
+
+    @Column(name = "metadata", columnDefinition = "TEXT")
+    private String metadata;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "account_id", nullable = false)
     private Account account;
