@@ -20,6 +20,7 @@ import com.talex.server.repositories.MediaRepository;
 import com.talex.server.services.ContentOwnershipService;
 import com.talex.server.services.EpisodeService;
 import com.talex.server.services.SeasonService;
+import com.talex.server.services.audit.ContentAuditLogger;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,6 +35,7 @@ public class EpisodeServiceImpl implements EpisodeService {
     private final MediaRepository mediaRepository;
     private final SeasonService seasonService;
     private final ContentOwnershipService contentOwnershipService;
+    private final ContentAuditLogger contentAuditLogger;
 
     @Transactional
     @Override
@@ -58,9 +60,9 @@ public class EpisodeServiceImpl implements EpisodeService {
         episode.setScheduledPublishAt(null);
         episode.setTotalPage(request.getTotalPage());
         applyUnlockSettings(episode, request);
-        episode.markCreatedBy(accountId);
-
-        return toResponse(episodeRepository.save(episode));
+        episodeRepository.save(episode);
+        contentAuditLogger.logAction("Episode", episode.getEpisodeId(), "CREATE", accountId, episode.getCreatorId());
+        return toResponse(episode);
     }
 
     @Transactional(readOnly = true)
@@ -133,9 +135,9 @@ public class EpisodeServiceImpl implements EpisodeService {
         }
         episode.setTotalPage(request.getTotalPage());
         applyUnlockSettings(episode, request);
-        episode.markUpdatedBy(accountId);
-
-        return toResponse(episodeRepository.save(episode));
+        episodeRepository.save(episode);
+        contentAuditLogger.logAction("Episode", episode.getEpisodeId(), "UPDATE", accountId, episode.getCreatorId());
+        return toResponse(episode);
     }
 
     @Transactional
@@ -149,8 +151,9 @@ public class EpisodeServiceImpl implements EpisodeService {
         prepareParentsForSchedule(episode, actorId);
         episode.setStatus(EpisodeStatus.SCHEDULED);
         episode.setScheduledPublishAt(scheduledPublishAt);
-        episode.markUpdatedBy(actorId);
-        return toResponse(episodeRepository.save(episode));
+        episodeRepository.save(episode);
+        contentAuditLogger.logAction("Episode", episode.getEpisodeId(), "SCHEDULE", actorId, episode.getCreatorId());
+        return toResponse(episode);
     }
 
     @Transactional
@@ -162,8 +165,9 @@ public class EpisodeServiceImpl implements EpisodeService {
         }
         cancelScheduledPublication(episode, actorId);
         episode.setStatus(EpisodeStatus.DRAFT);
-        episode.markUpdatedBy(actorId);
-        return toResponse(episodeRepository.save(episode));
+        episodeRepository.save(episode);
+        contentAuditLogger.logAction("Episode", episode.getEpisodeId(), "CANCEL_SCHEDULE", actorId, episode.getCreatorId());
+        return toResponse(episode);
     }
 
     @Transactional
@@ -178,8 +182,9 @@ public class EpisodeServiceImpl implements EpisodeService {
         if (episode.getPublishedAt() == null) {
             episode.setPublishedAt(LocalDateTime.now());
         }
-        episode.markUpdatedBy(actorId);
-        return toResponse(episodeRepository.save(episode));
+        episodeRepository.save(episode);
+        contentAuditLogger.logAction("Episode", episode.getEpisodeId(), "PUBLISH", actorId, episode.getCreatorId());
+        return toResponse(episode);
     }
 
     @Transactional
@@ -195,8 +200,9 @@ public class EpisodeServiceImpl implements EpisodeService {
         if (episode.getPublishedAt() == null) {
             episode.setPublishedAt(LocalDateTime.now());
         }
-        episode.markUpdatedBy(actorId);
-        return toResponse(episodeRepository.save(episode));
+        episodeRepository.save(episode);
+        contentAuditLogger.logAction("Episode", episode.getEpisodeId(), "PUBLISH_SCHEDULED", actorId, episode.getCreatorId());
+        return toResponse(episode);
     }
 
     @Transactional
@@ -207,8 +213,9 @@ public class EpisodeServiceImpl implements EpisodeService {
             cancelScheduledPublication(episode, actorId);
         }
         episode.setStatus(EpisodeStatus.HIDDEN);
-        episode.markUpdatedBy(actorId);
-        return toResponse(episodeRepository.save(episode));
+        episodeRepository.save(episode);
+        contentAuditLogger.logAction("Episode", episode.getEpisodeId(), "HIDE", actorId, episode.getCreatorId());
+        return toResponse(episode);
     }
 
     @Transactional
@@ -222,8 +229,9 @@ public class EpisodeServiceImpl implements EpisodeService {
         if (episode.getPublishedAt() == null) {
             episode.setPublishedAt(LocalDateTime.now());
         }
-        episode.markUpdatedBy(actorId);
-        return toResponse(episodeRepository.save(episode));
+        episodeRepository.save(episode);
+        contentAuditLogger.logAction("Episode", episode.getEpisodeId(), "UNHIDE", actorId, episode.getCreatorId());
+        return toResponse(episode);
     }
 
     @Transactional
@@ -234,8 +242,9 @@ public class EpisodeServiceImpl implements EpisodeService {
             cancelScheduledPublication(episode, actorId);
         }
         episode.setStatus(EpisodeStatus.DELETED);
-        episode.softDelete(actorId);
+        episode.softDelete();
         episodeRepository.save(episode);
+        contentAuditLogger.logAction("Episode", episode.getEpisodeId(), "DELETE", actorId, episode.getCreatorId());
     }
 
     @Override
@@ -293,9 +302,6 @@ public class EpisodeServiceImpl implements EpisodeService {
                 .createdAt(episode.getCreatedAt())
                 .updatedAt(episode.getUpdatedAt())
                 .deletedAt(episode.getDeletedAt())
-                .createdBy(episode.getCreatedBy())
-                .updatedBy(episode.getUpdatedBy())
-                .deletedBy(episode.getDeletedBy())
                 .isDeleted(episode.getIsDeleted())
                 .build();
     }
@@ -357,11 +363,9 @@ public class EpisodeServiceImpl implements EpisodeService {
 
         if (season.getStatus() == SeasonStatus.DRAFT) {
             season.setStatus(SeasonStatus.SCHEDULED);
-            season.markUpdatedBy(actorId);
         }
         if (series.getStatus() == SeriesStatus.DRAFT && season.getStatus() != SeasonStatus.HIDDEN) {
             series.setStatus(SeriesStatus.SCHEDULED);
-            series.markUpdatedBy(actorId);
         }
     }
 
@@ -372,11 +376,9 @@ public class EpisodeServiceImpl implements EpisodeService {
 
         if (season.getStatus() == SeasonStatus.SCHEDULED) {
             season.setStatus(SeasonStatus.PUBLISHED);
-            season.markUpdatedBy(actorId);
         }
         if (series.getStatus() == SeriesStatus.SCHEDULED && season.getStatus() == SeasonStatus.PUBLISHED) {
             series.setStatus(SeriesStatus.PUBLISHED);
-            series.markUpdatedBy(actorId);
         }
     }
 
@@ -387,11 +389,9 @@ public class EpisodeServiceImpl implements EpisodeService {
 
         if (season.getStatus() != SeasonStatus.PUBLISHED) {
             season.setStatus(SeasonStatus.PUBLISHED);
-            season.markUpdatedBy(actorId);
         }
         if (series.getStatus() != SeriesStatus.PUBLISHED) {
             series.setStatus(SeriesStatus.PUBLISHED);
-            series.markUpdatedBy(actorId);
         }
     }
 
@@ -420,10 +420,8 @@ public class EpisodeServiceImpl implements EpisodeService {
                 season.getSeasonId(), episode.getEpisodeId(), EpisodeStatus.SCHEDULED);
         if (publishedEpisodes > 0) {
             season.setStatus(SeasonStatus.PUBLISHED);
-            season.markUpdatedBy(actorId);
         } else if (scheduledEpisodes == 0) {
             season.setStatus(SeasonStatus.DRAFT);
-            season.markUpdatedBy(actorId);
         }
     }
 
@@ -439,10 +437,8 @@ public class EpisodeServiceImpl implements EpisodeService {
                 series.getSeriesId(), episode.getEpisodeId(), EpisodeStatus.SCHEDULED);
         if (publishedEpisodes > 0) {
             series.setStatus(SeriesStatus.PUBLISHED);
-            series.markUpdatedBy(actorId);
         } else if (scheduledEpisodes == 0) {
             series.setStatus(SeriesStatus.DRAFT);
-            series.markUpdatedBy(actorId);
         }
     }
 

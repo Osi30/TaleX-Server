@@ -306,7 +306,7 @@ public class ContentPipelineServiceImpl implements ContentPipelineService {
 
     private String resolveCreatorAccountId(Media media) {
         try {
-            return media.getEpisode().getSeason().getSeries().getCreatedBy();
+            return media.getEpisode().getSeason().getSeries().getCreator().getAccount().getAccountId().toString();
         } catch (Exception e) {
             log.warn("Could not resolve creator accountId for media: {}", media.getMediaId());
             return null;

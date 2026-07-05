@@ -10,6 +10,7 @@ import com.talex.server.repositories.series.TagRepository;
 import com.talex.server.services.TagService;
 import com.talex.server.utils.PageUtils;
 import com.talex.server.utils.SlugUtils;
+import com.talex.server.services.audit.ContentAuditLogger;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -20,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class TagServiceImpl implements TagService {
     private final TagRepository tagRepository;
+    private final ContentAuditLogger contentAuditLogger;
 
     @Transactional
     @Override
@@ -32,9 +34,10 @@ public class TagServiceImpl implements TagService {
         tag.setDescription(request.getDescription());
         tag.setSlug(slug);
         tag.setStatus(request.getStatus() != null ? request.getStatus() : TagStatus.ACTIVE);
-        tag.markCreatedBy(request.getActorId());
 
-        return toResponse(tagRepository.save(tag));
+        Tag saved = tagRepository.save(tag);
+        contentAuditLogger.logAction("Tag", saved.getTagId(), "CREATE", request.getActorId(), "");
+        return toResponse(saved);
     }
 
     @Transactional(readOnly = true)
@@ -75,9 +78,10 @@ public class TagServiceImpl implements TagService {
         if (request.getStatus() != null) {
             tag.setStatus(request.getStatus());
         }
-        tag.markUpdatedBy(request.getActorId());
 
-        return toResponse(tagRepository.save(tag));
+        Tag saved = tagRepository.save(tag);
+        contentAuditLogger.logAction("Tag", saved.getTagId(), "UPDATE", request.getActorId(), "");
+        return toResponse(saved);
     }
 
     @Transactional
@@ -85,8 +89,9 @@ public class TagServiceImpl implements TagService {
     public TagResponseDto hide(String id, String actorId) {
         Tag tag = findActiveEntity(id);
         tag.setStatus(TagStatus.INACTIVE);
-        tag.markUpdatedBy(actorId);
-        return toResponse(tagRepository.save(tag));
+        Tag saved = tagRepository.save(tag);
+        contentAuditLogger.logAction("Tag", saved.getTagId(), "HIDE", actorId, "");
+        return toResponse(saved);
     }
 
     @Transactional
@@ -94,8 +99,9 @@ public class TagServiceImpl implements TagService {
     public TagResponseDto unhide(String id, String actorId) {
         Tag tag = findActiveEntity(id);
         tag.setStatus(TagStatus.ACTIVE);
-        tag.markUpdatedBy(actorId);
-        return toResponse(tagRepository.save(tag));
+        Tag saved = tagRepository.save(tag);
+        contentAuditLogger.logAction("Tag", saved.getTagId(), "UNHIDE", actorId, "");
+        return toResponse(saved);
     }
 
     @Transactional
@@ -103,8 +109,9 @@ public class TagServiceImpl implements TagService {
     public void delete(String id, String actorId) {
         Tag tag = findActiveEntity(id);
         tag.setStatus(TagStatus.DELETED);
-        tag.softDelete(actorId);
+        tag.softDelete();
         tagRepository.save(tag);
+        contentAuditLogger.logAction("Tag", tag.getTagId(), "DELETE", actorId, "");
     }
 
     @Override
@@ -133,9 +140,6 @@ public class TagServiceImpl implements TagService {
                 .createdAt(tag.getCreatedAt())
                 .updatedAt(tag.getUpdatedAt())
                 .deletedAt(tag.getDeletedAt())
-                .createdBy(tag.getCreatedBy())
-                .updatedBy(tag.getUpdatedBy())
-                .deletedBy(tag.getDeletedBy())
                 .isDeleted(tag.getIsDeleted())
                 .build();
     }

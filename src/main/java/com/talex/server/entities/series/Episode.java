@@ -1,6 +1,6 @@
 package com.talex.server.entities.series;
 
-import com.talex.server.entities.BaseAudit;
+import com.talex.server.entities.BaseTimeEntity;
 import com.talex.server.entities.media.Media;
 import com.talex.server.enums.series.ContentType;
 import com.talex.server.enums.series.EpisodeStatus;
@@ -40,7 +40,7 @@ import java.util.List;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class Episode extends BaseAudit {
+public class Episode extends BaseTimeEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     @Column(name = "episode_id")

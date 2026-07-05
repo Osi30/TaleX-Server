@@ -9,6 +9,7 @@ import com.talex.server.repositories.series.ComboEpisodeRepository;
 import com.talex.server.repositories.series.EpisodeRepository;
 import com.talex.server.services.ComboEpisodeService;
 import com.talex.server.services.ContentOwnershipService;
+import com.talex.server.services.audit.ContentAuditLogger;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -25,6 +26,7 @@ public class ComboEpisodeServiceImpl implements ComboEpisodeService {
     private final ComboEpisodeRepository comboEpisodeRepository;
     private final EpisodeRepository episodeRepository;
     private final ContentOwnershipService contentOwnershipService;
+    private final ContentAuditLogger contentAuditLogger;
 
     @Override
     @Transactional
@@ -44,6 +46,7 @@ public class ComboEpisodeServiceImpl implements ComboEpisodeService {
         }
         
         combo = comboEpisodeRepository.save(combo);
+        contentAuditLogger.logAction("ComboEpisode", combo.getComboId(), "CREATE", accountId, creatorId);
         return toResponse(combo);
     }
 
@@ -82,6 +85,7 @@ public class ComboEpisodeServiceImpl implements ComboEpisodeService {
         }
         
         combo = comboEpisodeRepository.save(combo);
+        contentAuditLogger.logAction("ComboEpisode", combo.getComboId(), "UPDATE", accountId, combo.getCreatorId());
         return toResponse(combo);
     }
 
@@ -91,7 +95,9 @@ public class ComboEpisodeServiceImpl implements ComboEpisodeService {
         ComboEpisode combo = findActiveEntity(id);
         contentOwnershipService.assertCanManage(combo, accountId);
         combo.setIsDeleted(true);
+        combo.softDelete();
         comboEpisodeRepository.save(combo);
+        contentAuditLogger.logAction("ComboEpisode", combo.getComboId(), "DELETE", accountId, combo.getCreatorId());
     }
 
     private ComboEpisode findActiveEntity(String id) {
