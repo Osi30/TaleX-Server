@@ -2,7 +2,6 @@ package com.talex.server.services.creator.impls;
 
 import com.talex.server.dtos.BasePageResponse;
 import com.talex.server.dtos.requests.creator.CreatorRegisterDto;
-import com.talex.server.dtos.requests.creator.CreatorRequestDto;
 import com.talex.server.dtos.requests.filters.CreatorFilterRequestDto;
 import com.talex.server.dtos.requests.terms.CreatorTermsLogRequestDto;
 import com.talex.server.dtos.responses.CreatorResponseDto;
@@ -32,6 +31,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -49,6 +50,8 @@ public class CreatorService implements ICreatorService {
     private final CreatorRepository creatorRepository;
     private final AccountRepository accountRepository;
     private final ICreatorMapper creatorMapper;
+
+    private final KafkaTemplate<String, String> kafkaTemplate;
 
     @Override
     @Transactional
@@ -85,25 +88,28 @@ public class CreatorService implements ICreatorService {
         }
 
         // Chưa đồng ý điều khoản
-        if (!creatorTermsLogService.existsByAccountAndTerm(dto.getAccountId(), dto.getTermsId())) {
-            // Log
-            creatorTermsLogService.create(
-                    dto.getAccountId(),
-                    CreatorTermsLogRequestDto.builder()
-                            .versionId(dto.getTermsId())
-                            .build());
-            // Identity
-            creatorIdentityService.create(creator);
-        }
+//        if (!creatorTermsLogService.existsByAccountAndTerm(dto.getAccountId(), dto.getTermsId())) {
+        // Log
+        creatorTermsLogService.create(
+                dto.getAccountId(),
+                CreatorTermsLogRequestDto.builder()
+                        .versionId(dto.getTermsId())
+                        .build());
+        // Identity
+        creatorIdentityService.create(creator);
+//        }
 
         // Session
-        return kycSessionService.createSession(creator);
+//        return kycSessionService.createSession(creator);
+        creator.setIsVerified(true);
+        creatorRepository.save(creator);
+        return "Xác thực thành công";
     }
 
     @Override
     @Transactional(readOnly = true)
     public CreatorVerificationStatus checkAndGetVerificationStatus(UUID accountId) {
-        CreatorVerificationStatus status = creatorRepository.getVerificationStatusByAccountId(accountId.toString())
+        CreatorVerificationStatus status = creatorRepository.getVerificationStatusByAccountId(accountId)
                 .orElseThrow(() -> new CreatorException(CreatorErrorCode.CREATOR_NOT_FOUND,
                         "Không tìm thấy hồ sơ Creator liên kết với tài khoản này."));
 
@@ -114,6 +120,13 @@ public class CreatorService implements ICreatorService {
         }
 
         return status;
+    }
+
+    @Override
+    @Async("requestAccountExecutor")
+    public void sendUpdateRoleRequest(UUID accountId) {
+        if (accountId == null) return;
+        kafkaTemplate.send("request-to-update-account", accountId.toString());
     }
 
     @Override
@@ -163,19 +176,6 @@ public class CreatorService implements ICreatorService {
         }
 
         return responseDto;
-    }
-
-    @Override
-    public CreatorResponseDto updateCreator(String id, CreatorRequestDto dto) {
-        Creator existing = getEntityById(id);
-        Creator saved = creatorRepository.save(existing);
-        return creatorMapper.toResponseDto(saved);
-    }
-
-    @Override
-    public void deleteCreator(String id) {
-        Creator existing = getEntityById(id);
-        creatorRepository.delete(existing);
     }
 
     @Override

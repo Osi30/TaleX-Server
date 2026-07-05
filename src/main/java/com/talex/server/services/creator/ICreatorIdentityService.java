@@ -1,8 +1,10 @@
 package com.talex.server.services.creator;
 
-import com.talex.server.dtos.requests.creator.CreatorVerifiedResultDto;
-import com.talex.server.dtos.responses.CreatorIdentityResponseDto;
+import com.talex.server.dtos.BasePageResponse;
 import com.talex.server.dtos.requests.creator.CreatorIdentityRequestDto;
+import com.talex.server.dtos.requests.creator.CreatorVerifiedResultDto;
+import com.talex.server.dtos.requests.filters.CreatorIdentityFilterRequestDto;
+import com.talex.server.dtos.responses.CreatorIdentityResponseDto;
 import com.talex.server.entities.creator.Creator;
 
 import java.util.UUID;
@@ -21,4 +23,6 @@ public interface ICreatorIdentityService {
     String updateTaxId(UUID accountId, String taxId);
 
     void delete(String id);
+
+    BasePageResponse<CreatorIdentityResponseDto> filter(CreatorIdentityFilterRequestDto filterRequest);
 }

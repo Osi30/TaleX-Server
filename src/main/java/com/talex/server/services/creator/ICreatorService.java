@@ -2,7 +2,6 @@ package com.talex.server.services.creator;
 
 import com.talex.server.dtos.BasePageResponse;
 import com.talex.server.dtos.requests.creator.CreatorRegisterDto;
-import com.talex.server.dtos.requests.creator.CreatorRequestDto;
 import com.talex.server.dtos.requests.filters.CreatorFilterRequestDto;
 import com.talex.server.dtos.responses.CreatorResponseDto;
 import com.talex.server.entities.creator.Creator;
@@ -17,7 +16,7 @@ public interface ICreatorService {
 
     CreatorVerificationStatus checkAndGetVerificationStatus(UUID accountId);
 
-//    void enableMonetization();
+    void sendUpdateRoleRequest(UUID accountId);
 
     CreatorResponseDto getById(String id);
 
@@ -30,8 +29,4 @@ public interface ICreatorService {
     Creator getEntityById(String creatorId);
 
     BasePageResponse<CreatorResponseDto> filterCreators(CreatorFilterRequestDto filterRequest);
-
-    CreatorResponseDto updateCreator(String id, CreatorRequestDto dto);
-
-    void deleteCreator(String id);
 }

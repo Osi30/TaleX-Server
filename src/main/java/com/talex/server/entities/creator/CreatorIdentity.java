@@ -38,6 +38,7 @@ public class CreatorIdentity {
     // Date of expiry
     private LocalDate doe;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "status")
     private CreatorIdentityStatus status;
 

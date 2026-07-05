@@ -1,9 +1,11 @@
 package com.talex.server.controllers.creator;
 
 import com.talex.server.annotations.CurrentAccountId;
+import com.talex.server.dtos.BasePageResponse;
 import com.talex.server.dtos.BaseResponse;
 import com.talex.server.dtos.requests.creator.CreatorIdentityRequestDto;
 import com.talex.server.dtos.requests.creator.CreatorVerifiedResultDto;
+import com.talex.server.dtos.requests.filters.CreatorIdentityFilterRequestDto;
 import com.talex.server.dtos.responses.CreatorIdentityResponseDto;
 import com.talex.server.services.creator.ICreatorIdentityService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -13,6 +15,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -101,6 +104,37 @@ public class CreatorIdentityController {
                 .code(200)
                 .message("Deleted")
                 .data(null)
+                .build());
+    }
+
+    @GetMapping
+    @PreAuthorize("hasAnyRole('STAFF', 'ADMIN')")
+    @Operation(
+            summary = "Lọc nâng cao danh sách danh tính creator",
+            description = "Tìm kiếm kết hợp phân trang, sắp xếp và lọc động theo nhiều khoảng dữ liệu dựa trên tiêu chí cấu hình."
+    )
+    public ResponseEntity<BaseResponse> filter(
+            @RequestParam(required = false) String[] statuses,
+            @RequestParam(required = false) Map<String, Object> criteria,
+            @RequestParam(required = false) String sortBy,
+            @RequestParam(required = false) String sortDirection,
+            @RequestParam(defaultValue = "1") Integer page,
+            @RequestParam(defaultValue = "20") Integer pageSize) {
+
+        BasePageResponse<CreatorIdentityResponseDto> pageResponse = creatorIdentityService
+                .filter(CreatorIdentityFilterRequestDto.builder()
+                        .criteria(criteria)
+                        .statuses(statuses)
+                        .sortBy(sortBy)
+                        .sortDirection(sortDirection)
+                        .page(page)
+                        .pageSize(pageSize)
+                        .build());
+
+        return ResponseEntity.ok(BaseResponse.builder()
+                .code(200)
+                .message("OK")
+                .data(pageResponse)
                 .build());
     }
 }

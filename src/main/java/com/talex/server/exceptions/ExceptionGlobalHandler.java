@@ -6,6 +6,7 @@ import com.talex.server.exceptions.codes.KycSessionErrorCode;
 import com.talex.server.exceptions.codes.SubscriptionErrorCode;
 import com.talex.server.exceptions.codes.CoinErrorCode;
 import com.talex.server.exceptions.codes.CreatorTierErrorCode;
+import com.talex.server.exceptions.codes.PaymentProfileErrorCode;
 import com.talex.server.exceptions.details.*;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
@@ -166,6 +167,17 @@ public class ExceptionGlobalHandler {
         return new ResponseEntity<>(exceptionResponse, ex.getErrorCode().getHttpStatus());
     }
 
+    @ExceptionHandler(PaymentProfileException.class)
+    public ResponseEntity<BaseResponse> handlePaymentProfileException(PaymentProfileException ex, WebRequest request) {
+        BaseResponse exceptionResponse = BaseResponse.builder()
+                .message(ex.getMessage())
+                .code(ex.getErrorCode().getCode())
+                .data(request.getDescription(false))
+                .build();
+
+        return new ResponseEntity<>(exceptionResponse, ex.getErrorCode().getHttpStatus());
+    }
+
     @ExceptionHandler(CampaignException.class)
     public ResponseEntity<BaseResponse> handleCampaignException(CampaignException ex, WebRequest request) {
         BaseResponse exceptionResponse = BaseResponse.builder()
@@ -178,7 +190,8 @@ public class ExceptionGlobalHandler {
     }
 
     @ExceptionHandler(EngagementServiceException.class)
-    public ResponseEntity<BaseResponse> handleEngagementServiceException(EngagementServiceException ex, WebRequest request) {
+    public ResponseEntity<BaseResponse> handleEngagementServiceException(EngagementServiceException ex,
+            WebRequest request) {
         BaseResponse exceptionResponse = BaseResponse.builder()
                 .message(ex.getMessage())
                 .code(ex.getErrorCode().getCode())
@@ -276,8 +289,10 @@ public class ExceptionGlobalHandler {
         return new ResponseEntity<>(exceptionResponse, ex.getErrorCode().getHttpStatus());
     }
 
-    // Re-throw Spring Security exceptions so ExceptionTranslationFilter handles them
-    // → AccessDeniedException (from @PreAuthorize) triggers JwtAuthenticationEntryPoint → 401
+    // Re-throw Spring Security exceptions so ExceptionTranslationFilter handles
+    // them
+    // → AccessDeniedException (from @PreAuthorize) triggers
+    // JwtAuthenticationEntryPoint → 401
     @ExceptionHandler(AccessDeniedException.class)
     public void handleAccessDenied(AccessDeniedException ex) throws AccessDeniedException {
         throw ex;

@@ -40,5 +40,5 @@ public interface CreatorRepository extends JpaRepository<Creator, String>, JpaSp
             "LEFT JOIN creator_identity ci ON c.creator_id = ci.creator_id " +
             "LEFT JOIN payment_profile pp ON c.creator_id = pp.creator_id AND pp.is_primary = true " +
             "WHERE c.account_id = :accountId", nativeQuery = true)
-    Optional<CreatorVerificationStatus> getVerificationStatusByAccountId(@Param("accountId") String accountId);
+    Optional<CreatorVerificationStatus> getVerificationStatusByAccountId(@Param("accountId") UUID accountId);
 }

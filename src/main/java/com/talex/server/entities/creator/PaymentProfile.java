@@ -34,6 +34,9 @@ public class PaymentProfile {
     @Column(name = "is_primary", unique = true)
     private Boolean isPrimary = false;
 
+    @Column(name = "is_deleted")
+    private Boolean isDeleted = false;
+
     @Column(name = "verified_at")
     private LocalDateTime verifiedAt;
 

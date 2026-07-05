@@ -4,7 +4,6 @@ import com.talex.server.annotations.CurrentAccountId;
 import com.talex.server.dtos.BasePageResponse;
 import com.talex.server.dtos.BaseResponse;
 import com.talex.server.dtos.requests.creator.CreatorRegisterDto;
-import com.talex.server.dtos.requests.creator.CreatorRequestDto;
 import com.talex.server.dtos.requests.filters.CreatorFilterRequestDto;
 import com.talex.server.dtos.responses.CreatorResponseDto;
 import com.talex.server.records.CreatorVerificationStatus;
@@ -29,7 +28,10 @@ public class CreatorController {
 
     @PostMapping
     @PreAuthorize("hasRole('VIEWER')")
-    @Operation(summary = "Đăng ký nhà sáng tạo", description = "Đăng ký trở thành nhà sáng tạo cho tài khoản đang đăng nhập.")
+    @Operation(
+            summary = "Đăng ký nhà sáng tạo",
+            description = "Đăng ký trở thành nhà sáng tạo cho tài khoản " +
+                    ", thực hiện khi bấm vào Creator Studio lần đầu.")
     public ResponseEntity<BaseResponse> create(
             @CurrentAccountId UUID accountId,
             @Valid @RequestBody CreatorRegisterDto dto
@@ -44,9 +46,12 @@ public class CreatorController {
                         .build());
     }
 
-    @PostMapping
+    @PostMapping("/verification")
     @PreAuthorize("hasRole('VIEWER')")
-    @Operation(summary = "Đăng ký xác thực", description = "Đăng ký xác thực để sử dụng các tính năng cao hơn.")
+    @Operation(
+            summary = "Đăng ký xác thực",
+            description = "Đăng ký xác thực để sử dụng các tính năng cao hơn" +
+                    ", khi muốn bật kiếm tiền")
     public ResponseEntity<BaseResponse> verifyAccount(
             @CurrentAccountId UUID accountId,
             @Valid @RequestBody CreatorRegisterDto dto
@@ -62,6 +67,9 @@ public class CreatorController {
     }
 
     @PreAuthorize("isAuthenticated()")
+    @Operation(
+            summary = "Lấy thông tin trạng thái xác thực",
+            description = "Thông tin bao gồm trạng thái xác thực eKYC, term log, tax, payment profile")
     @GetMapping("/verification-status")
     public ResponseEntity<BaseResponse> getDetailedStatus(
             @CurrentAccountId UUID accountId
@@ -77,7 +85,11 @@ public class CreatorController {
 
     @GetMapping("/own")
     @PreAuthorize("isAuthenticated()")
-    @Operation(summary = "Lấy creator của tài khoản", description = "Lấy thông tin creator liên kết với tài khoản đang đăng nhập.")
+    @Operation(
+            summary = "Lấy creator của tài khoản",
+            description = "Lấy thông tin creator liên kết với tài khoản đang đăng nhập, " +
+                    "bao gồm thống kê tổng và trạng thái chấp nhận điều khoản mới nhất"
+    )
     public ResponseEntity<BaseResponse> getAccountCreator(
             @CurrentAccountId UUID accountId
     ) {
@@ -123,40 +135,17 @@ public class CreatorController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('CREATOR', 'STAFF', 'ADMIN')")
-    @Operation(summary = "Lấy creator theo ID", description = "Trả về thông tin creator theo ID.")
+    @Operation(
+            summary = "Lấy creator theo ID",
+            description = "Trả về thông tin creator theo ID, " +
+                    "được sử dụng để xem thông tin public của creator"
+    )
     public ResponseEntity<BaseResponse> getById(@PathVariable String id) {
         CreatorResponseDto resp = creatorService.getById(id);
         return ResponseEntity.ok(BaseResponse.builder()
                 .code(200)
                 .message("OK")
                 .data(resp)
-                .build());
-    }
-
-    @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('CREATOR', 'STAFF', 'ADMIN')")
-    @Operation(summary = "Cập nhật creator", description = "Cập nhật thông tin creator theo ID.")
-    public ResponseEntity<BaseResponse> update(
-            @PathVariable String id,
-            @RequestBody CreatorRequestDto dto) {
-        CreatorResponseDto resp = creatorService.updateCreator(id, dto);
-        return ResponseEntity.ok(BaseResponse.builder()
-                .code(200)
-                .message("Updated")
-                .data(resp)
-                .build());
-    }
-
-    @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Xóa creator", description = "Xóa creator theo ID, chỉ admin mới được phép.")
-    public ResponseEntity<BaseResponse> delete(@PathVariable String id) {
-        creatorService.deleteCreator(id);
-        return ResponseEntity.ok(BaseResponse.builder()
-                .code(200)
-                .message("Deleted")
-                .data(null)
                 .build());
     }
 }
