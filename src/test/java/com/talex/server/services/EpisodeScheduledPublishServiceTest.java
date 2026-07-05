@@ -276,8 +276,11 @@ class EpisodeScheduledPublishServiceTest {
         lenient().when(mediaRepository.countByEpisode_EpisodeIdAndIsDeletedFalse(
                 eq(episode.getEpisodeId())))
                 .thenReturn(count);
-        lenient().when(mediaRepository.countByEpisode_EpisodeIdAndMediaTypeAndStatusInAndApprovalStatusAndIsDeletedFalse(
-                eq(episode.getEpisodeId()), any(), any(), eq(ContentApprovalStatus.APPROVED)))
+        lenient().when(mediaRepository.existsByEpisode_EpisodeIdAndApprovalStatusNotAndIsDeletedFalse(
+                eq(episode.getEpisodeId()), eq(ContentApprovalStatus.APPROVED)))
+                .thenReturn(false);
+        lenient().when(mediaRepository.countByEpisode_EpisodeIdAndMediaTypeAndStatusInAndIsDeletedFalse(
+                eq(episode.getEpisodeId()), any(), any()))
                 .thenReturn(count);
     }
 

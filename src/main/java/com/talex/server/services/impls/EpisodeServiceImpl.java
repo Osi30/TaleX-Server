@@ -124,6 +124,8 @@ public class EpisodeServiceImpl implements EpisodeService {
                 if (episode.getPublishedAt() == null) {
                     episode.setPublishedAt(LocalDateTime.now());
                 }
+            } else if (request.getStatus() == EpisodeStatus.SCHEDULED) {
+                throw ContentModuleException.badRequest("Cannot set status to SCHEDULED directly via update. Use schedule endpoints.");
             } else if (episode.getStatus() == EpisodeStatus.SCHEDULED) {
                 cancelScheduledPublication(episode, accountId);
             }
@@ -310,14 +312,21 @@ public class EpisodeServiceImpl implements EpisodeService {
             throw ContentModuleException.badRequest("Episode must have at least one media before publishing");
         }
 
-        long readyMedia = mediaRepository.countByEpisode_EpisodeIdAndMediaTypeAndStatusInAndApprovalStatusAndIsDeletedFalse(
+        boolean hasUnapprovedMedia = mediaRepository.existsByEpisode_EpisodeIdAndApprovalStatusNotAndIsDeletedFalse(
                 episode.getEpisodeId(),
-                requiredMediaType(episode),
-                readyMediaStatuses(episode),
                 ContentApprovalStatus.APPROVED);
 
+        if (hasUnapprovedMedia) {
+            throw ContentModuleException.badRequest("All media in the episode must have approval_status as APPROVED (pending_review or rejected are not allowed)");
+        }
+
+        long readyMedia = mediaRepository.countByEpisode_EpisodeIdAndMediaTypeAndStatusInAndIsDeletedFalse(
+                episode.getEpisodeId(),
+                requiredMediaType(episode),
+                readyMediaStatuses(episode));
+
         if (totalMedia != readyMedia) {
-            throw ContentModuleException.badRequest("All media in the episode must be approved and ready before publishing");
+            throw ContentModuleException.badRequest("All media must be processed and ready (e.g., ACTIVE or HLS_READY) before publishing");
         }
     }
 
