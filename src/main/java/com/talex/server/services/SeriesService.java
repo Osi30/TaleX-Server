@@ -26,6 +26,10 @@ public interface SeriesService {
 
     SeriesResponseDto unhide(String id, String actorId);
 
+    SeriesResponseDto forceHide(String id, String actorId);
+
+    SeriesResponseDto forceUnhide(String id, String actorId);
+
     void delete(String id, String actorId);
 
     Series findActiveEntity(String id);

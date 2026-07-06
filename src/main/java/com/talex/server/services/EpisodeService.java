@@ -32,6 +32,10 @@ public interface EpisodeService {
 
     EpisodeResponseDto unhide(String id, String actorId);
 
+    EpisodeResponseDto forceHide(String id, String actorId);
+
+    EpisodeResponseDto forceUnhide(String id, String actorId);
+
     void delete(String id, String actorId);
 
     Episode findActiveEntity(String id);

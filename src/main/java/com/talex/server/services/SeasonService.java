@@ -23,6 +23,10 @@ public interface SeasonService {
 
     SeasonResponseDto unhide(String id, String actorId);
 
+    SeasonResponseDto forceHide(String id, String actorId);
+
+    SeasonResponseDto forceUnhide(String id, String actorId);
+
     void delete(String id, String actorId);
 
     Season findActiveEntity(String id);

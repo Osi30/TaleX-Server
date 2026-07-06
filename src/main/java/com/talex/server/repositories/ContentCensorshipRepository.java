@@ -13,4 +13,6 @@ public interface ContentCensorshipRepository extends JpaRepository<ContentCensor
     List<ContentCensorship> findAllByMedia_MediaId(String mediaId);
 
     Optional<ContentCensorship> findFirstByMedia_MediaIdOrderByCheckedAtDesc(String mediaId);
+
+    long countByMedia_CreatorIdAndStatus(String creatorId, com.talex.server.enums.media.CensorshipStatus status);
 }

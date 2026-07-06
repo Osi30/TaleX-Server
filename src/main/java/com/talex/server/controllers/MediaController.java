@@ -16,6 +16,7 @@ import com.talex.server.dtos.requests.VideoUploadSessionRequestDto;
 import com.talex.server.services.MediaService;
 import com.talex.server.services.MediaPlaybackSecurityService;
 import com.talex.server.services.MediaUploadSessionService;
+import io.swagger.v3.oas.annotations.Operation;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -213,16 +214,42 @@ public class MediaController {
         return ResponseEntity.ok(response(200, "Media hidden", mediaService.hide(id, accountId.toString())));
     }
 
+    @GetMapping("/api/v1/media/creators/{creatorId}/violations-summary")
+    @PreAuthorize("hasAnyRole('STAFF', 'ADMIN')")
+    @Operation(summary = "Xem tổng số vi phạm của Creator (Admin)", description = "Lấy tổng số vi phạm bản quyền và từ chối kiểm duyệt của một Creator.")
+    public ResponseEntity<BaseResponse> getCreatorViolationsSummary(
+            @PathVariable String creatorId) {
+        return ResponseEntity.ok(response(200, "Creator violations summary", mediaService.getCreatorViolationsSummary(creatorId)));
+    }
+
     @PatchMapping("/api/v1/media/{id}/unhide")
      @PreAuthorize("isAuthenticated()")
     public ResponseEntity<BaseResponse> unhide(
             @PathVariable String id,
             @CurrentAccountId UUID accountId) {
-        return ResponseEntity.ok(response(200, "Media visible", mediaService.unhide(id, accountId.toString())));
+        return ResponseEntity.ok(response(200, "Media unhidden", mediaService.unhide(id, accountId.toString())));
+    }
+
+    @PatchMapping("/api/v1/media/{id}/force-hide")
+    @PreAuthorize("hasAnyRole('STAFF', 'ADMIN')")
+    @Operation(summary = "Ép ẩn media (Admin)")
+    public ResponseEntity<BaseResponse> forceHide(
+            @PathVariable String id,
+            @CurrentAccountId UUID accountId) {
+        return ResponseEntity.ok(response(200, "Media force-hidden", mediaService.forceHide(id, accountId.toString())));
+    }
+
+    @PatchMapping("/api/v1/media/{id}/force-unhide")
+    @PreAuthorize("hasAnyRole('STAFF', 'ADMIN')")
+    @Operation(summary = "Bỏ ép ẩn media (Admin)")
+    public ResponseEntity<BaseResponse> forceUnhide(
+            @PathVariable String id,
+            @CurrentAccountId UUID accountId) {
+        return ResponseEntity.ok(response(200, "Media force-unhidden", mediaService.forceUnhide(id, accountId.toString())));
     }
 
     @PatchMapping("/api/v1/media/{id}/approve")
-//    @PreAuthorize("hasAnyRole('STAFF', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('STAFF', 'ADMIN')")
     public ResponseEntity<BaseResponse> approve(
             @PathVariable String id,
             @CurrentAccountId UUID accountId) {

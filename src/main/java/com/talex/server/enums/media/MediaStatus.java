@@ -7,6 +7,7 @@ public enum MediaStatus {
     HLS_READY,
     ACTIVE,
     HIDDEN,
+    FORCE_HIDDEN,
     INACTIVE,
     DELETED,
     FAILED

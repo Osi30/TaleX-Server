@@ -81,6 +81,24 @@ public class SeasonController {
         return ResponseEntity.ok(response(200, "Season visible", seasonService.unhide(id, accountId.toString())));
     }
 
+    @PatchMapping("/api/v1/seasons/{id}/force-hide")
+    @PreAuthorize("hasAnyRole('STAFF', 'ADMIN')")
+    @Operation(summary = "Ép ẩn season (Admin)")
+    public ResponseEntity<BaseResponse> forceHide(
+            @PathVariable String id,
+            @CurrentAccountId UUID accountId) {
+        return ResponseEntity.ok(response(200, "Season force-hidden", seasonService.forceHide(id, accountId.toString())));
+    }
+
+    @PatchMapping("/api/v1/seasons/{id}/force-unhide")
+    @PreAuthorize("hasAnyRole('STAFF', 'ADMIN')")
+    @Operation(summary = "Bỏ ép ẩn season (Admin)")
+    public ResponseEntity<BaseResponse> forceUnhide(
+            @PathVariable String id,
+            @CurrentAccountId UUID accountId) {
+        return ResponseEntity.ok(response(200, "Season force-unhidden", seasonService.forceUnhide(id, accountId.toString())));
+    }
+
     @PreAuthorize("isAuthenticated()")
     @DeleteMapping("/api/v1/seasons/{id}")
     @Operation(summary = "Xóa season", description = "Thực hiện xóa mềm (soft-delete) season bằng cách đổi trạng thái sang DELETED. Yêu cầu quyền sở hữu nội dung.")

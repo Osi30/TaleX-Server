@@ -84,8 +84,8 @@ class ContentCrudOwnershipServiceTest {
         Series otherSeries = seriesOwnedBy(OTHER_CREATOR_ID);
         Season otherSeason = seasonOwnedBy(OTHER_CREATOR_ID, otherSeries);
         when(seriesService.findActiveEntity("series-other")).thenReturn(otherSeries);
-        when(seasonRepository.findBySeasonIdAndCreatorIdAndIsDeletedFalse(
-                "season-other", CURRENT_CREATOR_ID)).thenReturn(Optional.empty());
+        when(seasonRepository.findBySeasonIdAndIsDeletedFalse("season-other"))
+                .thenReturn(Optional.of(otherSeason));
 
         assertThrows(ContentModuleException.class,
                 () -> seasonServiceImpl.getById("season-other", ACCOUNT_ID.toString()));
@@ -107,8 +107,8 @@ class ContentCrudOwnershipServiceTest {
         Season otherSeason = seasonOwnedBy(OTHER_CREATOR_ID, otherSeries);
         Episode otherEpisode = episodeOwnedBy(OTHER_CREATOR_ID, otherSeason);
         when(seasonService.findActiveEntity("season-other")).thenReturn(otherSeason);
-        when(episodeRepository.findByEpisodeIdAndCreatorIdAndIsDeletedFalse(
-                "episode-other", CURRENT_CREATOR_ID)).thenReturn(Optional.empty());
+        when(episodeRepository.findByEpisodeIdAndIsDeletedFalse("episode-other"))
+                .thenReturn(Optional.of(otherEpisode));
 
         assertThrows(ContentModuleException.class,
                 () -> episodeServiceImpl.getById("episode-other", ACCOUNT_ID.toString()));

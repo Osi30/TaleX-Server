@@ -10,4 +10,6 @@ import java.util.List;
 public interface MediaCopyrightRepository extends JpaRepository<MediaCopyright, String> {
 
     List<MediaCopyright> findAllByMedia_MediaId(String mediaId);
+
+    long countByMedia_CreatorIdAndIsValidFalse(String creatorId);
 }

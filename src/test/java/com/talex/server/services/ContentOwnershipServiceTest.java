@@ -67,12 +67,12 @@ class ContentOwnershipServiceTest {
 
 
     @Test
-    void staffAndAdminCanManageAnyContentWithoutCreatorLookup() {
+    void staffAndAdminCanViewAnyContentWithoutCreatorLookup() {
         Episode episode = episodeOwnedBy(CREATOR_ID);
 
         for (String role : List.of("ROLE_STAFF", "ROLE_ADMIN")) {
             authenticateAs(role);
-            assertDoesNotThrow(() -> service.assertCanManage(episode, "staff-or-admin-account"));
+            assertDoesNotThrow(() -> service.assertCanView(episode, "staff-or-admin-account"));
         }
     }
 

@@ -12,6 +12,7 @@ import com.talex.server.dtos.responses.MediaCopyrightResponseDto;
 import com.talex.server.dtos.responses.MediaResponseDto;
 import com.talex.server.dtos.responses.MediaViolationsResponseDto;
 import com.talex.server.dtos.responses.ViolationDetailResponseDto;
+import com.talex.server.dtos.responses.media.CreatorViolationsSummaryDto;
 import com.talex.server.entities.media.ContentCensorship;
 import com.talex.server.entities.series.Episode;
 import com.talex.server.entities.media.Media;
@@ -169,7 +170,9 @@ public class MediaServiceImpl implements MediaService {
     @Transactional(readOnly = true)
     @Override
     public MediaResponseDto getById(String id, String accountId) {
-        return toResponse(findManageableEntity(id, accountId));
+        Media media = findActiveEntity(id);
+        contentOwnershipService.assertCanView(media, accountId);
+        return toResponse(media);
     }
 
     @Transactional(readOnly = true)
@@ -188,7 +191,7 @@ public class MediaServiceImpl implements MediaService {
     @Override
     public List<MediaResponseDto> listByEpisode(String episodeId, String accountId) {
         Episode episode = episodeService.findActiveEntity(episodeId);
-        contentOwnershipService.assertCanManage(episode, accountId);
+        contentOwnershipService.assertCanView(episode, accountId);
         return mediaRepository.findAllByEpisode_EpisodeIdAndIsDeletedFalseOrderByDisplayOrderAsc(episodeId)
                 .stream()
                 .map(this::toResponse)
@@ -334,9 +337,34 @@ public class MediaServiceImpl implements MediaService {
     @Override
     public MediaResponseDto unhide(String id, String actorId) {
         Media media = findManageableEntity(id, actorId);
+        contentOwnershipService.assertCanManage(media, actorId);
+        if (media.getStatus() != MediaStatus.HIDDEN) {
+            throw ContentModuleException.badRequest("Chỉ có thể bỏ ẩn khi media đang ở trạng thái HIDDEN");
+        }
         media.setStatus(MediaStatus.ACTIVE);
-        media.markUpdatedBy(actorId);
-        return toResponse(mediaRepository.save(media));
+        Media saved = mediaRepository.save(media);
+        return toResponse(saved);
+    }
+
+    @Transactional
+    @Override
+    public MediaResponseDto forceHide(String id, String actorId) {
+        Media media = findActiveEntity(id);
+        media.setStatus(MediaStatus.FORCE_HIDDEN);
+        Media saved = mediaRepository.save(media);
+        return toResponse(saved);
+    }
+
+    @Transactional
+    @Override
+    public MediaResponseDto forceUnhide(String id, String actorId) {
+        Media media = findActiveEntity(id);
+        if (media.getStatus() != MediaStatus.FORCE_HIDDEN) {
+            throw ContentModuleException.badRequest("Media is not force-hidden");
+        }
+        media.setStatus(MediaStatus.HIDDEN);
+        Media saved = mediaRepository.save(media);
+        return toResponse(saved);
     }
 
     @Transactional
@@ -363,6 +391,19 @@ public class MediaServiceImpl implements MediaService {
         }
         media.markUpdatedBy(actorId);
         return toResponse(mediaRepository.save(media));
+    }
+
+    @Transactional(readOnly = true)
+    @Override
+    public CreatorViolationsSummaryDto getCreatorViolationsSummary(String creatorId) {
+        long copyrightStrikes = mediaCopyrightRepository.countByMedia_CreatorIdAndIsValidFalse(creatorId);
+        long censorshipStrikes = contentCensorshipRepository.countByMedia_CreatorIdAndStatus(creatorId, com.talex.server.enums.media.CensorshipStatus.REJECTED);
+        
+        return CreatorViolationsSummaryDto.builder()
+                .creatorId(creatorId)
+                .totalCopyrightStrikes(copyrightStrikes)
+                .totalCensorshipStrikes(censorshipStrikes)
+                .build();
     }
 
     @Transactional
@@ -429,15 +470,10 @@ public class MediaServiceImpl implements MediaService {
 
     @Override
     public Media findManageableEntity(String id, String accountId) {
-        if (contentOwnershipService.isPrivileged()) {
-            return findActiveEntity(id);
-        }
-
-        String creatorId = contentOwnershipService.requireCurrentCreatorId(accountId);
         Media media = mediaRepository
-                .findByMediaIdAndCreatorIdAndIsDeletedFalse(id, creatorId)
+                .findByMediaIdAndIsDeletedFalse(id)
                 .orElseThrow(() -> ContentModuleException.notFound("Media not found: " + id));
-        contentOwnershipService.assertOwnedByCreator(media, creatorId);
+        contentOwnershipService.assertCanManage(media, accountId);
         return media;
     }
 

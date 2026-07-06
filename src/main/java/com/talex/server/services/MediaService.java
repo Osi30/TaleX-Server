@@ -6,6 +6,7 @@ import com.talex.server.dtos.requests.MediaRejectRequestDto;
 import com.talex.server.dtos.requests.MediaReorderRequestDto;
 import com.talex.server.dtos.requests.MediaStatusRequestDto;
 import com.talex.server.dtos.requests.MediaUpdateRequestDto;
+import com.talex.server.dtos.responses.media.CreatorViolationsSummaryDto;
 import com.talex.server.dtos.responses.MediaResponseDto;
 import com.talex.server.dtos.responses.MediaViolationsResponseDto;
 import com.talex.server.entities.media.Media;
@@ -36,9 +37,15 @@ public interface MediaService {
 
     MediaResponseDto unhide(String id, String actorId);
 
+    MediaResponseDto forceHide(String id, String actorId);
+
+    MediaResponseDto forceUnhide(String id, String actorId);
+
     MediaResponseDto approve(String id, String actorId);
 
     MediaResponseDto reject(String id, String actorId);
+
+    CreatorViolationsSummaryDto getCreatorViolationsSummary(String creatorId);
 
     MediaResponseDto rejectWithReason(String id, String actorId, MediaRejectRequestDto request);
 
