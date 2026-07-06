@@ -19,6 +19,7 @@ import com.talex.server.entities.media.MediaCopyright;
 import com.talex.server.enums.media.CensorshipStatus;
 import com.talex.server.enums.series.ContentApprovalStatus;
 import com.talex.server.enums.series.ContentType;
+import com.talex.server.enums.series.EpisodeStatus;
 import com.talex.server.enums.media.MediaPlaybackPolicy;
 import com.talex.server.enums.media.MediaProtectionType;
 import com.talex.server.enums.media.MediaProvider;
@@ -90,6 +91,7 @@ public class MediaServiceImpl implements MediaService {
     public MediaResponseDto createFromUrl(String episodeId, MediaMetadataRequestDto request, String accountId) {
         Episode episode = lockActiveEpisode(episodeId);
         contentOwnershipService.assertCanManage(episode, accountId);
+        validateEpisodeStatusForMediaModification(episode);
         if (request == null) {
             throw ContentModuleException.badRequest("Media URL request is required");
         }
@@ -102,6 +104,7 @@ public class MediaServiceImpl implements MediaService {
     public List<MediaResponseDto> createComicPagesFromUrls(String episodeId, MediaComicPagesRequestDto request, String accountId) {
         Episode episode = lockActiveEpisode(episodeId);
         contentOwnershipService.assertCanManage(episode, accountId);
+        validateEpisodeStatusForMediaModification(episode);
         if (episode.getContentType() != ContentType.COMIC) {
             throw ContentModuleException.badRequest("Batch media URL creation is only supported for comic episodes");
         }
@@ -408,6 +411,7 @@ public class MediaServiceImpl implements MediaService {
     @Override
     public void delete(String id, String actorId) {
         Media media = findManageableEntity(id, actorId);
+        validateEpisodeStatusForMediaModification(media.getEpisode());
         media.setStatus(MediaStatus.DELETED);
         media.softDelete(actorId);
         playbackSecurityService.revokeActiveSessions(media);
@@ -473,6 +477,12 @@ public class MediaServiceImpl implements MediaService {
     @Override
     public MediaResponseDto toResponse(Media media) {
         return baseResponse(media).build();
+    }
+
+    private void validateEpisodeStatusForMediaModification(Episode episode) {
+        if (episode.getStatus() != EpisodeStatus.DRAFT && episode.getStatus() != EpisodeStatus.HIDDEN) {
+            throw ContentModuleException.badRequest("Cannot modify media when episode status is " + episode.getStatus());
+        }
     }
 
     private MediaResponseDto toPublicResponse(Media media) {

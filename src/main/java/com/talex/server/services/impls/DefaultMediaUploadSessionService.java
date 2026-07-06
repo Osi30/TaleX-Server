@@ -12,6 +12,7 @@ import com.talex.server.entities.series.Episode;
 import com.talex.server.entities.media.Media;
 import com.talex.server.entities.media.MediaUploadSession;
 import com.talex.server.enums.series.ContentType;
+import com.talex.server.enums.series.EpisodeStatus;
 import com.talex.server.enums.media.MediaPlaybackPolicy;
 import com.talex.server.enums.media.MediaProtectionType;
 import com.talex.server.enums.media.MediaProvider;
@@ -74,6 +75,11 @@ public class DefaultMediaUploadSessionService implements MediaUploadSessionServi
     public VideoUploadSessionResponseDto createVideoUploadSession(String episodeId, VideoUploadSessionRequestDto request) {
         Episode episode = lockActiveEpisode(episodeId);
         contentOwnershipService.assertCanManage(episode, request.getActorId());
+        
+        if (episode.getStatus() != EpisodeStatus.DRAFT && episode.getStatus() != EpisodeStatus.HIDDEN) {
+            throw ContentModuleException.badRequest("Cannot upload media when episode status is " + episode.getStatus());
+        }
+        
         validateVideoEpisode(episode);
         validateVideoRequest(request);
 
