@@ -14,23 +14,23 @@ import org.springframework.data.domain.Page;
 import java.util.List;
 
 public interface MediaService {
-    MediaResponseDto createFromUrl(String episodeId, MediaMetadataRequestDto request);
+    MediaResponseDto createFromUrl(String episodeId, MediaMetadataRequestDto request, String accountId);
 
-    List<MediaResponseDto> createComicPagesFromUrls(String episodeId, MediaComicPagesRequestDto request);
+    List<MediaResponseDto> createComicPagesFromUrls(String episodeId, MediaComicPagesRequestDto request, String accountId);
 
-    MediaResponseDto getById(String id);
+    MediaResponseDto getById(String id, String accountId);
 
     MediaResponseDto getPublicById(String id);
 
-    List<MediaResponseDto> listByEpisode(String episodeId);
+    List<MediaResponseDto> listByEpisode(String episodeId, String accountId);
 
     List<MediaResponseDto> listPublicByEpisode(String episodeId);
 
-    MediaResponseDto update(String id, MediaUpdateRequestDto request);
+    MediaResponseDto update(String id, MediaUpdateRequestDto request, String accountId);
 
-    MediaResponseDto replaceUrl(String id, MediaMetadataRequestDto request);
+    MediaResponseDto replaceUrl(String id, MediaMetadataRequestDto request, String accountId);
 
-    List<MediaResponseDto> reorder(String episodeId, MediaReorderRequestDto request);
+    List<MediaResponseDto> reorder(String episodeId, MediaReorderRequestDto request, String accountId);
 
     MediaResponseDto hide(String id, String actorId);
 
@@ -42,11 +42,13 @@ public interface MediaService {
 
     MediaResponseDto rejectWithReason(String id, String actorId, MediaRejectRequestDto request);
 
-    MediaResponseDto updateProcessingStatus(String id, MediaStatusRequestDto request);
+    MediaResponseDto updateProcessingStatus(String id, MediaStatusRequestDto request, String accountId);
 
     void delete(String id, String actorId);
 
     Media findActiveEntity(String id);
+
+    Media findManageableEntity(String id, String accountId);
 
     MediaResponseDto toResponse(Media media);
 

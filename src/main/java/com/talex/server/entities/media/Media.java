@@ -37,7 +37,8 @@ import java.time.LocalDateTime;
                 @Index(name = "idx_media_episode_type_status_approval_deleted", columnList = "episode_id,media_type,status,approval_status,is_deleted"),
                 @Index(name = "idx_media_checksum_deleted", columnList = "checksum,is_deleted"),
                 @Index(name = "idx_media_provider_public_deleted", columnList = "provider_public_id,is_deleted"),
-                @Index(name = "idx_media_provider_status_updated_deleted", columnList = "provider,status,updated_at,is_deleted")
+                @Index(name = "idx_media_provider_status_updated_deleted", columnList = "provider,status,updated_at,is_deleted"),
+                @Index(name = "idx_media_creator_deleted", columnList = "creator_id,is_deleted")
         })
 @Getter
 @Setter
@@ -52,6 +53,9 @@ public class Media extends BaseAudit {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "episode_id", nullable = false)
     private Episode episode;
+
+    @Column(name = "creator_id")
+    private String creatorId;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "media_type", nullable = false, length = 30)

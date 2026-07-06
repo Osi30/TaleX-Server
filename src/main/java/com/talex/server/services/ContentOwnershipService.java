@@ -1,5 +1,6 @@
 package com.talex.server.services;
 
+import com.talex.server.entities.media.Media;
 import com.talex.server.entities.series.Episode;
 import com.talex.server.entities.series.Season;
 import com.talex.server.entities.series.Series;
@@ -20,6 +21,19 @@ public class ContentOwnershipService {
     private static final Set<String> PRIVILEGED_ROLES = Set.of("ROLE_STAFF", "ROLE_ADMIN");
 
     private final ICreatorService creatorService;
+
+    public void assertCanManage(Media media, String accountId) {
+        if (isPrivileged()) {
+            return;
+        }
+        assertOwnedByCreator(media, requireCurrentCreatorId(accountId));
+    }
+
+    public void assertOwnedByCreator(Media media, String creatorId) {
+        assertOwnerIds(
+                creatorId,
+                media.getCreatorId());
+    }
 
     public void assertCanManage(Series series, String accountId) {
         if (isPrivileged()) {
