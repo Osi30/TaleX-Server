@@ -49,6 +49,7 @@ public class SecurityConfig {
                                 "/api/v1/terms-versions/**",
                                 "/api/v1/interactions/**",
                                 "/api/v1/webhooks/**",
+                                "/api/v1/mongo/**",
                                 "/uploads/**",
                                 "/swagger-ui.html",
                                 "/swagger-ui/**",

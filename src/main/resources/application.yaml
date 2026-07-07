@@ -117,6 +117,8 @@ spring:
         fetch.max.wait.ms: 1000
     dlq:
       interaction: interaction-log-topic.DLQ
+  mongodb:
+    uri: mongodb+srv://${MONGO_USERNAME}:${MONGO_PASSWORD}@${MONGO_HOST}/?${MONGO_APP_NAME}
 
 springdoc:
   api-docs:
