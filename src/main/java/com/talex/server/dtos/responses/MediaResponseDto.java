@@ -20,6 +20,7 @@ import java.time.LocalDateTime;
 public class MediaResponseDto {
     private String mediaId;
     private String episodeId;
+    private String creatorId;
     private MediaType mediaType;
     private String mimeType;
     private String fileUrl;

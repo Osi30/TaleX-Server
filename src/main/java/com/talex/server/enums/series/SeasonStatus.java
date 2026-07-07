@@ -5,5 +5,6 @@ public enum SeasonStatus {
     SCHEDULED,
     PUBLISHED,
     HIDDEN,
+    FORCE_HIDDEN,
     DELETED
 }

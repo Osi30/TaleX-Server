@@ -21,6 +21,8 @@ import java.util.Optional;
 public interface MediaRepository extends JpaRepository<Media, String> {
     Optional<Media> findByMediaIdAndIsDeletedFalse(String mediaId);
 
+    Optional<Media> findByMediaIdAndCreatorIdAndIsDeletedFalse(String mediaId, String creatorId);
+
     List<Media> findAllByMediaIdInAndIsDeletedFalse(Collection<String> mediaIds);
 
     Optional<Media> findFirstByChecksumAndIsDeletedFalse(String checksum);

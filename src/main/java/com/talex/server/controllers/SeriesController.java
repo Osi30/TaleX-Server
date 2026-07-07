@@ -93,6 +93,24 @@ public class SeriesController {
         return ResponseEntity.ok(response(200, "Series visible", seriesService.unhide(id, accountId.toString())));
     }
 
+    @PatchMapping("/{id}/force-hide")
+    @PreAuthorize("hasAnyRole('STAFF', 'ADMIN')")
+    @Operation(summary = "Ép ẩn series (Admin)", description = "Ép ẩn series, chặn creator tương tác.")
+    public ResponseEntity<BaseResponse> forceHide(
+            @PathVariable String id,
+            @CurrentAccountId UUID accountId) {
+        return ResponseEntity.ok(response(200, "Series force-hidden", seriesService.forceHide(id, accountId.toString())));
+    }
+
+    @PatchMapping("/{id}/force-unhide")
+    @PreAuthorize("hasAnyRole('STAFF', 'ADMIN')")
+    @Operation(summary = "Bỏ ép ẩn series (Admin)", description = "Bỏ ép ẩn, đưa về trạng thái HIDDEN.")
+    public ResponseEntity<BaseResponse> forceUnhide(
+            @PathVariable String id,
+            @CurrentAccountId UUID accountId) {
+        return ResponseEntity.ok(response(200, "Series force-unhidden", seriesService.forceUnhide(id, accountId.toString())));
+    }
+
     @DeleteMapping("/{id}")
     @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Xóa series", description = "Xóa mềm (soft-delete) một series bằng cách chuyển trạng thái thành DELETED và đánh dấu isDeleted là true. Yêu cầu quyền sở hữu nội dung.")

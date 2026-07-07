@@ -5,5 +5,6 @@ public enum SeriesStatus {
     SCHEDULED,
     PUBLISHED,
     HIDDEN,
+    FORCE_HIDDEN,
     DELETED
 }

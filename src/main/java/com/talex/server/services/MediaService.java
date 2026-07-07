@@ -6,6 +6,7 @@ import com.talex.server.dtos.requests.MediaRejectRequestDto;
 import com.talex.server.dtos.requests.MediaReorderRequestDto;
 import com.talex.server.dtos.requests.MediaStatusRequestDto;
 import com.talex.server.dtos.requests.MediaUpdateRequestDto;
+import com.talex.server.dtos.responses.media.CreatorViolationsSummaryDto;
 import com.talex.server.dtos.responses.MediaResponseDto;
 import com.talex.server.dtos.responses.MediaViolationsResponseDto;
 import com.talex.server.entities.media.Media;
@@ -14,39 +15,47 @@ import org.springframework.data.domain.Page;
 import java.util.List;
 
 public interface MediaService {
-    MediaResponseDto createFromUrl(String episodeId, MediaMetadataRequestDto request);
+    MediaResponseDto createFromUrl(String episodeId, MediaMetadataRequestDto request, String accountId);
 
-    List<MediaResponseDto> createComicPagesFromUrls(String episodeId, MediaComicPagesRequestDto request);
+    List<MediaResponseDto> createComicPagesFromUrls(String episodeId, MediaComicPagesRequestDto request, String accountId);
 
-    MediaResponseDto getById(String id);
+    MediaResponseDto getById(String id, String accountId);
 
     MediaResponseDto getPublicById(String id);
 
-    List<MediaResponseDto> listByEpisode(String episodeId);
+    List<MediaResponseDto> listByEpisode(String episodeId, String accountId);
 
     List<MediaResponseDto> listPublicByEpisode(String episodeId);
 
-    MediaResponseDto update(String id, MediaUpdateRequestDto request);
+    MediaResponseDto update(String id, MediaUpdateRequestDto request, String accountId);
 
-    MediaResponseDto replaceUrl(String id, MediaMetadataRequestDto request);
+    MediaResponseDto replaceUrl(String id, MediaMetadataRequestDto request, String accountId);
 
-    List<MediaResponseDto> reorder(String episodeId, MediaReorderRequestDto request);
+    List<MediaResponseDto> reorder(String episodeId, MediaReorderRequestDto request, String accountId);
 
     MediaResponseDto hide(String id, String actorId);
 
     MediaResponseDto unhide(String id, String actorId);
 
+    MediaResponseDto forceHide(String id, String actorId);
+
+    MediaResponseDto forceUnhide(String id, String actorId);
+
     MediaResponseDto approve(String id, String actorId);
 
     MediaResponseDto reject(String id, String actorId);
 
+    CreatorViolationsSummaryDto getCreatorViolationsSummary(String creatorId);
+
     MediaResponseDto rejectWithReason(String id, String actorId, MediaRejectRequestDto request);
 
-    MediaResponseDto updateProcessingStatus(String id, MediaStatusRequestDto request);
+    MediaResponseDto updateProcessingStatus(String id, MediaStatusRequestDto request, String accountId);
 
     void delete(String id, String actorId);
 
     Media findActiveEntity(String id);
+
+    Media findManageableEntity(String id, String accountId);
 
     MediaResponseDto toResponse(Media media);
 
