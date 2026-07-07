@@ -16,6 +16,7 @@ import com.talex.server.dtos.requests.VideoUploadSessionRequestDto;
 import com.talex.server.services.MediaService;
 import com.talex.server.services.MediaPlaybackSecurityService;
 import com.talex.server.services.MediaUploadSessionService;
+import io.swagger.v3.oas.annotations.Operation;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -115,25 +116,29 @@ public class MediaController {
      @PreAuthorize("isAuthenticated()")
     public ResponseEntity<BaseResponse> createFromUrl(
             @PathVariable String episodeId,
-            @RequestBody MediaMetadataRequestDto request) {
+            @RequestBody MediaMetadataRequestDto request,
+            @CurrentAccountId UUID accountId) {
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(response(201, "Media URL created", mediaService.createFromUrl(episodeId, request)));
+                .body(response(201, "Media URL created", mediaService.createFromUrl(episodeId, request, accountId.toString())));
     }
 
     @PostMapping("/api/v1/episodes/{episodeId}/media/comic-pages")
      @PreAuthorize("isAuthenticated()")
     public ResponseEntity<BaseResponse> createComicPagesFromUrls(
             @PathVariable String episodeId,
-            @RequestBody MediaComicPagesRequestDto request) {
+            @RequestBody MediaComicPagesRequestDto request,
+            @CurrentAccountId UUID accountId) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(response(201, "Comic page URLs created",
-                        mediaService.createComicPagesFromUrls(episodeId, request)));
+                        mediaService.createComicPagesFromUrls(episodeId, request, accountId.toString())));
     }
 
     @GetMapping("/api/v1/episodes/{episodeId}/media")
      @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<BaseResponse> listByEpisode(@PathVariable String episodeId) {
-        return ResponseEntity.ok(response(200, "OK", mediaService.listByEpisode(episodeId)));
+    public ResponseEntity<BaseResponse> listByEpisode(
+            @PathVariable String episodeId,
+            @CurrentAccountId UUID accountId) {
+        return ResponseEntity.ok(response(200, "OK", mediaService.listByEpisode(episodeId, accountId.toString())));
     }
 
     @GetMapping("/api/v1/episodes/{episodeId}/playback")
@@ -152,8 +157,10 @@ public class MediaController {
 
     @GetMapping("/api/v1/media/{id}")
      @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<BaseResponse> getById(@PathVariable String id) {
-        return ResponseEntity.ok(response(200, "OK", mediaService.getById(id)));
+    public ResponseEntity<BaseResponse> getById(
+            @PathVariable String id,
+            @CurrentAccountId UUID accountId) {
+        return ResponseEntity.ok(response(200, "OK", mediaService.getById(id, accountId.toString())));
     }
 
     // Returns copyright + moderation violations for a specific media (creator view)
@@ -176,24 +183,27 @@ public class MediaController {
      @PreAuthorize("isAuthenticated()")
     public ResponseEntity<BaseResponse> update(
             @PathVariable String id,
-            @RequestBody MediaUpdateRequestDto request) {
-        return ResponseEntity.ok(response(200, "Media updated", mediaService.update(id, request)));
+            @RequestBody MediaUpdateRequestDto request,
+            @CurrentAccountId UUID accountId) {
+        return ResponseEntity.ok(response(200, "Media updated", mediaService.update(id, request, accountId.toString())));
     }
 
     @PutMapping("/api/v1/media/{id}/url")
      @PreAuthorize("isAuthenticated()")
     public ResponseEntity<BaseResponse> replaceUrl(
             @PathVariable String id,
-            @RequestBody MediaMetadataRequestDto request) {
-        return ResponseEntity.ok(response(200, "Media URL replaced", mediaService.replaceUrl(id, request)));
+            @RequestBody MediaMetadataRequestDto request,
+            @CurrentAccountId UUID accountId) {
+        return ResponseEntity.ok(response(200, "Media URL replaced", mediaService.replaceUrl(id, request, accountId.toString())));
     }
 
     @PutMapping("/api/v1/episodes/{episodeId}/media/reorder")
      @PreAuthorize("isAuthenticated()")
     public ResponseEntity<BaseResponse> reorder(
             @PathVariable String episodeId,
-            @Valid @RequestBody MediaReorderRequestDto request) {
-        return ResponseEntity.ok(response(200, "Media reordered", mediaService.reorder(episodeId, request)));
+            @Valid @RequestBody MediaReorderRequestDto request,
+            @CurrentAccountId UUID accountId) {
+        return ResponseEntity.ok(response(200, "Media reordered", mediaService.reorder(episodeId, request, accountId.toString())));
     }
 
     @PatchMapping("/api/v1/media/{id}/hide")
@@ -204,16 +214,42 @@ public class MediaController {
         return ResponseEntity.ok(response(200, "Media hidden", mediaService.hide(id, accountId.toString())));
     }
 
+    @GetMapping("/api/v1/media/creators/{creatorId}/violations-summary")
+    @PreAuthorize("hasAnyRole('STAFF', 'ADMIN')")
+    @Operation(summary = "Xem tổng số vi phạm của Creator (Admin)", description = "Lấy tổng số vi phạm bản quyền và từ chối kiểm duyệt của một Creator.")
+    public ResponseEntity<BaseResponse> getCreatorViolationsSummary(
+            @PathVariable String creatorId) {
+        return ResponseEntity.ok(response(200, "Creator violations summary", mediaService.getCreatorViolationsSummary(creatorId)));
+    }
+
     @PatchMapping("/api/v1/media/{id}/unhide")
      @PreAuthorize("isAuthenticated()")
     public ResponseEntity<BaseResponse> unhide(
             @PathVariable String id,
             @CurrentAccountId UUID accountId) {
-        return ResponseEntity.ok(response(200, "Media visible", mediaService.unhide(id, accountId.toString())));
+        return ResponseEntity.ok(response(200, "Media unhidden", mediaService.unhide(id, accountId.toString())));
+    }
+
+    @PatchMapping("/api/v1/media/{id}/force-hide")
+    @PreAuthorize("hasAnyRole('STAFF', 'ADMIN')")
+    @Operation(summary = "Ép ẩn media (Admin)")
+    public ResponseEntity<BaseResponse> forceHide(
+            @PathVariable String id,
+            @CurrentAccountId UUID accountId) {
+        return ResponseEntity.ok(response(200, "Media force-hidden", mediaService.forceHide(id, accountId.toString())));
+    }
+
+    @PatchMapping("/api/v1/media/{id}/force-unhide")
+    @PreAuthorize("hasAnyRole('STAFF', 'ADMIN')")
+    @Operation(summary = "Bỏ ép ẩn media (Admin)")
+    public ResponseEntity<BaseResponse> forceUnhide(
+            @PathVariable String id,
+            @CurrentAccountId UUID accountId) {
+        return ResponseEntity.ok(response(200, "Media force-unhidden", mediaService.forceUnhide(id, accountId.toString())));
     }
 
     @PatchMapping("/api/v1/media/{id}/approve")
-//    @PreAuthorize("hasAnyRole('STAFF', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('STAFF', 'ADMIN')")
     public ResponseEntity<BaseResponse> approve(
             @PathVariable String id,
             @CurrentAccountId UUID accountId) {
@@ -234,8 +270,9 @@ public class MediaController {
      @PreAuthorize("isAuthenticated()")
     public ResponseEntity<BaseResponse> updateStatus(
             @PathVariable String id,
-            @Valid @RequestBody MediaStatusRequestDto request) {
-        return ResponseEntity.ok(response(200, "Media status updated", mediaService.updateProcessingStatus(id, request)));
+            @Valid @RequestBody MediaStatusRequestDto request,
+            @CurrentAccountId UUID accountId) {
+        return ResponseEntity.ok(response(200, "Media status updated", mediaService.updateProcessingStatus(id, request, accountId.toString())));
     }
 
     @DeleteMapping("/api/v1/media/{id}")

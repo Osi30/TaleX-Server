@@ -80,7 +80,7 @@ public class SeriesServiceImpl implements SeriesService {
     @Override
     public SeriesResponseDto getById(String id, String accountId) {
         Series series = findActiveEntity(id);
-        contentOwnershipService.assertCanManage(series, accountId);
+        contentOwnershipService.assertCanView(series, accountId);
         return toResponse(series);
     }
 
@@ -154,6 +154,29 @@ public class SeriesServiceImpl implements SeriesService {
         series.setStatus(SeriesStatus.PUBLISHED);
         Series saved = seriesRepository.save(series);
         contentAuditLogger.logAction("Series", saved.getSeriesId(), "UNHIDE", actorId, series.getCreator().getCreatorId());
+        return toResponse(saved);
+    }
+
+    @Transactional
+    @Override
+    public SeriesResponseDto forceHide(String id, String actorId) {
+        Series series = findActiveEntity(id);
+        series.setStatus(SeriesStatus.FORCE_HIDDEN);
+        Series saved = seriesRepository.save(series);
+        contentAuditLogger.logAction("Series", saved.getSeriesId(), "FORCE_HIDE", actorId, series.getCreator().getCreatorId());
+        return toResponse(saved);
+    }
+
+    @Transactional
+    @Override
+    public SeriesResponseDto forceUnhide(String id, String actorId) {
+        Series series = findActiveEntity(id);
+        if (series.getStatus() != SeriesStatus.FORCE_HIDDEN) {
+            throw ContentModuleException.badRequest("Series is not force-hidden");
+        }
+        series.setStatus(SeriesStatus.HIDDEN);
+        Series saved = seriesRepository.save(series);
+        contentAuditLogger.logAction("Series", saved.getSeriesId(), "FORCE_UNHIDE", actorId, series.getCreator().getCreatorId());
         return toResponse(saved);
     }
 

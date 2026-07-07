@@ -12,6 +12,7 @@ import com.talex.server.entities.series.Episode;
 import com.talex.server.entities.media.Media;
 import com.talex.server.entities.media.MediaUploadSession;
 import com.talex.server.enums.series.ContentType;
+import com.talex.server.enums.series.EpisodeStatus;
 import com.talex.server.enums.media.MediaPlaybackPolicy;
 import com.talex.server.enums.media.MediaProtectionType;
 import com.talex.server.enums.media.MediaProvider;
@@ -22,6 +23,7 @@ import com.talex.server.exceptions.details.ContentModuleException;
 import com.talex.server.repositories.series.EpisodeRepository;
 import com.talex.server.repositories.MediaRepository;
 import com.talex.server.repositories.MediaUploadSessionRepository;
+import com.talex.server.services.ContentOwnershipService;
 import com.talex.server.services.MediaService;
 import com.talex.server.services.MediaUploadSessionService;
 import com.talex.server.services.media.MediaProviderService;
@@ -66,11 +68,18 @@ public class DefaultMediaUploadSessionService implements MediaUploadSessionServi
     private final MediaProperties mediaProperties;
     private final CloudinaryHlsReconcileService cloudinaryHlsReconcileService;
     private final MediaUploadProgressCache uploadProgressCache;
+    private final ContentOwnershipService contentOwnershipService;
 
     @Transactional
     @Override
     public VideoUploadSessionResponseDto createVideoUploadSession(String episodeId, VideoUploadSessionRequestDto request) {
         Episode episode = lockActiveEpisode(episodeId);
+        contentOwnershipService.assertCanManage(episode, request.getActorId());
+        
+        if (episode.getStatus() != EpisodeStatus.DRAFT && episode.getStatus() != EpisodeStatus.HIDDEN) {
+            throw ContentModuleException.badRequest("Cannot upload media when episode status is " + episode.getStatus());
+        }
+        
         validateVideoEpisode(episode);
         validateVideoRequest(request);
 
@@ -86,6 +95,7 @@ public class DefaultMediaUploadSessionService implements MediaUploadSessionServi
 
         Media media = new Media();
         media.setEpisode(episode);
+        media.setCreatorId(episode.getCreatorId());
         media.setMediaType(MediaType.VIDEO);
         media.setMimeType(normalizeMimeType(request.getMimeType()));
         media.setFileSize(request.getFileSize());
@@ -112,7 +122,7 @@ public class DefaultMediaUploadSessionService implements MediaUploadSessionServi
         session.setUploadSessionId(UUID.randomUUID().toString());
         session.setMedia(media);
         session.setEpisode(episode);
-        session.setCreatorId(blankToNull(request.getCreatorId()));
+        session.setCreatorId(episode.getCreatorId());
         session.setProvider(mediaProperties.getProvider());
         session.setProviderPublicId(providerPublicId);
         session.setProviderDeliveryType(media.getProviderDeliveryType());

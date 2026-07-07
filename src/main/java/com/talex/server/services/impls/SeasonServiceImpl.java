@@ -49,7 +49,8 @@ public class SeasonServiceImpl implements SeasonService {
     @Transactional(readOnly = true)
     @Override
     public SeasonResponseDto getById(String id, String accountId) {
-        Season season = findManageableEntity(id, accountId);
+        Season season = findActiveEntity(id);
+        contentOwnershipService.assertCanView(season, accountId);
         return toResponse(season);
     }
 
@@ -63,7 +64,7 @@ public class SeasonServiceImpl implements SeasonService {
     @Override
     public List<SeasonResponseDto> listBySeries(String seriesId, String accountId) {
         Series series = seriesService.findActiveEntity(seriesId);
-        contentOwnershipService.assertCanManage(series, accountId);
+        contentOwnershipService.assertCanView(series, accountId);
         return seasonRepository.findAllBySeries_SeriesIdAndIsDeletedFalseOrderBySeasonNumberAsc(seriesId)
                 .stream()
                 .map(this::toResponse)
@@ -117,10 +118,34 @@ public class SeasonServiceImpl implements SeasonService {
     @Transactional
     @Override
     public SeasonResponseDto unhide(String id, String actorId) {
-        Season season = findManageableEntity(id, actorId);
+        Season season = findActiveEntity(id);
+        contentOwnershipService.assertCanManage(season, actorId);
         season.setStatus(SeasonStatus.PUBLISHED);
         Season saved = seasonRepository.save(season);
-        contentAuditLogger.logAction("Season", saved.getSeasonId(), "UNHIDE", actorId, saved.getCreatorId());
+        contentAuditLogger.logAction("Season", saved.getSeasonId(), "UNHIDE", actorId, season.getSeries().getCreator().getCreatorId());
+        return toResponse(saved);
+    }
+
+    @Transactional
+    @Override
+    public SeasonResponseDto forceHide(String id, String actorId) {
+        Season season = findActiveEntity(id);
+        season.setStatus(SeasonStatus.FORCE_HIDDEN);
+        Season saved = seasonRepository.save(season);
+        contentAuditLogger.logAction("Season", saved.getSeasonId(), "FORCE_HIDE", actorId, season.getSeries().getCreator().getCreatorId());
+        return toResponse(saved);
+    }
+
+    @Transactional
+    @Override
+    public SeasonResponseDto forceUnhide(String id, String actorId) {
+        Season season = findActiveEntity(id);
+        if (season.getStatus() != SeasonStatus.FORCE_HIDDEN) {
+            throw ContentModuleException.badRequest("Season is not force-hidden");
+        }
+        season.setStatus(SeasonStatus.HIDDEN);
+        Season saved = seasonRepository.save(season);
+        contentAuditLogger.logAction("Season", saved.getSeasonId(), "FORCE_UNHIDE", actorId, season.getSeries().getCreator().getCreatorId());
         return toResponse(saved);
     }
 
@@ -141,15 +166,8 @@ public class SeasonServiceImpl implements SeasonService {
     }
 
     private Season findManageableEntity(String id, String accountId) {
-        if (contentOwnershipService.isPrivileged()) {
-            return findActiveEntity(id);
-        }
-
-        String creatorId = contentOwnershipService.requireCurrentCreatorId(accountId);
-        Season season = seasonRepository
-                .findBySeasonIdAndCreatorIdAndIsDeletedFalse(id, creatorId)
-                .orElseThrow(() -> ContentModuleException.notFound("Season not found: " + id));
-        contentOwnershipService.assertOwnedByCreator(season, creatorId);
+        Season season = findActiveEntity(id);
+        contentOwnershipService.assertCanManage(season, accountId);
         return season;
     }
 

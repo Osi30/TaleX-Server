@@ -62,7 +62,8 @@ public class EpisodeServiceImpl implements EpisodeService {
     @Transactional(readOnly = true)
     @Override
     public EpisodeResponseDto getById(String id, String accountId) {
-        Episode episode = findManageableEntity(id, accountId);
+        Episode episode = findActiveEntity(id);
+        contentOwnershipService.assertCanView(episode, accountId);
         return toResponse(episode);
     }
 
@@ -76,7 +77,7 @@ public class EpisodeServiceImpl implements EpisodeService {
     @Override
     public List<EpisodeResponseDto> listBySeason(String seasonId, String accountId) {
         Season season = seasonService.findActiveEntity(seasonId);
-        contentOwnershipService.assertCanManage(season.getSeries(), accountId);
+        contentOwnershipService.assertCanView(season, accountId);
         return episodeRepository.findAllBySeason_SeasonIdAndIsDeletedFalseOrderByEpisodeNumberAsc(seasonId)
                 .stream()
                 .map(this::toResponse)
@@ -214,8 +215,32 @@ public class EpisodeServiceImpl implements EpisodeService {
 
     @Transactional
     @Override
+    public EpisodeResponseDto forceHide(String id, String actorId) {
+        Episode episode = findActiveEntity(id);
+        episode.setStatus(EpisodeStatus.FORCE_HIDDEN);
+        Episode saved = episodeRepository.save(episode);
+        contentAuditLogger.logAction("Episode", saved.getEpisodeId(), "FORCE_HIDE", actorId, episode.getCreatorId());
+        return toResponse(saved);
+    }
+
+    @Transactional
+    @Override
+    public EpisodeResponseDto forceUnhide(String id, String actorId) {
+        Episode episode = findActiveEntity(id);
+        if (episode.getStatus() != EpisodeStatus.FORCE_HIDDEN) {
+            throw ContentModuleException.badRequest("Episode is not force-hidden");
+        }
+        episode.setStatus(EpisodeStatus.HIDDEN);
+        Episode saved = episodeRepository.save(episode);
+        contentAuditLogger.logAction("Episode", saved.getEpisodeId(), "FORCE_UNHIDE", actorId, episode.getCreatorId());
+        return toResponse(saved);
+    }
+
+    @Transactional
+    @Override
     public EpisodeResponseDto unhide(String id, String actorId) {
-        Episode episode = findManageableEntity(id, actorId);
+        Episode episode = findActiveEntity(id);
+        contentOwnershipService.assertCanManage(episode, actorId);
         ensureReadyMediaForPublish(episode);
         publishParentsImmediately(episode, actorId);
         episode.setStatus(EpisodeStatus.PUBLISHED);
@@ -253,15 +278,8 @@ public class EpisodeServiceImpl implements EpisodeService {
     }
 
     private Episode findManageableEntity(String id, String accountId) {
-        if (contentOwnershipService.isPrivileged()) {
-            return findActiveEntity(id);
-        }
-
-        String creatorId = contentOwnershipService.requireCurrentCreatorId(accountId);
-        Episode episode = episodeRepository
-                .findByEpisodeIdAndCreatorIdAndIsDeletedFalse(id, creatorId)
-                .orElseThrow(() -> ContentModuleException.notFound("Episode not found: " + id));
-        contentOwnershipService.assertOwnedByCreator(episode, creatorId);
+        Episode episode = findActiveEntity(id);
+        contentOwnershipService.assertCanManage(episode, accountId);
         return episode;
     }
 

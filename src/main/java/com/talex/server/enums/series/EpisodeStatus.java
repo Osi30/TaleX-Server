@@ -5,5 +5,6 @@ public enum EpisodeStatus {
     SCHEDULED,
     PUBLISHED,
     HIDDEN,
+    FORCE_HIDDEN,
     DELETED
 }

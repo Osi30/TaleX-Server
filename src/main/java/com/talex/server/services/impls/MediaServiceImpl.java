@@ -12,6 +12,7 @@ import com.talex.server.dtos.responses.MediaCopyrightResponseDto;
 import com.talex.server.dtos.responses.MediaResponseDto;
 import com.talex.server.dtos.responses.MediaViolationsResponseDto;
 import com.talex.server.dtos.responses.ViolationDetailResponseDto;
+import com.talex.server.dtos.responses.media.CreatorViolationsSummaryDto;
 import com.talex.server.entities.media.ContentCensorship;
 import com.talex.server.entities.series.Episode;
 import com.talex.server.entities.media.Media;
@@ -19,6 +20,7 @@ import com.talex.server.entities.media.MediaCopyright;
 import com.talex.server.enums.media.CensorshipStatus;
 import com.talex.server.enums.series.ContentApprovalStatus;
 import com.talex.server.enums.series.ContentType;
+import com.talex.server.enums.series.EpisodeStatus;
 import com.talex.server.enums.media.MediaPlaybackPolicy;
 import com.talex.server.enums.media.MediaProtectionType;
 import com.talex.server.enums.media.MediaProvider;
@@ -29,6 +31,7 @@ import com.talex.server.repositories.ContentCensorshipRepository;
 import com.talex.server.repositories.series.EpisodeRepository;
 import com.talex.server.repositories.MediaCopyrightRepository;
 import com.talex.server.repositories.MediaRepository;
+import com.talex.server.services.ContentOwnershipService;
 import com.talex.server.services.ContentPipelineService;
 import com.talex.server.services.EpisodeService;
 import com.talex.server.services.MediaPlaybackSecurityService;
@@ -73,6 +76,7 @@ public class MediaServiceImpl implements MediaService {
     private final ContentPipelineService contentPipelineService;
     private final MediaCopyrightRepository mediaCopyrightRepository;
     private final ContentCensorshipRepository contentCensorshipRepository;
+    private final ContentOwnershipService contentOwnershipService;
 
     private record PreparedMediaUrl(
             String fileUrl,
@@ -85,8 +89,10 @@ public class MediaServiceImpl implements MediaService {
 
     @Transactional
     @Override
-    public MediaResponseDto createFromUrl(String episodeId, MediaMetadataRequestDto request) {
+    public MediaResponseDto createFromUrl(String episodeId, MediaMetadataRequestDto request, String accountId) {
         Episode episode = lockActiveEpisode(episodeId);
+        contentOwnershipService.assertCanManage(episode, accountId);
+        validateEpisodeStatusForMediaModification(episode);
         if (request == null) {
             throw ContentModuleException.badRequest("Media URL request is required");
         }
@@ -96,8 +102,10 @@ public class MediaServiceImpl implements MediaService {
 
     @Transactional
     @Override
-    public List<MediaResponseDto> createComicPagesFromUrls(String episodeId, MediaComicPagesRequestDto request) {
+    public List<MediaResponseDto> createComicPagesFromUrls(String episodeId, MediaComicPagesRequestDto request, String accountId) {
         Episode episode = lockActiveEpisode(episodeId);
+        contentOwnershipService.assertCanManage(episode, accountId);
+        validateEpisodeStatusForMediaModification(episode);
         if (episode.getContentType() != ContentType.COMIC) {
             throw ContentModuleException.badRequest("Batch media URL creation is only supported for comic episodes");
         }
@@ -137,6 +145,7 @@ public class MediaServiceImpl implements MediaService {
         for (int i = 0; i < metadataRequests.size(); i++) {
             Media media = new Media();
             media.setEpisode(episode);
+            media.setCreatorId(episode.getCreatorId());
             media.setMediaType(MediaType.IMAGE);
             media.setDisplayOrder(resolvedOrders.get(i));
             applyPreparedUrl(media, metadataRequests.get(i), MediaType.IMAGE, preparedUrls.get(i));
@@ -160,8 +169,10 @@ public class MediaServiceImpl implements MediaService {
 
     @Transactional(readOnly = true)
     @Override
-    public MediaResponseDto getById(String id) {
-        return toResponse(findActiveEntity(id));
+    public MediaResponseDto getById(String id, String accountId) {
+        Media media = findActiveEntity(id);
+        contentOwnershipService.assertCanView(media, accountId);
+        return toResponse(media);
     }
 
     @Transactional(readOnly = true)
@@ -178,8 +189,9 @@ public class MediaServiceImpl implements MediaService {
 
     @Transactional(readOnly = true)
     @Override
-    public List<MediaResponseDto> listByEpisode(String episodeId) {
-        episodeService.findActiveEntity(episodeId);
+    public List<MediaResponseDto> listByEpisode(String episodeId, String accountId) {
+        Episode episode = episodeService.findActiveEntity(episodeId);
+        contentOwnershipService.assertCanView(episode, accountId);
         return mediaRepository.findAllByEpisode_EpisodeIdAndIsDeletedFalseOrderByDisplayOrderAsc(episodeId)
                 .stream()
                 .map(this::toResponse)
@@ -203,8 +215,8 @@ public class MediaServiceImpl implements MediaService {
 
     @Transactional
     @Override
-    public MediaResponseDto update(String id, MediaUpdateRequestDto request) {
-        Media media = findActiveEntity(id);
+    public MediaResponseDto update(String id, MediaUpdateRequestDto request, String accountId) {
+        Media media = findManageableEntity(id, accountId);
         if (request.getWidth() != null) {
             media.setWidth(request.getWidth());
         }
@@ -229,14 +241,14 @@ public class MediaServiceImpl implements MediaService {
         if (request.getStatus() != null) {
             media.setStatus(request.getStatus());
         }
-        media.markUpdatedBy(request.getActorId());
+        media.markUpdatedBy(accountId);
         return toResponse(mediaRepository.save(media));
     }
 
     @Transactional
     @Override
-    public MediaResponseDto replaceUrl(String id, MediaMetadataRequestDto request) {
-        Media media = findActiveEntity(id);
+    public MediaResponseDto replaceUrl(String id, MediaMetadataRequestDto request, String accountId) {
+        Media media = findManageableEntity(id, accountId);
         Episode episode = lockActiveEpisode(media.getEpisode().getEpisodeId());
         MediaType mediaType = resolveMediaType(
                 episode,
@@ -246,14 +258,15 @@ public class MediaServiceImpl implements MediaService {
         }
         validateMediaForEpisode(episode, mediaType, media.getMediaId());
         applyUrl(media, request, mediaType);
-        media.markUpdatedBy(request.getActorId());
+        media.markUpdatedBy(accountId);
         return toResponse(mediaRepository.save(media));
     }
 
     @Transactional
     @Override
-    public List<MediaResponseDto> reorder(String episodeId, MediaReorderRequestDto request) {
+    public List<MediaResponseDto> reorder(String episodeId, MediaReorderRequestDto request, String accountId) {
         Episode episode = lockActiveEpisode(episodeId);
+        contentOwnershipService.assertCanManage(episode, accountId);
         if (episode.getContentType() != ContentType.COMIC) {
             throw ContentModuleException.badRequest("Only comic episode media can be reordered");
         }
@@ -302,18 +315,18 @@ public class MediaServiceImpl implements MediaService {
             }
             ensureImageMedia(media);
             media.setDisplayOrder(item.getDisplayOrder());
-            media.markUpdatedBy(request.getActorId());
+            media.markUpdatedBy(accountId);
             changedMedia.add(media);
         }
         mediaRepository.saveAll(changedMedia);
 
-        return listByEpisode(episodeId);
+        return listByEpisode(episodeId, accountId);
     }
 
     @Transactional
     @Override
     public MediaResponseDto hide(String id, String actorId) {
-        Media media = findActiveEntity(id);
+        Media media = findManageableEntity(id, actorId);
         media.setStatus(MediaStatus.HIDDEN);
         media.markUpdatedBy(actorId);
         playbackSecurityService.revokeActiveSessions(media);
@@ -323,10 +336,35 @@ public class MediaServiceImpl implements MediaService {
     @Transactional
     @Override
     public MediaResponseDto unhide(String id, String actorId) {
-        Media media = findActiveEntity(id);
+        Media media = findManageableEntity(id, actorId);
+        contentOwnershipService.assertCanManage(media, actorId);
+        if (media.getStatus() != MediaStatus.HIDDEN) {
+            throw ContentModuleException.badRequest("Chỉ có thể bỏ ẩn khi media đang ở trạng thái HIDDEN");
+        }
         media.setStatus(MediaStatus.ACTIVE);
-        media.markUpdatedBy(actorId);
-        return toResponse(mediaRepository.save(media));
+        Media saved = mediaRepository.save(media);
+        return toResponse(saved);
+    }
+
+    @Transactional
+    @Override
+    public MediaResponseDto forceHide(String id, String actorId) {
+        Media media = findActiveEntity(id);
+        media.setStatus(MediaStatus.FORCE_HIDDEN);
+        Media saved = mediaRepository.save(media);
+        return toResponse(saved);
+    }
+
+    @Transactional
+    @Override
+    public MediaResponseDto forceUnhide(String id, String actorId) {
+        Media media = findActiveEntity(id);
+        if (media.getStatus() != MediaStatus.FORCE_HIDDEN) {
+            throw ContentModuleException.badRequest("Media is not force-hidden");
+        }
+        media.setStatus(MediaStatus.HIDDEN);
+        Media saved = mediaRepository.save(media);
+        return toResponse(saved);
     }
 
     @Transactional
@@ -353,6 +391,19 @@ public class MediaServiceImpl implements MediaService {
         }
         media.markUpdatedBy(actorId);
         return toResponse(mediaRepository.save(media));
+    }
+
+    @Transactional(readOnly = true)
+    @Override
+    public CreatorViolationsSummaryDto getCreatorViolationsSummary(String creatorId) {
+        long copyrightStrikes = mediaCopyrightRepository.countByMedia_CreatorIdAndIsValidFalse(creatorId);
+        long censorshipStrikes = contentCensorshipRepository.countByMedia_CreatorIdAndStatus(creatorId, com.talex.server.enums.media.CensorshipStatus.REJECTED);
+        
+        return CreatorViolationsSummaryDto.builder()
+                .creatorId(creatorId)
+                .totalCopyrightStrikes(copyrightStrikes)
+                .totalCensorshipStrikes(censorshipStrikes)
+                .build();
     }
 
     @Transactional
@@ -384,15 +435,15 @@ public class MediaServiceImpl implements MediaService {
 
     @Transactional
     @Override
-    public MediaResponseDto updateProcessingStatus(String id, MediaStatusRequestDto request) {
-        Media media = findActiveEntity(id);
+    public MediaResponseDto updateProcessingStatus(String id, MediaStatusRequestDto request, String accountId) {
+        Media media = findManageableEntity(id, accountId);
         if (request.getStatus() == MediaStatus.DELETED) {
             media.setStatus(MediaStatus.DELETED);
-            media.softDelete(request.getActorId());
+            media.softDelete(accountId);
             playbackSecurityService.revokeActiveSessions(media);
         } else {
             media.setStatus(request.getStatus());
-            media.markUpdatedBy(request.getActorId());
+            media.markUpdatedBy(accountId);
         }
         return toResponse(mediaRepository.save(media));
     }
@@ -400,7 +451,8 @@ public class MediaServiceImpl implements MediaService {
     @Transactional
     @Override
     public void delete(String id, String actorId) {
-        Media media = findActiveEntity(id);
+        Media media = findManageableEntity(id, actorId);
+        validateEpisodeStatusForMediaModification(media.getEpisode());
         media.setStatus(MediaStatus.DELETED);
         media.softDelete(actorId);
         playbackSecurityService.revokeActiveSessions(media);
@@ -414,6 +466,15 @@ public class MediaServiceImpl implements MediaService {
     public Media findActiveEntity(String id) {
         return mediaRepository.findByMediaIdAndIsDeletedFalse(id)
                 .orElseThrow(() -> ContentModuleException.notFound("Media not found: " + id));
+    }
+
+    @Override
+    public Media findManageableEntity(String id, String accountId) {
+        Media media = mediaRepository
+                .findByMediaIdAndIsDeletedFalse(id)
+                .orElseThrow(() -> ContentModuleException.notFound("Media not found: " + id));
+        contentOwnershipService.assertCanManage(media, accountId);
+        return media;
     }
 
     @Transactional(readOnly = true)
@@ -454,6 +515,12 @@ public class MediaServiceImpl implements MediaService {
         return baseResponse(media).build();
     }
 
+    private void validateEpisodeStatusForMediaModification(Episode episode) {
+        if (episode.getStatus() != EpisodeStatus.DRAFT && episode.getStatus() != EpisodeStatus.HIDDEN) {
+            throw ContentModuleException.badRequest("Cannot modify media when episode status is " + episode.getStatus());
+        }
+    }
+
     private MediaResponseDto toPublicResponse(Media media) {
         MediaResponseDto.MediaResponseDtoBuilder builder = baseResponse(media);
         boolean protectedVideo = media.getMediaType() == MediaType.VIDEO
@@ -473,6 +540,7 @@ public class MediaServiceImpl implements MediaService {
         return MediaResponseDto.builder()
                 .mediaId(media.getMediaId())
                 .episodeId(media.getEpisode().getEpisodeId())
+                .creatorId(media.getCreatorId())
                 .mediaType(media.getMediaType())
                 .mimeType(media.getMimeType())
                 .fileUrl(media.getFileUrl())
@@ -572,6 +640,7 @@ public class MediaServiceImpl implements MediaService {
 
         Media media = new Media();
         media.setEpisode(episode);
+        media.setCreatorId(episode.getCreatorId());
         media.setMediaType(mediaType);
         media.setDisplayOrder(resolveDisplayOrder(episode.getEpisodeId(), mediaType, requestedDisplayOrder));
         applyUrl(media, request, mediaType);
