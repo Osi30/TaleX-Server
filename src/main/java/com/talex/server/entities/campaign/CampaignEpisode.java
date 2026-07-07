@@ -1,5 +1,6 @@
 package com.talex.server.entities.campaign;
 
+import com.talex.server.entities.AnalyticData;
 import com.talex.server.entities.series.Episode;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -7,13 +8,15 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.io.Serializable;
+
 @Entity
 @Table(name = "campaign_episode")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class CampaignEpisode {
+public class CampaignEpisode implements Serializable {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     @Column(name = "campaign_episode_id")
@@ -26,4 +29,8 @@ public class CampaignEpisode {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "episode_id", nullable = false)
     private Episode episode;
+
+    @Embedded
+    @Builder.Default
+    private AnalyticData analyticData = new AnalyticData();
 }

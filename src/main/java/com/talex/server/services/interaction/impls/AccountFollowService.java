@@ -1,7 +1,7 @@
 package com.talex.server.services.interaction.impls;
 
-import com.talex.server.dtos.interaction.AccountFollowInfoDto;
-import com.talex.server.dtos.interaction.FollowRequestDto;
+import com.talex.server.dtos.interaction.response.AccountFollowInfoDto;
+import com.talex.server.dtos.interaction.request.FollowRequestDto;
 import com.talex.server.entities.Account;
 import com.talex.server.entities.interaction.AccountFollow;
 import com.talex.server.exceptions.codes.InteractionErrorCode;

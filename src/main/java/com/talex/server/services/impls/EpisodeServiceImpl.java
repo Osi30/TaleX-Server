@@ -3,20 +3,14 @@ package com.talex.server.services.impls;
 import com.talex.server.dtos.requests.EpisodeRequestDto;
 import com.talex.server.dtos.responses.EpisodeResponseDto;
 import com.talex.server.entities.series.Episode;
-import com.talex.server.entities.media.Media;
 import com.talex.server.entities.series.Season;
 import com.talex.server.entities.series.Series;
-import com.talex.server.enums.series.ContentApprovalStatus;
-import com.talex.server.enums.series.ContentType;
-import com.talex.server.enums.series.EpisodeStatus;
-import com.talex.server.enums.series.EpisodeUnlockType;
 import com.talex.server.enums.media.MediaStatus;
 import com.talex.server.enums.media.MediaType;
-import com.talex.server.enums.series.SeasonStatus;
-import com.talex.server.enums.series.SeriesStatus;
+import com.talex.server.enums.series.*;
 import com.talex.server.exceptions.details.ContentModuleException;
-import com.talex.server.repositories.series.EpisodeRepository;
 import com.talex.server.repositories.MediaRepository;
+import com.talex.server.repositories.series.EpisodeRepository;
 import com.talex.server.services.ContentOwnershipService;
 import com.talex.server.services.EpisodeService;
 import com.talex.server.services.SeasonService;
@@ -296,8 +290,8 @@ public class EpisodeServiceImpl implements EpisodeService {
                 .publishedAt(episode.getPublishedAt())
                 .unlockType(episode.getUnlockType())
                 .priceVnd(episode.getPriceVnd())
-                .likes(episode.getLikes())
-                .views(episode.getViews())
+                .likes(episode.getAnalyticData().getLikes())
+                .views(episode.getAnalyticData().getViews())
                 .totalPage(episode.getTotalPage())
                 .createdAt(episode.getCreatedAt())
                 .updatedAt(episode.getUpdatedAt())

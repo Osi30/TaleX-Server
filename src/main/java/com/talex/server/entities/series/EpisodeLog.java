@@ -1,4 +1,4 @@
-package com.talex.server.entities.campaign;
+package com.talex.server.entities.series;
 
 import com.talex.server.entities.AnalyticData;
 import jakarta.persistence.*;
@@ -9,27 +9,26 @@ import lombok.NoArgsConstructor;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;
-
 @Entity
-@Table(name = "campaign_log", uniqueConstraints = {
-        @UniqueConstraint(columnNames = {"campaign_log_id", "hour_bucket"})
+@Table(name = "episode_log", uniqueConstraints = {
+        @UniqueConstraint(columnNames = {"episode_log_id", "hour_bucket"})
 })
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class CampaignLog implements Serializable {
+public class EpisodeLog implements Serializable {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(name = "campaign_log_id")
-    private String campaignLogId;
+    @Column(name = "episode_log_id")
+    private String episodeLogId;
 
     @Column(name = "hour_bucket", nullable = false)
     private LocalDateTime hourBucket;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "campaign_id", nullable = false)
-    private Campaign campaign;
+    @JoinColumn(name = "episode_id", nullable = false)
+    private Episode episode;
 
     @Embedded
     @Builder.Default

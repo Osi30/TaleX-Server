@@ -1,6 +1,6 @@
 package com.talex.server.repositories.interaction;
 
-import com.talex.server.dtos.interaction.AccountFollowInfoDto;
+import com.talex.server.dtos.interaction.response.AccountFollowInfoDto;
 import com.talex.server.entities.interaction.AccountFollow;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
@@ -21,7 +21,7 @@ public interface AccountFollowRepository extends JpaRepository<AccountFollow, St
     /**
      * Lấy danh sách Followers (Những người đang theo dõi tài khoản này) có trạng thái ACTIVE
      */
-    @Query("SELECT new com.talex.server.dtos.interaction.AccountFollowInfoDto(af.follower.accountId, af.follower.username, af.follower.avatarUrl, af.createdAt) " +
+    @Query("SELECT new com.talex.server.dtos.interaction.response.AccountFollowInfoDto(af.follower.accountId, af.follower.username, af.follower.avatarUrl, af.createdAt) " +
             "FROM AccountFollow af " +
             "WHERE af.followed.accountId = :accountId " +
             "AND af.follower.status = com.talex.server.enums.AccountStatus.ACTIVE " +
@@ -31,7 +31,7 @@ public interface AccountFollowRepository extends JpaRepository<AccountFollow, St
     /**
      * Lấy danh sách Followed (Những tài khoản mà người này đang theo dõi) có trạng thái ACTIVE
      */
-    @Query("SELECT new com.talex.server.dtos.interaction.AccountFollowInfoDto(af.followed.accountId, af.followed.username, af.followed.avatarUrl, af.createdAt) " +
+    @Query("SELECT new com.talex.server.dtos.interaction.response.AccountFollowInfoDto(af.followed.accountId, af.followed.username, af.followed.avatarUrl, af.createdAt) " +
             "FROM AccountFollow af " +
             "WHERE af.follower.accountId = :accountId " +
             "AND af.followed.status = com.talex.server.enums.AccountStatus.ACTIVE " +

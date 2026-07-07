@@ -1,6 +1,7 @@
 package com.talex.server.entities.creator;
 
 import com.talex.server.entities.Account;
+import com.talex.server.entities.AnalyticData;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -30,31 +31,9 @@ public class Creator {
     @Builder.Default
     private Boolean isVerified = false;
 
-    // Tổng quan tương tác
-    @Column(name = "total_views", nullable = false)
+    @Embedded
     @Builder.Default
-    private Long totalViews = 0L;
-
-    // Tính theo giờ
-    @Column(name = "total_watch_time", nullable = false)
-    @Builder.Default
-    private Double totalWatchTime = 0D;
-
-    @Column(name = "total_likes")
-    @Builder.Default
-    private Long likes = 0L;
-
-    @Column(name = "total_bookmarks")
-    @Builder.Default
-    private Long bookmarks = 0L;
-
-    @Column(name = "total_shares")
-    @Builder.Default
-    private Long shares = 0L;
-
-    @Column(name = "total_comments")
-    @Builder.Default
-    private Long comments = 0L;
+    private AnalyticData analyticData = new AnalyticData();
 
     // Tổng quan doanh thu
     @Column(name = "current_balance", nullable = false)

@@ -1,4 +1,4 @@
-package com.talex.server.dtos.interaction;
+package com.talex.server.dtos.interaction.request;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Data;

@@ -1,7 +1,7 @@
 package com.talex.server.services.interaction;
 
-import com.talex.server.dtos.interaction.AccountFollowInfoDto;
-import com.talex.server.dtos.interaction.FollowRequestDto;
+import com.talex.server.dtos.interaction.response.AccountFollowInfoDto;
+import com.talex.server.dtos.interaction.request.FollowRequestDto;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 

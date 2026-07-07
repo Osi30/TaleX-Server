@@ -1,7 +1,7 @@
 package com.talex.server.services.interaction.impls;
 
-import com.talex.server.dtos.requests.interaction.InteractionRequest;
-import com.talex.server.dtos.requests.interaction.WatchTimeRequest;
+import com.talex.server.dtos.interaction.request.InteractionRequest;
+import com.talex.server.dtos.interaction.request.WatchTimeRequest;
 import com.talex.server.exceptions.codes.InteractionErrorCode;
 import com.talex.server.exceptions.details.InteractionException;
 import com.talex.server.repositories.interaction.AccountInteractionRepository;

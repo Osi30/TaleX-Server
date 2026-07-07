@@ -1,4 +1,4 @@
-package com.talex.server.dtos.interaction;
+package com.talex.server.dtos.interaction.response;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
