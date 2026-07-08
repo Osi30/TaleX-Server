@@ -9,6 +9,7 @@ public interface ComboEpisodeService {
     ComboEpisodeResponseDto create(ComboEpisodeRequestDto request, String accountId);
     ComboEpisodeResponseDto getById(String id, String accountId);
     List<ComboEpisodeResponseDto> listByCreator(String accountId);
+    List<ComboEpisodeResponseDto> getAll();
     ComboEpisodeResponseDto update(String id, ComboEpisodeRequestDto request, String accountId);
     void delete(String id, String accountId);
 }

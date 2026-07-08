@@ -1,26 +1,26 @@
 package com.talex.server.controllers;
 
+import com.talex.server.annotations.CurrentAccountId;
 import com.talex.server.dtos.BaseResponse;
-import com.talex.server.services.CategoryService;
-import com.talex.server.services.EpisodeService;
-import com.talex.server.services.MediaPlaybackSecurityService;
-import com.talex.server.services.MediaService;
-import com.talex.server.services.SeasonService;
-import com.talex.server.services.SeriesService;
-import com.talex.server.services.TagService;
+import com.talex.server.services.*;
+import io.swagger.v3.oas.annotations.Operation;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.UUID;
+
 @RestController
 @RequestMapping("/api/v1/public")
 @RequiredArgsConstructor
 public class PublicContentController {
+    private final ComboEpisodeService comboEpisodeService;
     private final CategoryService categoryService;
     private final TagService tagService;
     private final SeriesService seriesService;
@@ -96,6 +96,12 @@ public class PublicContentController {
     @GetMapping("/media/{mediaId}")
     public ResponseEntity<BaseResponse> getMedia(@PathVariable String mediaId) {
         return ResponseEntity.ok(response(200, "OK", mediaService.getPublicById(mediaId)));
+    }
+
+    @GetMapping("/combos")
+    @Operation(summary = "Lấy danh sách Combo", description = "Lấy danh sách các combo.")
+    public ResponseEntity<BaseResponse> list() {
+        return ResponseEntity.ok(response(200, "OK", comboEpisodeService.getAll()));
     }
 
     private BaseResponse response(int code, String message, Object data) {
