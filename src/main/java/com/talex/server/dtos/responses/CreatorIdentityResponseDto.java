@@ -1,6 +1,7 @@
 package com.talex.server.dtos.responses;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.talex.server.enums.creator.CreatorIdentityStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -22,6 +23,7 @@ public class CreatorIdentityResponseDto {
     private String sex;
     private String address;
     private LocalDate doe;
+    private CreatorIdentityStatus status;
     private String taxId;
 
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss")
