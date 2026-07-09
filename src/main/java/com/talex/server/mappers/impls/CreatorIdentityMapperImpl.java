@@ -23,6 +23,7 @@ public class CreatorIdentityMapperImpl implements ICreatorIdentityMapper {
                 .address(entity.getAddress())
                 .doe(entity.getDoe())
                 .taxId(entity.getTaxId())
+                .status(entity.getStatus())
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt());
 

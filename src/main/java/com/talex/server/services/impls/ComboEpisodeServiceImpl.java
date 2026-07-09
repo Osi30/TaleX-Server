@@ -65,6 +65,11 @@ public class ComboEpisodeServiceImpl implements ComboEpisodeService {
     }
 
     @Override
+    public List<ComboEpisodeResponseDto> getAll() {
+        return comboEpisodeRepository.findAll().stream().map(this::toResponse).collect(Collectors.toList());
+    }
+
+    @Override
     @Transactional
     public ComboEpisodeResponseDto update(String id, ComboEpisodeRequestDto request, String accountId) {
         ComboEpisode combo = findActiveEntity(id);
