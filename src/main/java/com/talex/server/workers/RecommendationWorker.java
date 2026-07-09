@@ -6,9 +6,12 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.kafka.annotation.KafkaListener;
+import com.talex.server.entities.mongo.SeriesRecommendation;
+import com.talex.server.repositories.mongo.SeriesRecommendationRepository;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
+import java.time.Instant;
 
 @Component
 @RequiredArgsConstructor
@@ -17,6 +20,7 @@ public class RecommendationWorker {
 
     private final ObjectMapper objectMapper;
     private final RedisTemplate<String, String> redisTemplate;
+    private final SeriesRecommendationRepository seriesRecommendationRepository;
 
     private static final String RECOMMENDATION_PREFIX = "recommendation:series:";
 
@@ -33,7 +37,15 @@ public class RecommendationWorker {
                 String similarIdsJson = objectMapper.writeValueAsString(result.getSimilarIds());
                 redisTemplate.opsForValue().set(redisKey, similarIdsJson, Duration.ofDays(7));
                 
-                log.info("Successfully stored {} similar series for seriesId={} in Redis", result.getSimilarIds().size(), result.getSeriesId());
+                // Store in MongoDB
+                SeriesRecommendation mongoRecord = SeriesRecommendation.builder()
+                        .id(result.getSeriesId())
+                        .similarIds(result.getSimilarIds())
+                        .updatedAt(Instant.now())
+                        .build();
+                seriesRecommendationRepository.save(mongoRecord);
+                
+                log.info("Successfully stored {} similar series for seriesId={} in Redis and MongoDB", result.getSimilarIds().size(), result.getSeriesId());
             }
 
         } catch (Exception e) {

@@ -26,13 +26,15 @@ public class ContentAuditLogger {
     @Async
     public void logAction(String entityName, String entityId, String action, String accountId, String creatorId) {
         try {
-            questDBSender.table("content_audit_logs")
-                    .symbol("entity_name", entityName)
-                    .symbol("action", action)
-                    .symbol("account_id", accountId)
-                    .symbol("creator_id", creatorId)
-                    .stringColumn("entity_id", entityId)
-                    .at(Instant.now());
+            synchronized (questDBSender) {
+                questDBSender.table("content_audit_logs")
+                        .symbol("entity_name", entityName)
+                        .symbol("action", action)
+                        .symbol("account_id", accountId)
+                        .symbol("creator_id", creatorId)
+                        .stringColumn("entity_id", entityId)
+                        .at(Instant.now());
+            }
         } catch (Exception e) {
             log.warn("[QuestDB] Failed to save audit log for {} {} action {}: {}", entityName, entityId, action, e.getMessage());
         }
