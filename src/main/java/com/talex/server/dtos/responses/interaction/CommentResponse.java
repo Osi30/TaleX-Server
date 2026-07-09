@@ -18,4 +18,5 @@ public class CommentResponse {
     private String parentCommentId;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private Integer repliesCount;
 }

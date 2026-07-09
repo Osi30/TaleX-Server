@@ -21,8 +21,8 @@ public class DataInitializer implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
-        seedRoles();
-        seedCopyrights();
+//        seedRoles();
+//        seedCopyrights();
     }
 
     private void seedRoles() {

@@ -59,7 +59,7 @@ public class AccountFollowController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<BaseResponse> getFollowers(
             @CurrentAccountId UUID accountId,
-            @ParameterObject @PageableDefault(size = 1) Pageable pageable
+            @ParameterObject @PageableDefault(size = 20) Pageable pageable
     ) {
         Slice<AccountFollowInfoDto> followers = accountFollowService.getFollowers(accountId, pageable);
         return ResponseEntity.ok(BaseResponse.builder()
@@ -74,7 +74,7 @@ public class AccountFollowController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<BaseResponse> getFollowed(
             @CurrentAccountId UUID accountId,
-            @ParameterObject @PageableDefault(size = 1) Pageable pageable
+            @ParameterObject @PageableDefault(size = 20) Pageable pageable
     ) {
         Slice<AccountFollowInfoDto> followed = accountFollowService.getFollowed(accountId, pageable);
         return ResponseEntity.ok(BaseResponse.builder()

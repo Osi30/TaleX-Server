@@ -48,6 +48,7 @@ public class SecurityConfig {
                                 "/api/v1/engagement-services/search",
                                 "/api/v1/terms-versions/**",
                                 "/api/v1/interactions/**",
+                                "/api/v1/**",
                                 "/api/v1/webhooks/**",
                                 "/api/v1/mongo/**",
                                 "/uploads/**",

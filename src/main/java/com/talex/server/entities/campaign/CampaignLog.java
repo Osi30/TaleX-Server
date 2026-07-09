@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "campaign_log", uniqueConstraints = {
-        @UniqueConstraint(columnNames = {"campaign_log_id", "hour_bucket"})
+        @UniqueConstraint(columnNames = {"campaign_id", "hour_bucket"})
 })
 @Data
 @NoArgsConstructor
