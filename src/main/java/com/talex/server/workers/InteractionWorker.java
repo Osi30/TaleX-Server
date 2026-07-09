@@ -46,11 +46,11 @@ public class InteractionWorker {
     private final DateTimeFormatter monthYearFormatter = DateTimeFormatter.ofPattern("yyyy-MM");
 
     // Kafka pipeline for user interaction
-    @KafkaListener(
-            topics = "interaction-log-topic",
-            groupId = "questdb-interaction-group-local",
-            containerFactory = "batchFactory"
-    )
+//    @KafkaListener(
+//            topics = "interaction-log-topic",
+//            groupId = "questdb-interaction-group-local",
+//            containerFactory = "batchFactory"
+//    )
     public void consume(List<String> messages) {
         try {
             for (String message : messages) {
@@ -87,11 +87,11 @@ public class InteractionWorker {
         }
     }
 
-    @KafkaListener(
-            topics = "interaction-log-topic",
-            groupId = "postgres-interaction-group-local",
-            containerFactory = "batchFactory"
-    )
+//    @KafkaListener(
+//            topics = "interaction-log-topic",
+//            groupId = "postgres-interaction-group-local",
+//            containerFactory = "batchFactory"
+//    )
     @Transactional
     public void consumePostgresBatch(List<String> messages) {
         try {
@@ -169,7 +169,7 @@ public class InteractionWorker {
         return aggregateMap;
     }
 
-    @KafkaListener(topics = "watch-raw", groupId = "questdb-watch-group")
+//    @KafkaListener(topics = "watch-raw", groupId = "questdb-watch-group")
     public void consumeRawLog(String message) {
         try {
             String[] parts = message.split(",");
@@ -195,7 +195,7 @@ public class InteractionWorker {
         }
     }
 
-    @KafkaListener(topics = "watch-summary", groupId = "postgres-watch-group")
+//    @KafkaListener(topics = "watch-summary", groupId = "postgres-watch-group")
     public void consumeSummaryLog(String message) {
         try {
             String[] parts = message.split(",");

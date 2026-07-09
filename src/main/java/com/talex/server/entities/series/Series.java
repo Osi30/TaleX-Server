@@ -1,5 +1,6 @@
 package com.talex.server.entities.series;
 
+import com.talex.server.entities.AnalyticData;
 import com.talex.server.entities.BaseTimeEntity;
 import com.talex.server.entities.creator.Creator;
 import com.talex.server.enums.series.ContentType;
@@ -56,11 +57,8 @@ public class Series extends BaseTimeEntity {
     @Column(length = 20)
     private String language;
 
-    @Column(name = "total_views", nullable = false)
-    private Long totalViews = 0L;
-
-    @Column(name = "total_subscriptions", nullable = false)
-    private Long totalSubscriptions = 0L;
+    @Embedded
+    private AnalyticData analyticData = new AnalyticData();
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "creator_id", nullable = false)

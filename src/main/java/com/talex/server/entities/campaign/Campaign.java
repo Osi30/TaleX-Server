@@ -1,5 +1,6 @@
 package com.talex.server.entities.campaign;
 
+import com.talex.server.entities.AnalyticData;
 import com.talex.server.entities.series.Episode;
 import com.talex.server.enums.engagement.CampaignStatus;
 import com.talex.server.enums.engagement.EngagementTarget;
@@ -11,6 +12,7 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
+import java.io.Serializable;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -18,11 +20,11 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "campaign")
-@Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Campaign {
+@Data
+public class Campaign implements Serializable {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     @Column(name = "campaign_id")
@@ -58,6 +60,10 @@ public class Campaign {
 
     @Column(name = "order_id")
     private String orderId;
+
+    @Embedded
+    @Builder.Default
+    private AnalyticData analyticData = new AnalyticData();
 
     @Enumerated(EnumType.STRING)
     @Column(name = "engagement_target", nullable = false)

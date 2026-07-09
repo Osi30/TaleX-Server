@@ -58,9 +58,13 @@ public class Account {
     @Column(name = "avatar_url")
     private String avatarUrl;
 
-    @Column(name = "total_followers", nullable = false)
+    @Column(name = "total_followers_by", nullable = false)
     @Builder.Default
-    private Long totalFollowers = 0L;
+    private Long totalFollowersBy = 0L;
+
+    @Column(name = "total_followers_to", nullable = false)
+    @Builder.Default
+    private Long totalFollowersTo = 0L;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)

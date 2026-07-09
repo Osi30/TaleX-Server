@@ -1,7 +1,7 @@
 package com.talex.server.services.interaction;
 
-import com.talex.server.dtos.requests.interaction.InteractionRequest;
-import com.talex.server.dtos.requests.interaction.WatchTimeRequest;
+import com.talex.server.dtos.interaction.request.InteractionRequest;
+import com.talex.server.dtos.interaction.request.WatchTimeRequest;
 
 import java.util.UUID;
 
