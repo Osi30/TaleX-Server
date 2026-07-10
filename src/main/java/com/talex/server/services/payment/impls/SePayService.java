@@ -4,11 +4,10 @@ import com.talex.server.configs.properties.SePayProperties;
 import com.talex.server.dtos.requests.payment.SePayWebhookPayloadDto;
 import com.talex.server.entities.transaction.Order;
 import com.talex.server.enums.transaction.OrderStatus;
+import com.talex.server.enums.transaction.PaymentMethod;
 import com.talex.server.repositories.transaction.OrderRepository;
-import com.talex.server.services.payment.IOrderFulfillmentService;
 import com.talex.server.services.payment.ISePayService;
-import com.talex.server.services.payment.ITransactionService;
-import jakarta.annotation.PostConstruct;
+import com.talex.server.services.payment.OrderCompletionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -18,13 +17,9 @@ import org.springframework.web.util.UriComponentsBuilder;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
-import java.util.List;
-import java.util.Map;
 import java.util.Optional;
-import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -36,24 +31,17 @@ public class SePayService implements ISePayService {
 
     private final SePayProperties sePayProperties;
     private final OrderRepository orderRepository;
-    private final ITransactionService transactionService;
-    private final List<IOrderFulfillmentService> fulfillmentServices;
-
-    private Map<String, IOrderFulfillmentService> fulfillmentServiceByItemType;
-
-    @PostConstruct
-    void indexFulfillmentServices() {
-        fulfillmentServiceByItemType = fulfillmentServices.stream()
-                .collect(Collectors.toMap(IOrderFulfillmentService::getSupportedItemType, Function.identity()));
-    }
+    private final OrderCompletionService orderCompletionService;
 
     @Override
     public String buildQrUrl(String paymentCode, BigDecimal amount) {
+        String prefix = sePayProperties.getTransferContentPrefix();
+        String transferContent = prefix.isBlank() ? paymentCode : prefix + " " + paymentCode;
         return UriComponentsBuilder.fromUriString(sePayProperties.getQrBaseUrl())
                 .queryParam("acc", sePayProperties.getAccountNumber())
                 .queryParam("bank", sePayProperties.getBankName())
                 .queryParam("amount", amount.toBigInteger())
-                .queryParam("des", paymentCode)
+                .queryParam("des", transferContent)
                 .build()
                 .toUriString();
     }
@@ -116,24 +104,7 @@ public class SePayService implements ISePayService {
             return;
         }
 
-        completeOrder(order, payload.getTransferAmount());
-    }
-
-    private void completeOrder(Order order, BigDecimal paidAmount) {
-        transactionService.createSuccessTransaction(order, paidAmount);
-
-        order.setStatus(OrderStatus.COMPLETED);
-        orderRepository.save(order);
-
-        IOrderFulfillmentService fulfillmentService = fulfillmentServiceByItemType.get(order.getItemType());
-        if (fulfillmentService == null) {
-            throw new IllegalStateException(
-                    "No IOrderFulfillmentService registered for itemType=" + order.getItemType());
-        }
-        fulfillmentService.fulfill(order);
-
-        log.info("SePay webhook: order {} completed, itemType={} itemId={} fulfilled",
-                order.getOrderId(), order.getItemType(), order.getItemId());
+        orderCompletionService.complete(order, payload.getTransferAmount(), PaymentMethod.SEPAY);
     }
 
     private String extractPaymentCode(String content) {

@@ -118,7 +118,7 @@ spring:
     dlq:
       interaction: interaction-log-topic.DLQ
   mongodb:
-    uri: mongodb+srv://${MONGO_USERNAME}:${MONGO_PASSWORD}@${MONGO_HOST}/?${MONGO_APP_NAME}
+    uri: mongodb+srv://${MONGO_USERNAME}:${MONGO_PASSWORD}@${MONGO_HOST}/${MONGO_DATABASE}?appName=${MONGO_APP_NAME:TalexServer}
 
 springdoc:
   api-docs:
@@ -145,6 +145,7 @@ sepay:
   qr-base-url: ${SEPAY_QR_BASE_URL:https://qr.sepay.vn/img}
   order-expiry-minutes: ${SEPAY_ORDER_EXPIRY_MINUTES:30}
   retry-block-window-minutes: ${SEPAY_RETRY_BLOCK_WINDOW_MINUTES:5}
+  transfer-content-prefix: ${SEPAY_TRANSFER_CONTENT_PREFIX:}
 
 payment:
   order:

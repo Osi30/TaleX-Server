@@ -25,7 +25,7 @@ public interface MediaService {
 
     List<MediaResponseDto> listByEpisode(String episodeId, String accountId);
 
-    List<MediaResponseDto> listPublicByEpisode(String episodeId);
+    List<MediaResponseDto> listPublicByEpisode(String episodeId, String viewerId);
 
     MediaResponseDto update(String id, MediaUpdateRequestDto request, String accountId);
 

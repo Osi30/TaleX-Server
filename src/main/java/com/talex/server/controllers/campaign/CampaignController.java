@@ -14,6 +14,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -22,6 +23,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/v1/campaigns")
 @RequiredArgsConstructor
+@PreAuthorize("isAuthenticated()")
 @Tag(name = "Campaigns", description = "API quản lý chiến dịch đẩy tương tác cho phim/truyện")
 public class CampaignController {
     private final ICampaignService campaignService;
@@ -44,7 +46,8 @@ public class CampaignController {
 
     // Chỉ Admin/Staff
     @GetMapping
-    @Operation(summary = "Lọc danh sách chiến dịch", description = "Lấy danh sách các chiến dịch theo điều kiện lọc, trạng thái và phân trang.")
+    @PreAuthorize("hasAnyRole('ADMIN','STAFF')")
+    @Operation(summary = "Lọc danh sách chiến dịch", description = "Lấy danh sách các chiến dịch theo điều kiện lọc, trạng thái và phân trang. Chỉ Admin/Staff.")
     public ResponseEntity<BaseResponse> filterCampaigns(
             @RequestParam(required = false) String[] targets,
             @RequestParam(required = false) String[] statuses,
@@ -75,7 +78,8 @@ public class CampaignController {
 
     // Chỉ Admin/Staff
     @GetMapping("/{campaignId}")
-    @Operation(summary = "Lấy chiến dịch theo ID", description = "Trả về chi tiết chiến dịch theo id.")
+    @PreAuthorize("hasAnyRole('ADMIN','STAFF')")
+    @Operation(summary = "Lấy chiến dịch theo ID", description = "Trả về chi tiết chiến dịch theo id. Chỉ Admin/Staff.")
     public ResponseEntity<BaseResponse> getById(@PathVariable String campaignId) {
         CampaignResponseDto response = campaignService.getCampaignById(campaignId);
         return ResponseEntity.ok(BaseResponse.builder()
@@ -88,7 +92,8 @@ public class CampaignController {
 
 
     @PutMapping("/{campaignId}")
-    @Operation(summary = "Cập nhật chiến dịch", description = "Cập nhật thông tin chiến dịch theo id.")
+    @PreAuthorize("hasAnyRole('ADMIN','STAFF')")
+    @Operation(summary = "Cập nhật chiến dịch", description = "Cập nhật thông tin chiến dịch theo id. Chỉ Admin/Staff.")
     public ResponseEntity<BaseResponse> update(
             @PathVariable String campaignId,
             @RequestBody CampaignUpdateDto request
@@ -103,7 +108,8 @@ public class CampaignController {
     }
 
     @DeleteMapping("/{campaignId}")
-    @Operation(summary = "Hủy chiến dịch", description = "Hủy chiến dịch cụ thể.")
+    @PreAuthorize("hasAnyRole('ADMIN','STAFF')")
+    @Operation(summary = "Hủy chiến dịch", description = "Hủy chiến dịch cụ thể. Chỉ Admin/Staff.")
     public ResponseEntity<BaseResponse> delete(@PathVariable String campaignId) {
         campaignService.deleteCampaign(campaignId);
         return ResponseEntity.ok(BaseResponse.builder()

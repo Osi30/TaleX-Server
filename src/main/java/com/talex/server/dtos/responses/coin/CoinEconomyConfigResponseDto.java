@@ -35,6 +35,9 @@ public class CoinEconomyConfigResponseDto {
     /** Thưởng mốc 30 ngày liên tiếp. */
     private BigDecimal milestone30Reward;
 
+    /** Tỷ giá quy đổi: 1 Coin tương đương bao nhiêu VNĐ. */
+    private BigDecimal vndPerCoin;
+
     /** Thời điểm bản ghi này được tạo (= thời điểm Admin cập nhật). */
     private LocalDateTime createdAt;
 
@@ -54,6 +57,7 @@ public class CoinEconomyConfigResponseDto {
                 .milestone7Reward(config.getMilestone7Reward())
                 .milestone14Reward(config.getMilestone14Reward())
                 .milestone30Reward(config.getMilestone30Reward())
+                .vndPerCoin(config.getVndPerCoin())
                 .createdAt(config.getCreatedAt())
                 .createdBy(config.getCreatedBy())
                 .build();

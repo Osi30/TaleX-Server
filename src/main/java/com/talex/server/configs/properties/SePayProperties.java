@@ -14,4 +14,11 @@ public class SePayProperties {
     private String qrBaseUrl = "https://qr.sepay.vn/img";
     private Integer orderExpiryMinutes = 30;
     private Integer retryBlockWindowMinutes = 5;
+
+    /**
+     * Some banks (e.g. VietinBank) only forward balance-change notifications to
+     * SePay when the transfer content starts with a bank-specific keyword
+     * (VietinBank requires "SEVQR "). Empty by default; set per linked bank.
+     */
+    private String transferContentPrefix = "";
 }

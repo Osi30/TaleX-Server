@@ -18,6 +18,8 @@ public class OrderResponseDto {
     private String paymentCode;
     private String qrUrl;
     private BigDecimal totalAmount;
+    private Long coinAmountUsed;
+    private BigDecimal fiatAmount;
     private OrderStatus status;
     private LocalDateTime expiresAt;
 }

@@ -1,5 +1,6 @@
 package com.talex.server.dtos.requests.payment;
 
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -16,4 +17,7 @@ public class CreateContentOrderRequestDto {
 
     @NotBlank
     private String itemType;
+
+    @Min(0)
+    private Long coinAmountToUse;
 }

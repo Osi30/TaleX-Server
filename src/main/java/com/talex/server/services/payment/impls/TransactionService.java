@@ -21,10 +21,10 @@ public class TransactionService implements ITransactionService {
 
     @Override
     @Transactional
-    public Transaction createSuccessTransaction(Order order, BigDecimal paidAmount) {
+    public Transaction createSuccessTransaction(Order order, BigDecimal paidAmount, PaymentMethod paymentMethod) {
         Transaction transaction = Transaction.builder()
                 .paidAmount(paidAmount)
-                .paymentMethod(PaymentMethod.SEPAY)
+                .paymentMethod(paymentMethod)
                 .status(TransactionStatus.SUCCESS)
                 .referenceType(ReferenceType.ORDER)
                 .referenceId(order.getOrderId())

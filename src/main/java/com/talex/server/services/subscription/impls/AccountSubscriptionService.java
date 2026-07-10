@@ -92,8 +92,11 @@ public class AccountSubscriptionService implements IAccountSubscriptionService {
 
     @Override
     @Transactional
-    public void cancelAccountSubscription(String accountSubscriptionId) {
+    public void cancelAccountSubscription(String accountSubscriptionId, UUID requesterId, boolean isPrivileged) {
         AccountSubscription subscription = findById(accountSubscriptionId);
+        if (!isPrivileged && !subscription.getAccount().getAccountId().equals(requesterId)) {
+            throw new SubscriptionException(SubscriptionErrorCode.SUBSCRIPTION_ACCOUNT_FORBIDDEN);
+        }
         subscription.setIsCancelled(true);
         subscription.setCancelledAt(LocalDateTime.now());
         accountSubscriptionRepository.save(subscription);
