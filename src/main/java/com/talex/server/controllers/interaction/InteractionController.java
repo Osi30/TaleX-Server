@@ -2,8 +2,8 @@ package com.talex.server.controllers.interaction;
 
 import com.talex.server.annotations.CurrentAccountId;
 import com.talex.server.dtos.BaseResponse;
-import com.talex.server.dtos.requests.interaction.InteractionRequest;
-import com.talex.server.dtos.requests.interaction.WatchTimeRequest;
+import com.talex.server.dtos.interaction.request.InteractionRequest;
+import com.talex.server.dtos.interaction.request.WatchTimeRequest;
 import com.talex.server.schedulers.InteractionDataSyncScheduler;
 import com.talex.server.services.interaction.IInteractionService;
 import io.swagger.v3.oas.annotations.Operation;

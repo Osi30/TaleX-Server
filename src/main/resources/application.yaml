@@ -117,6 +117,8 @@ spring:
         fetch.max.wait.ms: 1000
     dlq:
       interaction: interaction-log-topic.DLQ
+  mongodb:
+    uri: mongodb+srv://${MONGO_USERNAME}:${MONGO_PASSWORD}@${MONGO_HOST}/?${MONGO_APP_NAME}
 
 springdoc:
   api-docs:
@@ -170,7 +172,7 @@ resilience4j:
 
 jwt:
   secret: ${JWT_SECRET:dGFsZXgtc2VjcmV0LWtleS1mb3ItZGV2ZWxvcG1lbnQtb25seQ==}
-  access-token-expiration: 900000
+  access-token-expiration: 9000000
   verification-token-expiration: ${JWT_VERIFICATION_TOKEN_EXPIRATION:1800000}
   refresh-token-expiration: 604800000
 

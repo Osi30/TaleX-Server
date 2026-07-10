@@ -15,6 +15,7 @@ import java.time.LocalDateTime;
 public class CreatorResponseDto {
     private String creatorId;
     private Long followerCount = 0L;
+    private Long followToCount = 0L;
     private Long totalViews = 0L;
     // Tính theo giờ
     private Double totalWatchTime = 0D;

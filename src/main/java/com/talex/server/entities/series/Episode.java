@@ -1,27 +1,13 @@
 package com.talex.server.entities.series;
 
+import com.talex.server.entities.AnalyticData;
 import com.talex.server.entities.BaseTimeEntity;
 import com.talex.server.entities.media.Media;
 import com.talex.server.enums.series.ContentType;
 import com.talex.server.enums.series.EpisodeStatus;
 import com.talex.server.enums.series.EpisodeUnlockType;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Index;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.OneToMany;
-import jakarta.persistence.Table;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import jakarta.persistence.*;
+import lombok.*;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -83,11 +69,8 @@ public class Episode extends BaseTimeEntity {
     @Column(name = "price_vnd", nullable = false, columnDefinition = "bigint default 0")
     private Long priceVnd = 0L;
 
-    @Column(nullable = false)
-    private Long likes = 0L;
-
-    @Column(nullable = false)
-    private Long views = 0L;
+    @Embedded
+    private AnalyticData analyticData = new AnalyticData();
 
     @Column(name = "total_page")
     private Integer totalPage;
