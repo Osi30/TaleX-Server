@@ -2,14 +2,11 @@ package com.talex.server.services.interaction.impls;
 
 import com.talex.server.dtos.interaction.response.AccountLikeResponse;
 import com.talex.server.dtos.interaction.response.EpisodeLikeResponse;
-import com.talex.server.entities.Account;
 import com.talex.server.entities.interaction.AccountLike;
 import com.talex.server.entities.series.Episode;
 import com.talex.server.exceptions.codes.InteractionErrorCode;
 import com.talex.server.exceptions.details.InteractionException;
-import com.talex.server.repositories.AccountRepository;
 import com.talex.server.repositories.interaction.AccountLikeRepository;
-import com.talex.server.repositories.series.EpisodeRepository;
 import com.talex.server.services.interaction.IAccountLikeService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -24,27 +21,27 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class AccountLikeService implements IAccountLikeService {
     private final AccountLikeRepository accountLikeRepository;
-    private final AccountRepository accountRepository;
-    private final EpisodeRepository episodeRepository;
 
     @Override
     @Transactional
     public void likeEpisode(UUID accountId, String episodeId) {
         try {
-            Account accountProxy = accountRepository.getReferenceById(accountId);
-            Episode episodeProxy = episodeRepository.getReferenceById(episodeId);
+            // Bước tối ưu: Gọi duy nhất 1 câu lệnh INSERT thẳng xuống DB
+            int rowsAffected = accountLikeRepository.insertLikeDirectly(accountId, episodeId);
 
-            AccountLike accountLike = AccountLike.builder()
-                    .account(accountProxy)
-                    .episode(episodeProxy)
-                    .build();
-
-            // Ép flush xuống db để bắt biệt lệ ràng buộc ngay lập tức
-            accountLikeRepository.saveAndFlush(accountLike);
+            // Nếu không có hàng nào được thêm (rowsAffected == 0), tức là đã bị trùng lặp
+            if (rowsAffected == 0) {
+                throw new InteractionException(
+                        InteractionErrorCode.LIKE_ALREADY_EXISTS,
+                        "Bạn đã thích tập phim này rồi."
+                );
+            }
 
         } catch (DataIntegrityViolationException e) {
-            throw new InteractionException(InteractionErrorCode.LIKE_ALREADY_EXISTS,
-                    "Thao tác không hợp lệ. Bạn đã thích tập phim này hoặc thông tin không tồn tại.");
+            throw new InteractionException(
+                    InteractionErrorCode.LIKE_NOT_FOUND,
+                    "Tài khoản hoặc tập phim không tồn tại."
+            );
         }
     }
 

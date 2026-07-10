@@ -14,6 +14,16 @@ import java.util.UUID;
 @Repository
 public interface AccountLikeRepository extends JpaRepository<AccountLike, String> {
     @Modifying
+    @Query(value = "INSERT INTO account_likes (account_like_id, account_id, episode_id, created_at) " +
+            "VALUES (gen_random_uuid(), :accountId, :episodeId, NOW()) " +
+            "ON CONFLICT (account_id, episode_id) DO NOTHING",
+            nativeQuery = true)
+    int insertLikeDirectly(
+            @Param("accountId") UUID accountId,
+            @Param("episodeId") String episodeId
+    );
+
+    @Modifying
     @Query("DELETE FROM AccountLike al " +
             "WHERE al.account.accountId = :accountId " +
             "AND al.episode.episodeId = :episodeId")
