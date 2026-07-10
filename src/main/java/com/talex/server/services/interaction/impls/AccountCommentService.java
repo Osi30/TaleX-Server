@@ -2,7 +2,7 @@ package com.talex.server.services.interaction.impls;
 
 import com.talex.server.dtos.interaction.request.CommentRequest;
 import com.talex.server.dtos.interaction.request.CommentUpdateRequest;
-import com.talex.server.dtos.responses.interaction.CommentResponse;
+import com.talex.server.dtos.interaction.response.CommentResponse;
 import com.talex.server.entities.Account;
 import com.talex.server.entities.interaction.AccountComment;
 import com.talex.server.entities.series.Episode;

@@ -4,7 +4,7 @@ import com.talex.server.annotations.CurrentAccountId;
 import com.talex.server.dtos.BaseResponse;
 import com.talex.server.dtos.interaction.request.CommentRequest;
 import com.talex.server.dtos.interaction.request.CommentUpdateRequest;
-import com.talex.server.dtos.responses.interaction.CommentResponse;
+import com.talex.server.dtos.interaction.response.CommentResponse;
 import com.talex.server.services.interaction.IAccountCommentService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;

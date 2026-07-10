@@ -26,6 +26,8 @@ public enum InteractionErrorCode {
     LIKE_NOT_FOUND(4014, HttpStatus.NOT_FOUND, "Mối quan hệ yêu thích không tồn tại."),
     LIKE_ALREADY_EXISTS(4015, HttpStatus.CONFLICT, "Bạn đã thích tập phim này rồi."),
 
+    BOOKMARK_NOT_FOUND(4015, HttpStatus.NOT_FOUND, "Mối quan hệ lưu xem sau không tồn tại."),
+    BOOKMARK_ALREADY_EXISTS(4016, HttpStatus.CONFLICT, "Bạn đã lưu xem sau tập phim này rồi."),
             ;
 
     private final int code;
