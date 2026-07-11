@@ -210,9 +210,30 @@ public class EpisodeServiceImpl implements EpisodeService {
             cancelScheduledPublication(episode, actorId);
         }
         episode.setStatus(EpisodeStatus.HIDDEN);
+        
+        hideParentsIfNoOtherPublished(episode);
+        
         episodeRepository.save(episode);
         contentAuditLogger.logAction("Episode", episode.getEpisodeId(), "HIDE", actorId, episode.getCreatorId());
         return toResponse(episode);
+    }
+
+    private void hideParentsIfNoOtherPublished(Episode episode) {
+        Season season = episode.getSeason();
+        long publishedEpisodesInSeason = episodeRepository.countBySeasonIdExcludingEpisodeAndStatus(
+                season.getSeasonId(), episode.getEpisodeId(), EpisodeStatus.PUBLISHED);
+
+        if (publishedEpisodesInSeason == 0 && season.getStatus() == SeasonStatus.PUBLISHED) {
+            season.setStatus(SeasonStatus.HIDDEN);
+        }
+
+        Series series = season.getSeries();
+        long publishedEpisodesInSeries = episodeRepository.countBySeriesIdExcludingEpisodeAndStatus(
+                series.getSeriesId(), episode.getEpisodeId(), EpisodeStatus.PUBLISHED);
+
+        if (publishedEpisodesInSeries == 0 && series.getStatus() == SeriesStatus.PUBLISHED) {
+            series.setStatus(SeriesStatus.HIDDEN);
+        }
     }
 
     @Transactional
