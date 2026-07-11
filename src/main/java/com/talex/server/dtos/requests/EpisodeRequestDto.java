@@ -19,6 +19,8 @@ public class EpisodeRequestDto {
 
     private String description;
 
+    private String thumbnail;
+
     private ContentType contentType;
 
     private EpisodeStatus status;

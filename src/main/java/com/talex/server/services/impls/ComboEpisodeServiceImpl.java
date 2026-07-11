@@ -133,6 +133,7 @@ public class ComboEpisodeServiceImpl implements ComboEpisodeService {
                 ComboEpisodeResponseDto.EpisodeSummaryDto summary = new ComboEpisodeResponseDto.EpisodeSummaryDto();
                 summary.setEpisodeId(ep.getEpisodeId());
                 summary.setTitle(ep.getTitle());
+                summary.setThumbnail(ep.getThumbnail());
                 summary.setEpisodeNumber(ep.getEpisodeNumber());
                 summary.setPriceVnd(ep.getPriceVnd());
                 if (ep.getSeason() != null) {

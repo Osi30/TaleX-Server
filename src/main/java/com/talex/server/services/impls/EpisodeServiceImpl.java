@@ -49,6 +49,7 @@ public class EpisodeServiceImpl implements EpisodeService {
                 : nextEpisodeNumber(seasonId));
         episode.setTitle(request.getTitle());
         episode.setDescription(request.getDescription());
+        episode.setThumbnail(request.getThumbnail());
         episode.setContentType(contentType);
         episode.setStatus(EpisodeStatus.DRAFT);
         episode.setScheduledPublishAt(null);
@@ -106,6 +107,7 @@ public class EpisodeServiceImpl implements EpisodeService {
         }
         episode.setTitle(request.getTitle());
         episode.setDescription(request.getDescription());
+        episode.setThumbnail(request.getThumbnail());
         if (request.getContentType() != null) {
             validateEpisodeContentType(episode.getSeason(), request.getContentType());
             episode.setContentType(request.getContentType());
@@ -302,6 +304,7 @@ public class EpisodeServiceImpl implements EpisodeService {
                 .episodeNumber(episode.getEpisodeNumber())
                 .title(episode.getTitle())
                 .description(episode.getDescription())
+                .thumbnail(episode.getThumbnail())
                 .contentType(episode.getContentType())
                 .status(episode.getStatus())
                 .scheduledPublishAt(episode.getScheduledPublishAt())
