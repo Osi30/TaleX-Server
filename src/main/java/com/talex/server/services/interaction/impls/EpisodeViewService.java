@@ -1,6 +1,7 @@
 package com.talex.server.services.interaction.impls;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.talex.server.dtos.interaction.request.ViewRequest;
 import com.talex.server.exceptions.codes.InteractionErrorCode;
 import com.talex.server.exceptions.details.InteractionException;
 import com.talex.server.services.interaction.IEpisodeViewService;
@@ -12,6 +13,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.util.Map;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -24,17 +26,25 @@ public class EpisodeViewService implements IEpisodeViewService {
 
     @Async("interactionExecutor")
     @Override
-    public void viewEpisode(String ipAddress, String episodeId) {
+    public void viewEpisode(ViewRequest viewRequest) {
         try {
+            UUID accountId = viewRequest.getAccountId();
+            String ipAddress = viewRequest.getIpAddress();
+            String finalAccountId = (accountId == null
+                    || accountId.toString().trim().isEmpty())
+                    ? "anonymous" : accountId.toString();
+
             // Đóng gói JSON phẳng tối ưu băng thông mạng
             Map<String, Object> viewEvent = Map.of(
                     "ip_address", ipAddress != null ? ipAddress : "0.0.0.0",
-                    "episode_id", episodeId,
+                    "episode_id", viewRequest.getEpisodeId(),
+                    "account_id", finalAccountId,
+                    "session_id", viewRequest.getSessionId(),
                     "timestamp", Instant.now().toEpochMilli()
             );
 
             String messagePayload = objectMapper.writeValueAsString(viewEvent);
-            kafkaTemplate.send(VIEW_TOPIC, episodeId, messagePayload);
+            kafkaTemplate.send(VIEW_TOPIC, viewRequest.getSessionId(), messagePayload);
 
         } catch (Exception e) {
             log.error("Lỗi khi gửi sự kiện View lên Kafka: ", e);

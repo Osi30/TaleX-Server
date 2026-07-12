@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.talex.server.dtos.interaction.EpisodeHourKey;
 import com.talex.server.exceptions.codes.InteractionErrorCode;
 import com.talex.server.exceptions.details.InteractionException;
+import com.talex.server.repositories.interaction.WatchSessionRepository;
 import com.talex.server.repositories.interaction.aggregation.ViewAggregationRepository;
 import io.questdb.client.Sender;
 import lombok.RequiredArgsConstructor;
@@ -20,6 +21,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 @Component
 @RequiredArgsConstructor
@@ -28,12 +30,13 @@ public class EpisodeViewWorker {
     private final Sender questDBSender;
     private final ObjectMapper objectMapper;
     private final ViewAggregationRepository viewAggregationRepository;
+    private final WatchSessionRepository watchSessionRepository;
 
-//    @KafkaListener(
-//            topics = "talex-interaction.episode-viewed",
-//            groupId = "talex-view-questdb-group",
-//            containerFactory = "batchFactory"
-//    )
+    @KafkaListener(
+            topics = "talex-interaction.episode-viewed",
+            groupId = "talex-view-questdb-group",
+            containerFactory = "batchFactory"
+    )
     public void processViewsForQuestDB(List<String> messages) {
         try {
             for (String message : messages) {
@@ -42,6 +45,7 @@ public class EpisodeViewWorker {
 
                 String episodeId = eventNode.get("episode_id").asText();
                 String ipAddress = eventNode.get("ip_address").asText();
+                String sessionId = eventNode.get("session_id").asText();
                 long tsMs = eventNode.get("timestamp").asLong();
 
                 Instant instantTimestamp = Instant.ofEpochMilli(tsMs);
@@ -49,6 +53,7 @@ public class EpisodeViewWorker {
                 questDBSender.table("view_logs")
                         .symbol("episode_id", episodeId)
                         .symbol("ip_address", ipAddress)
+                        .symbol("session_id", sessionId)
                         .longColumn("delta", 1L)
                         .at(instantTimestamp);
             }
@@ -58,11 +63,11 @@ public class EpisodeViewWorker {
         }
     }
 
-//    @KafkaListener(
-//            topics = "talex-interaction.episode-viewed",
-//            groupId = "talex-view-postgres-group",
-//            containerFactory = "batchFactory"
-//    )
+    @KafkaListener(
+            topics = "talex-interaction.episode-viewed",
+            groupId = "talex-view-postgres-group",
+            containerFactory = "batchFactory"
+    )
     @Transactional
     public void processViewsForPostgreSQL(List<String> messages) {
         Map<String, Long> episodeDeltaMap = new HashMap<>();
@@ -112,6 +117,37 @@ public class EpisodeViewWorker {
 
         } catch (Exception e) {
             throw new InteractionException(InteractionErrorCode.KAFKA_PROCESSING_ERROR, "Direct View PostgreSQL worker aggregation error: " + e.getMessage());
+        }
+    }
+
+    @KafkaListener(
+            topics = "talex-interaction.episode-viewed",
+            groupId = "talex-view-postgres-session-init-group",
+            containerFactory = "batchFactory"
+    )
+    @Transactional
+    public void processViewsForSessionInitialization(List<String> messages) {
+        for (String message : messages) {
+            try {
+                JsonNode eventNode = objectMapper.readTree(message);
+                if (eventNode == null) continue;
+                String episodeId = eventNode.get("episode_id").asText();
+                String watchSessionId = eventNode.get("session_id").asText();
+                Instant instant = Instant.ofEpochMilli(eventNode.get("timestamp").asLong());
+                LocalDateTime localDateTime = LocalDateTime.ofInstant(instant, ZoneId.systemDefault());
+
+                UUID accountId = null;
+                String accountIdStr = eventNode.get("account_id").asText();
+                if (!accountIdStr.equals("anonymous")) {
+                    accountId = UUID.fromString(accountIdStr);
+                }
+
+                watchSessionRepository
+                        .initializeDefaultSession(watchSessionId, accountId, episodeId, localDateTime);
+
+            } catch (Exception ex) {
+                throw new InteractionException(InteractionErrorCode.KAFKA_PROCESSING_ERROR, "Direct Watch Session PostgreSQL worker aggregation error: " + ex.getMessage());
+            }
         }
     }
 }

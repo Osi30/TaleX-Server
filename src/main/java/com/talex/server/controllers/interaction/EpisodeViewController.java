@@ -1,13 +1,19 @@
 package com.talex.server.controllers.interaction;
 
+import com.talex.server.annotations.CurrentAccountId;
 import com.talex.server.dtos.BaseResponse;
+import com.talex.server.dtos.interaction.request.ViewRequest;
 import com.talex.server.services.interaction.IEpisodeViewService;
+import com.talex.server.utils.RequestUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1")
@@ -22,24 +28,16 @@ public class EpisodeViewController {
     )
     @PostMapping("/episodes/{episodeId}/views")
     public ResponseEntity<BaseResponse> viewEpisode(
-            @PathVariable String episodeId,
+            @Valid @RequestBody ViewRequest viewRequest,
+            @CurrentAccountId UUID accountId,
             HttpServletRequest request
     ) {
         // Trích xuất IP Address an toàn qua các tầng Proxy
-        String ipAddress = request.getHeader("X-Forwarded-For");
-        if (ipAddress == null
-                || ipAddress.isEmpty()
-                || "unknown".equalsIgnoreCase(ipAddress)
-        ) {
-            ipAddress = request.getRemoteAddr();
-        }
+        String ipAddress = RequestUtils.getIpAddress(request);
+        viewRequest.setIpAddress(ipAddress);
+        viewRequest.setAccountId(accountId);
 
-        // Trường hợp chuỗi IP chứa nhiều IP phân tách bằng dấu phẩy (qua nhiều proxy), lấy cái đầu tiên
-        if (ipAddress != null && ipAddress.contains(",")) {
-            ipAddress = ipAddress.split(",")[0].trim();
-        }
-
-        episodeViewService.viewEpisode(ipAddress, episodeId);
+        episodeViewService.viewEpisode(viewRequest);
 
         return ResponseEntity.ok(BaseResponse.builder()
                 .code(200)

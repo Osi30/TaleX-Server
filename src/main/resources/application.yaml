@@ -77,18 +77,7 @@ spring:
 
     # Kafka Streams
     streams:
-      application-id: log-stream-service
-      properties:
-        default.key.serde: org.apache.kafka.common.serialization.Serdes$StringSerde
-        default.value.serde: org.apache.kafka.common.serialization.Serdes$StringSerde
-        topic:
-          retention:
-            ms: 604800000
-        state:
-          dir: /var/lib/kafka-streams-state
-        statestore.cache.max.bytes: 1048576 # 1MB
-        num.stream.threads: 1
-        rocksdb.config.setter: com.talex.server.configs.kafka.CustomRocksDBConfig
+      auto-startup: false
     properties:
       security.protocol: SSL
       # Nội dung file CA certificate
@@ -115,8 +104,6 @@ spring:
         fetch.max.bytes: 5242880 # 5MB
         max.partition.fetch.bytes: 1048576 # 1MB
         fetch.max.wait.ms: 1000
-    dlq:
-      interaction: interaction-log-topic.DLQ
   mongodb:
     uri: mongodb+srv://${MONGO_USERNAME}:${MONGO_PASSWORD}@${MONGO_HOST}/?${MONGO_APP_NAME}
 

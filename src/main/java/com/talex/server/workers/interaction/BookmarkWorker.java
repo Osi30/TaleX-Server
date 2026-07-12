@@ -27,11 +27,11 @@ public class BookmarkWorker {
     private final BookmarkAggregationRepository aggregationRepository;
 
 
-//    @KafkaListener(
-//            topics = "talex-cdc.public.account_bookmarks",
-//            groupId = "talex-bookmark-questdb-group",
-//            containerFactory = "batchFactory"
-//    )
+    @KafkaListener(
+            topics = "talex-cdc.public.account_bookmarks",
+            groupId = "talex-bookmark-questdb-group",
+            containerFactory = "batchFactory"
+    )
     public void processBookmarksForQuestDB(List<String> messages) {
         try {
             for (String message : messages) {
@@ -68,11 +68,11 @@ public class BookmarkWorker {
         }
     }
 
-//    @KafkaListener(
-//            topics = "talex-cdc.public.account_bookmarks",
-//            groupId = "talex-bookmark-postgres-group",
-//            containerFactory = "batchFactory"
-//    )
+    @KafkaListener(
+            topics = "talex-cdc.public.account_bookmarks",
+            groupId = "talex-bookmark-postgres-group",
+            containerFactory = "batchFactory"
+    )
     public void processBookmarksForPostgres(List<String> messages) {
         Map<String, Long> episodeDeltaMap = new HashMap<>();
         Map<EpisodeHourKey, Long> logDeltaMap = new HashMap<>();

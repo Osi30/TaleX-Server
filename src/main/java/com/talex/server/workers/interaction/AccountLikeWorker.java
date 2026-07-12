@@ -8,6 +8,7 @@ import com.talex.server.exceptions.details.InteractionException;
 import com.talex.server.repositories.interaction.aggregation.LikeAggregationRepository;
 import io.questdb.client.Sender;
 import lombok.RequiredArgsConstructor;
+import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,11 +27,11 @@ public class AccountLikeWorker {
     private final ObjectMapper objectMapper;
     private final LikeAggregationRepository aggregationRepository;
 
-//    @KafkaListener(
-//            topics = "talex-cdc.public.account_likes",
-//            groupId = "talex-like-questdb-group",
-//            containerFactory = "batchFactory"
-//    )
+    @KafkaListener(
+            topics = "talex-cdc.public.account_likes",
+            groupId = "talex-like-questdb-group",
+            containerFactory = "batchFactory"
+    )
     public void processLikesForQuestDB(List<String> messages) {
         boolean hasData = false;
 
@@ -75,11 +76,11 @@ public class AccountLikeWorker {
         }
     }
 
-//    @KafkaListener(
-//            topics = "talex-cdc.public.account_likes",
-//            groupId = "talex-like-postgres-group",
-//            containerFactory = "batchFactory"
-//    )
+    @KafkaListener(
+            topics = "talex-cdc.public.account_likes",
+            groupId = "talex-like-postgres-group",
+            containerFactory = "batchFactory"
+    )
     @Transactional
     public void processLikesForPostgreSQL(List<String> messages) {
         Map<String, Integer> episodeDeltaMap = new HashMap<>();

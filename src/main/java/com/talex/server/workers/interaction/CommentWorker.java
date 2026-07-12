@@ -9,6 +9,7 @@ import com.talex.server.repositories.interaction.aggregation.CommentAggregationR
 import io.questdb.client.Sender;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,11 +29,11 @@ public class CommentWorker {
     private final ObjectMapper objectMapper;
     private final CommentAggregationRepository aggregationRepository;
 
-//    @KafkaListener(
-//            topics = "talex-cdc.public.account_comments",
-//            groupId = "talex-comment-single-group",
-//            containerFactory = "singleFactory"
-//    )
+    @KafkaListener(
+            topics = "talex-cdc.public.account_comments",
+            groupId = "talex-comment-single-group",
+            containerFactory = "singleFactory"
+    )
     public void listenAccountComments(String message) {
         try {
             JsonNode rootNode = objectMapper.readTree(message);
@@ -99,11 +100,11 @@ public class CommentWorker {
         }
     }
 
-//    @KafkaListener(
-//            topics = "talex-cdc.public.account_comments",
-//            groupId = "talex-comment-batch-group",
-//            containerFactory = "batchFactory"
-//    )
+    @KafkaListener(
+            topics = "talex-cdc.public.account_comments",
+            groupId = "talex-comment-batch-group",
+            containerFactory = "batchFactory"
+    )
     @Transactional(rollbackFor = Exception.class)
     public void processComments(List<String> messages) {
         // Map lưu trữ: Key = EpisodeId, Value = Tổng số lượng thay đổi (Delta)

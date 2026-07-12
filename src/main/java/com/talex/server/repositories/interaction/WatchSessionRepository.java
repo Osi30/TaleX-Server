@@ -16,23 +16,35 @@ public interface WatchSessionRepository extends JpaRepository<WatchSession, Stri
 
     @Modifying
     @Transactional
-    @Query(value = "INSERT INTO watch_session (watch_session_id, account_id, episode_id, creator_id, watch_duration, total_duration, heartbeat_count, start_time, end_time,  updated_at) " +
-            "VALUES (:sessionId, :accountId, :episodeId, :creatorId, :watchDuration, :totalDuration, :heartbeatCount, :startTime, :endTime, CURRENT_TIMESTAMP) " +
-            "ON CONFLICT (watch_session_id) " +
-            "DO UPDATE SET " +
-            "    watch_duration = EXCLUDED.watch_duration, " +
-            "    heartbeat_count = EXCLUDED.heartbeat_count, " +
-            "    end_time = EXCLUDED.end_time, " +
-            "    updated_at = CURRENT_TIMESTAMP", nativeQuery = true)
-    void upsertWatchSession(
-            @Param("sessionId") String sessionId,
+    @Query(value = "INSERT INTO watch_session " +
+            "(watch_session_id, account_id, episode_id, watch_duration, heartbeat_count, start_time, end_time, current_position, updated_at) VALUES " +
+            "(:watchSessionId, :accountId, :episodeId, 0.0, 0, :timestamp, :timestamp, 0.0, NOW()) " +
+            "ON CONFLICT (watch_session_id) DO NOTHING", nativeQuery = true)
+    void initializeDefaultSession(
+            @Param("watchSessionId") String watchSessionId,
             @Param("accountId") UUID accountId,
             @Param("episodeId") String episodeId,
-            @Param("creatorId") String creatorId,
-            @Param("watchDuration") Double watchDuration,
-            @Param("totalDuration") Double totalDuration,
-            @Param("heartbeatCount") Integer heartbeatCount,
-            @Param("startTime") LocalDateTime startTime,
-            @Param("endTime") LocalDateTime endTime
+            @Param("timestamp") LocalDateTime timestamp
+    );
+
+    @Modifying
+    @Transactional
+    @Query(value = "UPDATE watch_session " +
+            "SET watch_duration = watch_duration + :heartbeatValue, " +
+            "    heartbeat_count = heartbeat_count + 1, " +
+            "    current_position = :currentPosition, " +
+            "    end_time = :heartbeatTime, " +
+            "    updated_at = NOW() " +
+            "WHERE watch_session_id = :sessionId " +
+            "  AND episode_id = :episodeId " +
+            "  AND :heartbeatTime > end_time " +
+            "  AND (EXTRACT(EPOCH FROM (:heartbeatTime - end_time)) >= :heartbeatValue - 1.0)",
+            nativeQuery = true)
+    int updateSession(
+            @Param("sessionId") String sessionId,
+            @Param("episodeId") String episodeId,
+            @Param("currentPosition") Double currentPosition,
+            @Param("heartbeatValue") Double heartbeatValue,
+            @Param("heartbeatTime") LocalDateTime heartbeatTime
     );
 }
