@@ -7,15 +7,15 @@ import com.talex.server.dtos.requests.filters.CampaignFilterRequestDto;
 import com.talex.server.dtos.responses.campaign.CampaignResponseDto;
 import com.talex.server.entities.campaign.Campaign;
 import com.talex.server.entities.campaign.EngagementService;
-import com.talex.server.entities.series.Episode;
+import com.talex.server.entities.series.Series;
 import com.talex.server.enums.engagement.CampaignStatus;
 import com.talex.server.enums.engagement.EngagementTarget;
-import com.talex.server.enums.series.EpisodeStatus;
+import com.talex.server.enums.series.SeriesStatus;
 import com.talex.server.exceptions.codes.CampaignErrorCode;
 import com.talex.server.exceptions.details.CampaignException;
 import com.talex.server.mappers.campaign.ICampaignMapper;
 import com.talex.server.repositories.campaign.CampaignRepository;
-import com.talex.server.repositories.series.EpisodeRepository;
+import com.talex.server.repositories.series.SeriesRepository;
 import com.talex.server.services.campaign.ICampaignService;
 import com.talex.server.services.campaign.IEngagementServiceService;
 import com.talex.server.services.creator.ICreatorService;
@@ -39,7 +39,7 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class CampaignService implements ICampaignService {
     private final CampaignRepository campaignRepository;
-    private final EpisodeRepository episodeRepository;
+    private final SeriesRepository seriesRepository;
     private final ICreatorService creatorService;
     private final IEngagementServiceService engagementService;
     private final ICampaignMapper campaignMapper;
@@ -48,21 +48,21 @@ public class CampaignService implements ICampaignService {
     @Transactional
     public CampaignResponseDto createCampaign(CampaignRequestDto requestDto) {
         // 1. Loại bỏ các ID trùng lặp
-        Set<String> uniqueEpisodeIds = new HashSet<>(requestDto.getEpisodeIds());
-        if (uniqueEpisodeIds.isEmpty()) {
-            throw new CampaignException(CampaignErrorCode.INVALID_REQUEST, "Danh sách tập phim không được để trống");
+        Set<String> uniqueSeriesIds = new HashSet<>(requestDto.getSeriesIds());
+        if (uniqueSeriesIds.isEmpty()) {
+            throw new CampaignException(CampaignErrorCode.INVALID_REQUEST, "Danh sách series không được để trống");
         }
 
         // 2. Kiểm tra nhanh số lượng tập phim hợp lệ
         String creatorId = creatorService.getIdByAccountId(requestDto.getAccountId());
-        long validEpisodesCount = episodeRepository.countByEpisodeIdInAndStatusAndIsDeletedFalseAndCreatorId(
-                uniqueEpisodeIds,
-                EpisodeStatus.PUBLISHED,
+        long validSeriesCount = seriesRepository.countBySeriesIdInAndStatusAndIsDeletedFalseAndCreator_CreatorId(
+                uniqueSeriesIds,
+                SeriesStatus.PUBLISHED,
                 creatorId
         );
         // Nếu số lượng trong DB không khớp với số lượng ID
-        if (validEpisodesCount != uniqueEpisodeIds.size()) {
-            throw new CampaignException(CampaignErrorCode.INVALID_REQUEST, "Có tập phim không hợp lệ hoặc chưa được xuất bản");
+        if (validSeriesCount != uniqueSeriesIds.size()) {
+            throw new CampaignException(CampaignErrorCode.INVALID_REQUEST, "Có series không hợp lệ hoặc chưa được xuất bản");
         }
 
         // 3. Lấy thông tin dịch vụ tương tác
@@ -78,11 +78,10 @@ public class CampaignService implements ICampaignService {
         campaign.setStatus(CampaignStatus.RUNNING);
         campaign.setStartAt(LocalDateTime.now());
 
-        // 5. Liên kết các Episode vào Campaign (không chọc DB)
-        for (String episodeId : uniqueEpisodeIds) {
-            // getReferenceById tạo ra một Hibernate Proxy object
-            Episode episodeProxy = episodeRepository.getReferenceById(episodeId);
-            campaign.addEpisode(episodeProxy);
+        // 5. Liên kết các Series vào Campaign
+        for (String seriesId : uniqueSeriesIds) {
+            Series seriesProxy = seriesRepository.getReferenceById(seriesId);
+            campaign.addSeries(seriesProxy);
         }
 
         Campaign saved = campaignRepository.save(campaign);

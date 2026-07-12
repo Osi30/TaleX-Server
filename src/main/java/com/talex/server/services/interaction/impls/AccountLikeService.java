@@ -15,6 +15,7 @@ import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Service
@@ -27,7 +28,7 @@ public class AccountLikeService implements IAccountLikeService {
     public void likeEpisode(UUID accountId, String episodeId) {
         try {
             // Bước tối ưu: Gọi duy nhất 1 câu lệnh INSERT thẳng xuống DB
-            int rowsAffected = accountLikeRepository.insertLikeDirectly(accountId, episodeId);
+            int rowsAffected = accountLikeRepository.insertLikeDirectly(accountId, episodeId, LocalDateTime.now());
 
             // Nếu không có hàng nào được thêm (rowsAffected == 0), tức là đã bị trùng lặp
             if (rowsAffected == 0) {

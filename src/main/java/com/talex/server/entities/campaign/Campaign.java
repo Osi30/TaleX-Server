@@ -1,7 +1,7 @@
 package com.talex.server.entities.campaign;
 
 import com.talex.server.entities.AnalyticData;
-import com.talex.server.entities.series.Episode;
+import com.talex.server.entities.series.Series;
 import com.talex.server.enums.engagement.CampaignStatus;
 import com.talex.server.enums.engagement.EngagementTarget;
 import jakarta.persistence.*;
@@ -71,7 +71,7 @@ public class Campaign implements Serializable {
 
     @OneToMany(mappedBy = "campaign", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
-    private List<CampaignEpisode> campaignEpisodes = new ArrayList<>();
+    private List<CampaignSeries> campaignSeries = new ArrayList<>();
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "engagement_service_id", nullable = false)
@@ -81,11 +81,11 @@ public class Campaign implements Serializable {
     @Builder.Default
     private List<CampaignLog> campaignLogs = new ArrayList<>();
 
-    public void addEpisode(Episode episode) {
-        CampaignEpisode campaignEpisode = CampaignEpisode.builder()
+    public void addSeries(Series series) {
+        CampaignSeries campaignSeriesObj = CampaignSeries.builder()
                 .campaign(this)
-                .episode(episode)
+                .series(series)
                 .build();
-        this.campaignEpisodes.add(campaignEpisode);
+        this.campaignSeries.add(campaignSeriesObj);
     }
 }

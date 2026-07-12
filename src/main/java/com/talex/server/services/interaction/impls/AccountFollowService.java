@@ -1,12 +1,10 @@
 package com.talex.server.services.interaction.impls;
 
-import com.talex.server.dtos.interaction.response.AccountFollowInfoDto;
 import com.talex.server.dtos.interaction.request.FollowRequestDto;
-import com.talex.server.entities.Account;
-import com.talex.server.entities.interaction.AccountFollow;
+import com.talex.server.dtos.interaction.response.AccountFollowInfoDto;
 import com.talex.server.exceptions.codes.InteractionErrorCode;
 import com.talex.server.exceptions.details.InteractionException;
-import com.talex.server.repositories.AccountRepository;
+import com.talex.server.repositories.creator.CreatorLogRepository;
 import com.talex.server.repositories.interaction.AccountFollowRepository;
 import com.talex.server.services.interaction.IAccountFollowService;
 import lombok.RequiredArgsConstructor;
@@ -16,13 +14,14 @@ import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
 public class AccountFollowService implements IAccountFollowService {
     private final AccountFollowRepository accountFollowRepository;
-    private final AccountRepository accountRepository;
+    private final CreatorLogRepository creatorLogRepository;
 
     @Override
     @Transactional
@@ -36,45 +35,47 @@ public class AccountFollowService implements IAccountFollowService {
         }
 
         try {
-            Account followerRef = accountRepository.getReferenceById(followerId);
-            Account followedRef = accountRepository.getReferenceById(followedId);
+            LocalDateTime now = LocalDateTime.now();
+            int affectedRows = accountFollowRepository.insertFollowNative(followerId, followedId, now);
 
-            AccountFollow follow = AccountFollow.builder()
-                    .follower(followerRef)
-                    .followed(followedRef)
-                    .build();
-            accountFollowRepository.saveAndFlush(follow);
+            if (affectedRows > 0) {
+                // 2. Làm tròn thời gian đến giờ hiện tại phục vụ hour_bucket
+                LocalDateTime hourBucket = now.withMinute(0).withSecond(0).withNano(0);
 
-        } catch (DataIntegrityViolationException ex) {
-            String dbErrorMessage = ex.getMostSpecificCause().getMessage();
-            if (dbErrorMessage == null) {
-                throw new InteractionException(InteractionErrorCode.SAVING_DATABASE_ERROR);
+                // 3. Tiến hành Upsert +1 follow cho Creator Log
+                creatorLogRepository.upsertCreatorLogFollows(followedId, hourBucket, 1L);
             }
 
-            String lowerMessage = dbErrorMessage.toLowerCase();
+        } catch (DataIntegrityViolationException ex) {
+            String lowerMessage = ex.getMessage() != null ? ex.getMessage().toLowerCase() : "";
 
-            // Đã tồn tại cặp follow này rồi
-            if (lowerMessage.contains("duplicate key") || lowerMessage.contains("unique constraint") || lowerMessage.contains("account_follow_pkey")) {
+            // Trùng khóa chính hoặc vi phạm UNIQUE (Đã từng follow từ trước)
+            if (lowerMessage.contains("unique") || lowerMessage.contains("constraint") || lowerMessage.contains("account_follow_pkey")) {
                 throw new InteractionException(InteractionErrorCode.FOLLOW_ALREADY_EXISTS);
             }
 
-            // Một hoặc cả hai account_id không tồn tại thực tế trong bảng accounts
+            // Lỗi liên kết khóa ngoại (Tài khoản follower hoặc followed không có thực)
             if (lowerMessage.contains("foreign key") || lowerMessage.contains("violates fk") || lowerMessage.contains("fk_")) {
                 throw new InteractionException(InteractionErrorCode.ACCOUNT_NOT_FOUND);
             }
 
-            throw new InteractionException(InteractionErrorCode.SAVING_DATABASE_ERROR, "Lỗi hệ thống khi lưu tương tác theo dõi.");
+            throw new InteractionException(InteractionErrorCode.SAVING_DATABASE_ERROR, "Lỗi hệ thống database khi lưu tương tác follow.");
         }
     }
 
     @Override
     @Transactional
     public void unfollow(FollowRequestDto request) {
+        UUID followerId = request.getFollowerId();
+        UUID followedId = request.getFollowedId();
+
         int affectedRows = accountFollowRepository.deleteByFollowerIdAndFollowedId(
-                request.getFollowerId(), request.getFollowedId());
+                followerId, followedId);
         if (affectedRows == 0) {
             throw new InteractionException(InteractionErrorCode.FOLLOW_NOT_FOUND);
         }
+        LocalDateTime hourBucket = LocalDateTime.now().withMinute(0).withSecond(0).withNano(0);
+        creatorLogRepository.upsertCreatorLogFollows(followedId, hourBucket, -1L);
     }
 
     @Override

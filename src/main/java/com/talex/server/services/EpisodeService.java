@@ -43,4 +43,6 @@ public interface EpisodeService {
     Episode findPublicEntity(String id);
 
     EpisodeResponseDto toResponse(Episode episode);
+
+    String getSeriesIdByEpisodeId(String episodeId);
 }

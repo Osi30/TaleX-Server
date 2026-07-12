@@ -7,6 +7,7 @@ import com.talex.server.exceptions.codes.InteractionErrorCode;
 import com.talex.server.exceptions.details.InteractionException;
 import com.talex.server.repositories.interaction.WatchSessionRepository;
 import com.talex.server.repositories.interaction.aggregation.ViewAggregationRepository;
+import com.talex.server.services.EpisodeService;
 import io.questdb.client.Sender;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,6 +30,7 @@ import java.util.UUID;
 public class EpisodeViewWorker {
     private final Sender questDBSender;
     private final ObjectMapper objectMapper;
+    private final EpisodeService episodeService;
     private final ViewAggregationRepository viewAggregationRepository;
     private final WatchSessionRepository watchSessionRepository;
 
@@ -87,7 +89,7 @@ public class EpisodeViewWorker {
                 episodeDeltaMap.put(episodeId, episodeDeltaMap.getOrDefault(episodeId, 0L) + delta);
 
                 // 2. Gom nhóm tổng số lượng tăng thêm theo khung giờ (Hour Bucket)
-                LocalDateTime hourBucket = LocalDateTime.ofInstant(Instant.ofEpochMilli(tsMs), ZoneId.of("UTC"))
+                LocalDateTime hourBucket = LocalDateTime.ofInstant(Instant.ofEpochMilli(tsMs), ZoneId.systemDefault())
                         .truncatedTo(ChronoUnit.HOURS);
 
                 EpisodeHourKey hourKey = new EpisodeHourKey(episodeId, hourBucket);
@@ -97,21 +99,24 @@ public class EpisodeViewWorker {
             // Cập nhật các bảng lũy kế tổng số lượng view tổng thể
             episodeDeltaMap.forEach((episodeId, totalDelta) -> {
                 if (totalDelta > 0) {
+                    String seriesId = episodeService.getSeriesIdByEpisodeId(episodeId);
                     viewAggregationRepository.updateEpisodeViewCount(episodeId, totalDelta);
-                    viewAggregationRepository.updateSeriesViewCountByEpisode(episodeId, totalDelta);
-                    viewAggregationRepository.updateCampaignEpisodeViewCount(episodeId, totalDelta);
-                    viewAggregationRepository.updateCampaignViewCountAndTarget(episodeId, totalDelta);
-                    viewAggregationRepository.updateCreatorViewCount(episodeId, totalDelta);
+                    viewAggregationRepository.updateSeriesViewCount(seriesId, totalDelta);
+                    viewAggregationRepository.updateCampaignSeriesViewCount(seriesId, totalDelta);
+                    viewAggregationRepository.updateCampaignViewCountAndTarget(seriesId, totalDelta);
+                    viewAggregationRepository.updateCreatorViewCount(seriesId, totalDelta);
                 }
             });
 
             // Cập nhật dữ liệu Log thống kê giờ giấc
             logDeltaMap.forEach((key, totalDelta) -> {
                 if (totalDelta > 0) {
+                    String seriesId = episodeService.getSeriesIdByEpisodeId(key.getEpisodeId());
                     viewAggregationRepository.upsertEpisodeLog(key.getEpisodeId(), key.getHourBucket(), totalDelta);
-                    viewAggregationRepository.upsertSeriesLog(key.getEpisodeId(), key.getHourBucket(), totalDelta);
-                    viewAggregationRepository.upsertCampaignEpisodeLog(key.getEpisodeId(), key.getHourBucket(), totalDelta);
-                    viewAggregationRepository.upsertCampaignLog(key.getEpisodeId(), key.getHourBucket(), totalDelta);
+                    viewAggregationRepository.upsertSeriesLog(seriesId, key.getHourBucket(), totalDelta);
+                    viewAggregationRepository.upsertCampaignSeriesLog(seriesId, key.getHourBucket(), totalDelta);
+                    viewAggregationRepository.upsertCampaignLog(seriesId, key.getHourBucket(), totalDelta);
+                    viewAggregationRepository.upsertCreatorLogViews(seriesId, key.getHourBucket(), totalDelta);
                 }
             });
 

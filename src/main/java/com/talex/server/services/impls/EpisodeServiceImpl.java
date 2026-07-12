@@ -16,6 +16,7 @@ import com.talex.server.services.EpisodeService;
 import com.talex.server.services.SeasonService;
 import com.talex.server.services.audit.ContentAuditLogger;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -291,6 +292,18 @@ public class EpisodeServiceImpl implements EpisodeService {
         }
         seasonService.findPublicEntity(episode.getSeason().getSeasonId());
         return episode;
+    }
+
+    @Cacheable(
+            value = "episode_series",
+            key = "#episodeId",
+            cacheManager = "redisCacheManager",
+            unless = "#result == null"
+    )
+    @Override
+    public String getSeriesIdByEpisodeId(String episodeId) {
+        return episodeRepository.findSeriesIdByEpisodeId(episodeId)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy Series cho Episode ID: " + episodeId));
     }
 
     @Override

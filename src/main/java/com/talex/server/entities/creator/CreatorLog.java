@@ -1,5 +1,6 @@
-package com.talex.server.entities.campaign;
+package com.talex.server.entities.creator;
 
+import com.talex.server.entities.Account;
 import com.talex.server.entities.AnalyticData;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -11,27 +12,33 @@ import java.io.Serializable;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "campaign_episode_log", uniqueConstraints = {
-        @UniqueConstraint(columnNames = {"campaign_episode_id", "hour_bucket"})
+@Table(name = "creator_log", uniqueConstraints = {
+        @UniqueConstraint(columnNames = {"account_id", "hour_bucket"})
 })
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class CampaignEpisodeLog implements Serializable {
+public class CreatorLog implements Serializable {
+
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(name = "campaign_episode_log_id")
-    private String campaignEpisodeLogId;
+    @Column(name = "creator_log_id")
+    private String creatorLogId;
 
     @Column(name = "hour_bucket", nullable = false)
     private LocalDateTime hourBucket;
 
+    // Đổi quan hệ từ Creator sang Account
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "campaign_episode_id", nullable = false)
-    private CampaignEpisode campaignEpisode;
+    @JoinColumn(name = "account_id", nullable = false)
+    private Account account;
 
     @Embedded
     @Builder.Default
     private AnalyticData analyticData = new AnalyticData();
+
+    @Column(name = "follows", nullable = false, columnDefinition = "bigint default 0")
+    @Builder.Default
+    private Long follows = 0L;
 }

@@ -6,6 +6,7 @@ import com.talex.server.dtos.interaction.EpisodeHourKey;
 import com.talex.server.exceptions.codes.InteractionErrorCode;
 import com.talex.server.exceptions.details.InteractionException;
 import com.talex.server.repositories.interaction.aggregation.LikeAggregationRepository;
+import com.talex.server.services.EpisodeService;
 import io.questdb.client.Sender;
 import lombok.RequiredArgsConstructor;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -25,6 +26,7 @@ import java.util.Map;
 public class AccountLikeWorker {
     private final Sender questDBSender;
     private final ObjectMapper objectMapper;
+    private final EpisodeService episodeService;
     private final LikeAggregationRepository aggregationRepository;
 
     @KafkaListener(
@@ -110,7 +112,7 @@ public class AccountLikeWorker {
                     episodeDeltaMap.put(episodeId, episodeDeltaMap.getOrDefault(episodeId, 0) + delta);
 
                     // Tích lũy Delta cho Hour Bucket (Làm tròn thời gian về đầu giờ)
-                    LocalDateTime ldt = LocalDateTime.ofInstant(Instant.ofEpochMilli(createdAtUs / 1000), ZoneId.systemDefault());
+                    LocalDateTime ldt = LocalDateTime.ofInstant(Instant.ofEpochMilli(createdAtUs / 1000), ZoneId.of("UTC"));
                     LocalDateTime hourBucket = ldt.truncatedTo(ChronoUnit.HOURS);
 
                     EpisodeHourKey key = new EpisodeHourKey(episodeId, hourBucket);
@@ -121,21 +123,24 @@ public class AccountLikeWorker {
             // Thực thi cập nhật dồn tích xuống các bảng chính (Episode, Series, Campaign, Creator)
             episodeDeltaMap.forEach((episodeId, totalDelta) -> {
                 if (totalDelta != 0) {
+                    String seriesId = episodeService.getSeriesIdByEpisodeId(episodeId);
                     aggregationRepository.updateEpisodeLikeCount(episodeId, totalDelta);
-                    aggregationRepository.updateSeriesLikeCountByEpisode(episodeId, totalDelta);
-                    aggregationRepository.updateCampaignEpisodeLikeCount(episodeId, totalDelta);
-                    aggregationRepository.updateCampaignLikeCountAndTarget(episodeId, totalDelta);
-                    aggregationRepository.updateCreatorLikeCount(episodeId, totalDelta);
+                    aggregationRepository.updateSeriesLikeCount(seriesId, totalDelta);
+                    aggregationRepository.updateCampaignSeriesLikeCount(seriesId, totalDelta);
+                    aggregationRepository.updateCampaignLikeCountAndTarget(seriesId, totalDelta);
+                    aggregationRepository.updateCreatorLikeCount(seriesId, totalDelta);
                 }
             });
 
             // Thực thi Upsert dồn tích xuống các bảng Log theo khung giờ công việc (Mục 4)
             logDeltaMap.forEach((key, totalDelta) -> {
                 if (totalDelta != 0) {
+                    String seriesId = episodeService.getSeriesIdByEpisodeId(key.getEpisodeId());
                     aggregationRepository.upsertEpisodeLog(key.getEpisodeId(), key.getHourBucket(), totalDelta);
-                    aggregationRepository.upsertSeriesLog(key.getEpisodeId(), key.getHourBucket(), totalDelta);
-                    aggregationRepository.upsertCampaignEpisodeLog(key.getEpisodeId(), key.getHourBucket(), totalDelta);
-                    aggregationRepository.upsertCampaignLog(key.getEpisodeId(), key.getHourBucket(), totalDelta);
+                    aggregationRepository.upsertSeriesLog(seriesId, key.getHourBucket(), totalDelta);
+                    aggregationRepository.upsertCampaignSeriesLog(seriesId, key.getHourBucket(), totalDelta);
+                    aggregationRepository.upsertCampaignLog(seriesId, key.getHourBucket(), totalDelta);
+                    aggregationRepository.upsertCreatorLogLikes(seriesId, key.getHourBucket(), totalDelta);
                 }
             });
 

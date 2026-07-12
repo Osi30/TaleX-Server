@@ -7,6 +7,7 @@ import com.talex.server.exceptions.codes.InteractionErrorCode;
 import com.talex.server.exceptions.details.InteractionException;
 import com.talex.server.repositories.interaction.WatchSessionRepository;
 import com.talex.server.repositories.interaction.aggregation.WatchTimeAggregationRepository;
+import com.talex.server.services.EpisodeService;
 import io.questdb.client.Sender;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,6 +29,7 @@ import java.util.Map;
 public class WatchTimeWorker {
     private final ObjectMapper objectMapper;
     private final Sender questDBSender;
+    private final EpisodeService episodeService;
     private final WatchSessionRepository watchSessionRepository;
     private final WatchTimeAggregationRepository watchTimeAggregationRepository;
 
@@ -156,18 +158,21 @@ public class WatchTimeWorker {
 
         try {
             globalWatchTimeDeltaMap.forEach((episodeId, totalDelta) -> {
+                String seriesId = episodeService.getSeriesIdByEpisodeId(episodeId);
                 watchTimeAggregationRepository.updateEpisodeWatchTime(episodeId, totalDelta);
-                watchTimeAggregationRepository.updateSeriesWatchTimeByEpisode(episodeId, totalDelta);
-                watchTimeAggregationRepository.updateCampaignEpisodeWatchTime(episodeId, totalDelta);
-                watchTimeAggregationRepository.updateCampaignWatchTimeAndTarget(episodeId, totalDelta);
-                watchTimeAggregationRepository.updateCreatorWatchTime(episodeId, totalDelta);
+                watchTimeAggregationRepository.updateSeriesWatchTime(seriesId, totalDelta);
+                watchTimeAggregationRepository.updateCampaignSeriesWatchTime(seriesId, totalDelta);
+                watchTimeAggregationRepository.updateCampaignWatchTimeAndTarget(seriesId, totalDelta);
+                watchTimeAggregationRepository.updateCreatorWatchTime(seriesId, totalDelta);
             });
 
             logWatchTimeDeltaMap.forEach((key, totalDelta) -> {
+                String seriesId = episodeService.getSeriesIdByEpisodeId(key.getEpisodeId());
                 watchTimeAggregationRepository.upsertEpisodeLogWatchTime(key.getEpisodeId(), key.getHourBucket(), totalDelta);
-                watchTimeAggregationRepository.upsertSeriesLogWatchTime(key.getEpisodeId(), key.getHourBucket(), totalDelta);
-                watchTimeAggregationRepository.upsertCampaignEpisodeLogWatchTime(key.getEpisodeId(), key.getHourBucket(), totalDelta);
-                watchTimeAggregationRepository.upsertCampaignLogWatchTime(key.getEpisodeId(), key.getHourBucket(), totalDelta);
+                watchTimeAggregationRepository.upsertSeriesLog(seriesId, key.getHourBucket(), totalDelta);
+                watchTimeAggregationRepository.upsertCampaignSeriesLog(seriesId, key.getHourBucket(), totalDelta);
+                watchTimeAggregationRepository.upsertCampaignLog(seriesId, key.getHourBucket(), totalDelta);
+                watchTimeAggregationRepository.upsertCreatorLogWatchTime(seriesId, key.getHourBucket(), totalDelta);
             });
         } catch (Exception e) {
             throw new InteractionException(InteractionErrorCode.KAFKA_PROCESSING_ERROR, "Thất bại khi thực thi ghi Batch Stats dựa trên dữ liệu CDC sạch: " + e.getMessage());

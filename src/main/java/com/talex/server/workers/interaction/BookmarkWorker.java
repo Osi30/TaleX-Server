@@ -6,6 +6,7 @@ import com.talex.server.dtos.interaction.EpisodeHourKey;
 import com.talex.server.exceptions.codes.InteractionErrorCode;
 import com.talex.server.exceptions.details.InteractionException;
 import com.talex.server.repositories.interaction.aggregation.BookmarkAggregationRepository;
+import com.talex.server.services.EpisodeService;
 import io.questdb.client.Sender;
 import lombok.RequiredArgsConstructor;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -24,6 +25,7 @@ import java.util.Map;
 public class BookmarkWorker {
     private final Sender questDBSender;
     private final ObjectMapper objectMapper;
+    private final EpisodeService episodeService;
     private final BookmarkAggregationRepository aggregationRepository;
 
 
@@ -113,21 +115,24 @@ public class BookmarkWorker {
             // 1. Đồng bộ số lượng tổng hợp thực thể (Mục 3 & 5)
             episodeDeltaMap.forEach((episodeId, totalDelta) -> {
                 if (totalDelta != 0) {
+                    String seriesId = episodeService.getSeriesIdByEpisodeId(episodeId);
                     aggregationRepository.updateEpisodeBookmarkCount(episodeId, totalDelta);
-                    aggregationRepository.updateSeriesBookmarkCountByEpisode(episodeId, totalDelta);
-                    aggregationRepository.updateCampaignEpisodeBookmarkCount(episodeId, totalDelta);
-                    aggregationRepository.updateCampaignBookmarkCountAndTarget(episodeId, totalDelta);
-                    aggregationRepository.updateCreatorBookmarkCount(episodeId, totalDelta);
+                    aggregationRepository.updateSeriesBookmarkCount(seriesId, totalDelta);
+                    aggregationRepository.updateCampaignSeriesBookmarkCount(seriesId, totalDelta);
+                    aggregationRepository.updateCampaignBookmarkCountAndTarget(seriesId, totalDelta);
+                    aggregationRepository.updateCreatorBookmarkCount(seriesId, totalDelta);
                 }
             });
 
             // 2. Cập nhật các bảng Log theo Hour Bucket (Mục 4) bằng Upsert Native SQL
             logDeltaMap.forEach((key, totalDelta) -> {
                 if (totalDelta != 0) {
+                    String seriesId = episodeService.getSeriesIdByEpisodeId(key.getEpisodeId());
                     aggregationRepository.upsertEpisodeLog(key.getEpisodeId(), key.getHourBucket(), totalDelta);
-                    aggregationRepository.upsertSeriesLog(key.getEpisodeId(), key.getHourBucket(), totalDelta);
-                    aggregationRepository.upsertCampaignEpisodeLog(key.getEpisodeId(), key.getHourBucket(), totalDelta);
-                    aggregationRepository.upsertCampaignLog(key.getEpisodeId(), key.getHourBucket(), totalDelta);
+                    aggregationRepository.upsertSeriesLog(seriesId, key.getHourBucket(), totalDelta);
+                    aggregationRepository.upsertCampaignSeriesLog(seriesId, key.getHourBucket(), totalDelta);
+                    aggregationRepository.upsertCampaignLog(seriesId, key.getHourBucket(), totalDelta);
+                    aggregationRepository.upsertCreatorLogBookmarks(seriesId, key.getHourBucket(), totalDelta);
                 }
             });
 

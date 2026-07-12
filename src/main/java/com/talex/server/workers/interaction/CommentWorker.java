@@ -6,6 +6,7 @@ import com.talex.server.dtos.interaction.EpisodeHourKey;
 import com.talex.server.exceptions.codes.InteractionErrorCode;
 import com.talex.server.exceptions.details.InteractionException;
 import com.talex.server.repositories.interaction.aggregation.CommentAggregationRepository;
+import com.talex.server.services.EpisodeService;
 import io.questdb.client.Sender;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,6 +28,7 @@ import java.util.Map;
 public class CommentWorker {
     private final Sender questDBSender;
     private final ObjectMapper objectMapper;
+    private final EpisodeService episodeService;
     private final CommentAggregationRepository aggregationRepository;
 
     @KafkaListener(
@@ -154,21 +156,24 @@ public class CommentWorker {
             // Cập nhật các bảng thực thể chính (Mục 3 & 5)
             episodeDeltaMap.forEach((episodeId, totalDelta) -> {
                 if (totalDelta != 0) {
+                    String seriesId = episodeService.getSeriesIdByEpisodeId(episodeId);
                     aggregationRepository.updateEpisodeCommentCount(episodeId, totalDelta);
-                    aggregationRepository.updateSeriesCommentCountByEpisode(episodeId, totalDelta);
-                    aggregationRepository.updateCampaignEpisodeCommentCount(episodeId, totalDelta);
-                    aggregationRepository.updateCampaignCommentCountAndTarget(episodeId, totalDelta);
-                    aggregationRepository.updateCreatorCommentCount(episodeId, totalDelta);
+                    aggregationRepository.updateSeriesCommentCount(seriesId, totalDelta);
+                    aggregationRepository.updateCampaignSeriesCommentCount(seriesId, totalDelta);
+                    aggregationRepository.updateCampaignCommentCountAndTarget(seriesId, totalDelta);
+                    aggregationRepository.updateCreatorCommentCount(seriesId, totalDelta);
                 }
             });
 
             // Cập nhật các bảng Log theo Hour Bucket (Mục 4) bằng Upsert Native SQL
             logDeltaMap.forEach((key, totalDelta) -> {
                 if (totalDelta != 0) {
+                    String seriesId = episodeService.getSeriesIdByEpisodeId(key.getEpisodeId());
                     aggregationRepository.upsertEpisodeLog(key.getEpisodeId(), key.getHourBucket(), totalDelta);
-                    aggregationRepository.upsertSeriesLog(key.getEpisodeId(), key.getHourBucket(), totalDelta);
-                    aggregationRepository.upsertCampaignEpisodeLog(key.getEpisodeId(), key.getHourBucket(), totalDelta);
-                    aggregationRepository.upsertCampaignLog(key.getEpisodeId(), key.getHourBucket(), totalDelta);
+                    aggregationRepository.upsertSeriesLog(seriesId, key.getHourBucket(), totalDelta);
+                    aggregationRepository.upsertCampaignSeriesLog(seriesId, key.getHourBucket(), totalDelta);
+                    aggregationRepository.upsertCampaignLog(seriesId, key.getHourBucket(), totalDelta);
+                    aggregationRepository.upsertCreatorLogComments(seriesId, key.getHourBucket(), totalDelta);
                 }
             });
 

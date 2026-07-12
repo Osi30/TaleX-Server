@@ -9,11 +9,23 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Repository
 public interface AccountFollowRepository extends JpaRepository<AccountFollow, String> {
+    @Modifying
+    @Transactional
+    @Query(value = "INSERT INTO account_follow (id, follower_id, followed_id, created_at) " +
+            "VALUES (gen_random_uuid(), :followerId, :followedId, :timestamp)", nativeQuery = true)
+    int insertFollowNative(
+            @Param("followerId") UUID followerId,
+            @Param("followedId") UUID followedId,
+            @Param("timestamp") LocalDateTime timestamp
+    );
+
     @Modifying
     @Query("DELETE FROM AccountFollow af WHERE af.follower.accountId = :followerId AND af.followed.accountId = :followedId")
     int deleteByFollowerIdAndFollowedId(@Param("followerId") UUID followerId, @Param("followedId") UUID followedId);

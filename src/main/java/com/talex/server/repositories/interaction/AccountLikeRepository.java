@@ -9,18 +9,20 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Repository
 public interface AccountLikeRepository extends JpaRepository<AccountLike, String> {
     @Modifying
     @Query(value = "INSERT INTO account_likes (account_like_id, account_id, episode_id, created_at) " +
-            "VALUES (gen_random_uuid(), :accountId, :episodeId, NOW()) " +
+            "VALUES (gen_random_uuid(), :accountId, :episodeId, :timestamp) " +
             "ON CONFLICT (account_id, episode_id) DO NOTHING",
             nativeQuery = true)
     int insertLikeDirectly(
             @Param("accountId") UUID accountId,
-            @Param("episodeId") String episodeId
+            @Param("episodeId") String episodeId,
+            @Param("timestamp") LocalDateTime timestamp
     );
 
     @Modifying

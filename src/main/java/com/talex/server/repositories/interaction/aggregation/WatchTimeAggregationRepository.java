@@ -29,27 +29,34 @@ public interface WatchTimeAggregationRepository extends JpaRepository<Episode, S
     @Transactional
     @Query("UPDATE Series s " +
             "SET s.analyticData.watchTime = s.analyticData.watchTime + :delta " +
-            "WHERE s.seriesId = (SELECT e.season.series.seriesId " +
-            "FROM Episode e WHERE e.episodeId = :episodeId)")
-    void updateSeriesWatchTimeByEpisode(@Param("episodeId") String episodeId, @Param("delta") double delta);
+            "WHERE s.seriesId = :seriesId")
+    void updateSeriesWatchTime(
+            @Param("seriesId") String seriesId,
+            @Param("delta") double delta
+    );
 
-    /// Cập nhập thời lượng xem của campaign episode
+    /// Cập nhập thời lượng xem của campaign series
     @Modifying
     @Transactional
-    @Query("UPDATE CampaignEpisode ce " +
-            "SET ce.analyticData.watchTime = ce.analyticData.watchTime + :delta " +
-            "WHERE ce.episode.episodeId = :episodeId")
-    void updateCampaignEpisodeWatchTime(@Param("episodeId") String episodeId, @Param("delta") double delta);
+    @Query("UPDATE CampaignSeries cs " +
+            "SET cs.analyticData.watchTime = cs.analyticData.watchTime + :delta " +
+            "WHERE cs.series.seriesId = :seriesId " +
+            "AND cs.campaign.status = 'RUNNING'")
+    void updateCampaignSeriesWatchTime(
+            @Param("seriesId") String seriesId,
+            @Param("delta") double delta
+    );
 
     /// Cập nhập thời lượng xem của campaign
     @Modifying
     @Transactional
     @Query("UPDATE Campaign c " +
             "SET c.analyticData.watchTime = c.analyticData.watchTime + :delta " +
-            "WHERE c.campaignId IN (SELECT ce.campaign.campaignId FROM CampaignEpisode ce WHERE ce.episode.episodeId = :episodeId)")
+            "WHERE c.status = 'RUNNING' " +
+            "AND c.campaignId IN (SELECT cs.campaign.campaignId FROM CampaignSeries cs WHERE cs.series.seriesId = :seriesId)")
     void updateCampaignWatchTimeAndTarget(
-            @Param("episodeId") String episodeId,
-            @Param("delta") Double delta
+            @Param("seriesId") String seriesId,
+            @Param("delta") double delta
     );
 
     /// Cập nhập thời lượng xem của kênh nhà sáng tạo
@@ -57,9 +64,11 @@ public interface WatchTimeAggregationRepository extends JpaRepository<Episode, S
     @Transactional
     @Query("UPDATE Creator cr " +
             "SET cr.analyticData.watchTime = cr.analyticData.watchTime + :delta " +
-            "WHERE cr.creatorId = (SELECT e.season.series.creator.creatorId " +
-            "FROM Episode e WHERE e.episodeId = :episodeId)")
-    void updateCreatorWatchTime(@Param("episodeId") String episodeId, @Param("delta") double delta);
+            "WHERE cr.creatorId = (SELECT s.creator.creatorId FROM Series s WHERE s.seriesId = :seriesId)")
+    void updateCreatorWatchTime(
+            @Param("seriesId") String seriesId,
+            @Param("delta") double delta
+    );
 
     // == CẬP NHẬP LOG THEO HOUR ==
 
@@ -78,30 +87,57 @@ public interface WatchTimeAggregationRepository extends JpaRepository<Episode, S
     @Modifying
     @Transactional
     @Query(value = "INSERT INTO series_log (series_log_id, hour_bucket, series_id, watch_time) " +
-            "VALUES (gen_random_uuid(), :hourBucket, " +
-            "  (SELECT s.series_id FROM episodes e JOIN seasons se ON e.season_id = se.season_id JOIN series s ON se.series_id = s.series_id WHERE e.episode_id = :episodeId), " +
-            "  :delta) " +
+            "VALUES (gen_random_uuid(), :hourBucket, :seriesId, :delta) " +
             "ON CONFLICT (series_id, hour_bucket) " +
             "DO UPDATE SET watch_time = COALESCE(series_log.watch_time, 0) + :delta", nativeQuery = true)
-    void upsertSeriesLogWatchTime(@Param("episodeId") String episodeId, @Param("hourBucket") LocalDateTime hourBucket, @Param("delta") double delta);
+    void upsertSeriesLog(
+            @Param("seriesId") String seriesId,
+            @Param("hourBucket") LocalDateTime hourBucket,
+            @Param("delta") double delta
+    );
 
     @Modifying
     @Transactional
-    @Query(value = "INSERT INTO campaign_episode_log (campaign_episode_log_id, hour_bucket, campaign_episode_id, bookmarks, likes, views, comments, shares, watch_time) " +
-            "SELECT gen_random_uuid(), :hourBucket, ce.campaign_episode_id, 0, 0, 0, 0, 0, :delta " +
-            "FROM campaign_episode ce " +
-            "WHERE ce.episode_id = :episodeId " +
-            "ON CONFLICT (campaign_episode_id, hour_bucket) " +
-            "DO UPDATE SET watch_time = COALESCE(campaign_episode_log.watch_time, 0) + :delta", nativeQuery = true)
-    void upsertCampaignEpisodeLogWatchTime(@Param("episodeId") String episodeId, @Param("hourBucket") LocalDateTime hourBucket, @Param("delta") double delta);
+    @Query(value = "INSERT INTO campaign_series_log (campaign_series_log_id, hour_bucket, campaign_series_id, watch_time) " +
+            "SELECT gen_random_uuid(), :hourBucket, cs.campaign_series_id, :delta " +
+            "FROM campaign_series cs " +
+            "JOIN campaign c ON cs.campaign_id = c.campaign_id " +
+            "WHERE cs.series_id = :seriesId AND c.status = 'RUNNING' " +
+            "ON CONFLICT (campaign_series_id, hour_bucket) " +
+            "DO UPDATE SET watch_time = COALESCE(campaign_series_log.watch_time, 0) + :delta", nativeQuery = true)
+    void upsertCampaignSeriesLog(
+            @Param("seriesId") String seriesId,
+            @Param("hourBucket") LocalDateTime hourBucket,
+            @Param("delta") double delta
+    );
 
     @Modifying
     @Transactional
-    @Query(value = "INSERT INTO campaign_log (campaign_log_id, hour_bucket, campaign_id, bookmarks, likes, views, comments, shares, watch_time) " +
-            "SELECT gen_random_uuid(), :hourBucket, ce.campaign_id, 0, 0, 0, 0, 0, :delta " +
-            "FROM campaign_episode ce " +
-            "WHERE ce.episode_id = :episodeId " +
+    @Query(value = "INSERT INTO campaign_log (campaign_log_id, hour_bucket, campaign_id, watch_time) " +
+            "SELECT gen_random_uuid(), :hourBucket, cs.campaign_id, :delta " +
+            "FROM campaign_series cs " +
+            "JOIN campaign c ON cs.campaign_id = c.campaign_id " +
+            "WHERE cs.series_id = :seriesId AND c.status = 'RUNNING' " +
             "ON CONFLICT (campaign_id, hour_bucket) " +
             "DO UPDATE SET watch_time = COALESCE(campaign_log.watch_time, 0) + :delta", nativeQuery = true)
-    void upsertCampaignLogWatchTime(@Param("episodeId") String episodeId, @Param("hourBucket") LocalDateTime hourBucket, @Param("delta") double delta);
+    void upsertCampaignLog(
+            @Param("seriesId") String seriesId,
+            @Param("hourBucket") LocalDateTime hourBucket,
+            @Param("delta") double delta
+    );
+
+    @Modifying
+    @Transactional
+    @Query(value = "INSERT INTO creator_log (creator_log_id, hour_bucket, account_id, watch_time, likes, views, comments, shares, bookmarks, follows) " +
+            "SELECT gen_random_uuid(), :hourBucket, c.account_id, :delta, 0, 0, 0, 0, 0, 0 " +
+            "FROM series s " +
+            "JOIN creator c ON s.creator_id = c.creator_id " +
+            "WHERE s.series_id = :seriesId " +
+            "ON CONFLICT (account_id, hour_bucket) " +
+            "DO UPDATE SET watch_time = COALESCE(creator_log.watch_time, 0.0) + :delta", nativeQuery = true)
+    void upsertCreatorLogWatchTime(
+            @Param("seriesId") String seriesId,
+            @Param("hourBucket") LocalDateTime hourBucket,
+            @Param("delta") double delta
+    );
 }

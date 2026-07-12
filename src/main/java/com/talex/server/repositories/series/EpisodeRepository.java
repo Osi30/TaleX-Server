@@ -64,8 +64,9 @@ public interface EpisodeRepository extends JpaRepository<Episode, String> {
             @Param("episodeId") String episodeId,
             @Param("status") EpisodeStatus status);
 
-    long countByEpisodeIdInAndStatusAndIsDeletedFalseAndCreatorId(Collection<String> episodeIds, EpisodeStatus status, String creatorId);
-
     @Query("select coalesce(max(e.episodeNumber), 0) from Episode e where e.season.seasonId = :seasonId and e.isDeleted = false")
     Integer findMaxEpisodeNumberBySeasonId(@Param("seasonId") String seasonId);
+
+    @Query("SELECT e.season.series.seriesId FROM Episode e WHERE e.episodeId = :episodeId")
+    Optional<String> findSeriesIdByEpisodeId(@Param("episodeId") String episodeId);
 }

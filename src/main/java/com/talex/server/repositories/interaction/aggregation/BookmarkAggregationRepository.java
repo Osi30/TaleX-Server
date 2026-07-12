@@ -29,21 +29,20 @@ public interface BookmarkAggregationRepository extends JpaRepository<Episode, St
     @Transactional
     @Query("UPDATE Series s " +
             "SET s.analyticData.bookmarks = s.analyticData.bookmarks + :delta " +
-            "WHERE s.seriesId = (SELECT e.season.series.seriesId " +
-            "FROM Episode e WHERE e.episodeId = :episodeId)")
-    void updateSeriesBookmarkCountByEpisode(
-            @Param("episodeId") String episodeId,
+            "WHERE s.seriesId = :seriesId")
+    void updateSeriesBookmarkCount(
+            @Param("seriesId") String seriesId,
             @Param("delta") long delta
     );
 
     /// Cập nhật tổng bookmark của CampaignEpisode thuộc Chiến dịch
     @Modifying
     @Transactional
-    @Query("UPDATE CampaignEpisode ce " +
-            "SET ce.analyticData.bookmarks = ce.analyticData.bookmarks + :delta " +
-            "WHERE ce.episode.episodeId = :episodeId")
-    void updateCampaignEpisodeBookmarkCount(
-            @Param("episodeId") String episodeId,
+    @Query("UPDATE CampaignSeries cs " +
+            "SET cs.analyticData.bookmarks = cs.analyticData.bookmarks + :delta " +
+            "WHERE cs.series.seriesId = :seriesId")
+    void updateCampaignSeriesBookmarkCount(
+            @Param("seriesId") String seriesId,
             @Param("delta") long delta
     );
 
@@ -53,9 +52,9 @@ public interface BookmarkAggregationRepository extends JpaRepository<Episode, St
     @Query("UPDATE Campaign c " +
             "SET c.analyticData.bookmarks = c.analyticData.bookmarks + :delta, " +
             "c.currentValue = c.currentValue + (CASE WHEN c.engagementTarget = 'BOOKMARK' THEN :delta ELSE 0 END) " +
-            "WHERE c.campaignId IN (SELECT ce.campaign.campaignId FROM CampaignEpisode ce WHERE ce.episode.episodeId = :episodeId)")
+            "WHERE c.campaignId IN (SELECT cs.campaign.campaignId FROM CampaignSeries cs WHERE cs.series.seriesId = :seriesId)")
     void updateCampaignBookmarkCountAndTarget(
-            @Param("episodeId") String episodeId,
+            @Param("seriesId") String seriesId,
             @Param("delta") long delta
     );
 
@@ -64,10 +63,9 @@ public interface BookmarkAggregationRepository extends JpaRepository<Episode, St
     @Transactional
     @Query("UPDATE Creator cr " +
             "SET cr.analyticData.bookmarks = cr.analyticData.bookmarks + :delta " +
-            "WHERE cr.creatorId = (SELECT e.season.series.creator.creatorId " +
-            "FROM Episode e WHERE e.episodeId = :episodeId)")
+            "WHERE cr.creatorId = (SELECT s.creator.creatorId FROM Series s WHERE s.seriesId = :seriesId)")
     void updateCreatorBookmarkCount(
-            @Param("episodeId") String episodeId,
+            @Param("seriesId") String seriesId,
             @Param("delta") long delta
     );
 
@@ -88,34 +86,56 @@ public interface BookmarkAggregationRepository extends JpaRepository<Episode, St
     @Modifying
     @Transactional
     @Query(value = "INSERT INTO series_log (series_log_id, hour_bucket, series_id, bookmarks) " +
-            "VALUES (gen_random_uuid(), :hourBucket, " +
-            "  (SELECT s.series_id FROM episodes e JOIN seasons se ON e.season_id = se.season_id JOIN series s ON se.series_id = s.series_id WHERE e.episode_id = :episodeId), " +
-            "  :delta) " +
+            "VALUES (gen_random_uuid(), :hourBucket, :seriesId, :delta) " +
             "ON CONFLICT (series_id, hour_bucket) " +
             "DO UPDATE SET bookmarks = COALESCE(series_log.bookmarks, 0) + :delta", nativeQuery = true)
     void upsertSeriesLog(
-            @Param("episodeId") String episodeId,
+            @Param("seriesId") String seriesId,
             @Param("hourBucket") LocalDateTime hourBucket,
             @Param("delta") long delta
     );
 
     @Modifying
     @Transactional
-    @Query(value = "INSERT INTO campaign_episode_log (campaign_episode_log_id, hour_bucket, campaign_episode_id, bookmarks, likes, views, comments, shares, watch_time) " +
-            "SELECT gen_random_uuid(), :hourBucket, ce.campaign_episode_id, :delta, 0, 0, 0, 0, 0 " +
-            "FROM campaign_episode ce " +
-            "WHERE ce.episode_id = :episodeId " +
-            "ON CONFLICT (campaign_episode_id, hour_bucket) " +
-            "DO UPDATE SET bookmarks = COALESCE(campaign_episode_log.bookmarks, 0) + :delta", nativeQuery = true)
-    void upsertCampaignEpisodeLog(@Param("episodeId") String episodeId, @Param("hourBucket") LocalDateTime hourBucket, @Param("delta") long delta);
+    @Query(value = "INSERT INTO campaign_series_log (campaign_series_log_id, hour_bucket, campaign_series_id, bookmarks, likes, views, comments, shares, watch_time) " +
+            "SELECT gen_random_uuid(), :hourBucket, cs.campaign_series_id, :delta, 0, 0, 0, 0, 0 " +
+            "FROM campaign_series cs " +
+            "WHERE cs.series_id = :seriesId " +
+            "ON CONFLICT (campaign_series_id, hour_bucket) " +
+            "DO UPDATE SET bookmarks = COALESCE(campaign_series_log.bookmarks, 0) + :delta", nativeQuery = true)
+    void upsertCampaignSeriesLog(
+            @Param("seriesId") String seriesId,
+            @Param("hourBucket") LocalDateTime hourBucket,
+            @Param("delta") long delta
+    );
 
     @Modifying
     @Transactional
     @Query(value = "INSERT INTO campaign_log (campaign_log_id, hour_bucket, campaign_id, bookmarks, likes, views, comments, shares, watch_time) " +
-            "SELECT gen_random_uuid(), :hourBucket, ce.campaign_id, :delta, 0, 0, 0, 0, 0 " +
-            "FROM campaign_episode ce " +
-            "WHERE ce.episode_id = :episodeId " +
+            "SELECT gen_random_uuid(), :hourBucket, cs.campaign_id, :delta, 0, 0, 0, 0, 0 " +
+            "FROM campaign_series cs " +
+            "WHERE cs.series_id = :seriesId " +
             "ON CONFLICT (campaign_id, hour_bucket) " +
             "DO UPDATE SET bookmarks = COALESCE(campaign_log.bookmarks, 0) + :delta", nativeQuery = true)
-    void upsertCampaignLog(@Param("episodeId") String episodeId, @Param("hourBucket") LocalDateTime hourBucket, @Param("delta") long delta);
+    void upsertCampaignLog(
+            @Param("seriesId") String seriesId,
+            @Param("hourBucket") LocalDateTime hourBucket,
+            @Param("delta") long delta
+    );
+
+    @Modifying
+    @Transactional
+    @Query(value = "INSERT INTO creator_log (creator_log_id, hour_bucket, account_id, bookmarks, likes, views, comments, shares, watch_time, follows) " +
+            "SELECT gen_random_uuid(), :hourBucket, c.account_id, :delta, 0, 0, 0, 0, 0.0, 0 " +
+            "FROM series s " +
+            "JOIN creator c ON s.creator_id = c.creator_id " +
+            "WHERE s.series_id = :seriesId " +
+            "ON CONFLICT (account_id, hour_bucket) " +
+            "DO UPDATE SET bookmarks = COALESCE(creator_log.bookmarks, 0) + :delta", nativeQuery = true)
+    void upsertCreatorLogBookmarks(
+            @Param("seriesId") String seriesId,
+            @Param("hourBucket") LocalDateTime hourBucket,
+            @Param("delta") long delta
+    );
+
 }

@@ -20,7 +20,7 @@ public class CampaignRequestDto {
     private String engagementServiceId;
 
     @NotNull
-    private List<String> episodeIds;
+    private List<String> seriesIds;
 
     @JsonIgnore
     private UUID accountId;
