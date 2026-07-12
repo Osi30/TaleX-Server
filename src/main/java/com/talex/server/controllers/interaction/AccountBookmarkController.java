@@ -14,6 +14,7 @@ import org.springframework.data.domain.Slice;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
@@ -27,6 +28,7 @@ public class AccountBookmarkController {
 
     @Operation(summary = "Bookmark tập phim", description = "Lưu tập phim vào danh sách bookmark (Direct Insert).")
     @PostMapping("/episodes/{episodeId}/bookmark")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<BaseResponse> bookmarkEpisode(
             @CurrentAccountId UUID accountId,
             @PathVariable String episodeId
@@ -40,6 +42,7 @@ public class AccountBookmarkController {
 
     @Operation(summary = "Hủy Bookmark tập phim", description = "Xóa tập phim ra khỏi danh sách Bookmark.")
     @DeleteMapping("/episodes/{episodeId}/bookmark")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<BaseResponse> unbookmarkEpisode(
             @CurrentAccountId UUID accountId,
             @PathVariable String episodeId
@@ -53,6 +56,7 @@ public class AccountBookmarkController {
 
     @Operation(summary = "Lấy danh sách người dùng đã Bookmark tập phim này")
     @GetMapping("/episodes/{episodeId}/bookmarks")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<BaseResponse> getBookmarksByEpisode(
             @PathVariable String episodeId,
             @ParameterObject @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
@@ -67,6 +71,7 @@ public class AccountBookmarkController {
 
     @Operation(summary = "Lấy danh sách các tập phim mà tài khoản hiện tại đã Bookmark")
     @GetMapping("/bookmarks/me")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<BaseResponse> getMyBookmarks(
             @CurrentAccountId UUID accountId,
             @ParameterObject @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
