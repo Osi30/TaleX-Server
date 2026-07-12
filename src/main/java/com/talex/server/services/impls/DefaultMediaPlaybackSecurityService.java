@@ -81,7 +81,7 @@ public class DefaultMediaPlaybackSecurityService implements MediaPlaybackSecurit
             String ipAddress,
             String userAgent) {
         if (!playbackAuthorizationService.canViewEpisode(viewerId, episodeId)) {
-            throw ContentModuleException.badRequest("PLAYBACK_NOT_AUTHORIZED");
+            throw ContentModuleException.forbidden("PLAYBACK_NOT_ENTITLED");
         }
 
         Media media = mediaRepository

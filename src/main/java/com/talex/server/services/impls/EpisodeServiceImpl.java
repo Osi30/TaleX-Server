@@ -50,6 +50,7 @@ public class EpisodeServiceImpl implements EpisodeService {
                 : nextEpisodeNumber(seasonId));
         episode.setTitle(request.getTitle());
         episode.setDescription(request.getDescription());
+        episode.setThumbnail(request.getThumbnail());
         episode.setContentType(contentType);
         episode.setStatus(EpisodeStatus.DRAFT);
         episode.setScheduledPublishAt(null);
@@ -107,6 +108,7 @@ public class EpisodeServiceImpl implements EpisodeService {
         }
         episode.setTitle(request.getTitle());
         episode.setDescription(request.getDescription());
+        episode.setThumbnail(request.getThumbnail());
         if (request.getContentType() != null) {
             validateEpisodeContentType(episode.getSeason(), request.getContentType());
             episode.setContentType(request.getContentType());
@@ -209,9 +211,30 @@ public class EpisodeServiceImpl implements EpisodeService {
             cancelScheduledPublication(episode, actorId);
         }
         episode.setStatus(EpisodeStatus.HIDDEN);
+        
+        hideParentsIfNoOtherPublished(episode);
+        
         episodeRepository.save(episode);
         contentAuditLogger.logAction("Episode", episode.getEpisodeId(), "HIDE", actorId, episode.getCreatorId());
         return toResponse(episode);
+    }
+
+    private void hideParentsIfNoOtherPublished(Episode episode) {
+        Season season = episode.getSeason();
+        long publishedEpisodesInSeason = episodeRepository.countBySeasonIdExcludingEpisodeAndStatus(
+                season.getSeasonId(), episode.getEpisodeId(), EpisodeStatus.PUBLISHED);
+
+        if (publishedEpisodesInSeason == 0 && season.getStatus() == SeasonStatus.PUBLISHED) {
+            season.setStatus(SeasonStatus.HIDDEN);
+        }
+
+        Series series = season.getSeries();
+        long publishedEpisodesInSeries = episodeRepository.countBySeriesIdExcludingEpisodeAndStatus(
+                series.getSeriesId(), episode.getEpisodeId(), EpisodeStatus.PUBLISHED);
+
+        if (publishedEpisodesInSeries == 0 && series.getStatus() == SeriesStatus.PUBLISHED) {
+            series.setStatus(SeriesStatus.HIDDEN);
+        }
     }
 
     @Transactional
@@ -315,6 +338,7 @@ public class EpisodeServiceImpl implements EpisodeService {
                 .episodeNumber(episode.getEpisodeNumber())
                 .title(episode.getTitle())
                 .description(episode.getDescription())
+                .thumbnail(episode.getThumbnail())
                 .contentType(episode.getContentType())
                 .status(episode.getStatus())
                 .scheduledPublishAt(episode.getScheduledPublishAt())

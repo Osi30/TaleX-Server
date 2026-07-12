@@ -48,6 +48,9 @@ public class Episode extends BaseTimeEntity {
     @Column(columnDefinition = "TEXT")
     private String description;
 
+    @Column(name = "thumbnail", columnDefinition = "TEXT")
+    private String thumbnail;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "content_type", nullable = false, length = 30)
     private ContentType contentType;

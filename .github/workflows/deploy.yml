@@ -66,6 +66,15 @@ jobs:
             KAFKA_BOOTSTRAP_SERVERS=${{ secrets.KAFKA_BOOTSTRAP_SERVERS }}
             QUESTDB_HOST=${{ secrets.QUESTDB_HOST }}
             QUESTDB_PORT=${{ secrets.QUESTDB_PORT }}
+            SEPAY_ACCOUNT_NUMBER=${{ secrets.SEPAY_ACCOUNT_NUMBER }}
+            SEPAY_BANK_NAME=${{ secrets.SEPAY_BANK_NAME }}
+            SEPAY_WEBHOOK_API_KEY=${{ secrets.SEPAY_WEBHOOK_API_KEY }}
+            SEPAY_TRANSFER_CONTENT_PREFIX=${{ secrets.SEPAY_TRANSFER_CONTENT_PREFIX }}
+            MONGO_USERNAME=${{ secrets.MONGO_USERNAME }}
+            MONGO_PASSWORD=${{ secrets.MONGO_PASSWORD }}
+            MONGO_HOST=${{ secrets.MONGO_HOST }}
+            MONGO_APP_NAME=${{ secrets.MONGO_APP_NAME }}
+            MONGO_DATABASE=${{ secrets.MONGO_DATABASE }}
             ENVEOF
 
             sed -i 's/^[[:space:]]*//' .env

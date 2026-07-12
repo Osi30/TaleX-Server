@@ -4,6 +4,7 @@ import com.talex.server.dtos.BaseResponse;
 import com.talex.server.exceptions.codes.AuthErrorCode;
 import com.talex.server.exceptions.codes.KycSessionErrorCode;
 import com.talex.server.exceptions.codes.SubscriptionErrorCode;
+import com.talex.server.exceptions.codes.PaymentErrorCode;
 import com.talex.server.exceptions.codes.CoinErrorCode;
 import com.talex.server.exceptions.codes.CreatorTierErrorCode;
 import com.talex.server.exceptions.codes.PaymentProfileErrorCode;
@@ -123,6 +124,20 @@ public class ExceptionGlobalHandler {
     @ExceptionHandler(SubscriptionException.class)
     public ResponseEntity<BaseResponse> handleSubscriptionException(SubscriptionException ex, WebRequest request) {
         SubscriptionErrorCode errorCode = ex.getErrorCode();
+
+        BaseResponse exceptionResponse = BaseResponse.builder()
+                .message(ex.getMessage())
+                .code(errorCode.getCode())
+                .data(request.getDescription(false))
+                .build();
+
+        return new ResponseEntity<>(exceptionResponse, errorCode.getHttpStatus());
+    }
+
+    @ExceptionHandler(PaymentException.class)
+    public ResponseEntity<BaseResponse> handlePaymentException(PaymentException ex, WebRequest request) {
+        PaymentErrorCode errorCode = ex.getErrorCode();
+        log.warn("Payment error [{}]: {}", errorCode.getCode(), ex.getMessage());
 
         BaseResponse exceptionResponse = BaseResponse.builder()
                 .message(ex.getMessage())

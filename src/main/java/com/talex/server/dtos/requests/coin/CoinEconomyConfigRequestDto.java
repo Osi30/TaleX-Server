@@ -41,4 +41,9 @@ public class CoinEconomyConfigRequestDto {
     @NotNull(message = "Thưởng mốc 30 ngày không được để trống")
     @Positive(message = "Thưởng mốc 30 ngày phải lớn hơn 0")
     private BigDecimal milestone30Reward;
+
+    /** Tỷ giá quy đổi: 1 Coin tương đương bao nhiêu VNĐ. */
+    @NotNull(message = "Tỷ giá VNĐ/Coin không được để trống")
+    @Positive(message = "Tỷ giá VNĐ/Coin phải lớn hơn 0")
+    private BigDecimal vndPerCoin;
 }

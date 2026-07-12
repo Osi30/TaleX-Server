@@ -10,4 +10,5 @@ import java.util.List;
 public interface ComboEpisodeRepository extends JpaRepository<ComboEpisode, String> {
     List<ComboEpisode> findByCreatorIdAndIsDeletedFalse(String creatorId);
     List<ComboEpisode> findByIsDeletedFalse();
+    boolean existsByEpisodes_EpisodeId(String episodeId);
 }
