@@ -33,6 +33,7 @@ import com.talex.server.repositories.MediaCopyrightRepository;
 import com.talex.server.repositories.MediaRepository;
 import com.talex.server.services.ContentOwnershipService;
 import com.talex.server.services.ContentPipelineService;
+import com.talex.server.services.EpisodeEntitlementService;
 import com.talex.server.services.EpisodeService;
 import com.talex.server.services.MediaPlaybackSecurityService;
 import com.talex.server.services.MediaService;
@@ -77,6 +78,7 @@ public class MediaServiceImpl implements MediaService {
     private final MediaCopyrightRepository mediaCopyrightRepository;
     private final ContentCensorshipRepository contentCensorshipRepository;
     private final ContentOwnershipService contentOwnershipService;
+    private final EpisodeEntitlementService episodeEntitlementService;
 
     private record PreparedMediaUrl(
             String fileUrl,
@@ -200,8 +202,11 @@ public class MediaServiceImpl implements MediaService {
 
     @Transactional(readOnly = true)
     @Override
-    public List<MediaResponseDto> listPublicByEpisode(String episodeId) {
+    public List<MediaResponseDto> listPublicByEpisode(String episodeId, String viewerId) {
         episodeService.findPublicEntity(episodeId);
+        if (!episodeEntitlementService.hasPlaybackAccess(viewerId, episodeId)) {
+            throw ContentModuleException.forbidden("PLAYBACK_NOT_ENTITLED");
+        }
         return mediaRepository
                 .findAllByEpisode_EpisodeIdAndStatusInAndApprovalStatusAndIsDeletedFalseOrderByDisplayOrderAsc(
                         episodeId,

@@ -17,6 +17,7 @@ import com.talex.server.services.MediaService;
 import com.talex.server.services.MediaPlaybackSecurityService;
 import com.talex.server.services.MediaUploadSessionService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -145,12 +146,12 @@ public class MediaController {
      @PreAuthorize("isAuthenticated()")
     public ResponseEntity<BaseResponse> getCreatorEpisodePlayback(
             @PathVariable String episodeId,
-            @RequestParam(required = false) String viewerId,
+            @Parameter(hidden = true) @CurrentAccountId UUID accountId,
             HttpServletRequest request) {
         return ResponseEntity.ok(response(200, "OK",
                 mediaPlaybackSecurityService.getCreatorEpisodePlayback(
                         episodeId,
-                        viewerId,
+                        accountId == null ? null : accountId.toString(),
                         request.getRemoteAddr(),
                         request.getHeader("User-Agent"))));
     }

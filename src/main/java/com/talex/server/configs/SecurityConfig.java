@@ -50,6 +50,7 @@ public class SecurityConfig {
                                 "/api/v1/interactions/**",
                                 "/api/v1/**",
                                 "/api/v1/webhooks/**",
+                                "/api/v1/payments/sepay-webhook",
                                 "/api/v1/mongo/**",
                                 "/uploads/**",
                                 "/swagger-ui.html",

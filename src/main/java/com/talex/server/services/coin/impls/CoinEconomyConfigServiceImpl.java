@@ -66,6 +66,7 @@ public class CoinEconomyConfigServiceImpl implements ICoinEconomyConfigService {
                             .milestone7Reward(new BigDecimal("20.0000"))
                             .milestone14Reward(new BigDecimal("30.0000"))
                             .milestone30Reward(new BigDecimal("50.0000"))
+                            .vndPerCoin(new BigDecimal("100.0000"))
                             .build();
                     defaultConfig.markCreatedBy("SYSTEM");
                     return configRepository.save(defaultConfig);
@@ -99,6 +100,7 @@ public class CoinEconomyConfigServiceImpl implements ICoinEconomyConfigService {
                 .milestone7Reward(request.getMilestone7Reward())
                 .milestone14Reward(request.getMilestone14Reward())
                 .milestone30Reward(request.getMilestone30Reward())
+                .vndPerCoin(request.getVndPerCoin())
                 .build();
 
         newConfig.markCreatedBy(adminId.toString());
@@ -145,6 +147,11 @@ public class CoinEconomyConfigServiceImpl implements ICoinEconomyConfigService {
         if (base.compareTo(m7) >= 0 || m7.compareTo(m14) >= 0 || m14.compareTo(m30) >= 0) {
             throw new CoinException(CoinErrorCode.INVALID_AMOUNT,
                     "Lỗi logic cấu hình: Thưởng Cơ bản < Mốc 7 < Mốc 14 < Mốc 30");
+        }
+
+        if (request.getVndPerCoin().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new CoinException(CoinErrorCode.INVALID_AMOUNT,
+                    "Tỷ giá VNĐ/Coin phải lớn hơn 0");
         }
     }
 }

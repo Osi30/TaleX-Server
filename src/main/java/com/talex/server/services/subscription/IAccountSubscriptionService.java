@@ -5,6 +5,8 @@ import com.talex.server.dtos.BasePageResponse;
 import com.talex.server.dtos.requests.subscription.AccountSubscriptionRequestDto;
 import com.talex.server.dtos.responses.subscription.AccountSubscriptionResponseDto;
 
+import java.util.UUID;
+
 public interface IAccountSubscriptionService {
     AccountSubscriptionResponseDto createAccountSubscription(AccountSubscriptionRequestDto requestDto);
 
@@ -12,5 +14,9 @@ public interface IAccountSubscriptionService {
 
     AccountSubscriptionResponseDto getAccountSubscriptionById(String accountSubscriptionId);
 
-    void cancelAccountSubscription(String accountSubscriptionId);
+    /**
+     * @param requesterId  the caller's accountId (from JWT)
+     * @param isPrivileged true if caller has ADMIN/STAFF role — bypasses the ownership check
+     */
+    void cancelAccountSubscription(String accountSubscriptionId, UUID requesterId, boolean isPrivileged);
 }

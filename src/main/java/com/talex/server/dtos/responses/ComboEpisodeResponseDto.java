@@ -32,6 +32,7 @@ public class ComboEpisodeResponseDto {
     public static class EpisodeSummaryDto {
         private String episodeId;
         private String title;
+        private String thumbnail;
         private Integer episodeNumber;
         private Long priceVnd;
         private String seasonId;

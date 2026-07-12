@@ -4,6 +4,7 @@ import com.talex.server.annotations.CurrentAccountId;
 import com.talex.server.services.SseNotificationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -18,6 +19,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/v1/sse")
 @RequiredArgsConstructor
+@PreAuthorize("isAuthenticated()")
 public class SseController {
 
     private final SseNotificationService sseNotificationService;

@@ -21,6 +21,7 @@ public class EpisodeResponseDto {
     private Integer episodeNumber;
     private String title;
     private String description;
+    private String thumbnail;
     private ContentType contentType;
     private EpisodeStatus status;
     private LocalDateTime scheduledPublishAt;

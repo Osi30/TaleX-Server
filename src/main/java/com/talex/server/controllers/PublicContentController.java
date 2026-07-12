@@ -4,6 +4,7 @@ import com.talex.server.annotations.CurrentAccountId;
 import com.talex.server.dtos.BaseResponse;
 import com.talex.server.services.*;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -76,19 +77,22 @@ public class PublicContentController {
     }
 
     @GetMapping("/episodes/{episodeId}/media")
-    public ResponseEntity<BaseResponse> listMedia(@PathVariable String episodeId) {
-        return ResponseEntity.ok(response(200, "OK", mediaService.listPublicByEpisode(episodeId)));
+    public ResponseEntity<BaseResponse> listMedia(
+            @PathVariable String episodeId,
+            @Parameter(hidden = true) @CurrentAccountId UUID accountId) {
+        return ResponseEntity.ok(response(200, "OK",
+                mediaService.listPublicByEpisode(episodeId, accountId == null ? null : accountId.toString())));
     }
 
     @GetMapping("/episodes/{episodeId}/playback")
     public ResponseEntity<BaseResponse> getEpisodePlayback(
             @PathVariable String episodeId,
-            @RequestParam(required = false) String viewerId,
+            @Parameter(hidden = true) @CurrentAccountId UUID accountId,
             HttpServletRequest request) {
         return ResponseEntity.ok(response(200, "OK",
                 mediaPlaybackSecurityService.getEpisodePlayback(
                         episodeId,
-                        viewerId,
+                        accountId == null ? null : accountId.toString(),
                         request.getRemoteAddr(),
                         request.getHeader("User-Agent"))));
     }
