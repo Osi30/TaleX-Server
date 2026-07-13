@@ -5,6 +5,7 @@ import com.talex.server.dtos.responses.SeasonResponseDto;
 import com.talex.server.entities.series.Season;
 import com.talex.server.entities.series.Series;
 import com.talex.server.enums.series.SeasonStatus;
+import com.talex.server.enums.series.SeriesStatus;
 import com.talex.server.exceptions.details.ContentModuleException;
 import com.talex.server.repositories.series.SeasonRepository;
 import com.talex.server.services.ContentOwnershipService;
@@ -177,7 +178,10 @@ public class SeasonServiceImpl implements SeasonService {
         if (season.getStatus() != SeasonStatus.PUBLISHED && season.getStatus() != SeasonStatus.SCHEDULED) {
             throw ContentModuleException.notFound("Public season not found: " + id);
         }
-        seriesService.findPublicEntity(season.getSeries().getSeriesId());
+        Series series = season.getSeries();
+        if (series.getStatus() != SeriesStatus.PUBLISHED && series.getStatus() != SeriesStatus.SCHEDULED) {
+            throw ContentModuleException.notFound("Public series not found: " + series.getSeriesId());
+        }
         return season;
     }
 

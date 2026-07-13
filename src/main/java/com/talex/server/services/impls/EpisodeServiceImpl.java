@@ -342,7 +342,14 @@ public class EpisodeServiceImpl implements EpisodeService {
         if (episode.getStatus() != EpisodeStatus.PUBLISHED && episode.getStatus() != EpisodeStatus.SCHEDULED) {
             throw ContentModuleException.notFound("Public episode not found: " + id);
         }
-        seasonService.findPublicEntity(episode.getSeason().getSeasonId());
+        Season season = episode.getSeason();
+        if (season.getStatus() != SeasonStatus.PUBLISHED && season.getStatus() != SeasonStatus.SCHEDULED) {
+            throw ContentModuleException.notFound("Public season not found: " + season.getSeasonId());
+        }
+        Series series = season.getSeries();
+        if (series.getStatus() != SeriesStatus.PUBLISHED && series.getStatus() != SeriesStatus.SCHEDULED) {
+            throw ContentModuleException.notFound("Public series not found: " + series.getSeriesId());
+        }
         return episode;
     }
 

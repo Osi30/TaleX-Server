@@ -2,6 +2,7 @@ package com.talex.server.repositories.series;
 
 import com.talex.server.entities.series.Season;
 import com.talex.server.enums.series.SeasonStatus;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -13,6 +14,7 @@ import java.util.Optional;
 
 @Repository
 public interface SeasonRepository extends JpaRepository<Season, String> {
+    @EntityGraph(attributePaths = {"series"})
     Optional<Season> findBySeasonIdAndIsDeletedFalse(String seasonId);
 
     Optional<Season> findBySeasonIdAndCreatorIdAndIsDeletedFalse(String seasonId, String creatorId);
