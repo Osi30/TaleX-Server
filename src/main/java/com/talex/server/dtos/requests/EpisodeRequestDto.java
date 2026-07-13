@@ -2,7 +2,6 @@ package com.talex.server.dtos.requests;
 
 import com.talex.server.enums.series.ContentType;
 import com.talex.server.enums.series.EpisodeStatus;
-import com.talex.server.enums.series.EpisodeUnlockType;
 import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -24,10 +23,6 @@ public class EpisodeRequestDto {
     private ContentType contentType;
 
     private EpisodeStatus status;
-
-    private EpisodeUnlockType unlockType;
-
-    private Long priceVnd;
 
     private Integer totalPage;
 
