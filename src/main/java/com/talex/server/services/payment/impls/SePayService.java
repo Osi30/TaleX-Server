@@ -97,10 +97,11 @@ public class SePayService implements ISePayService {
                     order.getOrderId(), sePayProperties.getAccountNumber(), payload.getAccountNumber());
             return;
         }
+        BigDecimal amountDue = order.getFiatAmount() != null ? order.getFiatAmount() : order.getTotalAmount();
         if (payload.getTransferAmount() == null
-                || payload.getTransferAmount().compareTo(order.getTotalAmount()) < 0) {
+                || payload.getTransferAmount().compareTo(amountDue) < 0) {
             log.warn("SePay webhook: amount short for order {} (expected>={}, got={})",
-                    order.getOrderId(), order.getTotalAmount(), payload.getTransferAmount());
+                    order.getOrderId(), amountDue, payload.getTransferAmount());
             return;
         }
 

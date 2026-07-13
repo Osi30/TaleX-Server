@@ -66,7 +66,7 @@ public class CoinEconomyConfigServiceImpl implements ICoinEconomyConfigService {
                             .milestone7Reward(new BigDecimal("20.0000"))
                             .milestone14Reward(new BigDecimal("30.0000"))
                             .milestone30Reward(new BigDecimal("50.0000"))
-                            .vndPerCoin(new BigDecimal("100.0000"))
+                            .vndPerCoin(new BigDecimal("1.0000"))
                             .build();
                     defaultConfig.markCreatedBy("SYSTEM");
                     return configRepository.save(defaultConfig);
