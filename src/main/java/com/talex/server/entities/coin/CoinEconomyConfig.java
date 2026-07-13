@@ -34,6 +34,6 @@ public class CoinEconomyConfig extends BaseAudit {
     private BigDecimal milestone30Reward;
 
     @Column(name = "vnd_per_coin", nullable = false, precision = 19, scale = 4,
-            columnDefinition = "numeric(19,4) default 100.0000")
+            columnDefinition = "numeric(19,4) default 1.0000")
     private BigDecimal vndPerCoin;
 }

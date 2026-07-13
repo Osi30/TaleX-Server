@@ -34,7 +34,6 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 @Service
@@ -113,42 +112,59 @@ public class OrderService implements IOrderService {
                         .itemId(request.getItemId())
                         .totalAmount(price)
                         .fiatAmount(price)
-                        .build(),
-                newOrder -> applyCoinPayment(accountId, newOrder, price, coinAmountToUse));
+                        .build());
+
+        // Tính lại theo CHÊNH LỆCH mỗi lần gọi (kể cả khi reuse order cũ) để slider Coin ở FE
+        // luôn phản ánh đúng vào đơn — không trừ chồng vì chỉ debit/credit đúng phần thay đổi.
+        if (order.getStatus() == OrderStatus.AWAITING_PAYMENT) {
+            reconcileCoinPayment(accountId, order, coinAmountToUse);
+        }
 
         return toResponseDto(order);
     }
 
     /**
-     * Trừ Coin vào đơn hàng vừa tạo (chỉ chạy trên nhánh order MỚI, không bao giờ chạy khi
-     * reuse order đang AWAITING_PAYMENT — tránh trừ Coin 2 lần khi client gọi lại API tạo đơn).
-     * Nếu Coin đủ trả hết đơn: hoàn tất đơn ngay (COMPLETED, không cần QR SePay).
+     * Đưa số Coin áp dụng cho đơn hàng về đúng {@code coinAmountToUse} yêu cầu, bất kể đơn
+     * là mới tạo hay đang reuse — chỉ debit/credit đúng phần CHÊNH LỆCH so với số Coin đã áp
+     * trước đó cho chính đơn này, tránh trừ chồng khi client gọi lại API nhiều lần.
+     * Không tự động hoàn tất đơn kể cả khi Coin đã đủ trả hết — user phải bấm xác nhận
+     * riêng qua {@link #confirmCoinPayment(String, UUID)}.
      */
-    private void applyCoinPayment(UUID accountId, Order order, BigDecimal totalAmount, long coinAmountToUse) {
-        if (coinAmountToUse <= 0) {
+    private void reconcileCoinPayment(UUID accountId, Order order, long coinAmountToUse) {
+        BigDecimal totalAmount = order.getTotalAmount();
+        BigDecimal currentCoinApplied = BigDecimal.valueOf(
+                order.getCoinAmount() != null ? order.getCoinAmount() : 0L);
+        BigDecimal requestedCoin = BigDecimal.valueOf(Math.max(0, coinAmountToUse));
+
+        // Coin có thể dùng = số dư hiện tại + số đã trừ cho chính đơn này (có thể hoàn lại)
+        BigDecimal availableCoin = coinWalletService.getMyWallet(accountId).getBalance().add(currentCoinApplied);
+        BigDecimal cappedRequestedCoin = requestedCoin.min(availableCoin);
+
+        BigDecimal coinVndValue = coinPricingConverter.coinToVnd(cappedRequestedCoin).min(totalAmount);
+        BigDecimal targetCoinToSpend = coinPricingConverter.vndToCoin(coinVndValue).min(cappedRequestedCoin);
+
+        int comparison = targetCoinToSpend.compareTo(currentCoinApplied);
+        if (comparison == 0) {
             return;
+        } else if (comparison > 0) {
+            BigDecimal delta = targetCoinToSpend.subtract(currentCoinApplied);
+            coinWalletService.debitCoin(accountId, delta, CoinReferenceType.ORDER, order.getOrderId(),
+                    "Thanh toán đơn hàng " + order.getPaymentCode());
+        } else {
+            BigDecimal delta = currentCoinApplied.subtract(targetCoinToSpend);
+            coinWalletService.creditCoin(accountId, delta, CoinReferenceType.ORDER, order.getOrderId(),
+                    "Hoàn Coin do điều chỉnh đơn hàng " + order.getPaymentCode());
         }
-
-        BigDecimal requestedCoin = BigDecimal.valueOf(coinAmountToUse);
-        BigDecimal walletBalance = coinWalletService.getMyWallet(accountId).getBalance();
-        if (requestedCoin.compareTo(walletBalance) > 0) {
-            throw new CoinException(CoinErrorCode.INSUFFICIENT_BALANCE);
-        }
-
-        BigDecimal coinVndValue = coinPricingConverter.coinToVnd(requestedCoin).min(totalAmount);
-        BigDecimal coinToSpend = coinPricingConverter.vndToCoin(coinVndValue).min(requestedCoin);
-
-        coinWalletService.debitCoin(accountId, coinToSpend, CoinReferenceType.ORDER, order.getOrderId(),
-                "Thanh toán đơn hàng " + order.getPaymentCode());
 
         BigDecimal fiatAmount = totalAmount.subtract(coinVndValue).max(BigDecimal.ZERO);
-        order.setCoinAmount(coinToSpend.longValueExact());
+        order.setCoinAmount(targetCoinToSpend.longValueExact());
         order.setFiatAmount(fiatAmount);
         orderRepository.save(order);
 
-        if (fiatAmount.compareTo(BigDecimal.ZERO) == 0) {
-            orderCompletionService.complete(order, totalAmount, PaymentMethod.COIN);
-        }
+        // KHÔNG tự động hoàn tất đơn dù Coin đã đủ trả hết — chỉ trừ/hoàn Coin theo lựa chọn
+        // hiện tại của user. Việc hoàn tất đơn cần user bấm nút "Thanh toán" xác nhận riêng
+        // (xem confirmCoinPayment), tránh trường hợp chỉ kéo thanh trượt đã bị trừ tiền/hoàn
+        // tất đơn ngoài ý muốn.
     }
 
     @Override
@@ -159,19 +175,60 @@ public class OrderService implements IOrderService {
         return toResponseDto(order);
     }
 
-    private Order resolveActiveOrCreateNew(UUID accountId, String itemType, String itemId, Supplier<Order> factory) {
-        return resolveActiveOrCreateNew(accountId, itemType, itemId, factory, order -> { });
+    @Override
+    @Transactional
+    public OrderResponseDto cancelOrder(String orderId, UUID accountId) {
+        Order order = orderRepository.findByOrderIdAndAccountId(orderId, accountId)
+                .orElseThrow(() -> new PaymentException(PaymentErrorCode.ORDER_NOT_FOUND));
+
+        if (order.getStatus() != OrderStatus.AWAITING_PAYMENT) {
+            throw new PaymentException(PaymentErrorCode.ORDER_NOT_CANCELLABLE);
+        }
+
+        if (order.getCoinAmount() != null && order.getCoinAmount() > 0) {
+            coinWalletService.creditCoin(accountId, BigDecimal.valueOf(order.getCoinAmount()),
+                    CoinReferenceType.ORDER, order.getOrderId(),
+                    "Hoàn Coin do hủy đơn hàng " + order.getPaymentCode());
+        }
+
+        order.setStatus(OrderStatus.CANCELLED);
+        orderRepository.save(order);
+
+        return toResponseDto(order);
     }
 
-    private Order resolveActiveOrCreateNew(UUID accountId, String itemType, String itemId,
-                                            Supplier<Order> factory, Consumer<Order> afterCreate) {
+    /**
+     * Xác nhận thanh toán hoàn toàn bằng Coin — yêu cầu user bấm nút "Thanh toán" rõ ràng,
+     * chỉ hoàn tất khi Coin đã áp đủ trả hết đơn (fiatAmount = 0). Không tự động chạy khi
+     * user chỉ kéo thanh trượt Coin.
+     */
+    @Override
+    @Transactional
+    public OrderResponseDto confirmCoinPayment(String orderId, UUID accountId) {
+        Order order = orderRepository.findByOrderIdAndAccountId(orderId, accountId)
+                .orElseThrow(() -> new PaymentException(PaymentErrorCode.ORDER_NOT_FOUND));
+
+        if (order.getStatus() != OrderStatus.AWAITING_PAYMENT) {
+            throw new PaymentException(PaymentErrorCode.ORDER_NOT_CANCELLABLE);
+        }
+
+        if (order.getFiatAmount() == null || order.getFiatAmount().compareTo(BigDecimal.ZERO) != 0) {
+            throw new PaymentException(PaymentErrorCode.ORDER_NOT_FULLY_COVERED_BY_COIN);
+        }
+
+        orderCompletionService.complete(order, order.getTotalAmount(), PaymentMethod.COIN);
+
+        return toResponseDto(order);
+    }
+
+    private Order resolveActiveOrCreateNew(UUID accountId, String itemType, String itemId, Supplier<Order> factory) {
         Optional<Order> activeOrder = orderRepository
                 .findFirstByAccount_AccountIdAndItemTypeAndItemIdAndStatusOrderByCreatedAtDesc(
                         accountId, itemType, itemId, OrderStatus.AWAITING_PAYMENT);
 
         return activeOrder.isPresent()
                 ? reuseOrBlockActiveOrder(activeOrder.get())
-                : createNewOrder(factory, afterCreate);
+                : createNewOrder(factory);
     }
 
     private Order reuseOrBlockActiveOrder(Order order) {
@@ -188,18 +245,14 @@ public class OrderService implements IOrderService {
         return order;
     }
 
-    private Order createNewOrder(Supplier<Order> factory, Consumer<Order> afterCreate) {
+    private Order createNewOrder(Supplier<Order> factory) {
         LocalDateTime now = LocalDateTime.now();
         Order order = factory.get();
         order.setPaymentCode(generatePaymentCode());
         order.setCoinAmount(0L);
         order.setStatus(OrderStatus.AWAITING_PAYMENT);
         order.setExpiresAt(now.plusMinutes(sePayProperties.getOrderExpiryMinutes()));
-        order = orderRepository.save(order);
-
-        afterCreate.accept(order);
-
-        return order;
+        return orderRepository.save(order);
     }
 
     private String generatePaymentCode() {
