@@ -3,6 +3,7 @@ package com.talex.server.controllers;
 import com.talex.server.annotations.CurrentAccountId;
 import com.talex.server.dtos.BaseResponse;
 import com.talex.server.dtos.requests.EpisodeRequestDto;
+import com.talex.server.dtos.requests.EpisodeUnlockSettingsRequestDto;
 import com.talex.server.dtos.requests.ScheduledPublishRequestDto;
 import com.talex.server.services.EpisodeService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -62,6 +63,17 @@ public class EpisodeController {
             @CurrentAccountId UUID accountId) {
         return ResponseEntity.ok(response(200, "Episode updated",
                 episodeService.update(id, request, accountId.toString())));
+    }
+
+    @PreAuthorize("isAuthenticated()")
+    @PatchMapping("/api/v1/episodes/{id}/unlock-settings")
+    @Operation(summary = "Update episode unlock settings", description = "Only accounts with role_id = 2 (CREATOR) can update unlockType and priceVnd.")
+    public ResponseEntity<BaseResponse> updateUnlockSettings(
+            @PathVariable String id,
+            @Valid @RequestBody EpisodeUnlockSettingsRequestDto request,
+            @CurrentAccountId UUID accountId) {
+        return ResponseEntity.ok(response(200, "Episode unlock settings updated",
+                episodeService.updateUnlockSettings(id, request, accountId.toString())));
     }
 
      @PreAuthorize("isAuthenticated()")

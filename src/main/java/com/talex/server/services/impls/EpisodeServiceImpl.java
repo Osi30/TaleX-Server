@@ -1,7 +1,9 @@
 package com.talex.server.services.impls;
 
 import com.talex.server.dtos.requests.EpisodeRequestDto;
+import com.talex.server.dtos.requests.EpisodeUnlockSettingsRequestDto;
 import com.talex.server.dtos.responses.EpisodeResponseDto;
+import com.talex.server.entities.Account;
 import com.talex.server.entities.series.Episode;
 import com.talex.server.entities.series.Season;
 import com.talex.server.entities.series.Series;
@@ -9,6 +11,7 @@ import com.talex.server.enums.media.MediaStatus;
 import com.talex.server.enums.media.MediaType;
 import com.talex.server.enums.series.*;
 import com.talex.server.exceptions.details.ContentModuleException;
+import com.talex.server.repositories.AccountRepository;
 import com.talex.server.repositories.MediaRepository;
 import com.talex.server.repositories.series.EpisodeRepository;
 import com.talex.server.services.ContentOwnershipService;
@@ -22,12 +25,16 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
 public class EpisodeServiceImpl implements EpisodeService {
+    private static final long CREATOR_ROLE_ID = 2L;
+
     private final EpisodeRepository episodeRepository;
     private final MediaRepository mediaRepository;
+    private final AccountRepository accountRepository;
     private final SeasonService seasonService;
     private final ContentOwnershipService contentOwnershipService;
     private final ContentAuditLogger contentAuditLogger;
@@ -55,7 +62,7 @@ public class EpisodeServiceImpl implements EpisodeService {
         episode.setStatus(EpisodeStatus.DRAFT);
         episode.setScheduledPublishAt(null);
         episode.setTotalPage(request.getTotalPage());
-        applyUnlockSettings(episode, request);
+        applyFreeUnlockSettings(episode);
         episodeRepository.save(episode);
         contentAuditLogger.logAction("Episode", episode.getEpisodeId(), "CREATE", accountId, episode.getCreatorId());
         return toResponse(episode);
@@ -132,9 +139,19 @@ public class EpisodeServiceImpl implements EpisodeService {
             episode.setStatus(request.getStatus());
         }
         episode.setTotalPage(request.getTotalPage());
-        applyUnlockSettings(episode, request);
         episodeRepository.save(episode);
         contentAuditLogger.logAction("Episode", episode.getEpisodeId(), "UPDATE", accountId, episode.getCreatorId());
+        return toResponse(episode);
+    }
+
+    @Transactional
+    @Override
+    public EpisodeResponseDto updateUnlockSettings(String id, EpisodeUnlockSettingsRequestDto request, String accountId) {
+        Episode episode = findManageableEntity(id, accountId);
+        ensureAccountHasCreatorRole(accountId);
+        applyUnlockSettings(episode, request);
+        episodeRepository.save(episode);
+        contentAuditLogger.logAction("Episode", episode.getEpisodeId(), "UPDATE_UNLOCK_SETTINGS", accountId, episode.getCreatorId());
         return toResponse(episode);
     }
 
@@ -491,17 +508,17 @@ public class EpisodeServiceImpl implements EpisodeService {
         }
     }
 
-    private void applyUnlockSettings(Episode episode, EpisodeRequestDto request) {
-        EpisodeUnlockType unlockType = request.getUnlockType() != null
-                ? request.getUnlockType()
-                : episode.getUnlockType();
-        Long priceVnd = request.getPriceVnd() != null
-                ? request.getPriceVnd()
-                : episode.getPriceVnd();
+    private void applyFreeUnlockSettings(Episode episode) {
+        episode.setUnlockType(EpisodeUnlockType.FREE);
+        episode.setPriceVnd(0L);
+    }
+
+    private void applyUnlockSettings(Episode episode, EpisodeUnlockSettingsRequestDto request) {
+        EpisodeUnlockType unlockType = request.getUnlockType();
+        Long priceVnd = request.getPriceVnd();
 
         if (unlockType == EpisodeUnlockType.FREE) {
-            episode.setUnlockType(EpisodeUnlockType.FREE);
-            episode.setPriceVnd(0L);
+            applyFreeUnlockSettings(episode);
             return;
         }
 
@@ -510,6 +527,16 @@ public class EpisodeServiceImpl implements EpisodeService {
         }
         episode.setUnlockType(EpisodeUnlockType.PAID);
         episode.setPriceVnd(priceVnd);
+    }
+
+    private void ensureAccountHasCreatorRole(String accountId) {
+        Account account = accountRepository.findById(UUID.fromString(accountId))
+                .orElseThrow(() -> ContentModuleException.forbidden("Only creator accounts can update episode price settings"));
+
+        if (account.getRole() == null
+                || !Long.valueOf(CREATOR_ROLE_ID).equals(account.getRole().getRoleId())) {
+            throw ContentModuleException.forbidden("Only creator accounts can update episode price settings");
+        }
     }
 
     private void ensureScheduledPublishAt(LocalDateTime scheduledPublishAt) {
