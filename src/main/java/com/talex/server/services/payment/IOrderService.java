@@ -15,4 +15,8 @@ public interface IOrderService {
     OrderResponseDto createContentOrder(UUID accountId, CreateContentOrderRequestDto request);
 
     OrderResponseDto getOrder(String orderId, UUID accountId);
+
+    OrderResponseDto cancelOrder(String orderId, UUID accountId);
+
+    OrderResponseDto confirmCoinPayment(String orderId, UUID accountId);
 }

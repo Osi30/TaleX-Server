@@ -1,6 +1,7 @@
 package com.talex.server.services.interaction.impls;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.talex.server.dtos.interaction.request.ShareRequest;
 import com.talex.server.exceptions.codes.InteractionErrorCode;
 import com.talex.server.exceptions.details.InteractionException;
 import com.talex.server.services.interaction.IAccountShareService;
@@ -12,7 +13,6 @@ import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.util.Map;
-import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -23,20 +23,21 @@ public class AccountShareService implements IAccountShareService {
 
     @Async("interactionExecutor")
     @Override
-    public void shareEpisode(UUID accountId, String episodeId) {
+    public void shareEpisode(ShareRequest shareRequest) {
         try {
-            if (ValidationUtils.isNullOrEmpty(episodeId)) {
+            if (ValidationUtils.isNullOrEmpty(shareRequest.getEpisodeId())) {
                 throw new InteractionException(InteractionErrorCode.SAVING_DATABASE_ERROR, "Tập phim không để trống!");
             }
 
             Map<String, Object> shareEvent = Map.of(
-                    "account_id", accountId.toString(),
-                    "episode_id", episodeId,
+                    "account_id", shareRequest.getAccountId() == null ? "" : shareRequest.getAccountId().toString(),
+                    "episode_id", shareRequest.getEpisodeId(),
+                    "ip_address", shareRequest.getIpAddress(),
                     "timestamp", Instant.now().toEpochMilli()
             );
 
             String messagePayload = objectMapper.writeValueAsString(shareEvent);
-            kafkaTemplate.send(SHARE_TOPIC, episodeId, messagePayload);
+            kafkaTemplate.send(SHARE_TOPIC, shareRequest.getEpisodeId(), messagePayload);
 
         } catch (Exception e) {
             throw new InteractionException(

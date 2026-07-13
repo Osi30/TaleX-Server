@@ -57,6 +57,15 @@ public class Series extends BaseTimeEntity {
     @Column(length = 20)
     private String language;
 
+    @Column(name = "total_rating", nullable = false, columnDefinition = "float8 default 0.0")
+    private Double totalRating = 0D;
+
+    @Column(name = "rating_count", nullable = false, columnDefinition = "bigint default 0")
+    private Long ratingCount = 0L;
+
+    @Column(name = "average_rating", nullable = false, columnDefinition = "float8 default 0.0")
+    private Double averageRating = 0.0;
+
     @Embedded
     private AnalyticData analyticData = new AnalyticData();
 

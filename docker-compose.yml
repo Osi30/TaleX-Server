@@ -22,8 +22,14 @@ services:
         export KAFKA_ACCESS_CERTB64=$$(printf '%b' "$$KAFKA_ACCESS_CERTB64")
         export KAFKA_ACCESS_KEYB64=$$(printf '%b' "$$KAFKA_ACCESS_KEYB64")
         exec java -jar app.jar
+    # Give Spring Kafka consumers time to send a clean LeaveGroup on shutdown,
+    # otherwise a fast restart leaves a zombie member on the broker until
+    # session.timeout.ms expires.
+    stop_grace_period: 30s
     depends_on:
       db:
+        condition: service_healthy
+      questdb:
         condition: service_healthy
 
   db:
@@ -54,6 +60,12 @@ services:
       - QDB_PG_PASSWORD=quest
     volumes:
       - questdb-data:/var/lib/questdb
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/127.0.0.1/8812'"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
 
 
 

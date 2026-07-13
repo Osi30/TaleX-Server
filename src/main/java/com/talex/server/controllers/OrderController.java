@@ -46,7 +46,8 @@ public class OrderController {
     @Operation(summary = "Tạo đơn hàng đẩy tương tác", description = "Tạo đơn hàng mua gói dịch vụ tương tác (Campaign) cho các tập phim/truyện đã chọn và sinh mã QR SePay.")
     public ResponseEntity<BaseResponse> createEngagementOrder(
             @Valid @RequestBody CreateEngagementOrderRequestDto request,
-            @CurrentAccountId UUID accountId) {
+            @CurrentAccountId UUID accountId
+    ) {
         OrderResponseDto response = orderService.createEngagementOrder(accountId, request);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(BaseResponse.builder()
@@ -81,6 +82,35 @@ public class OrderController {
         return ResponseEntity.ok(BaseResponse.builder()
                 .code(200)
                 .message("OK")
+                .data(response)
+                .build());
+    }
+
+    @PostMapping("/{orderId}/cancel")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Hủy đơn hàng", description = "Hủy đơn hàng đang chờ thanh toán, hoàn lại Coin đã trừ (nếu có).")
+    public ResponseEntity<BaseResponse> cancel(
+            @PathVariable String orderId,
+            @CurrentAccountId UUID accountId) {
+        OrderResponseDto response = orderService.cancelOrder(orderId, accountId);
+        return ResponseEntity.ok(BaseResponse.builder()
+                .code(200)
+                .message("Order cancelled")
+                .data(response)
+                .build());
+    }
+
+    @PostMapping("/{orderId}/confirm-coin-payment")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Xác nhận thanh toán bằng Coin",
+            description = "Hoàn tất đơn hàng khi Coin đã áp đủ trả hết (fiatAmount = 0). Yêu cầu user bấm xác nhận, không tự động.")
+    public ResponseEntity<BaseResponse> confirmCoinPayment(
+            @PathVariable String orderId,
+            @CurrentAccountId UUID accountId) {
+        OrderResponseDto response = orderService.confirmCoinPayment(orderId, accountId);
+        return ResponseEntity.ok(BaseResponse.builder()
+                .code(200)
+                .message("Order completed via Coin")
                 .data(response)
                 .build());
     }

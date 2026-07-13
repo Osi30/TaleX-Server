@@ -21,7 +21,7 @@ public class ContentPipelineWorker {
     private final ContentPipelineService pipelineService;
     private final ObjectMapper objectMapper;
 
-    @KafkaListener(topics = "content-copyright-result", groupId = "content-pipeline-copyright-group")
+    @KafkaListener(topics = "content-copyright-result", groupId = "content-pipeline-copyright-group1")
     public void consumeCopyrightResult(String message) {
         try {
             CopyrightResultMessage result = objectMapper.readValue(message, CopyrightResultMessage.class);
@@ -32,7 +32,7 @@ public class ContentPipelineWorker {
         }
     }
 
-    @KafkaListener(topics = "content-moderation-result", groupId = "content-pipeline-moderation-group")
+    @KafkaListener(topics = "content-moderation-result", groupId = "content-pipeline-moderation-group1")
     public void consumeModerationResult(String message) {
         try {
             ModerationResultMessage result = objectMapper.readValue(message, ModerationResultMessage.class);

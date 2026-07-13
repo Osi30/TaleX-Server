@@ -1,7 +1,7 @@
 package com.talex.server.services.interaction;
 
-import java.util.UUID;
+import com.talex.server.dtos.interaction.request.ShareRequest;
 
 public interface IAccountShareService {
-    void shareEpisode(UUID accountId, String episodeId);
+    void shareEpisode(ShareRequest shareRequest);
 }
