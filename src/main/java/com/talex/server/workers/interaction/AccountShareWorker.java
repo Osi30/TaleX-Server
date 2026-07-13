@@ -6,6 +6,7 @@ import com.talex.server.dtos.interaction.EpisodeHourKey;
 import com.talex.server.exceptions.codes.InteractionErrorCode;
 import com.talex.server.exceptions.details.InteractionException;
 import com.talex.server.repositories.interaction.aggregation.ShareAggregationRepository;
+import com.talex.server.services.EpisodeService;
 import io.questdb.client.Sender;
 import lombok.RequiredArgsConstructor;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -25,11 +26,12 @@ import java.util.Map;
 public class AccountShareWorker {
     private final Sender questDBSender;
     private final ObjectMapper objectMapper;
+    private final EpisodeService episodeService;
     private final ShareAggregationRepository shareAggregationRepository;
 
     @KafkaListener(
             topics = "talex-interaction.episode-shared",
-            groupId = "talex-share-questdb-group",
+            groupId = "talex-share-questdb-group-local",
             containerFactory = "batchFactory"
     )
     public void processSharesForQuestDB(List<String> messages) {
@@ -41,6 +43,7 @@ public class AccountShareWorker {
 
                 String episodeId = eventNode.get("episode_id").asText();
                 String accountId = eventNode.get("account_id").asText();
+                String ipAddress = eventNode.get("ip_address").asText();
                 long tsMs = eventNode.get("timestamp").asLong();
 
                 // Bọc thời gian bằng thực thể Instant gửi trực tiếp qua QuestDB
@@ -49,7 +52,8 @@ public class AccountShareWorker {
                 questDBSender.table("share_logs")
                         .symbol("episode_id", episodeId)
                         .symbol("account_id", accountId)
-                        .longColumn("delta", 1L) // Mặc định luôn là tăng 1 đơn vị
+                        .symbol("ip_address", ipAddress)
+                        .longColumn("delta", 1L)
                         .at(instantTimestamp);
             }
             questDBSender.flush();
@@ -60,7 +64,7 @@ public class AccountShareWorker {
 
     @KafkaListener(
             topics = "talex-interaction.episode-shared",
-            groupId = "talex-share-postgres-group",
+            groupId = "talex-share-postgres-group-local",
             containerFactory = "batchFactory"
     )
     @Transactional
@@ -82,33 +86,34 @@ public class AccountShareWorker {
                 episodeDeltaMap.put(episodeId, episodeDeltaMap.getOrDefault(episodeId, 0L) + delta);
 
                 // 2. Gom nhóm tổng số lượng tăng thêm theo mốc giờ (Hour Bucket)
-                LocalDateTime hourBucket = LocalDateTime.ofInstant(Instant.ofEpochMilli(tsMs), ZoneId.of("UTC"))
+                LocalDateTime hourBucket = LocalDateTime.ofInstant(Instant.ofEpochMilli(tsMs), ZoneId.systemDefault())
                         .truncatedTo(ChronoUnit.HOURS);
 
                 EpisodeHourKey hourKey = new EpisodeHourKey(episodeId, hourBucket);
                 logDeltaMap.put(hourKey, logDeltaMap.getOrDefault(hourKey, 0L) + delta);
             }
 
-            // --- THỰC THI GHI BATCH DỮ LIỆU TỔNG HỢP XUỐNG POSTGRESQL ---
-
             // Cập nhật các bảng tổng số lượng lũy kế tổng thể
             episodeDeltaMap.forEach((episodeId, totalDelta) -> {
                 if (totalDelta > 0) {
+                    String seriesId = episodeService.getSeriesIdByEpisodeId(episodeId);
                     shareAggregationRepository.updateEpisodeShareCount(episodeId, totalDelta);
-                    shareAggregationRepository.updateSeriesShareCountByEpisode(episodeId, totalDelta);
-                    shareAggregationRepository.updateCampaignEpisodeShareCount(episodeId, totalDelta);
-                    shareAggregationRepository.updateCampaignShareCountAndTarget(episodeId, totalDelta);
-                    shareAggregationRepository.updateCreatorShareCount(episodeId, totalDelta);
+                    shareAggregationRepository.updateSeriesShareCount(seriesId, totalDelta);
+                    shareAggregationRepository.updateCampaignSeriesShareCount(seriesId, totalDelta);
+                    shareAggregationRepository.updateCampaignShareCountAndTarget(seriesId, totalDelta);
+                    shareAggregationRepository.updateCreatorShareCount(seriesId, totalDelta);
                 }
             });
 
             // Cập nhật dữ liệu Log giờ giấc bằng cấu trúc Native SQL Upsert an toàn (tránh NULL)
             logDeltaMap.forEach((key, totalDelta) -> {
                 if (totalDelta > 0) {
+                    String seriesId = episodeService.getSeriesIdByEpisodeId(key.getEpisodeId());
                     shareAggregationRepository.upsertEpisodeLog(key.getEpisodeId(), key.getHourBucket(), totalDelta);
-                    shareAggregationRepository.upsertSeriesLog(key.getEpisodeId(), key.getHourBucket(), totalDelta);
-                    shareAggregationRepository.upsertCampaignEpisodeLog(key.getEpisodeId(), key.getHourBucket(), totalDelta);
-                    shareAggregationRepository.upsertCampaignLog(key.getEpisodeId(), key.getHourBucket(), totalDelta);
+                    shareAggregationRepository.upsertSeriesLog(seriesId, key.getHourBucket(), totalDelta);
+                    shareAggregationRepository.upsertCampaignSeriesLog(seriesId, key.getHourBucket(), totalDelta);
+                    shareAggregationRepository.upsertCampaignLog(seriesId, key.getHourBucket(), totalDelta);
+                    shareAggregationRepository.upsertCreatorLog(seriesId, key.getHourBucket(), totalDelta);
                 }
             });
 

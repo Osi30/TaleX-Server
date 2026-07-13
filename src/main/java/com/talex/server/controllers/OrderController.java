@@ -46,7 +46,8 @@ public class OrderController {
     @Operation(summary = "Tạo đơn hàng đẩy tương tác", description = "Tạo đơn hàng mua gói dịch vụ tương tác (Campaign) cho các tập phim/truyện đã chọn và sinh mã QR SePay.")
     public ResponseEntity<BaseResponse> createEngagementOrder(
             @Valid @RequestBody CreateEngagementOrderRequestDto request,
-            @CurrentAccountId UUID accountId) {
+            @CurrentAccountId UUID accountId
+    ) {
         OrderResponseDto response = orderService.createEngagementOrder(accountId, request);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(BaseResponse.builder()

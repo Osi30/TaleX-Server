@@ -29,21 +29,21 @@ public class EngagementOrderFulfillmentService implements IOrderFulfillmentServi
 
     @Override
     public void fulfill(Order order) {
-        List<String> episodeIds = deserializeEpisodeIds(order.getMetadata());
+        List<String> seriesIds = deserializeSeriesIds(order.getMetadata());
 
         CampaignRequestDto campaignRequest = CampaignRequestDto.builder()
                 .accountId(order.getAccount().getAccountId())
                 .orderId(order.getOrderId())
                 .engagementServiceId(order.getItemId())
-                .episodeIds(episodeIds)
+                .seriesIds(seriesIds)
                 .build();
 
         campaignService.createCampaign(campaignRequest);
     }
 
-    private List<String> deserializeEpisodeIds(String metadata) {
+    private List<String> deserializeSeriesIds(String metadata) {
         if (metadata == null || metadata.isBlank()) {
-            throw new IllegalStateException("Order metadata missing episodeIds for engagement fulfillment");
+            throw new IllegalStateException("Order metadata missing seriesIds for engagement fulfillment");
         }
         try {
             return objectMapper.readValue(metadata, new TypeReference<List<String>>() {

@@ -3,12 +3,12 @@ package com.talex.server.services.payment.impls;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.talex.server.entities.campaign.EngagementService;
-import com.talex.server.enums.series.EpisodeStatus;
+import com.talex.server.enums.series.SeriesStatus;
 import com.talex.server.exceptions.codes.EngagementErrorCode;
 import com.talex.server.exceptions.codes.PaymentErrorCode;
 import com.talex.server.exceptions.details.EngagementServiceException;
 import com.talex.server.exceptions.details.PaymentException;
-import com.talex.server.repositories.series.EpisodeRepository;
+import com.talex.server.repositories.series.SeriesRepository;
 import com.talex.server.services.campaign.IEngagementServiceService;
 import com.talex.server.services.creator.ICreatorService;
 import lombok.RequiredArgsConstructor;
@@ -25,7 +25,7 @@ public class EngagementOrderPreparationService {
 
     private final IEngagementServiceService engagementServiceService;
     private final ICreatorService creatorService;
-    private final EpisodeRepository episodeRepository;
+    private final SeriesRepository seriesRepository;
     private final ObjectMapper objectMapper;
 
     public EngagementService fetchActiveEngagementService(String engagementServiceId) {
@@ -37,22 +37,22 @@ public class EngagementOrderPreparationService {
         return engagementService;
     }
 
-    public void validateOwnedPublishedEpisodes(UUID accountId, List<String> episodeIds) {
+    public void validateOwnedPublishedSeries(UUID accountId, List<String> seriesIds) {
         String creatorId = creatorService.getIdByAccountId(accountId);
-        Set<String> uniqueEpisodeIds = new HashSet<>(episodeIds);
-        long validCount = episodeRepository.countByEpisodeIdInAndStatusAndIsDeletedFalseAndCreatorId(
-                uniqueEpisodeIds, EpisodeStatus.PUBLISHED, creatorId);
-        if (validCount != uniqueEpisodeIds.size()) {
+        Set<String> uniqueSeriesIds = new HashSet<>(seriesIds);
+        long validCount = seriesRepository.countBySeriesIdInAndStatusAndIsDeletedFalseAndCreator_CreatorId(
+                uniqueSeriesIds, SeriesStatus.PUBLISHED, creatorId);
+        if (validCount != uniqueSeriesIds.size()) {
             throw new PaymentException(PaymentErrorCode.ORDER_NOT_OWNED,
                     "Có tập phim không hợp lệ, chưa xuất bản hoặc không thuộc về bạn");
         }
     }
 
-    public String serializeEpisodeIds(List<String> episodeIds) {
+    public String serializeSeriesIds(List<String> seriesIds) {
         try {
-            return objectMapper.writeValueAsString(episodeIds);
+            return objectMapper.writeValueAsString(seriesIds);
         } catch (JsonProcessingException exception) {
-            throw new IllegalStateException("Failed to serialize episodeIds for order metadata", exception);
+            throw new IllegalStateException("Failed to serialize seriesIds for order metadata", exception);
         }
     }
 }

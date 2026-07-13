@@ -18,5 +18,5 @@ public class CreateEngagementOrderRequestDto {
     private String engagementServiceId;
 
     @NotEmpty
-    private List<String> episodeIds;
+    private List<String> seriesIds;
 }

@@ -79,11 +79,11 @@ public class OrderService implements IOrderService {
         Account account = fetchAccount(accountId);
         EngagementService engagementService =
                 engagementOrderPreparationService.fetchActiveEngagementService(request.getEngagementServiceId());
-        engagementOrderPreparationService.validateOwnedPublishedEpisodes(accountId, request.getEpisodeIds());
+        engagementOrderPreparationService.validateOwnedPublishedSeries(accountId, request.getSeriesIds());
 
         BigDecimal totalAmount = BigDecimal.valueOf(
                 engagementService.getPrice() != null ? engagementService.getPrice() : 0L);
-        String metadata = engagementOrderPreparationService.serializeEpisodeIds(request.getEpisodeIds());
+        String metadata = engagementOrderPreparationService.serializeSeriesIds(request.getSeriesIds());
 
         Order order = resolveActiveOrCreateNew(accountId, ITEM_TYPE_ENGAGEMENT, engagementService.getEngagementServiceId(),
                 () -> Order.builder()
