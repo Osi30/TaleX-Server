@@ -98,9 +98,9 @@ public class EpisodeServiceImpl implements EpisodeService {
     public List<EpisodeResponseDto> listPublicBySeason(String seasonId) {
         seasonService.findPublicEntity(seasonId);
         return episodeRepository
-                .findAllBySeason_SeasonIdAndStatusAndIsDeletedFalseOrderByEpisodeNumberAsc(
+                .findAllBySeason_SeasonIdAndStatusInAndIsDeletedFalseOrderByEpisodeNumberAsc(
                         seasonId,
-                        EpisodeStatus.PUBLISHED)
+                        List.of(EpisodeStatus.PUBLISHED, EpisodeStatus.SCHEDULED))
                 .stream()
                 .map(this::toResponse)
                 .toList();
@@ -242,7 +242,13 @@ public class EpisodeServiceImpl implements EpisodeService {
                 season.getSeasonId(), episode.getEpisodeId(), EpisodeStatus.PUBLISHED);
 
         if (publishedEpisodesInSeason == 0 && season.getStatus() == SeasonStatus.PUBLISHED) {
-            season.setStatus(SeasonStatus.HIDDEN);
+            long scheduledEpisodesInSeason = episodeRepository.countBySeasonIdExcludingEpisodeAndStatus(
+                    season.getSeasonId(), episode.getEpisodeId(), EpisodeStatus.SCHEDULED);
+            if (scheduledEpisodesInSeason > 0) {
+                season.setStatus(SeasonStatus.SCHEDULED);
+            } else {
+                season.setStatus(SeasonStatus.HIDDEN);
+            }
         }
 
         Series series = season.getSeries();
@@ -250,7 +256,13 @@ public class EpisodeServiceImpl implements EpisodeService {
                 series.getSeriesId(), episode.getEpisodeId(), EpisodeStatus.PUBLISHED);
 
         if (publishedEpisodesInSeries == 0 && series.getStatus() == SeriesStatus.PUBLISHED) {
-            series.setStatus(SeriesStatus.HIDDEN);
+            long scheduledEpisodesInSeries = episodeRepository.countBySeriesIdExcludingEpisodeAndStatus(
+                    series.getSeriesId(), episode.getEpisodeId(), EpisodeStatus.SCHEDULED);
+            if (scheduledEpisodesInSeries > 0) {
+                series.setStatus(SeriesStatus.SCHEDULED);
+            } else {
+                series.setStatus(SeriesStatus.HIDDEN);
+            }
         }
     }
 
@@ -327,7 +339,7 @@ public class EpisodeServiceImpl implements EpisodeService {
     @Override
     public Episode findPublicEntity(String id) {
         Episode episode = findActiveEntity(id);
-        if (episode.getStatus() != EpisodeStatus.PUBLISHED) {
+        if (episode.getStatus() != EpisodeStatus.PUBLISHED && episode.getStatus() != EpisodeStatus.SCHEDULED) {
             throw ContentModuleException.notFound("Public episode not found: " + id);
         }
         seasonService.findPublicEntity(episode.getSeason().getSeasonId());
@@ -427,10 +439,10 @@ public class EpisodeServiceImpl implements EpisodeService {
         Series series = season.getSeries();
         ensureParentsAreNotDeleted(episode);
 
-        if (season.getStatus() == SeasonStatus.DRAFT) {
+        if (season.getStatus() != SeasonStatus.PUBLISHED && season.getStatus() != SeasonStatus.SCHEDULED) {
             season.setStatus(SeasonStatus.SCHEDULED);
         }
-        if (series.getStatus() == SeriesStatus.DRAFT && season.getStatus() != SeasonStatus.HIDDEN) {
+        if (series.getStatus() != SeriesStatus.PUBLISHED && series.getStatus() != SeriesStatus.SCHEDULED) {
             series.setStatus(SeriesStatus.SCHEDULED);
         }
     }

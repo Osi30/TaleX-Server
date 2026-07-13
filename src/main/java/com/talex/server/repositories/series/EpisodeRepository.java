@@ -35,6 +35,10 @@ public interface EpisodeRepository extends JpaRepository<Episode, String> {
             String seasonId,
             EpisodeStatus status);
 
+    List<Episode> findAllBySeason_SeasonIdAndStatusInAndIsDeletedFalseOrderByEpisodeNumberAsc(
+            String seasonId,
+            Collection<EpisodeStatus> statuses);
+
     List<Episode> findTop100ByScheduledPublishAtLessThanEqualAndStatusInAndIsDeletedFalseOrderByScheduledPublishAtAsc(
             LocalDateTime scheduledPublishAt,
             Collection<EpisodeStatus> statuses);

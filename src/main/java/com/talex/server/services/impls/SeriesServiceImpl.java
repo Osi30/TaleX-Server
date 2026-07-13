@@ -110,8 +110,8 @@ public class SeriesServiceImpl implements SeriesService {
     @Override
     public BasePageResponse<SeriesResponseDto> listPublic(Integer page, Integer pageSize) {
         Page<Series> result = seriesRepository
-                .findAllByStatusAndIsDeletedFalse(
-                        SeriesStatus.PUBLISHED,
+                .findAllByStatusInAndIsDeletedFalse(
+                        List.of(SeriesStatus.PUBLISHED, SeriesStatus.SCHEDULED),
                         PageUtils.buildPageable(page, pageSize));
         return toPageResponse(result, toResponses(result.getContent()));
     }
@@ -200,7 +200,7 @@ public class SeriesServiceImpl implements SeriesService {
     @Override
     public Series findPublicEntity(String id) {
         Series series = findActiveEntity(id);
-        if (series.getStatus() != SeriesStatus.PUBLISHED) {
+        if (series.getStatus() != SeriesStatus.PUBLISHED && series.getStatus() != SeriesStatus.SCHEDULED) {
             throw ContentModuleException.notFound("Public series not found: " + id);
         }
         return series;

@@ -185,7 +185,10 @@ public class MediaServiceImpl implements MediaService {
                 || media.getApprovalStatus() != ContentApprovalStatus.APPROVED) {
             throw ContentModuleException.notFound("Public media not found: " + id);
         }
-        episodeService.findPublicEntity(media.getEpisode().getEpisodeId());
+        Episode episode = episodeService.findPublicEntity(media.getEpisode().getEpisodeId());
+        if (episode.getStatus() == EpisodeStatus.SCHEDULED) {
+            throw ContentModuleException.forbidden("Cannot access media for scheduled episode: " + episode.getEpisodeId());
+        }
         return toPublicResponse(media);
     }
 
@@ -203,7 +206,10 @@ public class MediaServiceImpl implements MediaService {
     @Transactional(readOnly = true)
     @Override
     public List<MediaResponseDto> listPublicByEpisode(String episodeId, String viewerId) {
-        episodeService.findPublicEntity(episodeId);
+        Episode episode = episodeService.findPublicEntity(episodeId);
+        if (episode.getStatus() == EpisodeStatus.SCHEDULED) {
+            throw ContentModuleException.forbidden("Cannot access media for scheduled episode: " + episodeId);
+        }
         if (!episodeEntitlementService.hasPlaybackAccess(viewerId, episodeId)) {
             throw ContentModuleException.forbidden("PLAYBACK_NOT_ENTITLED");
         }

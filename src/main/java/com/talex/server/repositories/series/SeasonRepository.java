@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -21,6 +22,10 @@ public interface SeasonRepository extends JpaRepository<Season, String> {
     List<Season> findAllBySeries_SeriesIdAndStatusAndIsDeletedFalseOrderBySeasonNumberAsc(
             String seriesId,
             SeasonStatus status);
+
+    List<Season> findAllBySeries_SeriesIdAndStatusInAndIsDeletedFalseOrderBySeasonNumberAsc(
+            String seriesId,
+            Collection<SeasonStatus> statuses);
 
     @Query("select coalesce(max(s.seasonNumber), 0) from Season s where s.series.seriesId = :seriesId and s.isDeleted = false")
     Integer findMaxSeasonNumberBySeriesId(@Param("seriesId") String seriesId);

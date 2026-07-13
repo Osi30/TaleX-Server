@@ -76,9 +76,9 @@ public class SeasonServiceImpl implements SeasonService {
     public List<SeasonResponseDto> listPublicBySeries(String seriesId) {
         seriesService.findPublicEntity(seriesId);
         return seasonRepository
-                .findAllBySeries_SeriesIdAndStatusAndIsDeletedFalseOrderBySeasonNumberAsc(
+                .findAllBySeries_SeriesIdAndStatusInAndIsDeletedFalseOrderBySeasonNumberAsc(
                         seriesId,
-                        SeasonStatus.PUBLISHED)
+                        List.of(SeasonStatus.PUBLISHED, SeasonStatus.SCHEDULED))
                 .stream()
                 .map(this::toResponse)
                 .toList();
@@ -174,7 +174,7 @@ public class SeasonServiceImpl implements SeasonService {
     @Override
     public Season findPublicEntity(String id) {
         Season season = findActiveEntity(id);
-        if (season.getStatus() != SeasonStatus.PUBLISHED) {
+        if (season.getStatus() != SeasonStatus.PUBLISHED && season.getStatus() != SeasonStatus.SCHEDULED) {
             throw ContentModuleException.notFound("Public season not found: " + id);
         }
         seriesService.findPublicEntity(season.getSeries().getSeriesId());

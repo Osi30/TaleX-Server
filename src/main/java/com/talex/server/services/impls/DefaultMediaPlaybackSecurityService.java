@@ -80,6 +80,9 @@ public class DefaultMediaPlaybackSecurityService implements MediaPlaybackSecurit
             String viewerId,
             String ipAddress,
             String userAgent) {
+        if (episode.getStatus() == com.talex.server.enums.series.EpisodeStatus.SCHEDULED) {
+            throw ContentModuleException.forbidden("Cannot playback media for scheduled episode");
+        }
         if (!playbackAuthorizationService.canViewEpisode(viewerId, episodeId)) {
             throw ContentModuleException.forbidden("PLAYBACK_NOT_ENTITLED");
         }

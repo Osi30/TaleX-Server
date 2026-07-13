@@ -22,5 +22,9 @@ public interface SeriesRepository extends JpaRepository<Series, String> {
             SeriesStatus status,
             Pageable pageable);
 
+    Page<Series> findAllByStatusInAndIsDeletedFalse(
+            Collection<SeriesStatus> statuses,
+            Pageable pageable);
+
     long countBySeriesIdInAndStatusAndIsDeletedFalseAndCreator_CreatorId(Collection<String> seriesIds, SeriesStatus status, String creatorId);
 }
