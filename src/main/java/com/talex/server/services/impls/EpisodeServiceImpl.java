@@ -1,8 +1,10 @@
 package com.talex.server.services.impls;
 
 import com.talex.server.dtos.requests.EpisodeRequestDto;
+import com.talex.server.dtos.requests.EpisodeUnlockSettingsRequestDto;
 import com.talex.server.dtos.responses.EpisodeRefs;
 import com.talex.server.dtos.responses.EpisodeResponseDto;
+import com.talex.server.entities.Account;
 import com.talex.server.entities.series.Episode;
 import com.talex.server.entities.series.Season;
 import com.talex.server.entities.series.Series;
@@ -10,6 +12,7 @@ import com.talex.server.enums.media.MediaStatus;
 import com.talex.server.enums.media.MediaType;
 import com.talex.server.enums.series.*;
 import com.talex.server.exceptions.details.ContentModuleException;
+import com.talex.server.repositories.AccountRepository;
 import com.talex.server.repositories.media.MediaRepository;
 import com.talex.server.repositories.series.CategoryRepository;
 import com.talex.server.repositories.series.EpisodeRepository;
@@ -27,14 +30,18 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
 public class EpisodeServiceImpl implements EpisodeService {
+    private static final long CREATOR_ROLE_ID = 2L;
+
     private final EpisodeRepository episodeRepository;
     private final MediaRepository mediaRepository;
     private final TagRepository tagRepository;
     private final CategoryRepository categoryRepository;
+    private final AccountRepository accountRepository;
     private final SeasonService seasonService;
     private final ContentOwnershipService contentOwnershipService;
     private final ContentAuditLogger contentAuditLogger;
@@ -62,7 +69,7 @@ public class EpisodeServiceImpl implements EpisodeService {
         episode.setStatus(EpisodeStatus.DRAFT);
         episode.setScheduledPublishAt(null);
         episode.setTotalPage(request.getTotalPage());
-        applyUnlockSettings(episode, request);
+        applyFreeUnlockSettings(episode);
         episodeRepository.save(episode);
         contentAuditLogger.logAction("Episode", episode.getEpisodeId(), "CREATE", accountId, episode.getCreatorId());
         return toResponse(episode);
@@ -98,9 +105,9 @@ public class EpisodeServiceImpl implements EpisodeService {
     public List<EpisodeResponseDto> listPublicBySeason(String seasonId) {
         seasonService.findPublicEntity(seasonId);
         return episodeRepository
-                .findAllBySeason_SeasonIdAndStatusAndIsDeletedFalseOrderByEpisodeNumberAsc(
+                .findAllBySeason_SeasonIdAndStatusInAndIsDeletedFalseOrderByEpisodeNumberAsc(
                         seasonId,
-                        EpisodeStatus.PUBLISHED)
+                        List.of(EpisodeStatus.PUBLISHED, EpisodeStatus.SCHEDULED))
                 .stream()
                 .map(this::toResponse)
                 .toList();
@@ -144,9 +151,19 @@ public class EpisodeServiceImpl implements EpisodeService {
             episode.setStatus(request.getStatus());
         }
         episode.setTotalPage(request.getTotalPage());
-        applyUnlockSettings(episode, request);
         episodeRepository.save(episode);
         contentAuditLogger.logAction("Episode", episode.getEpisodeId(), "UPDATE", accountId, episode.getCreatorId());
+        return toResponse(episode);
+    }
+
+    @Transactional
+    @Override
+    public EpisodeResponseDto updateUnlockSettings(String id, EpisodeUnlockSettingsRequestDto request, String accountId) {
+        Episode episode = findManageableEntity(id, accountId);
+        ensureAccountHasCreatorRole(accountId);
+        applyUnlockSettings(episode, request);
+        episodeRepository.save(episode);
+        contentAuditLogger.logAction("Episode", episode.getEpisodeId(), "UPDATE_UNLOCK_SETTINGS", accountId, episode.getCreatorId());
         return toResponse(episode);
     }
 
@@ -223,9 +240,9 @@ public class EpisodeServiceImpl implements EpisodeService {
             cancelScheduledPublication(episode, actorId);
         }
         episode.setStatus(EpisodeStatus.HIDDEN);
-        
+
         hideParentsIfNoOtherPublished(episode);
-        
+
         episodeRepository.save(episode);
         contentAuditLogger.logAction("Episode", episode.getEpisodeId(), "HIDE", actorId, episode.getCreatorId());
         return toResponse(episode);
@@ -237,7 +254,13 @@ public class EpisodeServiceImpl implements EpisodeService {
                 season.getSeasonId(), episode.getEpisodeId(), EpisodeStatus.PUBLISHED);
 
         if (publishedEpisodesInSeason == 0 && season.getStatus() == SeasonStatus.PUBLISHED) {
-            season.setStatus(SeasonStatus.HIDDEN);
+            long scheduledEpisodesInSeason = episodeRepository.countBySeasonIdExcludingEpisodeAndStatus(
+                    season.getSeasonId(), episode.getEpisodeId(), EpisodeStatus.SCHEDULED);
+            if (scheduledEpisodesInSeason > 0) {
+                season.setStatus(SeasonStatus.SCHEDULED);
+            } else {
+                season.setStatus(SeasonStatus.HIDDEN);
+            }
         }
 
         Series series = season.getSeries();
@@ -245,7 +268,13 @@ public class EpisodeServiceImpl implements EpisodeService {
                 series.getSeriesId(), episode.getEpisodeId(), EpisodeStatus.PUBLISHED);
 
         if (publishedEpisodesInSeries == 0 && series.getStatus() == SeriesStatus.PUBLISHED) {
-            series.setStatus(SeriesStatus.HIDDEN);
+            long scheduledEpisodesInSeries = episodeRepository.countBySeriesIdExcludingEpisodeAndStatus(
+                    series.getSeriesId(), episode.getEpisodeId(), EpisodeStatus.SCHEDULED);
+            if (scheduledEpisodesInSeries > 0) {
+                series.setStatus(SeriesStatus.SCHEDULED);
+            } else {
+                series.setStatus(SeriesStatus.HIDDEN);
+            }
         }
     }
 
@@ -322,10 +351,17 @@ public class EpisodeServiceImpl implements EpisodeService {
     @Override
     public Episode findPublicEntity(String id) {
         Episode episode = findActiveEntity(id);
-        if (episode.getStatus() != EpisodeStatus.PUBLISHED) {
+        if (episode.getStatus() != EpisodeStatus.PUBLISHED && episode.getStatus() != EpisodeStatus.SCHEDULED) {
             throw ContentModuleException.notFound("Public episode not found: " + id);
         }
-        seasonService.findPublicEntity(episode.getSeason().getSeasonId());
+        Season season = episode.getSeason();
+        if (season.getStatus() != SeasonStatus.PUBLISHED && season.getStatus() != SeasonStatus.SCHEDULED) {
+            throw ContentModuleException.notFound("Public season not found: " + season.getSeasonId());
+        }
+        Series series = season.getSeries();
+        if (series.getStatus() != SeriesStatus.PUBLISHED && series.getStatus() != SeriesStatus.SCHEDULED) {
+            throw ContentModuleException.notFound("Public series not found: " + series.getSeriesId());
+        }
         return episode;
     }
 
@@ -442,10 +478,10 @@ public class EpisodeServiceImpl implements EpisodeService {
         Series series = season.getSeries();
         ensureParentsAreNotDeleted(episode);
 
-        if (season.getStatus() == SeasonStatus.DRAFT) {
+        if (season.getStatus() != SeasonStatus.PUBLISHED && season.getStatus() != SeasonStatus.SCHEDULED) {
             season.setStatus(SeasonStatus.SCHEDULED);
         }
-        if (series.getStatus() == SeriesStatus.DRAFT && season.getStatus() != SeasonStatus.HIDDEN) {
+        if (series.getStatus() != SeriesStatus.PUBLISHED && series.getStatus() != SeriesStatus.SCHEDULED) {
             series.setStatus(SeriesStatus.SCHEDULED);
         }
     }
@@ -523,17 +559,17 @@ public class EpisodeServiceImpl implements EpisodeService {
         }
     }
 
-    private void applyUnlockSettings(Episode episode, EpisodeRequestDto request) {
-        EpisodeUnlockType unlockType = request.getUnlockType() != null
-                ? request.getUnlockType()
-                : episode.getUnlockType();
-        Long priceVnd = request.getPriceVnd() != null
-                ? request.getPriceVnd()
-                : episode.getPriceVnd();
+    private void applyFreeUnlockSettings(Episode episode) {
+        episode.setUnlockType(EpisodeUnlockType.FREE);
+        episode.setPriceVnd(0L);
+    }
+
+    private void applyUnlockSettings(Episode episode, EpisodeUnlockSettingsRequestDto request) {
+        EpisodeUnlockType unlockType = request.getUnlockType();
+        Long priceVnd = request.getPriceVnd();
 
         if (unlockType == EpisodeUnlockType.FREE) {
-            episode.setUnlockType(EpisodeUnlockType.FREE);
-            episode.setPriceVnd(0L);
+            applyFreeUnlockSettings(episode);
             return;
         }
 
@@ -542,6 +578,16 @@ public class EpisodeServiceImpl implements EpisodeService {
         }
         episode.setUnlockType(EpisodeUnlockType.PAID);
         episode.setPriceVnd(priceVnd);
+    }
+
+    private void ensureAccountHasCreatorRole(String accountId) {
+        Account account = accountRepository.findById(UUID.fromString(accountId))
+                .orElseThrow(() -> ContentModuleException.forbidden("Only creator accounts can update episode price settings"));
+
+        if (account.getRole() == null
+                || !Long.valueOf(CREATOR_ROLE_ID).equals(account.getRole().getRoleId())) {
+            throw ContentModuleException.forbidden("Only creator accounts can update episode price settings");
+        }
     }
 
     private void ensureScheduledPublishAt(LocalDateTime scheduledPublishAt) {

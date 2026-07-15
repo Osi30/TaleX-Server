@@ -19,9 +19,9 @@ spring:
         idle-timeout: 600000
         max-lifetime: 1800000
     questdb:
-      jdbc-url: jdbc:postgresql://localhost:8812/qdb
-      username: admin
-      password: quest
+      jdbc-url: jdbc:postgresql://${QUESTDB_HOST}:${QUESTDB_PORT}/qdb
+      username: ${QUESTDB_USER:admin}
+      password: ${QUESTDB_PASSWORD:quest}
       driver-class-name: org.postgresql.Driver
 
   jpa:
@@ -235,7 +235,7 @@ media:
 
 questdb:
   host: ${QUESTDB_HOST}
-  port: ${QUESTDB_PORT}
+  ilp-port: ${QUESTDB_ILP_PORT:9009}
 
 heartbeat:
   interval: 5

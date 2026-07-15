@@ -2,6 +2,7 @@ package com.talex.server.services;
 
 import com.talex.server.dtos.requests.EpisodeRequestDto;
 import com.talex.server.dtos.responses.EpisodeRefs;
+import com.talex.server.dtos.requests.EpisodeUnlockSettingsRequestDto;
 import com.talex.server.dtos.responses.EpisodeResponseDto;
 import com.talex.server.entities.series.Episode;
 
@@ -20,6 +21,8 @@ public interface EpisodeService {
     List<EpisodeResponseDto> listPublicBySeason(String seasonId);
 
     EpisodeResponseDto update(String id, EpisodeRequestDto request, String accountId);
+
+    EpisodeResponseDto updateUnlockSettings(String id, EpisodeUnlockSettingsRequestDto request, String accountId);
 
     EpisodeResponseDto schedulePublish(String id, LocalDateTime scheduledPublishAt, String actorId);
 

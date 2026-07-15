@@ -1,22 +1,22 @@
 package com.talex.server.services;
 
+import com.talex.server.dtos.requests.EpisodeUnlockSettingsRequestDto;
+import com.talex.server.entities.Account;
+import com.talex.server.entities.Role;
 import com.talex.server.entities.media.Media;
 import com.talex.server.entities.series.Episode;
 import com.talex.server.entities.series.Season;
 import com.talex.server.entities.series.Series;
-import com.talex.server.enums.series.ContentApprovalStatus;
-import com.talex.server.enums.series.ContentType;
-import com.talex.server.enums.series.EpisodeStatus;
 import com.talex.server.enums.media.MediaStatus;
-import com.talex.server.enums.series.SeasonStatus;
-import com.talex.server.enums.series.SeriesStatus;
+import com.talex.server.enums.series.*;
 import com.talex.server.exceptions.details.ContentModuleException;
+import com.talex.server.repositories.AccountRepository;
 import com.talex.server.repositories.media.MediaRepository;
 import com.talex.server.repositories.series.CategoryRepository;
 import com.talex.server.repositories.series.EpisodeRepository;
 import com.talex.server.repositories.series.TagRepository;
-import com.talex.server.services.impls.EpisodeServiceImpl;
 import com.talex.server.services.audit.ContentAuditLogger;
+import com.talex.server.services.impls.EpisodeServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -26,17 +26,17 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 
 @ExtendWith(MockitoExtension.class)
 class EpisodeScheduledPublishServiceTest {
-    private static final String ACTOR_ID = "creator-1";
+    private static final UUID ACTOR_UUID = UUID.fromString("00000000-0000-0000-0000-000000000001");
+    private static final String ACTOR_ID = ACTOR_UUID.toString();
 
     @Mock
     private EpisodeRepository episodeRepository;
@@ -46,6 +46,8 @@ class EpisodeScheduledPublishServiceTest {
     private TagRepository tagRepository;
     @Mock
     private CategoryRepository categoryRepository;
+    @Mock
+    private AccountRepository accountRepository;
     @Mock
     private SeasonService seasonService;
     @Mock
@@ -58,7 +60,7 @@ class EpisodeScheduledPublishServiceTest {
     @BeforeEach
     void setUp() {
         episodeService = new EpisodeServiceImpl(
-                episodeRepository, mediaRepository, tagRepository, categoryRepository, seasonService, contentOwnershipService, contentAuditLogger);
+                episodeRepository, mediaRepository, tagRepository, categoryRepository, accountRepository, seasonService, contentOwnershipService, contentAuditLogger);
         lenient().when(contentOwnershipService.isPrivileged()).thenReturn(true);
         lenient().when(episodeRepository.save(any(Episode.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
@@ -272,11 +274,56 @@ class EpisodeScheduledPublishServiceTest {
         assertEquals(EpisodeStatus.PUBLISHED, episode.getStatus());
     }
 
+    @Test
+    void creatorRoleCanUpdateUnlockSettings() {
+        Episode episode = episodeWithParents(SeriesStatus.DRAFT, SeasonStatus.DRAFT, "episode-paid");
+        stubActiveEpisode(episode);
+        stubAccountRole(2L);
+
+        episodeService.updateUnlockSettings(
+                episode.getEpisodeId(),
+                new EpisodeUnlockSettingsRequestDto(EpisodeUnlockType.PAID, 10_000L),
+                ACTOR_ID);
+
+        assertEquals(EpisodeUnlockType.PAID, episode.getUnlockType());
+        assertEquals(10_000L, episode.getPriceVnd());
+    }
+
+    @Test
+    void nonCreatorRoleCannotUpdateUnlockSettings() {
+        Episode episode = episodeWithParents(SeriesStatus.DRAFT, SeasonStatus.DRAFT, "episode-blocked");
+        stubActiveEpisode(episode);
+        stubAccountRole(1L);
+
+        assertThrows(ContentModuleException.class, () -> episodeService.updateUnlockSettings(
+                episode.getEpisodeId(),
+                new EpisodeUnlockSettingsRequestDto(EpisodeUnlockType.PAID, 10_000L),
+                ACTOR_ID));
+
+        assertEquals(EpisodeUnlockType.FREE, episode.getUnlockType());
+        assertEquals(0L, episode.getPriceVnd());
+    }
+
     private void stubActiveEpisode(Episode episode) {
         lenient().when(episodeRepository.findByEpisodeIdAndIsDeletedFalse(episode.getEpisodeId()))
                 .thenReturn(Optional.of(episode));
         lenient().when(episodeRepository.lockByEpisodeIdAndIsDeletedFalse(episode.getEpisodeId()))
                 .thenReturn(Optional.of(episode));
+    }
+
+    private void stubAccountRole(long roleId) {
+        Role role = Role.builder()
+                .roleId(roleId)
+                .code(roleId == 2L ? "CREATOR" : "VIEWER")
+                .roleName(roleId == 2L ? "Creator" : "Viewer")
+                .build();
+        Account account = Account.builder()
+                .accountId(ACTOR_UUID)
+                .role(role)
+                .build();
+
+        lenient().when(accountRepository.findById(ACTOR_UUID))
+                .thenReturn(Optional.of(account));
     }
 
     private void stubReadyMedia(Episode episode, List<Media> media) {

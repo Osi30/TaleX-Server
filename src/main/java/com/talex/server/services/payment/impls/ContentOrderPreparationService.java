@@ -13,6 +13,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.util.List;
 import java.util.UUID;
 
 @Component
@@ -31,13 +33,13 @@ public class ContentOrderPreparationService {
         return upper;
     }
 
-    public BigDecimal resolvePrice(UUID accountId, String itemType, String itemId) {
+    public ContentPriceResolution resolvePrice(UUID accountId, String itemType, String itemId) {
         return EpisodeOrderFulfillmentService.ITEM_TYPE.equals(itemType)
                 ? resolveEpisodePrice(accountId, itemId)
                 : resolveComboPrice(accountId, itemId);
     }
 
-    private BigDecimal resolveEpisodePrice(UUID accountId, String episodeId) {
+    private ContentPriceResolution resolveEpisodePrice(UUID accountId, String episodeId) {
         Episode episode = episodeRepository.findById(episodeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Episode not found with id: " + episodeId));
 
@@ -48,10 +50,18 @@ public class ContentOrderPreparationService {
             throw new PaymentException(PaymentErrorCode.CONTENT_ALREADY_OWNED);
         }
 
-        return BigDecimal.valueOf(episode.getPriceVnd());
+        BigDecimal price = BigDecimal.valueOf(episode.getPriceVnd());
+        return new ContentPriceResolution(price, price, 0, 0);
     }
 
-    private BigDecimal resolveComboPrice(UUID accountId, String comboId) {
+    /**
+     * Giá combo được set cố định bởi creator (không tự tính = tổng giá lẻ), nên nếu user đã
+     * sở hữu một phần số tập trong combo, phần đã sở hữu được trừ theo ĐƠN GIÁ QUY ĐỔI TỪ
+     * GIÁ COMBO (giá combo / tổng số tập) — không hoàn theo giá lẻ đã mua trước đó. Cách này
+     * đảm bảo user không bị tính tiền 2 lần cho phần đã sở hữu, đồng thời web vẫn giữ được
+     * biên lợi nhuận vì đơn giá quy đổi combo thường thấp hơn giá mua lẻ từng tập.
+     */
+    private ContentPriceResolution resolveComboPrice(UUID accountId, String comboId) {
         ComboEpisode combo = comboEpisodeRepository.findById(comboId)
                 .orElseThrow(() -> new ResourceNotFoundException("Combo not found with id: " + comboId));
 
@@ -59,13 +69,44 @@ public class ContentOrderPreparationService {
             throw new ResourceNotFoundException("Combo not found with id: " + comboId);
         }
 
-        boolean allEpisodesAlreadyOwned = !combo.getEpisodes().isEmpty() && combo.getEpisodes().stream()
-                .allMatch(episode -> episodeUnlockedContentRepository
-                        .existsByAccount_AccountIdAndEpisode_EpisodeId(accountId, episode.getEpisodeId()));
-        if (allEpisodesAlreadyOwned) {
-            throw new PaymentException(PaymentErrorCode.CONTENT_ALREADY_OWNED);
+        List<Episode> episodes = combo.getEpisodes();
+        BigDecimal originalPrice = BigDecimal.valueOf(combo.getPriceVnd());
+        int totalEpisodeCount = episodes.size();
+
+        if (episodes.isEmpty()) {
+            return new ContentPriceResolution(originalPrice, originalPrice, 0, 0);
         }
 
-        return BigDecimal.valueOf(combo.getPriceVnd());
+        long ownedEpisodeCount = episodes.stream()
+                .filter(episode -> episodeUnlockedContentRepository
+                        .existsByAccount_AccountIdAndEpisode_EpisodeId(accountId, episode.getEpisodeId()))
+                .count();
+
+        if (ownedEpisodeCount == totalEpisodeCount) {
+            throw new PaymentException(PaymentErrorCode.CONTENT_ALREADY_OWNED);
+        }
+        if (ownedEpisodeCount == 0) {
+            return new ContentPriceResolution(originalPrice, originalPrice, 0, totalEpisodeCount);
+        }
+
+        BigDecimal perEpisodeComboRate = originalPrice.divide(
+                BigDecimal.valueOf(totalEpisodeCount), 0, RoundingMode.FLOOR);
+        BigDecimal ownershipDiscount = perEpisodeComboRate.multiply(BigDecimal.valueOf(ownedEpisodeCount));
+        BigDecimal payablePrice = originalPrice.subtract(ownershipDiscount).max(BigDecimal.ZERO);
+
+        return new ContentPriceResolution(payablePrice, originalPrice, (int) ownedEpisodeCount, totalEpisodeCount);
+    }
+
+    /**
+     * @param payablePrice       Số tiền thực tế phải trả (đã trừ phần sở hữu 1 phần nếu là combo)
+     * @param originalPrice      Giá gốc trước khi trừ (bằng payablePrice nếu không có giảm giá)
+     * @param ownedEpisodeCount  Số tập trong combo đã sở hữu trước đó (0 nếu mua lẻ hoặc combo mới)
+     * @param totalEpisodeCount  Tổng số tập trong combo (0 nếu mua lẻ)
+     */
+    public record ContentPriceResolution(
+            BigDecimal payablePrice,
+            BigDecimal originalPrice,
+            int ownedEpisodeCount,
+            int totalEpisodeCount) {
     }
 }

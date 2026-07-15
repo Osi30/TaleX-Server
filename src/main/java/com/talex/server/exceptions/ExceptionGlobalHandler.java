@@ -1,6 +1,7 @@
 package com.talex.server.exceptions;
 
 import com.talex.server.dtos.BaseResponse;
+import com.talex.server.exceptions.codes.AdminAccountErrorCode;
 import com.talex.server.exceptions.codes.AuthErrorCode;
 import com.talex.server.exceptions.codes.KycSessionErrorCode;
 import com.talex.server.exceptions.codes.SubscriptionErrorCode;
@@ -38,6 +39,18 @@ public class ExceptionGlobalHandler {
     public ResponseEntity<BaseResponse> handleAuthException(AuthException ex, WebRequest request) {
         AuthErrorCode errorCode = ex.getErrorCode();
         log.warn("Auth error [{}]: {}", errorCode.getCode(), ex.getMessage());
+        BaseResponse exceptionResponse = BaseResponse.builder()
+                .message(ex.getMessage())
+                .code(errorCode.getCode())
+                .data(request.getDescription(false))
+                .build();
+        return new ResponseEntity<>(exceptionResponse, errorCode.getHttpStatus());
+    }
+
+    @ExceptionHandler(AdminAccountException.class)
+    public ResponseEntity<BaseResponse> handleAdminAccountException(AdminAccountException ex, WebRequest request) {
+        AdminAccountErrorCode errorCode = ex.getErrorCode();
+        log.warn("Admin account error [{}]: {}", errorCode.getCode(), ex.getMessage());
         BaseResponse exceptionResponse = BaseResponse.builder()
                 .message(ex.getMessage())
                 .code(errorCode.getCode())

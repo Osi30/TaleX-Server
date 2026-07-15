@@ -17,14 +17,15 @@ public class QuestDBConfig {
     @Value("${questdb.host}")
     private String host;
 
-    @Value("${questdb.port}")
-    private int port;
+    @Value("${questdb.ilp-port}")
+    private int ilpPort;
 
     @Bean(destroyMethod = "close")
     public Sender questDBSender() {
-        // Khởi tạo Sender kết nối qua giao thức mạng TCP siêu tốc của QuestDB
+        // ILP (Influx Line Protocol) TCP dung port rieng (mac dinh 9009), khac voi
+        // port PGwire (8812) dung cho JDBC - 2 giao thuc khong tuong thich port cho nhau
         return Sender.builder(Sender.Transport.TCP)
-                .address(host + ":" + port)
+                .address(host + ":" + ilpPort)
                 .bufferCapacity(1024)
                 .build();
     }

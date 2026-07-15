@@ -1,5 +1,7 @@
 package com.talex.server.services.payment.impls;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.talex.server.configs.properties.SePayProperties;
 import com.talex.server.dtos.requests.payment.CreateContentOrderRequestDto;
 import com.talex.server.dtos.requests.payment.CreateEngagementOrderRequestDto;
@@ -53,6 +55,8 @@ public class OrderService implements IOrderService {
     private final ICoinWalletService coinWalletService;
     private final CoinPricingConverter coinPricingConverter;
     private final OrderCompletionService orderCompletionService;
+    private final ObjectMapper objectMapper;
+    private final OrderExpirationMarker orderExpirationMarker;
 
     @Override
     @Transactional
@@ -102,7 +106,9 @@ public class OrderService implements IOrderService {
     public OrderResponseDto createContentOrder(UUID accountId, CreateContentOrderRequestDto request) {
         Account account = fetchAccount(accountId);
         String itemType = contentOrderPreparationService.normalizeItemType(request.getItemType());
-        BigDecimal price = contentOrderPreparationService.resolvePrice(accountId, itemType, request.getItemId());
+        ContentOrderPreparationService.ContentPriceResolution priceResolution =
+                contentOrderPreparationService.resolvePrice(accountId, itemType, request.getItemId());
+        BigDecimal price = priceResolution.payablePrice();
         long coinAmountToUse = request.getCoinAmountToUse() != null ? request.getCoinAmountToUse() : 0L;
 
         Order order = resolveActiveOrCreateNew(accountId, itemType, request.getItemId(),
@@ -112,6 +118,9 @@ public class OrderService implements IOrderService {
                         .itemId(request.getItemId())
                         .totalAmount(price)
                         .fiatAmount(price)
+                        .metadata(priceResolution.ownedEpisodeCount() > 0
+                                ? serializeComboDiscount(priceResolution)
+                                : null)
                         .build());
 
         // Tính lại theo CHÊNH LỆCH mỗi lần gọi (kể cả khi reuse order cũ) để slider Coin ở FE
@@ -236,8 +245,9 @@ public class OrderService implements IOrderService {
         Duration remaining = Duration.between(now, order.getExpiresAt());
 
         if (remaining.toMinutes() < sePayProperties.getRetryBlockWindowMinutes()) {
-            order.setStatus(OrderStatus.OUT_OF_TIME);
-            orderRepository.save(order);
+            // Transaction riêng (REQUIRES_NEW) — phải commit thật, không được rollback
+            // theo exception ném ra ngay sau đây, nếu không order kẹt AWAITING_PAYMENT mãi.
+            orderExpirationMarker.markExpired(order);
             throw new PaymentException(PaymentErrorCode.ORDER_EXPIRED,
                     "Đơn hàng sắp hết hạn, vui lòng tạo đơn hàng mới");
         }
@@ -272,6 +282,10 @@ public class OrderService implements IOrderService {
                 ? sePayService.buildQrUrl(order.getPaymentCode(), fiatAmount)
                 : null;
 
+        ComboDiscountMetadata comboDiscount = ComboOrderFulfillmentService.ITEM_TYPE.equals(order.getItemType())
+                ? parseComboDiscount(order.getMetadata())
+                : null;
+
         return OrderResponseDto.builder()
                 .orderId(order.getOrderId())
                 .paymentCode(order.getPaymentCode())
@@ -281,6 +295,37 @@ public class OrderService implements IOrderService {
                 .fiatAmount(fiatAmount)
                 .status(order.getStatus())
                 .expiresAt(order.getExpiresAt())
+                .comboOriginalPrice(comboDiscount != null ? comboDiscount.originalPrice() : null)
+                .comboOwnedEpisodeCount(comboDiscount != null ? comboDiscount.ownedEpisodeCount() : null)
+                .comboTotalEpisodeCount(comboDiscount != null ? comboDiscount.totalEpisodeCount() : null)
                 .build();
+    }
+
+    /**
+     * Lưu breakdown giảm giá combo (giá gốc, số tập đã sở hữu/tổng số tập) vào cột
+     * {@code metadata} sẵn có của Order — chỉ ghi khi combo có giảm giá do sở hữu 1 phần,
+     * để FE hiển thị minh bạch lý do giá thấp hơn giá niêm yết của combo.
+     */
+    private String serializeComboDiscount(ContentOrderPreparationService.ContentPriceResolution resolution) {
+        try {
+            return objectMapper.writeValueAsString(new ComboDiscountMetadata(
+                    resolution.originalPrice(), resolution.ownedEpisodeCount(), resolution.totalEpisodeCount()));
+        } catch (JsonProcessingException exception) {
+            throw new IllegalStateException("Failed to serialize combo discount metadata", exception);
+        }
+    }
+
+    private ComboDiscountMetadata parseComboDiscount(String metadata) {
+        if (metadata == null || metadata.isBlank()) {
+            return null;
+        }
+        try {
+            return objectMapper.readValue(metadata, ComboDiscountMetadata.class);
+        } catch (Exception exception) {
+            return null;
+        }
+    }
+
+    private record ComboDiscountMetadata(BigDecimal originalPrice, int ownedEpisodeCount, int totalEpisodeCount) {
     }
 }

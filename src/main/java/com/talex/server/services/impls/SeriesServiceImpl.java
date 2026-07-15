@@ -40,6 +40,7 @@ public class SeriesServiceImpl implements SeriesService {
     private final ICreatorService creatorService;
     private final SeasonRepository seasonRepository;
     private final ContentAuditLogger contentAuditLogger;
+    private final com.talex.server.repositories.mongo.SeriesMetadataRepository seriesMetadataRepository;
 
     @Transactional
     @Override
@@ -53,10 +54,13 @@ public class SeriesServiceImpl implements SeriesService {
         series.setCreator(creator);
 
         Series saved = seriesRepository.save(series);
-        syncCategories(saved, request.getCategoryIds(), accountIdStr);
-        syncTags(saved, request.getTagIds(), accountIdStr);
+        Map<String, Category> assignedCategories = syncCategories(saved, request.getCategoryIds(), accountIdStr);
+        Map<String, Tag> assignedTags = syncTags(saved, request.getTagIds(), accountIdStr);
 
         createDefaultSeason(saved, creator, accountIdStr);
+        
+        // Save SeriesMetadata to MongoDB
+        saveSeriesMetadata(saved, assignedCategories, assignedTags);
         
         contentAuditLogger.logAction("Series", saved.getSeriesId(), "CREATE", accountIdStr, creator.getCreatorId());
 
@@ -110,8 +114,8 @@ public class SeriesServiceImpl implements SeriesService {
     @Override
     public BasePageResponse<SeriesResponseDto> listPublic(Integer page, Integer pageSize) {
         Page<Series> result = seriesRepository
-                .findAllByStatusAndIsDeletedFalse(
-                        SeriesStatus.PUBLISHED,
+                .findAllByStatusInAndIsDeletedFalse(
+                        List.of(SeriesStatus.PUBLISHED, SeriesStatus.SCHEDULED),
                         PageUtils.buildPageable(page, pageSize));
         return toPageResponse(result, toResponses(result.getContent()));
     }
@@ -127,8 +131,11 @@ public class SeriesServiceImpl implements SeriesService {
         applyMutableFields(series, request);
 
         Series saved = seriesRepository.save(series);
-        syncCategories(saved, request.getCategoryIds(), accountId);
-        syncTags(saved, request.getTagIds(), accountId);
+        Map<String, Category> assignedCategories = syncCategories(saved, request.getCategoryIds(), accountId);
+        Map<String, Tag> assignedTags = syncTags(saved, request.getTagIds(), accountId);
+
+        // Update SeriesMetadata in MongoDB
+        saveSeriesMetadata(saved, assignedCategories, assignedTags);
 
         contentAuditLogger.logAction("Series", saved.getSeriesId(), "UPDATE", accountId, series.getCreator().getCreatorId());
 
@@ -200,7 +207,7 @@ public class SeriesServiceImpl implements SeriesService {
     @Override
     public Series findPublicEntity(String id) {
         Series series = findActiveEntity(id);
-        if (series.getStatus() != SeriesStatus.PUBLISHED) {
+        if (series.getStatus() != SeriesStatus.PUBLISHED && series.getStatus() != SeriesStatus.SCHEDULED) {
             throw ContentModuleException.notFound("Public series not found: " + id);
         }
         return series;
@@ -293,9 +300,9 @@ public class SeriesServiceImpl implements SeriesService {
         series.setLanguage(request.getLanguage());
     }
 
-    private void syncCategories(Series series, List<String> categoryIds, String actorId) {
+    private Map<String, Category> syncCategories(Series series, List<String> categoryIds, String actorId) {
         if (categoryIds == null) {
-            return;
+            return Map.of();
         }
 
         Set<String> requestedIds = cleanIds(categoryIds);
@@ -333,11 +340,13 @@ public class SeriesServiceImpl implements SeriesService {
         if (!changedRelations.isEmpty()) {
             seriesCategoryRepository.saveAll(changedRelations);
         }
+        
+        return assignableCategories;
     }
 
-    private void syncTags(Series series, List<String> tagIds, String actorId) {
+    private Map<String, Tag> syncTags(Series series, List<String> tagIds, String actorId) {
         if (tagIds == null) {
-            return;
+            return Map.of();
         }
 
         Set<String> requestedIds = cleanIds(tagIds);
@@ -375,6 +384,8 @@ public class SeriesServiceImpl implements SeriesService {
         if (!changedRelations.isEmpty()) {
             seriesTagRepository.saveAll(changedRelations);
         }
+        
+        return assignableTags;
     }
 
     private Set<String> cleanIds(List<String> ids) {
@@ -434,5 +445,30 @@ public class SeriesServiceImpl implements SeriesService {
                 .isFirst(page.isFirst())
                 .isLast(page.isLast())
                 .build();
+    }
+
+    private void saveSeriesMetadata(Series series, Map<String, Category> categories, Map<String, Tag> tags) {
+        try {
+            List<String> categoryNames = categories != null ? categories.values().stream().map(Category::getCategoryName).toList() : List.of();
+            List<String> tagNames = tags != null ? tags.values().stream().map(Tag::getTagName).toList() : List.of();
+
+            com.talex.server.entities.mongo.SeriesMetadata metadata = com.talex.server.entities.mongo.SeriesMetadata.builder()
+                    .id(series.getSeriesId())
+                    .contentType(series.getContentType() != null ? series.getContentType().name() : null)
+                    .title(series.getTitle())
+                    .description(series.getDescription())
+                    .category(categoryNames)
+                    .tags(tagNames)
+                    .ageRating(series.getAgeRating())
+                    .language(series.getLanguage())
+                    .creatorTier(series.getCreator() != null && series.getCreator().getCreatorTier() != null ? series.getCreator().getCreatorTier().getTierName() : null)
+                    .rating(0.0)
+                    .build();
+            
+            seriesMetadataRepository.save(metadata);
+        } catch (Exception e) {
+            // Log but don't block the main transaction if Mongo fails
+            org.slf4j.LoggerFactory.getLogger(SeriesServiceImpl.class).error("Failed to save SeriesMetadata to MongoDB", e);
+        }
     }
 }

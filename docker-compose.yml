@@ -15,6 +15,7 @@ services:
       # Override QuestDB host for Docker internal networking
       - QUESTDB_HOST=questdb
       - QUESTDB_PORT=8812
+      - QUESTDB_ILP_PORT=9009
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
