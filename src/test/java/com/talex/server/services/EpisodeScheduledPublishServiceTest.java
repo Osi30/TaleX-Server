@@ -11,8 +11,10 @@ import com.talex.server.enums.media.MediaStatus;
 import com.talex.server.enums.series.SeasonStatus;
 import com.talex.server.enums.series.SeriesStatus;
 import com.talex.server.exceptions.details.ContentModuleException;
-import com.talex.server.repositories.MediaRepository;
+import com.talex.server.repositories.media.MediaRepository;
+import com.talex.server.repositories.series.CategoryRepository;
 import com.talex.server.repositories.series.EpisodeRepository;
+import com.talex.server.repositories.series.TagRepository;
 import com.talex.server.services.impls.EpisodeServiceImpl;
 import com.talex.server.services.audit.ContentAuditLogger;
 import org.junit.jupiter.api.BeforeEach;
@@ -31,7 +33,6 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
-import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class EpisodeScheduledPublishServiceTest {
@@ -41,6 +42,10 @@ class EpisodeScheduledPublishServiceTest {
     private EpisodeRepository episodeRepository;
     @Mock
     private MediaRepository mediaRepository;
+    @Mock
+    private TagRepository tagRepository;
+    @Mock
+    private CategoryRepository categoryRepository;
     @Mock
     private SeasonService seasonService;
     @Mock
@@ -53,7 +58,7 @@ class EpisodeScheduledPublishServiceTest {
     @BeforeEach
     void setUp() {
         episodeService = new EpisodeServiceImpl(
-                episodeRepository, mediaRepository, seasonService, contentOwnershipService, contentAuditLogger);
+                episodeRepository, mediaRepository, tagRepository, categoryRepository, seasonService, contentOwnershipService, contentAuditLogger);
         lenient().when(contentOwnershipService.isPrivileged()).thenReturn(true);
         lenient().when(episodeRepository.save(any(Episode.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));

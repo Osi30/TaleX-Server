@@ -5,7 +5,7 @@ import com.talex.server.configs.properties.MediaProperties;
 import com.talex.server.entities.media.Media;
 import com.talex.server.enums.media.MediaProvider;
 import com.talex.server.enums.media.MediaStatus;
-import com.talex.server.repositories.MediaRepository;
+import com.talex.server.repositories.media.MediaRepository;
 import com.talex.server.services.media.MediaProviderService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

@@ -1,4 +1,4 @@
-package com.talex.server.repositories;
+package com.talex.server.repositories.media;
 
 import com.talex.server.entities.media.MediaUploadSession;
 import com.talex.server.enums.media.MediaUploadSessionStatus;

@@ -57,6 +57,18 @@ public class AsyncConfig implements AsyncConfigurer {
         return executor;
     }
 
+    @Bean(name = "questDbExecutor")
+    public Executor questDbExecutor() {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        // Cấu hình tối ưu cho các tác vụ tính toán/đọc ghi dữ liệu QuestDB lớn
+        executor.setCorePoolSize(8);
+        executor.setMaxPoolSize(24);
+        executor.setQueueCapacity(200);
+        executor.setThreadNamePrefix("QuestDB-Thread-");
+        executor.initialize();
+        return executor;
+    }
+
     @Override
     public AsyncUncaughtExceptionHandler getAsyncUncaughtExceptionHandler() {
         return new AsyncExceptionHandler();

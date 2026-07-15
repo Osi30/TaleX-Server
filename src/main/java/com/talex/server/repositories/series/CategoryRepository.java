@@ -5,6 +5,8 @@ import com.talex.server.enums.series.CategoryStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.Collection;
@@ -24,4 +26,10 @@ public interface CategoryRepository extends JpaRepository<Category, String> {
     Page<Category> findAllByIsDeletedFalse(Pageable pageable);
 
     Page<Category> findAllByStatusAndIsDeletedFalse(CategoryStatus status, Pageable pageable);
+
+    @Query("SELECT sc.category.categoryName FROM SeriesCategory sc " +
+            "WHERE sc.id.seriesId = :seriesId " +
+            "AND sc.isDeleted = false " +
+            "AND sc.category.isDeleted = false")
+    List<String> findCategoriesBySeriesId(@Param("seriesId") String seriesId);
 }

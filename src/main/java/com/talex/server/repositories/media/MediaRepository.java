@@ -1,4 +1,4 @@
-package com.talex.server.repositories;
+package com.talex.server.repositories.media;
 
 import com.talex.server.entities.media.Media;
 import com.talex.server.enums.series.ContentApprovalStatus;

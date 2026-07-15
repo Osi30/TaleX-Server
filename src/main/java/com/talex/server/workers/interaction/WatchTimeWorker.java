@@ -18,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.List;
@@ -34,48 +35,69 @@ public class WatchTimeWorker {
     private final WatchTimeAggregationRepository watchTimeAggregationRepository;
 
     @KafkaListener(
-            topics = "watch-raw",
+            topics = "talex-cdc.public.watch_session",
             groupId = "talex-watch-questdb-group",
             containerFactory = "batchFactory"
     )
     public void processWatchProgressForQuestDB(List<String> messages) {
         try {
             for (String message : messages) {
-                JsonNode eventNode = objectMapper.readTree(message);
-                if (eventNode == null) continue;
+                JsonNode cdcPayload = objectMapper.readTree(message);
+                if (cdcPayload == null) continue;
 
-                String sessionId = eventNode.get("session_id").asText();
-                String episodeId = eventNode.get("episode_id").asText();
-                String accountId = eventNode.get("account_id").asText();
-                String ipAddress = eventNode.get("ip_address").asText();
-                String eventType = eventNode.get("event").asText();
+                String op = cdcPayload.get("op").asText();
+                if (!"u".equals(op)) {
+                    continue;
+                }
 
-                double currentPosition = eventNode.get("current_position").asDouble();
-                double heartbeatValue = eventNode.get("heartbeat_value").asDouble();
-                long tsMs = eventNode.get("timestamp").asLong();
+                JsonNode after = cdcPayload.get("after");
+                JsonNode before = cdcPayload.get("before");
 
-                // Bọc mốc thời gian bằng thực thể Instant
-                Instant instantTimestamp = Instant.ofEpochMilli(tsMs);
+                if (after == null) continue;
 
+                // Tính toán lượng watch time tăng thêm bằng cách lấy after - before
+                double heartbeatValue = getDelta(before, after);
+
+                // Nếu không có lượng xem tăng thêm thực tế (ví dụ: client gửi spam trùng thời gian), bỏ qua không ghi log
+                if (heartbeatValue <= 0) {
+                    continue;
+                }
+
+                // Trích xuất các trường từ payload CDC (tên cột trong Postgres thường là snake_case)
+                String sessionId = after.get("watch_session_id").asText();
+                String episodeId = after.get("episode_id").asText();
+
+                // account_id có thể mang giá trị null nếu người dùng xem ẩn danh
+                String accountId = (after.has("account_id") && !after.get("account_id").isNull())
+                        ? after.get("account_id").asText()
+                        : "anonymous";
+
+                double currentPosition = after.has("current_position") ? after.get("current_position").asDouble() : 0.0;
+
+                // Lấy mốc thời gian từ cột end_time (Debezium convert sang Microseconds)
+                long endTimeUs = after.get("end_time").asLong();
+                long endTimeMs = endTimeUs / 1000;
+                LocalDateTime localDateTime = LocalDateTime.ofInstant(Instant.ofEpochMilli(endTimeMs), ZoneOffset.UTC);
+                Instant instantTimestamp = localDateTime.atZone(ZoneId.systemDefault()).toInstant();
+
+                // Đẩy dữ liệu log thô vào QuestDB để phân tích thời gian thực
                 questDBSender.table("watch_session_logs")
                         .symbol("session_id", sessionId)
                         .symbol("episode_id", episodeId)
                         .symbol("account_id", accountId)
-                        .symbol("ip_address", ipAddress)
-                        .symbol("event", eventType)
                         .doubleColumn("current_position", currentPosition)
                         .doubleColumn("watch_time", heartbeatValue)
                         .at(instantTimestamp);
             }
             questDBSender.flush();
         } catch (Exception e) {
-            throw new InteractionException(InteractionErrorCode.KAFKA_PROCESSING_ERROR, "Share PostgreSQL worker aggregation error: " + e.getMessage());
+            throw new InteractionException(InteractionErrorCode.KAFKA_PROCESSING_ERROR, "QuestDB CDC worker aggregation error: " + e.getMessage());
         }
     }
 
     @KafkaListener(
             topics = "watch-raw",
-            groupId = "talex-watch-session-entity-group",
+            groupId = "talex-watch-session-entity-group-local",
             containerFactory = "batchFactory"
     )
     @Transactional
@@ -109,11 +131,11 @@ public class WatchTimeWorker {
         }
     }
 
-    @KafkaListener(
-            topics = "talex-cdc.public.watch_session",
-            groupId = "talex-watch-cdc-stats-group",
-            containerFactory = "batchFactory"
-    )
+//    @KafkaListener(
+//            topics = "talex-cdc.public.watch_session",
+//            groupId = "talex-watch-cdc-stats-group",
+//            containerFactory = "batchFactory"
+//    )
     @Transactional
     public void processWatchSessionCDCEvents(List<String> messages) {
         Map<String, Double> globalWatchTimeDeltaMap = new HashMap<>();

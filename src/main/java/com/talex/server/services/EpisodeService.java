@@ -1,6 +1,7 @@
 package com.talex.server.services;
 
 import com.talex.server.dtos.requests.EpisodeRequestDto;
+import com.talex.server.dtos.responses.EpisodeRefs;
 import com.talex.server.dtos.responses.EpisodeResponseDto;
 import com.talex.server.entities.series.Episode;
 
@@ -45,4 +46,6 @@ public interface EpisodeService {
     EpisodeResponseDto toResponse(Episode episode);
 
     String getSeriesIdByEpisodeId(String episodeId);
+
+    EpisodeRefs getEpisodeRefsByEpisodeId(String episodeId);
 }

@@ -36,7 +36,7 @@ public class EpisodeViewWorker {
 
     @KafkaListener(
             topics = "talex-interaction.episode-viewed",
-            groupId = "talex-view-questdb-group",
+            groupId = "talex-view-questdb-group-local",
             containerFactory = "batchFactory"
     )
     public void processViewsForQuestDB(List<String> messages) {
@@ -48,6 +48,7 @@ public class EpisodeViewWorker {
                 String episodeId = eventNode.get("episode_id").asText();
                 String ipAddress = eventNode.get("ip_address").asText();
                 String sessionId = eventNode.get("session_id").asText();
+                String accountId = eventNode.get("account_id").asText();
                 long tsMs = eventNode.get("timestamp").asLong();
 
                 Instant instantTimestamp = Instant.ofEpochMilli(tsMs);
@@ -56,6 +57,7 @@ public class EpisodeViewWorker {
                         .symbol("episode_id", episodeId)
                         .symbol("ip_address", ipAddress)
                         .symbol("session_id", sessionId)
+                        .symbol("account_id", accountId)
                         .longColumn("delta", 1L)
                         .at(instantTimestamp);
             }
@@ -65,11 +67,11 @@ public class EpisodeViewWorker {
         }
     }
 
-    @KafkaListener(
-            topics = "talex-interaction.episode-viewed",
-            groupId = "talex-view-postgres-group",
-            containerFactory = "batchFactory"
-    )
+//    @KafkaListener(
+//            topics = "talex-interaction.episode-viewed",
+//            groupId = "talex-view-postgres-group",
+//            containerFactory = "batchFactory"
+//    )
     @Transactional
     public void processViewsForPostgreSQL(List<String> messages) {
         Map<String, Long> episodeDeltaMap = new HashMap<>();
@@ -127,7 +129,7 @@ public class EpisodeViewWorker {
 
     @KafkaListener(
             topics = "talex-interaction.episode-viewed",
-            groupId = "talex-view-postgres-session-init-group",
+            groupId = "talex-view-postgres-session-init-group-local",
             containerFactory = "batchFactory"
     )
     @Transactional

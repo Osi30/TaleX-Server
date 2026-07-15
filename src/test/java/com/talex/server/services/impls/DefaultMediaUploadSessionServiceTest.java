@@ -13,8 +13,8 @@
 //import com.talex.server.enums.media.MediaUploadSessionStatus;
 //import com.talex.server.exceptions.details.ContentModuleException;
 //import com.talex.server.repositories.series.EpisodeRepository;
-//import com.talex.server.repositories.MediaRepository;
-//import com.talex.server.repositories.MediaUploadSessionRepository;
+//import com.talex.server.repositories.media.MediaRepository;
+//import com.talex.server.repositories.media.MediaUploadSessionRepository;
 //import com.talex.server.services.MediaService;
 //import com.talex.server.services.media.MediaProviderService;
 //import org.junit.jupiter.api.BeforeEach;

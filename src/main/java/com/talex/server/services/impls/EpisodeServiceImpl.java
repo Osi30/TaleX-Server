@@ -1,6 +1,7 @@
 package com.talex.server.services.impls;
 
 import com.talex.server.dtos.requests.EpisodeRequestDto;
+import com.talex.server.dtos.responses.EpisodeRefs;
 import com.talex.server.dtos.responses.EpisodeResponseDto;
 import com.talex.server.entities.series.Episode;
 import com.talex.server.entities.series.Season;
@@ -9,18 +10,22 @@ import com.talex.server.enums.media.MediaStatus;
 import com.talex.server.enums.media.MediaType;
 import com.talex.server.enums.series.*;
 import com.talex.server.exceptions.details.ContentModuleException;
-import com.talex.server.repositories.MediaRepository;
+import com.talex.server.repositories.media.MediaRepository;
+import com.talex.server.repositories.series.CategoryRepository;
 import com.talex.server.repositories.series.EpisodeRepository;
+import com.talex.server.repositories.series.TagRepository;
 import com.talex.server.services.ContentOwnershipService;
 import com.talex.server.services.EpisodeService;
 import com.talex.server.services.SeasonService;
 import com.talex.server.services.audit.ContentAuditLogger;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
 
 @Service
@@ -28,6 +33,8 @@ import java.util.List;
 public class EpisodeServiceImpl implements EpisodeService {
     private final EpisodeRepository episodeRepository;
     private final MediaRepository mediaRepository;
+    private final TagRepository tagRepository;
+    private final CategoryRepository categoryRepository;
     private final SeasonService seasonService;
     private final ContentOwnershipService contentOwnershipService;
     private final ContentAuditLogger contentAuditLogger;
@@ -100,6 +107,11 @@ public class EpisodeServiceImpl implements EpisodeService {
     }
 
     @Transactional
+    @CacheEvict(
+            value = "episode_refs",
+            key = "#id",
+            cacheManager = "redisCacheManager"
+    )
     @Override
     public EpisodeResponseDto update(String id, EpisodeRequestDto request, String accountId) {
         Episode episode = findManageableEntity(id, accountId);
@@ -327,6 +339,26 @@ public class EpisodeServiceImpl implements EpisodeService {
     public String getSeriesIdByEpisodeId(String episodeId) {
         return episodeRepository.findSeriesIdByEpisodeId(episodeId)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy Series cho Episode ID: " + episodeId));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    @Cacheable(
+            value = "episode_refs",
+            key = "#episodeId",
+            cacheManager = "redisCacheManager",
+            unless = "#result == null"
+    )
+    public EpisodeRefs getEpisodeRefsByEpisodeId(String episodeId) {
+        try {
+            String seriesId = getSeriesIdByEpisodeId(episodeId);
+            List<String> tags = tagRepository.findTagsBySeriesId(seriesId);
+            List<String> categories = categoryRepository.findCategoriesBySeriesId(seriesId);
+            return new EpisodeRefs(episodeId, tags, categories);
+
+        } catch (IllegalArgumentException e) {
+            return new EpisodeRefs(episodeId, Collections.emptyList(), Collections.emptyList());
+        }
     }
 
     @Override

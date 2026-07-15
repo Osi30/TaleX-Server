@@ -1,5 +1,9 @@
 package com.talex.server.entities.mongo;
 
+import com.talex.server.entities.mongo.userfeatures.DeepEngagementStats;
+import com.talex.server.entities.mongo.userfeatures.DynamicPreferences;
+import com.talex.server.entities.mongo.userfeatures.InteractionStats;
+import com.talex.server.entities.mongo.userfeatures.MonetizationStats;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -11,7 +15,7 @@ import org.springframework.data.mongodb.core.mapping.Field;
 import java.util.ArrayList;
 import java.util.List;
 
-@Document(collection = "user_static_features")
+@Document(collection = "user_features")
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
@@ -19,6 +23,8 @@ import java.util.List;
 public class UserFeatureDocument {
     @Id
     private String accountId;
+
+    // NHÓM ĐẶC TRƯNG TĨNH (STATIC FEATURES)
 
     // 1. Thiết bị
     @Field("device_types")
@@ -44,8 +50,27 @@ public class UserFeatureDocument {
     private Integer age;
 
     @Field("onboarding_movie_genres")
+    @Builder.Default
     private List<String> onboardingMovieGenres = new ArrayList<>();
 
     @Field("onboarding_comic_genres")
+    @Builder.Default
     private List<String> onboardingComicGenres = new ArrayList<>();
+
+    // NHÓM ĐẶC TRƯNG ĐỘNG (DYNAMIC FEATURES)
+
+    @Builder.Default
+    private InteractionStats interactions = new InteractionStats();
+
+    @Builder.Default
+    @Field("deep_engagement")
+    private DeepEngagementStats deepEngagement = new DeepEngagementStats();
+
+    @Builder.Default
+    private DynamicPreferences preferences = new DynamicPreferences();
+
+    @Builder.Default
+    private MonetizationStats monetization = new MonetizationStats();
+
+
 }

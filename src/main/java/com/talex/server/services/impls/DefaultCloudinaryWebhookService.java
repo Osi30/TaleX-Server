@@ -7,7 +7,7 @@ import com.talex.server.dtos.responses.CloudinaryWebhookResponseDto;
 import com.talex.server.entities.media.Media;
 import com.talex.server.enums.media.MediaStatus;
 import com.talex.server.exceptions.details.ContentModuleException;
-import com.talex.server.repositories.MediaRepository;
+import com.talex.server.repositories.media.MediaRepository;
 import com.talex.server.services.CloudinaryWebhookService;
 import com.talex.server.services.media.MediaProviderService;
 import lombok.RequiredArgsConstructor;

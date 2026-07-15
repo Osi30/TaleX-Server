@@ -2,6 +2,7 @@ package com.talex.server.repositories.transaction;
 
 import com.talex.server.entities.transaction.Order;
 import com.talex.server.enums.transaction.OrderStatus;
+import com.talex.server.records.MonetizationData;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
@@ -33,4 +34,19 @@ public interface OrderRepository extends JpaRepository<Order, String> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT o FROM Order o WHERE o.paymentCode = :paymentCode")
     Optional<Order> findWithLockByPaymentCode(@Param("paymentCode") String paymentCode);
+
+    @Query("SELECT o.account.accountId as accountId, " +
+            "SUM(o.totalAmount) as totalSpentAmount, " +
+            "COUNT(CASE WHEN o.itemType = 'PREMIUM_SUBSCRIPTION' THEN 1 END) as premiumSubscriptionCount, " +
+            "COUNT(CASE WHEN o.itemType = 'SINGLE_PURCHASE' THEN 1 END) as singlePurchaseCount, " +
+            "COUNT(CASE WHEN o.itemType = 'INTERACTION_PUSH' THEN 1 END) as interactionPushCount, " +
+            "MAX(o.createdAt) as lastPurchaseTime " +
+            "FROM Order o " +
+            "WHERE o.status = 'COMPLETED' " +
+            "  AND o.createdAt > :startTime " +
+            "  AND o.createdAt <= :endTime " +
+            "GROUP BY o.account.accountId")
+    List<MonetizationData> aggregateMonetizationStatsDelta(
+            @Param("startTime") LocalDateTime startTime,
+            @Param("endTime") LocalDateTime endTime);
 }
