@@ -41,6 +41,7 @@ public class SeasonServiceImpl implements SeasonService {
         season.setTitle(request.getTitle());
         season.setDescription(request.getDescription());
         season.setStatus(SeasonStatus.DRAFT);
+        season.setReleasedUpdateTime(java.time.LocalDateTime.now());
 
         Season saved = seasonRepository.save(season);
         contentAuditLogger.logAction("Season", saved.getSeasonId(), "CREATE", accountId, saved.getCreatorId());
@@ -98,7 +99,10 @@ public class SeasonServiceImpl implements SeasonService {
         season.setTitle(request.getTitle());
         season.setDescription(request.getDescription());
         if (request.getStatus() != null) {
-            season.setStatus(request.getStatus());
+            if (season.getStatus() != request.getStatus()) {
+                season.setStatus(request.getStatus());
+                season.setReleasedUpdateTime(java.time.LocalDateTime.now());
+            }
         }
 
         Season saved = seasonRepository.save(season);
@@ -111,6 +115,7 @@ public class SeasonServiceImpl implements SeasonService {
     public SeasonResponseDto hide(String id, String actorId) {
         Season season = findManageableEntity(id, actorId);
         season.setStatus(SeasonStatus.HIDDEN);
+        season.setReleasedUpdateTime(java.time.LocalDateTime.now());
         Season saved = seasonRepository.save(season);
         contentAuditLogger.logAction("Season", saved.getSeasonId(), "HIDE", actorId, saved.getCreatorId());
         return toResponse(saved);
@@ -122,6 +127,7 @@ public class SeasonServiceImpl implements SeasonService {
         Season season = findActiveEntity(id);
         contentOwnershipService.assertCanManage(season, actorId);
         season.setStatus(SeasonStatus.PUBLISHED);
+        season.setReleasedUpdateTime(java.time.LocalDateTime.now());
         Season saved = seasonRepository.save(season);
         contentAuditLogger.logAction("Season", saved.getSeasonId(), "UNHIDE", actorId, season.getSeries().getCreator().getCreatorId());
         return toResponse(saved);
@@ -132,6 +138,7 @@ public class SeasonServiceImpl implements SeasonService {
     public SeasonResponseDto forceHide(String id, String actorId) {
         Season season = findActiveEntity(id);
         season.setStatus(SeasonStatus.FORCE_HIDDEN);
+        season.setReleasedUpdateTime(java.time.LocalDateTime.now());
         Season saved = seasonRepository.save(season);
         contentAuditLogger.logAction("Season", saved.getSeasonId(), "FORCE_HIDE", actorId, season.getSeries().getCreator().getCreatorId());
         return toResponse(saved);
@@ -145,6 +152,7 @@ public class SeasonServiceImpl implements SeasonService {
             throw ContentModuleException.badRequest("Season is not force-hidden");
         }
         season.setStatus(SeasonStatus.HIDDEN);
+        season.setReleasedUpdateTime(java.time.LocalDateTime.now());
         Season saved = seasonRepository.save(season);
         contentAuditLogger.logAction("Season", saved.getSeasonId(), "FORCE_UNHIDE", actorId, season.getSeries().getCreator().getCreatorId());
         return toResponse(saved);
@@ -155,6 +163,7 @@ public class SeasonServiceImpl implements SeasonService {
     public void delete(String id, String actorId) {
         Season season = findManageableEntity(id, actorId);
         season.setStatus(SeasonStatus.DELETED);
+        season.setReleasedUpdateTime(java.time.LocalDateTime.now());
         season.softDelete();
         seasonRepository.save(season);
         contentAuditLogger.logAction("Season", season.getSeasonId(), "DELETE", actorId, season.getCreatorId());

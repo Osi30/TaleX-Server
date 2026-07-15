@@ -59,6 +59,9 @@ public class Episode extends BaseTimeEntity {
     @Column(nullable = false, length = 30)
     private EpisodeStatus status = EpisodeStatus.DRAFT;
 
+    @Column(name = "released_update_time")
+    private LocalDateTime releasedUpdateTime;
+
     @Column(name = "scheduled_publish_at")
     private LocalDateTime scheduledPublishAt;
 
