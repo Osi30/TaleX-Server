@@ -1,5 +1,6 @@
 package com.talex.server.schedulers;
 
+import com.talex.server.services.mongo.ISeriesFeatureService;
 import com.talex.server.services.mongo.IUserFeatureService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -11,6 +12,7 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class MongoFeatureSyncScheduler {
     private final IUserFeatureService syncService;
+    private final ISeriesFeatureService featureService;
 
 //    @Scheduled(cron = "0 0 * * * *")
     public void executeDynamicFeatureSync() {
@@ -30,6 +32,17 @@ public class MongoFeatureSyncScheduler {
             syncService.syncUserDynamicPreferences();
         } catch (Exception e) {
             log.error("[SCHEDULED JOB] Lỗi luồng đồng bộ sở thích động: ", e);
+        }
+    }
+
+//    @Scheduled(cron = "0 0 * * * *")
+    public void scheduleHourlySeriesStatsSync() {
+        log.info("[Scheduler] Bắt đầu kích hoạt Cron Job đồng bộ định kỳ Series Features...");
+        try {
+            featureService.syncAllSeriesFeatures();
+            log.info("[Scheduler] Cron Job đồng bộ Series Features đã hoàn tất.");
+        } catch (Exception e) {
+            log.error("[Scheduler] Lỗi khi chạy Cron Job đồng bộ Series Features: ", e);
         }
     }
 }

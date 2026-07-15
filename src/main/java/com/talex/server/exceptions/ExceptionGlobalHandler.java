@@ -1,24 +1,17 @@
 package com.talex.server.exceptions;
 
 import com.talex.server.dtos.BaseResponse;
-import com.talex.server.exceptions.codes.AdminAccountErrorCode;
-import com.talex.server.exceptions.codes.AuthErrorCode;
-import com.talex.server.exceptions.codes.KycSessionErrorCode;
-import com.talex.server.exceptions.codes.SubscriptionErrorCode;
-import com.talex.server.exceptions.codes.PaymentErrorCode;
-import com.talex.server.exceptions.codes.CoinErrorCode;
-import com.talex.server.exceptions.codes.CreatorTierErrorCode;
-import com.talex.server.exceptions.codes.PaymentProfileErrorCode;
+import com.talex.server.exceptions.codes.*;
 import com.talex.server.exceptions.details.*;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.TypeMismatchException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.mail.MailException;
-import org.springframework.http.ResponseEntity;
-import org.springframework.beans.TypeMismatchException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -26,8 +19,8 @@ import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
-import org.springframework.web.multipart.support.MissingServletRequestPartException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
 
 import java.util.Locale;
 import java.util.stream.Collectors;
@@ -208,6 +201,17 @@ public class ExceptionGlobalHandler {
 
     @ExceptionHandler(CampaignException.class)
     public ResponseEntity<BaseResponse> handleCampaignException(CampaignException ex, WebRequest request) {
+        BaseResponse exceptionResponse = BaseResponse.builder()
+                .message(ex.getMessage())
+                .code(ex.getErrorCode().getCode())
+                .data(request.getDescription(false))
+                .build();
+
+        return new ResponseEntity<>(exceptionResponse, ex.getErrorCode().getHttpStatus());
+    }
+
+    @ExceptionHandler(MongoDocumentException.class)
+    public ResponseEntity<BaseResponse> handleMongoDocumentException(MongoDocumentException ex, WebRequest request) {
         BaseResponse exceptionResponse = BaseResponse.builder()
                 .message(ex.getMessage())
                 .code(ex.getErrorCode().getCode())

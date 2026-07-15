@@ -22,8 +22,6 @@ public class QuestDBConfig {
 
     @Bean(destroyMethod = "close")
     public Sender questDBSender() {
-        // ILP (Influx Line Protocol) TCP dung port rieng (mac dinh 9009), khac voi
-        // port PGwire (8812) dung cho JDBC - 2 giao thuc khong tuong thich port cho nhau
         return Sender.builder(Sender.Transport.TCP)
                 .address(host + ":" + ilpPort)
                 .bufferCapacity(1024)

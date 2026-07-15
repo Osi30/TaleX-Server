@@ -2,8 +2,8 @@ package com.talex.server.services.series.impls;
 
 import com.talex.server.dtos.BasePageResponse;
 import com.talex.server.dtos.requests.series.SeriesRequestDto;
-import com.talex.server.dtos.responses.series.SeriesResponseDto;
 import com.talex.server.dtos.responses.series.CategoryResponseDto;
+import com.talex.server.dtos.responses.series.SeriesResponseDto;
 import com.talex.server.dtos.responses.series.TagResponseDto;
 import com.talex.server.entities.creator.Creator;
 import com.talex.server.entities.series.*;
@@ -12,12 +12,13 @@ import com.talex.server.enums.series.SeriesStatus;
 import com.talex.server.enums.series.TagStatus;
 import com.talex.server.exceptions.details.ContentModuleException;
 import com.talex.server.repositories.series.*;
-import com.talex.server.services.series.CategoryService;
-import com.talex.server.services.media.impls.ContentOwnershipService;
-import com.talex.server.services.series.SeriesService;
-import com.talex.server.services.series.TagService;
 import com.talex.server.services.audit.ContentAuditLogger;
 import com.talex.server.services.creator.ICreatorService;
+import com.talex.server.services.media.impls.ContentOwnershipService;
+import com.talex.server.services.mongo.ISeriesFeatureService;
+import com.talex.server.services.series.CategoryService;
+import com.talex.server.services.series.SeriesService;
+import com.talex.server.services.series.TagService;
 import com.talex.server.utils.PageUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -39,10 +40,10 @@ public class SeriesServiceImpl implements SeriesService {
     private final CategoryService categoryService;
     private final TagService tagService;
     private final ContentOwnershipService contentOwnershipService;
+    private final ISeriesFeatureService seriesFeatureService;
     private final ICreatorService creatorService;
     private final SeasonRepository seasonRepository;
     private final ContentAuditLogger contentAuditLogger;
-    private final com.talex.server.repositories.mongo.SeriesMetadataRepository seriesMetadataRepository;
 
     @Transactional
     @Override
@@ -59,10 +60,8 @@ public class SeriesServiceImpl implements SeriesService {
         Map<String, Category> assignedCategories = syncCategories(saved, request.getCategoryIds(), accountIdStr);
         Map<String, Tag> assignedTags = syncTags(saved, request.getTagIds(), accountIdStr);
 
+        seriesFeatureService.saveSeriesMetadata(series, assignedCategories, assignedTags);
         createDefaultSeason(saved, creator, accountIdStr);
-        
-        // Save SeriesMetadata to MongoDB
-        saveSeriesMetadata(saved, assignedCategories, assignedTags);
         
         contentAuditLogger.logAction("Series", saved.getSeriesId(), "CREATE", accountIdStr, creator.getCreatorId());
 
@@ -137,7 +136,7 @@ public class SeriesServiceImpl implements SeriesService {
         Map<String, Tag> assignedTags = syncTags(saved, request.getTagIds(), accountId);
 
         // Update SeriesMetadata in MongoDB
-        saveSeriesMetadata(saved, assignedCategories, assignedTags);
+        seriesFeatureService.saveSeriesMetadata(series, assignedCategories, assignedTags);
 
         contentAuditLogger.logAction("Series", saved.getSeriesId(), "UPDATE", accountId, series.getCreator().getCreatorId());
 
@@ -447,30 +446,5 @@ public class SeriesServiceImpl implements SeriesService {
                 .isFirst(page.isFirst())
                 .isLast(page.isLast())
                 .build();
-    }
-
-    private void saveSeriesMetadata(Series series, Map<String, Category> categories, Map<String, Tag> tags) {
-        try {
-            List<String> categoryNames = categories != null ? categories.values().stream().map(Category::getCategoryName).toList() : List.of();
-            List<String> tagNames = tags != null ? tags.values().stream().map(Tag::getTagName).toList() : List.of();
-
-            com.talex.server.entities.mongo.SeriesMetadata metadata = com.talex.server.entities.mongo.SeriesMetadata.builder()
-                    .id(series.getSeriesId())
-                    .contentType(series.getContentType() != null ? series.getContentType().name() : null)
-                    .title(series.getTitle())
-                    .description(series.getDescription())
-                    .category(categoryNames)
-                    .tags(tagNames)
-                    .ageRating(series.getAgeRating())
-                    .language(series.getLanguage())
-                    .creatorTier(series.getCreator() != null && series.getCreator().getCreatorTier() != null ? series.getCreator().getCreatorTier().getTierName() : null)
-                    .rating(0.0)
-                    .build();
-            
-            seriesMetadataRepository.save(metadata);
-        } catch (Exception e) {
-            // Log but don't block the main transaction if Mongo fails
-            org.slf4j.LoggerFactory.getLogger(SeriesServiceImpl.class).error("Failed to save SeriesMetadata to MongoDB", e);
-        }
     }
 }

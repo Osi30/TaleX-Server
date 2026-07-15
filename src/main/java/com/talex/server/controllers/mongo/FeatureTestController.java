@@ -1,6 +1,7 @@
 package com.talex.server.controllers.mongo;
 
 import com.talex.server.dtos.responses.series.EpisodeRefs;
+import com.talex.server.services.mongo.ISeriesFeatureService;
 import com.talex.server.services.series.EpisodeService;
 import com.talex.server.services.mongo.IUserFeatureService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -15,6 +16,7 @@ import org.springframework.web.bind.annotation.*;
 @Tag(name = "Feature Test", description = "Các API demo lưu trữ dữ liệu document cho mongoDB")
 public class FeatureTestController {
     private final IUserFeatureService userFeatureService;
+    private final ISeriesFeatureService seriesFeatureService;
     private final EpisodeService episodeService;
 
     @GetMapping("/{episodeId}/refs")
@@ -41,5 +43,15 @@ public class FeatureTestController {
     public ResponseEntity<String> triggerUserMonetizationSync() {
         userFeatureService.syncUserMonetizationFeatures();
         return ResponseEntity.ok("Đã kích hoạt và hoàn tất đồng bộ hóa Monetization Features thành công!");
+    }
+
+    @PostMapping("/series/stats/trigger")
+    @Operation(
+            summary = "Kích hoạt đồng bộ hóa thủ công",
+            description = "Kích hoạt đồng thời 3 luồng đồng bộ: Lũy kế (Cumulative), Trending 24h và Trending 7d từ PostgreSQL sang MongoDB."
+    )
+    public ResponseEntity<String> triggerSync() {
+        seriesFeatureService.syncAllSeriesFeatures();
+        return ResponseEntity.ok("Đã kích hoạt và hoàn tất đồng bộ hóa toàn bộ Series Stats thành công!");
     }
 }
