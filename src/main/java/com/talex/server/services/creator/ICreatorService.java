@@ -3,7 +3,7 @@ package com.talex.server.services.creator;
 import com.talex.server.dtos.BasePageResponse;
 import com.talex.server.dtos.requests.creator.CreatorRegisterDto;
 import com.talex.server.dtos.requests.filters.CreatorFilterRequestDto;
-import com.talex.server.dtos.responses.CreatorResponseDto;
+import com.talex.server.dtos.responses.creator.CreatorResponseDto;
 import com.talex.server.entities.creator.Creator;
 import com.talex.server.records.CreatorVerificationStatus;
 

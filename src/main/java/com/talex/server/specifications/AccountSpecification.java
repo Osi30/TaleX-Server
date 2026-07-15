@@ -1,6 +1,6 @@
 package com.talex.server.specifications;
 
-import com.talex.server.entities.Account;
+import com.talex.server.entities.auth.Account;
 import com.talex.server.enums.AccountStatus;
 import com.talex.server.exceptions.codes.AdminAccountErrorCode;
 import com.talex.server.exceptions.details.AdminAccountException;

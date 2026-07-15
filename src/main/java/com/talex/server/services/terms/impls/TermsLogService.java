@@ -1,16 +1,16 @@
 package com.talex.server.services.terms.impls;
 
 import com.talex.server.dtos.requests.terms.CreatorTermsLogRequestDto;
-import com.talex.server.dtos.responses.CreatorTermsLogResponseDto;
-import com.talex.server.entities.Account;
+import com.talex.server.dtos.responses.creator.CreatorTermsLogResponseDto;
+import com.talex.server.entities.auth.Account;
 import com.talex.server.entities.term.TermsLog;
 import com.talex.server.entities.term.TermsVersion;
 import com.talex.server.exceptions.codes.AuthErrorCode;
 import com.talex.server.exceptions.codes.CreatorTermsLogErrorCode;
 import com.talex.server.exceptions.details.AuthException;
 import com.talex.server.exceptions.details.CreatorTermsLogException;
-import com.talex.server.mappers.ITermsLogMapper;
-import com.talex.server.repositories.AccountRepository;
+import com.talex.server.mappers.terms.ITermsLogMapper;
+import com.talex.server.repositories.auth.AccountRepository;
 import com.talex.server.repositories.term.TermsLogRepository;
 import com.talex.server.services.terms.ITermsLogService;
 import com.talex.server.services.terms.ITermsVersionService;

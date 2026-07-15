@@ -3,7 +3,7 @@ package com.talex.server.services.mongo.impls;
 import com.talex.server.dtos.mongo.QuestDbPreferenceResult;
 import com.talex.server.dtos.mongo.QuestDbQueryResult;
 import com.talex.server.dtos.mongo.UserFeatureRequest;
-import com.talex.server.dtos.responses.EpisodeRefs;
+import com.talex.server.dtos.responses.series.EpisodeRefs;
 import com.talex.server.entities.SyncMetadata;
 import com.talex.server.entities.mongo.UserFeatureDocument;
 import com.talex.server.entities.mongo.userfeatures.DeepEngagementStats;
@@ -15,8 +15,8 @@ import com.talex.server.records.MonetizationData;
 import com.talex.server.repositories.SyncMetadataRepository;
 import com.talex.server.repositories.mongo.UserFeatureRepository;
 import com.talex.server.repositories.transaction.OrderRepository;
-import com.talex.server.services.EpisodeService;
-import com.talex.server.services.IQuestDbService;
+import com.talex.server.services.series.EpisodeService;
+import com.talex.server.services.QuestDbService;
 import com.talex.server.services.mongo.IUserFeatureService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -35,7 +35,7 @@ import java.util.stream.Collectors;
 public class UserFeatureService implements IUserFeatureService {
     private final UserFeatureRepository featureRepository;
     private final OrderRepository orderRepository;
-    private final IQuestDbService questDbService;
+    private final QuestDbService questDbService;
     private final EpisodeService episodeService;
     private final SyncMetadataRepository syncMetadataRepository;
 

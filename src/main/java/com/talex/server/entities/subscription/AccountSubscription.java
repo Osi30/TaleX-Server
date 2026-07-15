@@ -1,6 +1,6 @@
 package com.talex.server.entities.subscription;
 
-import com.talex.server.entities.Account;
+import com.talex.server.entities.auth.Account;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;

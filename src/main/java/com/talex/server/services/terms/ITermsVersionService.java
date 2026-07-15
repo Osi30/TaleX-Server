@@ -3,7 +3,7 @@ package com.talex.server.services.terms;
 import com.talex.server.dtos.BasePageResponse;
 import com.talex.server.dtos.requests.terms.TermsVersionRequestDto;
 import com.talex.server.dtos.requests.filters.TermVersionFilterRequestDto;
-import com.talex.server.dtos.responses.TermsVersionResponseDto;
+import com.talex.server.dtos.responses.creator.TermsVersionResponseDto;
 import com.talex.server.entities.term.TermsVersion;
 import com.talex.server.enums.TermsType;
 

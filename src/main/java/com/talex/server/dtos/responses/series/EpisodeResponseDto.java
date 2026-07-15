@@ -1,0 +1,38 @@
+package com.talex.server.dtos.responses.series;
+
+import com.talex.server.enums.series.ContentType;
+import com.talex.server.enums.series.EpisodeStatus;
+import com.talex.server.enums.series.EpisodeUnlockType;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.time.LocalDateTime;
+
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class EpisodeResponseDto {
+    private String episodeId;
+    private String seasonId;
+    private String creatorId;
+    private Integer episodeNumber;
+    private String title;
+    private String description;
+    private String thumbnail;
+    private ContentType contentType;
+    private EpisodeStatus status;
+    private LocalDateTime scheduledPublishAt;
+    private LocalDateTime publishedAt;
+    private EpisodeUnlockType unlockType;
+    private Long priceVnd;
+    private Long likes;
+    private Long views;
+    private Integer totalPage;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
+    private LocalDateTime deletedAt;
+    private Boolean isDeleted;
+}

@@ -6,7 +6,7 @@ import com.talex.server.dtos.BaseResponse;
 import com.talex.server.dtos.requests.creator.CreatorIdentityRequestDto;
 import com.talex.server.dtos.requests.creator.CreatorVerifiedResultDto;
 import com.talex.server.dtos.requests.filters.CreatorIdentityFilterRequestDto;
-import com.talex.server.dtos.responses.CreatorIdentityResponseDto;
+import com.talex.server.dtos.responses.creator.CreatorIdentityResponseDto;
 import com.talex.server.services.creator.ICreatorIdentityService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;

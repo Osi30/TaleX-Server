@@ -4,7 +4,7 @@ import com.talex.server.dtos.BasePageResponse;
 import com.talex.server.dtos.BaseResponse;
 import com.talex.server.dtos.requests.terms.TermsVersionRequestDto;
 import com.talex.server.dtos.requests.filters.TermVersionFilterRequestDto;
-import com.talex.server.dtos.responses.TermsVersionResponseDto;
+import com.talex.server.dtos.responses.creator.TermsVersionResponseDto;
 import com.talex.server.enums.TermsType;
 import com.talex.server.services.terms.ITermsVersionService;
 import io.swagger.v3.oas.annotations.Operation;

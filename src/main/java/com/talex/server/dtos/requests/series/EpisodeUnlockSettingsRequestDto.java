@@ -1,0 +1,17 @@
+package com.talex.server.dtos.requests.series;
+
+import com.talex.server.enums.series.EpisodeUnlockType;
+import jakarta.validation.constraints.NotNull;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class EpisodeUnlockSettingsRequestDto {
+    @NotNull
+    private EpisodeUnlockType unlockType;
+
+    private Long priceVnd;
+}

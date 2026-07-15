@@ -1,7 +1,7 @@
 package com.talex.server.controllers;
 
 import com.talex.server.dtos.BaseResponse;
-import com.talex.server.services.CloudinaryWebhookService;
+import com.talex.server.services.media.CloudinaryWebhookService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;

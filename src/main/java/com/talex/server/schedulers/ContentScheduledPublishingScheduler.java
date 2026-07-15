@@ -3,7 +3,7 @@ package com.talex.server.schedulers;
 import com.talex.server.entities.series.Episode;
 import com.talex.server.enums.series.EpisodeStatus;
 import com.talex.server.repositories.series.EpisodeRepository;
-import com.talex.server.services.EpisodeService;
+import com.talex.server.services.series.EpisodeService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;

@@ -1,9 +1,9 @@
 package com.talex.server.configs;
 
 import com.talex.server.entities.media.Copyright;
-import com.talex.server.entities.Role;
+import com.talex.server.entities.auth.Role;
 import com.talex.server.repositories.media.CopyrightRepository;
-import com.talex.server.repositories.RoleRepository;
+import com.talex.server.repositories.auth.RoleRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;

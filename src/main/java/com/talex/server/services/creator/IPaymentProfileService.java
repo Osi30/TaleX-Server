@@ -4,7 +4,7 @@ import com.talex.server.dtos.BasePageResponse;
 import com.talex.server.dtos.requests.creator.PaymentProfileRequestDto;
 import com.talex.server.dtos.requests.creator.PaymentProfileVerifiedDto;
 import com.talex.server.dtos.requests.filters.PaymentProfileFilterRequestDto;
-import com.talex.server.dtos.responses.PaymentProfileResponseDto;
+import com.talex.server.dtos.responses.creator.PaymentProfileResponseDto;
 import com.talex.server.entities.creator.PaymentProfile;
 
 import java.util.List;

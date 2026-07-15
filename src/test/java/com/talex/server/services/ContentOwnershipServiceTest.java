@@ -6,6 +6,7 @@ import com.talex.server.entities.series.Season;
 import com.talex.server.entities.series.Series;
 import com.talex.server.exceptions.details.ContentModuleException;
 import com.talex.server.services.creator.ICreatorService;
+import com.talex.server.services.media.impls.ContentOwnershipService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

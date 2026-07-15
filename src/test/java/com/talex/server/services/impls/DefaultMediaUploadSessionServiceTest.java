@@ -1,9 +1,9 @@
 //package com.talex.server.services.impls;
 //
 //import com.talex.server.configs.properties.MediaProperties;
-//import com.talex.server.dtos.requests.MediaUploadCompleteRequestDto;
-//import com.talex.server.dtos.requests.MediaUploadProgressRequestDto;
-//import com.talex.server.dtos.responses.MediaResponseDto;
+//import com.talex.server.dtos.requests.media.MediaUploadCompleteRequestDto;
+//import com.talex.server.dtos.requests.media.MediaUploadProgressRequestDto;
+//import com.talex.server.dtos.responses.media.MediaResponseDto;
 //import com.talex.server.entities.series.Episode;
 //import com.talex.server.entities.media.Media;
 //import com.talex.server.entities.media.MediaUploadSession;
@@ -15,7 +15,7 @@
 //import com.talex.server.repositories.series.EpisodeRepository;
 //import com.talex.server.repositories.media.MediaRepository;
 //import com.talex.server.repositories.media.MediaUploadSessionRepository;
-//import com.talex.server.services.MediaService;
+//import com.talex.server.services.media.MediaService;
 //import com.talex.server.services.media.MediaProviderService;
 //import org.junit.jupiter.api.BeforeEach;
 //import org.junit.jupiter.api.Test;

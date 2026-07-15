@@ -1,6 +1,6 @@
 package com.talex.server.entities.series;
 
-import com.talex.server.entities.Account;
+import com.talex.server.entities.auth.Account;
 import com.talex.server.entities.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.*;

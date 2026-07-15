@@ -1,7 +1,7 @@
 package com.talex.server.controllers.mongo;
 
-import com.talex.server.dtos.responses.EpisodeRefs;
-import com.talex.server.services.EpisodeService;
+import com.talex.server.dtos.responses.series.EpisodeRefs;
+import com.talex.server.services.series.EpisodeService;
 import com.talex.server.services.mongo.IUserFeatureService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;

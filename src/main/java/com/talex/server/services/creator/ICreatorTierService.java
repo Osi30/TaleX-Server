@@ -3,7 +3,7 @@ package com.talex.server.services.creator;
 import com.talex.server.dtos.BasePageResponse;
 import com.talex.server.dtos.requests.creator.CreatorTierRequestDto;
 import com.talex.server.dtos.requests.filters.CreatorTierFilterRequestDto;
-import com.talex.server.dtos.responses.CreatorTierResponseDto;
+import com.talex.server.dtos.responses.creator.CreatorTierResponseDto;
 import com.talex.server.entities.creator.CreatorTier;
 
 public interface ICreatorTierService {

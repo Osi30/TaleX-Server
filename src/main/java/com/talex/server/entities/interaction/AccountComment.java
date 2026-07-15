@@ -1,6 +1,6 @@
 package com.talex.server.entities.interaction;
 
-import com.talex.server.entities.Account;
+import com.talex.server.entities.auth.Account;
 import com.talex.server.entities.series.Episode;
 import jakarta.persistence.*;
 import lombok.*;
@@ -10,7 +10,6 @@ import org.hibernate.annotations.UpdateTimestamp;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 
 @Entity
 @Table(name = "account_comments")

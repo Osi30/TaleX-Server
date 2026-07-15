@@ -1,6 +1,6 @@
 package com.talex.server.entities.transaction;
 
-import com.talex.server.entities.Account;
+import com.talex.server.entities.auth.Account;
 import com.talex.server.enums.transaction.OrderStatus;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;

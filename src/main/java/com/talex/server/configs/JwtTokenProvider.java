@@ -1,6 +1,6 @@
 package com.talex.server.configs;
 
-import com.talex.server.entities.Account;
+import com.talex.server.entities.auth.Account;
 import com.talex.server.exceptions.codes.AuthErrorCode;
 import com.talex.server.exceptions.details.AuthException;
 import io.jsonwebtoken.Claims;

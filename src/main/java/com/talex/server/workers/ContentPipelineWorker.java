@@ -3,7 +3,7 @@ package com.talex.server.workers;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.talex.server.dtos.kafka.CopyrightResultMessage;
 import com.talex.server.dtos.kafka.ModerationResultMessage;
-import com.talex.server.services.ContentPipelineService;
+import com.talex.server.services.media.ContentPipelineService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;

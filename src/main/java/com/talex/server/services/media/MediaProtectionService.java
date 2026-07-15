@@ -1,6 +1,6 @@
 package com.talex.server.services.media;
 
-import com.talex.server.dtos.responses.DrmPlaybackConfigDto;
+import com.talex.server.dtos.responses.media.DrmPlaybackConfigDto;
 import com.talex.server.entities.media.Media;
 import com.talex.server.enums.media.MediaProtectionType;
 

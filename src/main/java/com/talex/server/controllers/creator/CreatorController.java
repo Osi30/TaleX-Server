@@ -5,7 +5,7 @@ import com.talex.server.dtos.BasePageResponse;
 import com.talex.server.dtos.BaseResponse;
 import com.talex.server.dtos.requests.creator.CreatorRegisterDto;
 import com.talex.server.dtos.requests.filters.CreatorFilterRequestDto;
-import com.talex.server.dtos.responses.CreatorResponseDto;
+import com.talex.server.dtos.responses.creator.CreatorResponseDto;
 import com.talex.server.records.CreatorVerificationStatus;
 import com.talex.server.services.creator.ICreatorService;
 import io.swagger.v3.oas.annotations.Operation;
