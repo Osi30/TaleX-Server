@@ -17,6 +17,7 @@ import java.util.List;
 public class SeriesResponseDto {
     private String seriesId;
     private String creatorId;
+    private String creatorName;
     private String creatorAvatar;
     private String title;
     private String description;

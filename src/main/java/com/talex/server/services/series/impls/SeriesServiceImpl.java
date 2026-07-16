@@ -494,6 +494,10 @@ public class SeriesServiceImpl implements SeriesService {
                             categoriesBySeriesId.getOrDefault(p.getSeries().getSeriesId(), List.of()),
                             tagsBySeriesId.getOrDefault(p.getSeries().getSeriesId(), List.of()));
                     dto.setCreatorAvatar(p.getAvatarUrl());
+                    String creatorName = p.getCreatorFullName() != null && !p.getCreatorFullName().trim().isEmpty() 
+                            ? p.getCreatorFullName() 
+                            : p.getCreatorUsername();
+                    dto.setCreatorName(creatorName);
                     return dto;
                 })
                 .toList();

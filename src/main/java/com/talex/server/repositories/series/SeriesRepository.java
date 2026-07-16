@@ -32,7 +32,7 @@ public interface SeriesRepository extends JpaRepository<Series, String> {
             Collection<SeriesStatus> statuses,
             Pageable pageable);
 
-    @Query("SELECT s AS series, a.avatarUrl AS avatarUrl " +
+    @Query("SELECT s AS series, a.avatarUrl AS avatarUrl, a.fullName AS creatorFullName, a.username AS creatorUsername " +
             "FROM Series s " +
             "JOIN s.creator c " +
             "JOIN c.account a " +
@@ -41,7 +41,7 @@ public interface SeriesRepository extends JpaRepository<Series, String> {
             @Param("statuses") Collection<SeriesStatus> statuses,
             Pageable pageable);
 
-    @Query("SELECT s AS series, a.avatarUrl AS avatarUrl " +
+    @Query("SELECT s AS series, a.avatarUrl AS avatarUrl, a.fullName AS creatorFullName, a.username AS creatorUsername " +
             "FROM Series s " +
             "JOIN s.creator c " +
             "JOIN c.account a " +
