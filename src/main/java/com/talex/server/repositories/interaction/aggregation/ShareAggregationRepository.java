@@ -26,9 +26,13 @@ public interface ShareAggregationRepository extends JpaRepository<Episode, Strin
     @Transactional
     @Query("UPDATE Series s " +
             "SET s.analyticData.shares = s.analyticData.shares + :delta, " +
-            "s.is24hSync = false, s.is7dSync = false " +
+            "s.is24hSync = false, s.is7dSync = false, s.lastInteractionTime = :lastInteractionTime " +
             "WHERE s.seriesId = :seriesId")
-    void updateSeriesShareCount(@Param("seriesId") String seriesId, @Param("delta") long delta);
+    void updateSeriesShareCount(
+            @Param("seriesId") String seriesId,
+            @Param("delta") long delta,
+            @Param("lastInteractionTime") LocalDateTime lastInteractionTime
+    );
 
     /// Cập nhật tổng share của CampaignSeries thuộc Chiến dịch
     @Modifying

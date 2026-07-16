@@ -117,7 +117,7 @@ public class BookmarkWorker {
                 if (totalDelta != 0) {
                     String seriesId = episodeService.getSeriesIdByEpisodeId(episodeId);
                     aggregationRepository.updateEpisodeBookmarkCount(episodeId, totalDelta);
-                    aggregationRepository.updateSeriesBookmarkCount(seriesId, totalDelta);
+                    aggregationRepository.updateSeriesBookmarkCount(seriesId, totalDelta, LocalDateTime.now());
                     aggregationRepository.updateCampaignSeriesBookmarkCount(seriesId, totalDelta);
                     aggregationRepository.updateCampaignBookmarkCountAndTarget(seriesId, totalDelta);
                     aggregationRepository.updateCreatorBookmarkCount(seriesId, totalDelta);

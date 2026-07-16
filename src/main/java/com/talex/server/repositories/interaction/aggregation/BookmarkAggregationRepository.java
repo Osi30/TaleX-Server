@@ -29,11 +29,12 @@ public interface BookmarkAggregationRepository extends JpaRepository<Episode, St
     @Transactional
     @Query("UPDATE Series s " +
             "SET s.analyticData.bookmarks = s.analyticData.bookmarks + :delta, " +
-            "s.is24hSync = false, s.is7dSync = false " +
+            "s.is24hSync = false, s.is7dSync = false, s.lastInteractionTime = :lastInteractionTime " +
             "WHERE s.seriesId = :seriesId")
     void updateSeriesBookmarkCount(
             @Param("seriesId") String seriesId,
-            @Param("delta") long delta
+            @Param("delta") long delta,
+            @Param("lastInteractionTime") LocalDateTime lastInteractionTime
     );
 
     /// Cập nhật tổng bookmark của CampaignEpisode thuộc Chiến dịch

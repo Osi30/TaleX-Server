@@ -85,4 +85,15 @@ public class Account {
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "role_id", nullable = false)
     private Role role;
+
+    @Column(name = "last_interaction_time")
+    private LocalDateTime lastInteractionTime;
+
+    @Column(name = "is_24h")
+    @Builder.Default
+    private Boolean is24h = false;
+
+    @Column(name = "is_7d")
+    @Builder.Default
+    private Boolean is7d = false;
 }

@@ -1,16 +1,17 @@
 package com.talex.server.controllers.mongo;
 
 import com.talex.server.dtos.responses.series.EpisodeRefs;
+import com.talex.server.repositories.series.SeriesRepository;
 import com.talex.server.services.mongo.ISeriesFeatureService;
-import com.talex.server.services.series.EpisodeService;
 import com.talex.server.services.mongo.IUserFeatureService;
+import com.talex.server.services.series.EpisodeService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Arrays;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/feature")
@@ -20,6 +21,7 @@ public class FeatureTestController {
     private final IUserFeatureService userFeatureService;
     private final ISeriesFeatureService seriesFeatureService;
     private final EpisodeService episodeService;
+    private final SeriesRepository seriesRepository;
 
     @GetMapping("/{episodeId}/refs")
     @Operation(summary = "Api test lấy các tags và categories của một series", description = "Api test lấy các tags và categories của một series")
@@ -69,7 +71,14 @@ public class FeatureTestController {
             @RequestParam Boolean is7d
     ) {
         seriesFeatureService.resetInactiveSeriesStatsInMongo(
-                Arrays.stream(seriesIds).toList(), is24h, is7d);
+                List.of(seriesIds), is24h, is7d);
+        if (is24h) {
+            seriesRepository.markAs24hSynced(List.of(seriesIds));
+        }
+
+        if (is7d){
+            seriesRepository.markAs7dSynced(List.of(seriesIds));
+        }
         return ResponseEntity.ok("Đã kích hoạt và hoàn tất dọn dẹp toàn bộ Series Stats thành công!");
     }
 }

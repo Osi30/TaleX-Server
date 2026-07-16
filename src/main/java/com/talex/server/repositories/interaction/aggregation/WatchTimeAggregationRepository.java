@@ -29,11 +29,12 @@ public interface WatchTimeAggregationRepository extends JpaRepository<Episode, S
     @Transactional
     @Query("UPDATE Series s " +
             "SET s.analyticData.watchTime = s.analyticData.watchTime + :delta, " +
-            "s.is24hSync = false, s.is7dSync = false " +
+            "s.is24hSync = false, s.is7dSync = false, s.lastInteractionTime = :lastInteractionTime " +
             "WHERE s.seriesId = :seriesId")
     void updateSeriesWatchTime(
             @Param("seriesId") String seriesId,
-            @Param("delta") double delta
+            @Param("delta") double delta,
+            @Param("lastInteractionTime") LocalDateTime lastInteractionTime
     );
 
     /// Cập nhập thời lượng xem của campaign series

@@ -3,6 +3,7 @@ package com.talex.server.services.mongo;
 import com.talex.server.dtos.mongo.UserFeatureRequest;
 import com.talex.server.entities.mongo.UserFeatureDocument;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface IUserFeatureService {
@@ -15,4 +16,8 @@ public interface IUserFeatureService {
     void syncUserDynamicPreferences();
 
     void syncUserMonetizationFeatures();
+
+    void cleanUp24hFeatures(List<String> accountIds);
+
+    void cleanUp7dFeatures(List<String> accountIds);
 }

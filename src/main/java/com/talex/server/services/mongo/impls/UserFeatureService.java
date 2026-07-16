@@ -19,6 +19,10 @@ import com.talex.server.services.series.EpisodeService;
 import com.talex.server.services.QuestDbService;
 import com.talex.server.services.mongo.IUserFeatureService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -38,6 +42,7 @@ public class UserFeatureService implements IUserFeatureService {
     private final QuestDbService questDbService;
     private final EpisodeService episodeService;
     private final SyncMetadataRepository syncMetadataRepository;
+    private final MongoTemplate mongoTemplate;
 
     @Override
     public UserFeatureDocument saveOrUpdateFeatures(String userId, UserFeatureRequest incoming) {
@@ -364,6 +369,64 @@ public class UserFeatureService implements IUserFeatureService {
         } catch (Exception e) {
             throw new RuntimeException("Quy trình đồng bộ dữ liệu doanh thu thất bại", e);
         }
+    }
+
+    @Override
+    public void cleanUp24hFeatures(List<String> accountIds) {
+        if (accountIds == null || accountIds.isEmpty()) return;
+
+        // Tạo điều kiện lọc: _id thuộc danh sách accountIds
+        Query query = new Query(Criteria.where("_id").in(accountIds));
+
+        // Tiến hành reset toàn bộ các trường thuộc cửa sổ 24h dựa trên cấu trúc các sub-document
+        Update update = new Update()
+                // Reset bộ đếm InteractionStats (24h)
+                .set("interactions.clicks_last_24h", 0L)
+                .set("interactions.likes_last_24h", 0L)
+                .set("interactions.bookmarks_last_24h", 0L)
+                .set("interactions.shares_last_24h", 0L)
+                .set("interactions.comments_last_24h", 0L)
+                .set("interactions.like_to_click_ratio_last_24h", 0.0)
+                .set("interactions.bookmark_to_click_ratio_last_24h", 0.0)
+                .set("interactions.share_to_click_ratio_last_24h", 0.0)
+                .set("interactions.comment_to_click_ratio_last_24h", 0.0)
+                // Reset DeepEngagementStats (24h)
+                .set("deep_engagement.watch_time_last_24h", 0.0)
+                // Reset DynamicPreferences tỷ lệ % (24h)
+                .set("preferences.preferred_genres_by_clicks_last_24h", Collections.emptyMap())
+                .set("preferences.preferred_genres_by_watch_time_last_24h", Collections.emptyMap())
+                .set("preferences.preferred_tags_by_clicks_last_24h", Collections.emptyMap())
+                .set("preferences.preferred_tags_by_watch_time_last_24h", Collections.emptyMap());
+
+        mongoTemplate.updateMulti(query, update, UserFeatureDocument.class);
+    }
+
+    @Override
+    public void cleanUp7dFeatures(List<String> accountIds) {
+        if (accountIds == null || accountIds.isEmpty()) return;
+
+        Query query = new Query(Criteria.where("_id").in(accountIds));
+
+        Update update = new Update()
+                // Reset bộ đếm InteractionStats (7d)
+                .set("interactions.clicks_last_7d", 0L)
+                .set("interactions.likes_last_7d", 0L)
+                .set("interactions.bookmarks_last_7d", 0L)
+                .set("interactions.shares_last_7d", 0L)
+                .set("interactions.comments_last_7d", 0L)
+                .set("interactions.like_to_click_ratio_last_7d", 0.0)
+                .set("interactions.bookmark_to_click_ratio_last_7d", 0.0)
+                .set("interactions.share_to_click_ratio_last_7d", 0.0)
+                .set("interactions.comment_to_click_ratio_last_7d", 0.0)
+                // Reset DeepEngagementStats (7d)
+                .set("deep_engagement.watch_time_last_7d", 0.0)
+                // Reset DynamicPreferences tỷ lệ % (7d)
+                .set("preferences.preferred_genres_by_clicks_last_7d", Collections.emptyMap())
+                .set("preferences.preferred_genres_by_watch_time_last_7d", Collections.emptyMap())
+                .set("preferences.preferred_tags_by_clicks_last_7d", Collections.emptyMap())
+                .set("preferences.preferred_tags_by_watch_time_last_7d", Collections.emptyMap());
+
+        mongoTemplate.updateMulti(query, update, UserFeatureDocument.class);
     }
 
     /**

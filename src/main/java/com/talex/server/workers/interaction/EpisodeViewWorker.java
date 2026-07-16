@@ -103,7 +103,7 @@ public class EpisodeViewWorker {
                 if (totalDelta > 0) {
                     String seriesId = episodeService.getSeriesIdByEpisodeId(episodeId);
                     viewAggregationRepository.updateEpisodeViewCount(episodeId, totalDelta);
-                    viewAggregationRepository.updateSeriesViewCount(seriesId, totalDelta);
+                    viewAggregationRepository.updateSeriesViewCount(seriesId, totalDelta, LocalDateTime.now());
                     viewAggregationRepository.updateCampaignSeriesViewCount(seriesId, totalDelta);
                     viewAggregationRepository.updateCampaignViewCountAndTarget(seriesId, totalDelta);
                     viewAggregationRepository.updateCreatorViewCount(seriesId, totalDelta);

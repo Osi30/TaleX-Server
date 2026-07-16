@@ -31,11 +31,12 @@ public interface LikeAggregationRepository extends JpaRepository<AccountLike, St
     @Transactional
     @Query(value = "UPDATE series " +
             "SET likes = likes + :delta, " +
-            "s.is24hSync = false, s.is7dSync = false " +
+            "s.is24hSync = false, s.is7dSync = false, s.lastInteractionTime = :lastInteractionTime " +
             "WHERE series_id = :seriesId", nativeQuery = true)
     void updateSeriesLikeCount(
             @Param("seriesId") String seriesId,
-            @Param("delta") int delta
+            @Param("delta") int delta,
+            @Param("lastInteractionTime") LocalDateTime lastInteractionTime
     );
     
     /// Cập nhập cho campaign của series (nếu có)

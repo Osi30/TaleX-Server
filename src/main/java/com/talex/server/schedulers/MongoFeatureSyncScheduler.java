@@ -1,5 +1,6 @@
 package com.talex.server.schedulers;
 
+import com.talex.server.repositories.auth.AccountRepository;
 import com.talex.server.repositories.series.SeriesRepository;
 import com.talex.server.services.mongo.ISeriesFeatureService;
 import com.talex.server.services.mongo.IUserFeatureService;
@@ -7,23 +8,26 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 @Component
 @RequiredArgsConstructor
 @Slf4j
 public class MongoFeatureSyncScheduler {
-    private final IUserFeatureService syncService;
+    private final IUserFeatureService userFeatureService;
     private final ISeriesFeatureService seriesFeatureService;
     private final SeriesRepository seriesRepository;
+    private final AccountRepository accountRepository;
 
     @Scheduled(cron = "0 0 * * * *")
     public void executeDynamicFeatureSync() {
         log.info("[SCHEDULED JOB] Kích hoạt tiến trình tự động đồng bộ Dynamic Features...");
         try {
-            syncService.syncUserDynamicFeatures();
+            userFeatureService.syncUserDynamicFeatures();
             log.info("[SCHEDULED JOB] Hoàn thành luồng chạy.");
         } catch (Exception e) {
             log.error("[SCHEDULED JOB] Lỗi khi chạy ngầm: ", e);
@@ -34,7 +38,7 @@ public class MongoFeatureSyncScheduler {
     public void executeDynamicPreferencesSync() {
         log.info("[SCHEDULED JOB] Kích hoạt tự động đồng bộ Dynamic Preferences...");
         try {
-            syncService.syncUserDynamicPreferences();
+            userFeatureService.syncUserDynamicPreferences();
         } catch (Exception e) {
             log.error("[SCHEDULED JOB] Lỗi luồng đồng bộ sở thích động: ", e);
         }
@@ -78,6 +82,43 @@ public class MongoFeatureSyncScheduler {
             log.info("[Daily Reset Cron] Hoàn tất tiến trình quét dọn stats inactive thành công.");
         } catch (Exception e) {
             log.error("[Daily Reset Cron] Gặp lỗi nghiêm trọng khi reset stats inactive: ", e);
+        }
+    }
+
+        @Scheduled(cron = "0 0 0 * * ?")
+    @Transactional
+    public void processExpiredFeaturesCleanUp() {
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime threshold24h = now.minusHours(24);
+        LocalDateTime threshold7d = now.minusDays(7);
+
+        log.info("[CleanUp] Bắt đầu tiến trình dọn dẹp sliding window...");
+
+        // --- XỬ LÝ 24 GIỜ ---
+        List<UUID> expired24hAccountIds = accountRepository.findExpired24hAccountIds(threshold24h);
+        if (!expired24hAccountIds.isEmpty()) {
+            log.info("[24h] Tìm thấy {} tài khoản hết hạn.", expired24hAccountIds.size());
+
+            // Convert List<UUID> sang List<String> phù hợp với _id của MongoDB Document
+            List<String> mongoIds = expired24hAccountIds.stream().map(UUID::toString).toList();
+
+            userFeatureService.cleanUp24hFeatures(mongoIds);
+            accountRepository.updateIs24hByAccountIds(expired24hAccountIds);
+
+            log.info("[24h] Đã reset Mongo và hạ cờ thành công.");
+        }
+
+        // --- XỬ LÝ 7 NGÀY ---
+        List<UUID> expired7dAccountIds = accountRepository.findExpired7dAccountIds(threshold7d);
+        if (!expired7dAccountIds.isEmpty()) {
+            log.info("[7d] Tìm thấy {} tài khoản hết hạn.", expired7dAccountIds.size());
+
+            List<String> mongoIds = expired7dAccountIds.stream().map(UUID::toString).toList();
+
+            userFeatureService.cleanUp7dFeatures(mongoIds);
+            accountRepository.updateIs7dByAccountIds(expired7dAccountIds);
+
+            log.info("[7d] Đã reset Mongo và hạ cờ thành công.");
         }
     }
 }

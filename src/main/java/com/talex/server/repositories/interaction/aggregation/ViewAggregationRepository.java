@@ -26,9 +26,13 @@ public interface ViewAggregationRepository extends JpaRepository<Episode, String
     @Transactional
     @Query("UPDATE Series s " +
             "SET s.analyticData.views = s.analyticData.views + :delta, " +
-            "s.is24hSync = false, s.is7dSync = false " +
+            "s.is24hSync = false, s.is7dSync = false, s.lastInteractionTime = :lastInteractionTime " +
             "WHERE s.seriesId = :seriesId")
-    void updateSeriesViewCount(@Param("seriesId") String seriesId, @Param("delta") long delta);
+    void updateSeriesViewCount(
+            @Param("seriesId") String seriesId,
+            @Param("delta") long delta,
+            @Param("lastInteractionTime") LocalDateTime lastInteractionTime
+    );
 
     /// Cập nhật tổng view của CampaignSeries thuộc Chiến dịch
     @Modifying

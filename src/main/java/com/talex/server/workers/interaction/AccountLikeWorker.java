@@ -125,7 +125,7 @@ public class AccountLikeWorker {
                 if (totalDelta != 0) {
                     String seriesId = episodeService.getSeriesIdByEpisodeId(episodeId);
                     aggregationRepository.updateEpisodeLikeCount(episodeId, totalDelta);
-                    aggregationRepository.updateSeriesLikeCount(seriesId, totalDelta);
+                    aggregationRepository.updateSeriesLikeCount(seriesId, totalDelta, LocalDateTime.now());
                     aggregationRepository.updateCampaignSeriesLikeCount(seriesId, totalDelta);
                     aggregationRepository.updateCampaignLikeCountAndTarget(seriesId, totalDelta);
                     aggregationRepository.updateCreatorLikeCount(seriesId, totalDelta);

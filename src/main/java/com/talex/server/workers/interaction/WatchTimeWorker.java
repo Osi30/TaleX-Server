@@ -182,7 +182,7 @@ public class WatchTimeWorker {
             globalWatchTimeDeltaMap.forEach((episodeId, totalDelta) -> {
                 String seriesId = episodeService.getSeriesIdByEpisodeId(episodeId);
                 watchTimeAggregationRepository.updateEpisodeWatchTime(episodeId, totalDelta);
-                watchTimeAggregationRepository.updateSeriesWatchTime(seriesId, totalDelta);
+                watchTimeAggregationRepository.updateSeriesWatchTime(seriesId, totalDelta, LocalDateTime.now());
                 watchTimeAggregationRepository.updateCampaignSeriesWatchTime(seriesId, totalDelta);
                 watchTimeAggregationRepository.updateCampaignWatchTimeAndTarget(seriesId, totalDelta);
                 watchTimeAggregationRepository.updateCreatorWatchTime(seriesId, totalDelta);

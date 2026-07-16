@@ -98,7 +98,7 @@ public class AccountShareWorker {
                 if (totalDelta > 0) {
                     String seriesId = episodeService.getSeriesIdByEpisodeId(episodeId);
                     shareAggregationRepository.updateEpisodeShareCount(episodeId, totalDelta);
-                    shareAggregationRepository.updateSeriesShareCount(seriesId, totalDelta);
+                    shareAggregationRepository.updateSeriesShareCount(seriesId, totalDelta, LocalDateTime.now());
                     shareAggregationRepository.updateCampaignSeriesShareCount(seriesId, totalDelta);
                     shareAggregationRepository.updateCampaignShareCountAndTarget(seriesId, totalDelta);
                     shareAggregationRepository.updateCreatorShareCount(seriesId, totalDelta);

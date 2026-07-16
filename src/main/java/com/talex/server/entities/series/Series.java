@@ -71,11 +71,11 @@ public class Series extends BaseTimeEntity {
     @Column(name = "last_interaction_time")
     private LocalDateTime lastInteractionTime;
 
-    @Column(name = "is_24h_sync", nullable = false)
-    private boolean is24hSync = true;
+    @Column(name = "is_24h_sync")
+    private boolean is24hSync = false;
 
-    @Column(name = "is_7d_sync", nullable = false)
-    private boolean is7dSync = true;
+    @Column(name = "is_7d_sync")
+    private boolean is7dSync = false;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "creator_id", nullable = false)

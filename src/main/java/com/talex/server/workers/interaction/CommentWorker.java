@@ -158,7 +158,7 @@ public class CommentWorker {
                 if (totalDelta != 0) {
                     String seriesId = episodeService.getSeriesIdByEpisodeId(episodeId);
                     aggregationRepository.updateEpisodeCommentCount(episodeId, totalDelta);
-                    aggregationRepository.updateSeriesCommentCount(seriesId, totalDelta);
+                    aggregationRepository.updateSeriesCommentCount(seriesId, totalDelta, LocalDateTime.now());
                     aggregationRepository.updateCampaignSeriesCommentCount(seriesId, totalDelta);
                     aggregationRepository.updateCampaignCommentCountAndTarget(seriesId, totalDelta);
                     aggregationRepository.updateCreatorCommentCount(seriesId, totalDelta);
