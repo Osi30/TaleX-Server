@@ -36,7 +36,7 @@ public class EpisodeViewWorker {
 
     @KafkaListener(
             topics = "talex-interaction.episode-viewed",
-            groupId = "talex-view-questdb-group-local",
+            groupId = "talex-view-questdb-group",
             containerFactory = "batchFactory"
     )
     public void processViewsForQuestDB(List<String> messages) {
@@ -129,7 +129,7 @@ public class EpisodeViewWorker {
 
     @KafkaListener(
             topics = "talex-interaction.episode-viewed",
-            groupId = "talex-view-postgres-session-init-group-local",
+            groupId = "talex-view-postgres-session-init-group",
             containerFactory = "batchFactory"
     )
     @Transactional

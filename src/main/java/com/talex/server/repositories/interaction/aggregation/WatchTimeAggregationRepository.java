@@ -28,7 +28,8 @@ public interface WatchTimeAggregationRepository extends JpaRepository<Episode, S
     @Modifying
     @Transactional
     @Query("UPDATE Series s " +
-            "SET s.analyticData.watchTime = s.analyticData.watchTime + :delta " +
+            "SET s.analyticData.watchTime = s.analyticData.watchTime + :delta, " +
+            "s.is24hSync = false, s.is7dSync = false " +
             "WHERE s.seriesId = :seriesId")
     void updateSeriesWatchTime(
             @Param("seriesId") String seriesId,

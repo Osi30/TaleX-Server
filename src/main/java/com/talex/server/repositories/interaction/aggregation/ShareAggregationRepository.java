@@ -25,7 +25,8 @@ public interface ShareAggregationRepository extends JpaRepository<Episode, Strin
     @Modifying
     @Transactional
     @Query("UPDATE Series s " +
-            "SET s.analyticData.shares = s.analyticData.shares + :delta " +
+            "SET s.analyticData.shares = s.analyticData.shares + :delta, " +
+            "s.is24hSync = false, s.is7dSync = false " +
             "WHERE s.seriesId = :seriesId")
     void updateSeriesShareCount(@Param("seriesId") String seriesId, @Param("delta") long delta);
 

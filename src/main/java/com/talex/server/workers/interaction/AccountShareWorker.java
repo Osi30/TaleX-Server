@@ -31,7 +31,7 @@ public class AccountShareWorker {
 
     @KafkaListener(
             topics = "talex-interaction.episode-shared",
-            groupId = "talex-share-questdb-group-local",
+            groupId = "talex-share-questdb-group",
             containerFactory = "batchFactory"
     )
     public void processSharesForQuestDB(List<String> messages) {
@@ -64,7 +64,7 @@ public class AccountShareWorker {
 
     @KafkaListener(
             topics = "talex-interaction.episode-shared",
-            groupId = "talex-share-postgres-group-local",
+            groupId = "talex-share-postgres-group",
             containerFactory = "batchFactory"
     )
     @Transactional

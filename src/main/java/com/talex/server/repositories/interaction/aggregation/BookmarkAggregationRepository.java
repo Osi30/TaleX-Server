@@ -28,7 +28,8 @@ public interface BookmarkAggregationRepository extends JpaRepository<Episode, St
     @Modifying
     @Transactional
     @Query("UPDATE Series s " +
-            "SET s.analyticData.bookmarks = s.analyticData.bookmarks + :delta " +
+            "SET s.analyticData.bookmarks = s.analyticData.bookmarks + :delta, " +
+            "s.is24hSync = false, s.is7dSync = false " +
             "WHERE s.seriesId = :seriesId")
     void updateSeriesBookmarkCount(
             @Param("seriesId") String seriesId,

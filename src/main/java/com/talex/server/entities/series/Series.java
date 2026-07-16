@@ -6,11 +6,9 @@ import com.talex.server.entities.creator.Creator;
 import com.talex.server.enums.series.ContentType;
 import com.talex.server.enums.series.SeriesStatus;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -68,6 +66,16 @@ public class Series extends BaseTimeEntity {
 
     @Embedded
     private AnalyticData analyticData = new AnalyticData();
+
+    // Dành cho tính năng lưu trữ động
+    @Column(name = "last_interaction_time")
+    private LocalDateTime lastInteractionTime;
+
+    @Column(name = "is_24h_sync", nullable = false)
+    private boolean is24hSync = true;
+
+    @Column(name = "is_7d_sync", nullable = false)
+    private boolean is7dSync = true;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "creator_id", nullable = false)

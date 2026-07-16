@@ -24,7 +24,9 @@ public interface ViewAggregationRepository extends JpaRepository<Episode, String
     /// Cập nhật tổng view của Chuỗi phim (Series)
     @Modifying
     @Transactional
-    @Query("UPDATE Series s SET s.analyticData.views = s.analyticData.views + :delta " +
+    @Query("UPDATE Series s " +
+            "SET s.analyticData.views = s.analyticData.views + :delta, " +
+            "s.is24hSync = false, s.is7dSync = false " +
             "WHERE s.seriesId = :seriesId")
     void updateSeriesViewCount(@Param("seriesId") String seriesId, @Param("delta") long delta);
 

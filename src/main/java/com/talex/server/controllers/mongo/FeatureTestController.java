@@ -10,6 +10,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Arrays;
+
 @RestController
 @RequestMapping("/api/v1/feature")
 @RequiredArgsConstructor
@@ -20,6 +22,7 @@ public class FeatureTestController {
     private final EpisodeService episodeService;
 
     @GetMapping("/{episodeId}/refs")
+    @Operation(summary = "Api test lấy các tags và categories của một series", description = "Api test lấy các tags và categories của một series")
     public ResponseEntity<EpisodeRefs> getEpisodeRefs(@PathVariable String episodeId) {
         return ResponseEntity.ok(episodeService.getEpisodeRefsByEpisodeId(episodeId));
     }
@@ -53,5 +56,20 @@ public class FeatureTestController {
     public ResponseEntity<String> triggerSync() {
         seriesFeatureService.syncAllSeriesFeatures();
         return ResponseEntity.ok("Đã kích hoạt và hoàn tất đồng bộ hóa toàn bộ Series Stats thành công!");
+    }
+
+    @PostMapping("/series/stats/reset")
+    @Operation(
+            summary = "Kích hoạt clean up",
+            description = "Kích hoạt clean up dữ liệu 24h và 7d của nhiều series"
+    )
+    public ResponseEntity<String> cleanSync(
+            @RequestParam() String[] seriesIds,
+            @RequestParam Boolean is24h,
+            @RequestParam Boolean is7d
+    ) {
+        seriesFeatureService.resetInactiveSeriesStatsInMongo(
+                Arrays.stream(seriesIds).toList(), is24h, is7d);
+        return ResponseEntity.ok("Đã kích hoạt và hoàn tất dọn dẹp toàn bộ Series Stats thành công!");
     }
 }

@@ -17,6 +17,10 @@ import com.talex.server.repositories.series.SeriesLogRepository;
 import com.talex.server.services.mongo.ISeriesFeatureService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
@@ -34,6 +38,7 @@ public class SeriesFeatureService implements ISeriesFeatureService {
     private final SeriesMetadataRepository seriesMetadataRepository;
     private final SeriesLogRepository seriesLogRepository;
     private final SyncMetadataRepository syncMetadataRepository;
+    private final MongoTemplate mongoTemplate;
 
     @Async("mongoDbExecutor")
     @Override
@@ -259,11 +264,50 @@ public class SeriesFeatureService implements ISeriesFeatureService {
 
                 seriesMetadataRepository.save(existing);
             }
-            log.info("[7D] Hoàn tất cập nhật {} series.", results.size());
         } catch (Exception e) {
             throw new MongoDocumentException(MongoDocumentErrorCode.ASYNC_PROCESSING_ERROR, "7D Error: " + e.getMessage());
         }
         return CompletableFuture.completedFuture(null);
+    }
+
+    /**
+     * Thực hiện bulk update đưa các trường stats định kỳ về 0 cho danh sách ID chỉ định
+     */
+    @Override
+    public void resetInactiveSeriesStatsInMongo(List<String> seriesIds, boolean reset24h, boolean reset7d) {
+        if (seriesIds == null || seriesIds.isEmpty()) return;
+
+        Query query = new Query(Criteria.where("id").in(seriesIds));
+        Update update = new Update();
+
+        if (reset24h) {
+            update.set("interaction_stats.clicks_last_24h", 0L)
+                    .set("interaction_stats.likes_last_24h", 0L)
+                    .set("interaction_stats.bookmarks_last_24h", 0L)
+                    .set("interaction_stats.shares_last_24h", 0L)
+                    .set("interaction_stats.comments_last_24h", 0L)
+                    .set("interaction_stats.like_to_click_ratio_last_24h", 0.0)
+                    .set("interaction_stats.bookmark_to_click_ratio_last_24h", 0.0)
+                    .set("interaction_stats.share_to_click_ratio_last_24h", 0.0)
+                    .set("interaction_stats.comment_to_click_ratio_last_24h", 0.0)
+                    .set("engagement_stats.watch_time_last_24h", 0.0);
+        }
+
+        if (reset7d) {
+            update.set("interaction_stats.clicks_last_7d", 0L)
+                    .set("interaction_stats.likes_last_7d", 0L)
+                    .set("interaction_stats.bookmarks_last_7d", 0L)
+                    .set("interaction_stats.shares_last_7d", 0L)
+                    .set("interaction_stats.comments_last_7d", 0L)
+                    .set("interaction_stats.like_to_click_ratio_last_7d", 0.0)
+                    .set("interaction_stats.bookmark_to_click_ratio_last_7d", 0.0)
+                    .set("interaction_stats.share_to_click_ratio_last_7d", 0.0)
+                    .set("interaction_stats.comment_to_click_ratio_last_7d", 0.0)
+                    .set("engagement_stats.watch_time_last_7d", 0.0);
+        }
+
+        // Thực hiện 1 câu query duy nhất cho toàn bộ danh sách ID (Bulk operation của Mongo)
+        mongoTemplate.updateMulti(query, update, SeriesMetadata.class);
     }
 
     private long safeLong(Long val) {

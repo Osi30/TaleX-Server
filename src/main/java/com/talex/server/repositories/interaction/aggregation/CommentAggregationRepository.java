@@ -41,7 +41,8 @@ public interface CommentAggregationRepository extends JpaRepository<Episode, Str
     @Modifying
     @Transactional
     @Query(value = "UPDATE series " +
-            "SET comments = COALESCE(comments, 0) + :delta " +
+            "SET comments = COALESCE(comments, 0) + :delta, " +
+            "s.is24hSync = false, s.is7dSync = false " +
             "WHERE series_id = :seriesId", nativeQuery = true)
     void updateSeriesCommentCount(
             @Param("seriesId") String seriesId,

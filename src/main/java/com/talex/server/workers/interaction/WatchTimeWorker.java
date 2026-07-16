@@ -97,7 +97,7 @@ public class WatchTimeWorker {
 
     @KafkaListener(
             topics = "watch-raw",
-            groupId = "talex-watch-session-entity-group-local",
+            groupId = "talex-watch-session-entity-group",
             containerFactory = "batchFactory"
     )
     @Transactional
@@ -131,11 +131,11 @@ public class WatchTimeWorker {
         }
     }
 
-//    @KafkaListener(
-//            topics = "talex-cdc.public.watch_session",
-//            groupId = "talex-watch-cdc-stats-group",
-//            containerFactory = "batchFactory"
-//    )
+    @KafkaListener(
+            topics = "talex-cdc.public.watch_session",
+            groupId = "talex-watch-cdc-stats-group",
+            containerFactory = "batchFactory"
+    )
     @Transactional
     public void processWatchSessionCDCEvents(List<String> messages) {
         Map<String, Double> globalWatchTimeDeltaMap = new HashMap<>();
