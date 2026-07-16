@@ -16,9 +16,11 @@ import java.util.List;
 @AllArgsConstructor
 public class SeriesResponseDto {
     private String seriesId;
+    private String accountId;
     private String creatorId;
     private String creatorName;
     private String creatorAvatar;
+    private Long totalCreatorFollowers;
     private String title;
     private String description;
     private String coverUrl;

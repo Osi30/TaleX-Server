@@ -257,7 +257,9 @@ public class SeriesServiceImpl implements SeriesService {
             List<TagResponseDto> tags) {
         return SeriesResponseDto.builder()
                 .seriesId(series.getSeriesId())
+                .accountId(series.getCreator().getAccount().getAccountId().toString())
                 .creatorId(series.getCreator().getCreatorId())
+                .totalCreatorFollowers(series.getCreator().getAccount().getTotalFollowersBy())
                 .title(series.getTitle())
                 .description(series.getDescription())
                 .coverUrl(series.getCoverUrl())
