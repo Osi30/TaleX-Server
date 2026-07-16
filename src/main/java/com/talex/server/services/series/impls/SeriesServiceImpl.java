@@ -93,7 +93,12 @@ public class SeriesServiceImpl implements SeriesService {
     @Transactional(readOnly = true)
     @Override
     public SeriesResponseDto getPublicById(String id) {
-        return toResponse(findPublicEntity(id));
+        com.talex.server.repositories.series.projections.SeriesWithAvatarProjection projection = seriesRepository.findActiveSeriesWithAvatarById(id)
+                .orElseThrow(() -> ContentModuleException.notFound("Public series not found: " + id));
+        if (projection.getSeries().getStatus() != SeriesStatus.PUBLISHED && projection.getSeries().getStatus() != SeriesStatus.SCHEDULED) {
+            throw ContentModuleException.notFound("Public series not found: " + id);
+        }
+        return toResponsesWithAvatar(List.of(projection)).getFirst();
     }
 
     @Transactional(readOnly = true)
@@ -115,11 +120,11 @@ public class SeriesServiceImpl implements SeriesService {
     @Transactional(readOnly = true)
     @Override
     public BasePageResponse<SeriesResponseDto> listPublic(Integer page, Integer pageSize) {
-        Page<Series> result = seriesRepository
-                .findAllByStatusInAndIsDeletedFalse(
+        Page<com.talex.server.repositories.series.projections.SeriesWithAvatarProjection> result = seriesRepository
+                .findPublicSeriesWithAvatar(
                         List.of(SeriesStatus.PUBLISHED, SeriesStatus.SCHEDULED),
                         PageUtils.buildPageable(page, pageSize));
-        return toPageResponse(result, toResponses(result.getContent()));
+        return toPageResponseProjection(result, toResponsesWithAvatar(result.getContent()));
     }
 
     @Transactional
@@ -455,5 +460,42 @@ public class SeriesServiceImpl implements SeriesService {
                 .isFirst(page.isFirst())
                 .isLast(page.isLast())
                 .build();
+    }
+
+    private BasePageResponse<SeriesResponseDto> toPageResponseProjection(Page<com.talex.server.repositories.series.projections.SeriesWithAvatarProjection> page, List<SeriesResponseDto> content) {
+        return BasePageResponse.<SeriesResponseDto>builder()
+                .content(content)
+                .pageNumber(page.getNumber() + 1)
+                .pageSize(page.getSize())
+                .totalElements(page.getTotalElements())
+                .totalPages(page.getTotalPages())
+                .isFirst(page.isFirst())
+                .isLast(page.isLast())
+                .build();
+    }
+
+    private List<SeriesResponseDto> toResponsesWithAvatar(List<com.talex.server.repositories.series.projections.SeriesWithAvatarProjection> projections) {
+        if (projections.isEmpty()) {
+            return List.of();
+        }
+
+        List<String> seriesIds = projections.stream()
+                .map(p -> p.getSeries().getSeriesId())
+                .toList();
+        Map<String, List<CategoryResponseDto>> categoriesBySeriesId =
+                loadCategoryResponses(seriesIds);
+        Map<String, List<TagResponseDto>> tagsBySeriesId =
+                loadTagResponses(seriesIds);
+
+        return projections.stream()
+                .map(p -> {
+                    SeriesResponseDto dto = toResponse(
+                            p.getSeries(),
+                            categoriesBySeriesId.getOrDefault(p.getSeries().getSeriesId(), List.of()),
+                            tagsBySeriesId.getOrDefault(p.getSeries().getSeriesId(), List.of()));
+                    dto.setCreatorAvatar(p.getAvatarUrl());
+                    return dto;
+                })
+                .toList();
     }
 }

@@ -32,6 +32,23 @@ public interface SeriesRepository extends JpaRepository<Series, String> {
             Collection<SeriesStatus> statuses,
             Pageable pageable);
 
+    @Query("SELECT s AS series, a.avatarUrl AS avatarUrl " +
+            "FROM Series s " +
+            "JOIN s.creator c " +
+            "JOIN c.account a " +
+            "WHERE s.status IN :statuses AND s.isDeleted = false")
+    Page<com.talex.server.repositories.series.projections.SeriesWithAvatarProjection> findPublicSeriesWithAvatar(
+            @Param("statuses") Collection<SeriesStatus> statuses,
+            Pageable pageable);
+
+    @Query("SELECT s AS series, a.avatarUrl AS avatarUrl " +
+            "FROM Series s " +
+            "JOIN s.creator c " +
+            "JOIN c.account a " +
+            "WHERE s.seriesId = :seriesId AND s.isDeleted = false")
+    Optional<com.talex.server.repositories.series.projections.SeriesWithAvatarProjection> findActiveSeriesWithAvatarById(
+            @Param("seriesId") String seriesId);
+
     long countBySeriesIdInAndStatusAndIsDeletedFalseAndCreator_CreatorId(Collection<String> seriesIds, SeriesStatus status, String creatorId);
 
     /// Tìm các Series ngừng tương tác quá 24h nhưng chưa reset cụm 24h
