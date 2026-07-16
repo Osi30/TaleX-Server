@@ -66,7 +66,7 @@ public class ComboEpisodeServiceImpl implements ComboEpisodeService {
 
     @Override
     public List<ComboEpisodeResponseDto> getAll() {
-        return comboEpisodeRepository.findAll().stream().map(this::toResponse).collect(Collectors.toList());
+        return comboEpisodeRepository.findByIsDeletedFalse().stream().map(this::toResponse).collect(Collectors.toList());
     }
 
     @Override
