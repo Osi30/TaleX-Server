@@ -67,6 +67,7 @@ public class EpisodeServiceImpl implements EpisodeService {
         episode.setThumbnail(request.getThumbnail());
         episode.setContentType(contentType);
         episode.setStatus(EpisodeStatus.DRAFT);
+        episode.setReleasedUpdateTime(LocalDateTime.now());
         episode.setScheduledPublishAt(null);
         episode.setTotalPage(request.getTotalPage());
         applyFreeUnlockSettings(episode);
@@ -148,7 +149,10 @@ public class EpisodeServiceImpl implements EpisodeService {
             } else if (episode.getStatus() == EpisodeStatus.SCHEDULED) {
                 cancelScheduledPublication(episode, accountId);
             }
-            episode.setStatus(request.getStatus());
+            if (episode.getStatus() != request.getStatus()) {
+                episode.setStatus(request.getStatus());
+                episode.setReleasedUpdateTime(LocalDateTime.now());
+            }
         }
         episode.setTotalPage(request.getTotalPage());
         episodeRepository.save(episode);
@@ -177,6 +181,7 @@ public class EpisodeServiceImpl implements EpisodeService {
 
         prepareParentsForSchedule(episode, actorId);
         episode.setStatus(EpisodeStatus.SCHEDULED);
+        episode.setReleasedUpdateTime(LocalDateTime.now());
         episode.setScheduledPublishAt(scheduledPublishAt);
         episodeRepository.save(episode);
         contentAuditLogger.logAction("Episode", episode.getEpisodeId(), "SCHEDULE", actorId, episode.getCreatorId());
@@ -192,6 +197,7 @@ public class EpisodeServiceImpl implements EpisodeService {
         }
         cancelScheduledPublication(episode, actorId);
         episode.setStatus(EpisodeStatus.DRAFT);
+        episode.setReleasedUpdateTime(LocalDateTime.now());
         episodeRepository.save(episode);
         contentAuditLogger.logAction("Episode", episode.getEpisodeId(), "CANCEL_SCHEDULE", actorId, episode.getCreatorId());
         return toResponse(episode);
@@ -205,6 +211,7 @@ public class EpisodeServiceImpl implements EpisodeService {
         publishParentsImmediately(episode, actorId);
 
         episode.setStatus(EpisodeStatus.PUBLISHED);
+        episode.setReleasedUpdateTime(LocalDateTime.now());
         episode.setScheduledPublishAt(null);
         if (episode.getPublishedAt() == null) {
             episode.setPublishedAt(LocalDateTime.now());
@@ -223,6 +230,7 @@ public class EpisodeServiceImpl implements EpisodeService {
 
         publishScheduledParents(episode, actorId);
         episode.setStatus(EpisodeStatus.PUBLISHED);
+        episode.setReleasedUpdateTime(LocalDateTime.now());
         episode.setScheduledPublishAt(null);
         if (episode.getPublishedAt() == null) {
             episode.setPublishedAt(LocalDateTime.now());
@@ -240,6 +248,7 @@ public class EpisodeServiceImpl implements EpisodeService {
             cancelScheduledPublication(episode, actorId);
         }
         episode.setStatus(EpisodeStatus.HIDDEN);
+        episode.setReleasedUpdateTime(LocalDateTime.now());
 
         hideParentsIfNoOtherPublished(episode);
 
@@ -258,8 +267,10 @@ public class EpisodeServiceImpl implements EpisodeService {
                     season.getSeasonId(), episode.getEpisodeId(), EpisodeStatus.SCHEDULED);
             if (scheduledEpisodesInSeason > 0) {
                 season.setStatus(SeasonStatus.SCHEDULED);
+                season.setReleasedUpdateTime(LocalDateTime.now());
             } else {
                 season.setStatus(SeasonStatus.HIDDEN);
+                season.setReleasedUpdateTime(LocalDateTime.now());
             }
         }
 
@@ -272,8 +283,10 @@ public class EpisodeServiceImpl implements EpisodeService {
                     series.getSeriesId(), episode.getEpisodeId(), EpisodeStatus.SCHEDULED);
             if (scheduledEpisodesInSeries > 0) {
                 series.setStatus(SeriesStatus.SCHEDULED);
+                series.setReleasedUpdateTime(LocalDateTime.now());
             } else {
                 series.setStatus(SeriesStatus.HIDDEN);
+                series.setReleasedUpdateTime(LocalDateTime.now());
             }
         }
     }
@@ -283,6 +296,7 @@ public class EpisodeServiceImpl implements EpisodeService {
     public EpisodeResponseDto forceHide(String id, String actorId) {
         Episode episode = findActiveEntity(id);
         episode.setStatus(EpisodeStatus.FORCE_HIDDEN);
+        episode.setReleasedUpdateTime(LocalDateTime.now());
         Episode saved = episodeRepository.save(episode);
         contentAuditLogger.logAction("Episode", saved.getEpisodeId(), "FORCE_HIDE", actorId, episode.getCreatorId());
         return toResponse(saved);
@@ -296,6 +310,7 @@ public class EpisodeServiceImpl implements EpisodeService {
             throw ContentModuleException.badRequest("Episode is not force-hidden");
         }
         episode.setStatus(EpisodeStatus.HIDDEN);
+        episode.setReleasedUpdateTime(LocalDateTime.now());
         Episode saved = episodeRepository.save(episode);
         contentAuditLogger.logAction("Episode", saved.getEpisodeId(), "FORCE_UNHIDE", actorId, episode.getCreatorId());
         return toResponse(saved);
@@ -309,6 +324,7 @@ public class EpisodeServiceImpl implements EpisodeService {
         ensureReadyMediaForPublish(episode);
         publishParentsImmediately(episode, actorId);
         episode.setStatus(EpisodeStatus.PUBLISHED);
+        episode.setReleasedUpdateTime(LocalDateTime.now());
         episode.setScheduledPublishAt(null);
         if (episode.getPublishedAt() == null) {
             episode.setPublishedAt(LocalDateTime.now());
@@ -326,6 +342,7 @@ public class EpisodeServiceImpl implements EpisodeService {
             cancelScheduledPublication(episode, actorId);
         }
         episode.setStatus(EpisodeStatus.DELETED);
+        episode.setReleasedUpdateTime(LocalDateTime.now());
         episode.softDelete();
         episodeRepository.save(episode);
         contentAuditLogger.logAction("Episode", episode.getEpisodeId(), "DELETE", actorId, episode.getCreatorId());
@@ -480,9 +497,11 @@ public class EpisodeServiceImpl implements EpisodeService {
 
         if (season.getStatus() != SeasonStatus.PUBLISHED && season.getStatus() != SeasonStatus.SCHEDULED) {
             season.setStatus(SeasonStatus.SCHEDULED);
+            season.setReleasedUpdateTime(LocalDateTime.now());
         }
         if (series.getStatus() != SeriesStatus.PUBLISHED && series.getStatus() != SeriesStatus.SCHEDULED) {
             series.setStatus(SeriesStatus.SCHEDULED);
+            series.setReleasedUpdateTime(LocalDateTime.now());
         }
     }
 
@@ -493,9 +512,11 @@ public class EpisodeServiceImpl implements EpisodeService {
 
         if (season.getStatus() == SeasonStatus.SCHEDULED) {
             season.setStatus(SeasonStatus.PUBLISHED);
+            season.setReleasedUpdateTime(LocalDateTime.now());
         }
         if (series.getStatus() == SeriesStatus.SCHEDULED && season.getStatus() == SeasonStatus.PUBLISHED) {
             series.setStatus(SeriesStatus.PUBLISHED);
+            series.setReleasedUpdateTime(LocalDateTime.now());
         }
     }
 
@@ -506,9 +527,11 @@ public class EpisodeServiceImpl implements EpisodeService {
 
         if (season.getStatus() != SeasonStatus.PUBLISHED) {
             season.setStatus(SeasonStatus.PUBLISHED);
+            season.setReleasedUpdateTime(LocalDateTime.now());
         }
         if (series.getStatus() != SeriesStatus.PUBLISHED) {
             series.setStatus(SeriesStatus.PUBLISHED);
+            series.setReleasedUpdateTime(LocalDateTime.now());
         }
     }
 
@@ -537,8 +560,10 @@ public class EpisodeServiceImpl implements EpisodeService {
                 season.getSeasonId(), episode.getEpisodeId(), EpisodeStatus.SCHEDULED);
         if (publishedEpisodes > 0) {
             season.setStatus(SeasonStatus.PUBLISHED);
+            season.setReleasedUpdateTime(LocalDateTime.now());
         } else if (scheduledEpisodes == 0) {
             season.setStatus(SeasonStatus.DRAFT);
+            season.setReleasedUpdateTime(LocalDateTime.now());
         }
     }
 
@@ -554,8 +579,10 @@ public class EpisodeServiceImpl implements EpisodeService {
                 series.getSeriesId(), episode.getEpisodeId(), EpisodeStatus.SCHEDULED);
         if (publishedEpisodes > 0) {
             series.setStatus(SeriesStatus.PUBLISHED);
+            series.setReleasedUpdateTime(LocalDateTime.now());
         } else if (scheduledEpisodes == 0) {
             series.setStatus(SeriesStatus.DRAFT);
+            series.setReleasedUpdateTime(LocalDateTime.now());
         }
     }
 

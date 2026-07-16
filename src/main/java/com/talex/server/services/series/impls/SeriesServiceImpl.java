@@ -54,6 +54,7 @@ public class SeriesServiceImpl implements SeriesService {
         Series series = new Series();
         applyMutableFields(series, request);
         series.setStatus(SeriesStatus.DRAFT);
+        series.setReleasedUpdateTime(java.time.LocalDateTime.now());
         series.setCreator(creator);
 
         Series saved = seriesRepository.save(series);
@@ -149,6 +150,7 @@ public class SeriesServiceImpl implements SeriesService {
         Series series = findActiveEntity(id);
         contentOwnershipService.assertCanManage(series, actorId);
         series.setStatus(SeriesStatus.HIDDEN);
+        series.setReleasedUpdateTime(java.time.LocalDateTime.now());
         Series saved = seriesRepository.save(series);
         contentAuditLogger.logAction("Series", saved.getSeriesId(), "HIDE", actorId, series.getCreator().getCreatorId());
         return toResponse(saved);
@@ -160,6 +162,7 @@ public class SeriesServiceImpl implements SeriesService {
         Series series = findActiveEntity(id);
         contentOwnershipService.assertCanManage(series, actorId);
         series.setStatus(SeriesStatus.PUBLISHED);
+        series.setReleasedUpdateTime(java.time.LocalDateTime.now());
         Series saved = seriesRepository.save(series);
         contentAuditLogger.logAction("Series", saved.getSeriesId(), "UNHIDE", actorId, series.getCreator().getCreatorId());
         return toResponse(saved);
@@ -170,6 +173,7 @@ public class SeriesServiceImpl implements SeriesService {
     public SeriesResponseDto forceHide(String id, String actorId) {
         Series series = findActiveEntity(id);
         series.setStatus(SeriesStatus.FORCE_HIDDEN);
+        series.setReleasedUpdateTime(java.time.LocalDateTime.now());
         Series saved = seriesRepository.save(series);
         contentAuditLogger.logAction("Series", saved.getSeriesId(), "FORCE_HIDE", actorId, series.getCreator().getCreatorId());
         return toResponse(saved);
@@ -183,6 +187,7 @@ public class SeriesServiceImpl implements SeriesService {
             throw ContentModuleException.badRequest("Series is not force-hidden");
         }
         series.setStatus(SeriesStatus.HIDDEN);
+        series.setReleasedUpdateTime(java.time.LocalDateTime.now());
         Series saved = seriesRepository.save(series);
         contentAuditLogger.logAction("Series", saved.getSeriesId(), "FORCE_UNHIDE", actorId, series.getCreator().getCreatorId());
         return toResponse(saved);
@@ -194,6 +199,7 @@ public class SeriesServiceImpl implements SeriesService {
         Series series = findActiveEntity(id);
         contentOwnershipService.assertCanManage(series, actorId);
         series.setStatus(SeriesStatus.DELETED);
+        series.setReleasedUpdateTime(java.time.LocalDateTime.now());
         series.softDelete();
         seriesRepository.save(series);
         contentAuditLogger.logAction("Series", series.getSeriesId(), "DELETE", actorId, series.getCreator().getCreatorId());
@@ -296,7 +302,10 @@ public class SeriesServiceImpl implements SeriesService {
         series.setCoverUrl(request.getCoverUrl());
         series.setBannerUrl(request.getBannerUrl());
         series.setContentType(request.getContentType());
-        series.setStatus(request.getStatus() != null ? request.getStatus() : series.getStatus());
+        if (request.getStatus() != null && series.getStatus() != request.getStatus()) {
+            series.setStatus(request.getStatus());
+            series.setReleasedUpdateTime(java.time.LocalDateTime.now());
+        }
         series.setAgeRating(request.getAgeRating());
         series.setLanguage(request.getLanguage());
     }

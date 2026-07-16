@@ -60,6 +60,9 @@ public class Season extends BaseTimeEntity {
     @Column(nullable = false, length = 30)
     private SeasonStatus status = SeasonStatus.DRAFT;
 
+    @Column(name = "released_update_time")
+    private java.time.LocalDateTime releasedUpdateTime;
+
     @OneToMany(mappedBy = "season")
     private List<Episode> episodes = new ArrayList<>();
 }
