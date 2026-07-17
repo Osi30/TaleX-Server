@@ -30,22 +30,28 @@ public class RecommendationWorker {
             RecommendationResult result = objectMapper.readValue(message, RecommendationResult.class);
             log.info("Received recommendation result for seriesId={}", result.getSeriesId());
 
-            if (result.getSeriesId() != null && result.getSimilarIds() != null && !result.getSimilarIds().isEmpty()) {
+            if (result.getSeriesId() != null) {
                 String redisKey = RECOMMENDATION_PREFIX + result.getSeriesId();
-                
-                // Store in Redis (List or Value). Here we store as a JSON value or string list.
-                String similarIdsJson = objectMapper.writeValueAsString(result.getSimilarIds());
-                redisTemplate.opsForValue().set(redisKey, similarIdsJson, Duration.ofDays(7));
-                
-                // Store in MongoDB
-                SeriesRecommendation mongoRecord = SeriesRecommendation.builder()
-                        .id(result.getSeriesId())
-                        .similarIds(result.getSimilarIds())
-                        .updatedAt(Instant.now())
-                        .build();
-                seriesRecommendationRepository.save(mongoRecord);
-                
-                log.info("Successfully stored {} similar series for seriesId={} in Redis and MongoDB", result.getSimilarIds().size(), result.getSeriesId());
+
+                if ("DELETE".equalsIgnoreCase(result.getAction())) {
+                    redisTemplate.delete(redisKey);
+                    seriesRecommendationRepository.deleteById(result.getSeriesId());
+                    log.info("Successfully deleted recommendation for seriesId={} in Redis and MongoDB", result.getSeriesId());
+                } else if (result.getSimilarIds() != null && !result.getSimilarIds().isEmpty()) {
+                    // Store in Redis (List or Value). Here we store as a JSON value or string list.
+                    String similarIdsJson = objectMapper.writeValueAsString(result.getSimilarIds());
+                    redisTemplate.opsForValue().set(redisKey, similarIdsJson, Duration.ofDays(7));
+                    
+                    // Store in MongoDB
+                    SeriesRecommendation mongoRecord = SeriesRecommendation.builder()
+                            .id(result.getSeriesId())
+                            .similarIds(result.getSimilarIds())
+                            .updatedAt(Instant.now())
+                            .build();
+                    seriesRecommendationRepository.save(mongoRecord);
+                    
+                    log.info("Successfully stored {} similar series for seriesId={} in Redis and MongoDB", result.getSimilarIds().size(), result.getSeriesId());
+                }
             }
 
         } catch (Exception e) {

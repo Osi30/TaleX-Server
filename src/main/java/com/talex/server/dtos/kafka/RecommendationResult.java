@@ -14,4 +14,5 @@ import java.util.List;
 public class RecommendationResult {
     private String seriesId;
     private List<String> similarIds;
+    private String action;
 }
