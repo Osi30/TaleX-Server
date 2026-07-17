@@ -11,14 +11,12 @@ import com.talex.server.services.series.EpisodeService;
 import io.questdb.client.Sender;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.time.ZoneOffset;
+import java.time.*;
 import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.List;
@@ -33,10 +31,14 @@ public class WatchTimeWorker {
     private final EpisodeService episodeService;
     private final WatchSessionRepository watchSessionRepository;
     private final WatchTimeAggregationRepository watchTimeAggregationRepository;
+    private final StringRedisTemplate redisTemplate;
 
+    private static final String REDIS_KEY_PREFIX = "watch:top5:recent_series:";
+
+    /// Gửi log thô cho QuestDB
     @KafkaListener(
             topics = "talex-cdc.public.watch_session",
-            groupId = "talex-watch-questdb-group",
+            groupId = "talex-watch-questdb-group-local",
             containerFactory = "batchFactory"
     )
     public void processWatchProgressForQuestDB(List<String> messages) {
@@ -66,6 +68,7 @@ public class WatchTimeWorker {
                 // Trích xuất các trường từ payload CDC (tên cột trong Postgres thường là snake_case)
                 String sessionId = after.get("watch_session_id").asText();
                 String episodeId = after.get("episode_id").asText();
+                String seriesId = episodeService.getSeriesIdByEpisodeId(episodeId);
 
                 // account_id có thể mang giá trị null nếu người dùng xem ẩn danh
                 String accountId = (after.has("account_id") && !after.get("account_id").isNull())
@@ -84,6 +87,7 @@ public class WatchTimeWorker {
                 questDBSender.table("watch_session_logs")
                         .symbol("session_id", sessionId)
                         .symbol("episode_id", episodeId)
+                        .symbol("series_id", seriesId)
                         .symbol("account_id", accountId)
                         .doubleColumn("current_position", currentPosition)
                         .doubleColumn("watch_time", heartbeatValue)
@@ -95,9 +99,10 @@ public class WatchTimeWorker {
         }
     }
 
+    /// Lưu trữ trực tiếp vào PostgreSQL
     @KafkaListener(
             topics = "watch-raw",
-            groupId = "talex-watch-session-entity-group",
+            groupId = "talex-watch-session-entity-group-local",
             containerFactory = "batchFactory"
     )
     @Transactional
@@ -131,6 +136,7 @@ public class WatchTimeWorker {
         }
     }
 
+    /// Cập nhập stat cho các bảng liên quan
     @KafkaListener(
             topics = "talex-cdc.public.watch_session",
             groupId = "talex-watch-cdc-stats-group",
@@ -201,6 +207,56 @@ public class WatchTimeWorker {
         }
     }
 
+    @KafkaListener(
+            topics = "talex-cdc.public.watch_session",
+            groupId = "talex-watch-redis-top5-group",
+            containerFactory = "batchFactory"
+    )
+    public void processInitialWatchEventsForRedis(List<String> messages) {
+        for (String message : messages) {
+            try {
+                JsonNode cdcPayload = objectMapper.readTree(message);
+                if (cdcPayload == null) continue;
+
+                // Chỉ xử lý các sự kiện UPDATE từ Debezium CDC
+                String op = cdcPayload.get("op").asText();
+                if (!"u".equals(op)) {
+                    continue;
+                }
+
+                JsonNode after = cdcPayload.get("after");
+                JsonNode before = cdcPayload.get("before");
+
+                if (after == null || before == null) continue;
+
+                // Nếu account null hoặc không tồn tại thì bỏ qua ngay lập tức
+                if (!after.has("account_id") || after.get("account_id").isNull()) {
+                    continue;
+                }
+                String accountId = after.get("account_id").asText();
+
+                // Trích xuất watch_duration của before và after
+                double beforeDuration = !before.isNull() && before.has("watch_duration")
+                        ? before.get("watch_duration").asDouble()
+                        : 0.0;
+                double afterDuration = after.has("watch_duration") ? after.get("watch_duration").asDouble() : 0.0;
+
+                // Sự kiện ban đầu (từ 0.0 tăng lên đúng 5.0 giây)
+                if (beforeDuration == 0.0 && afterDuration == 5.0) {
+                    String episodeId = after.get("episode_id").asText();
+                    String seriesId = episodeService.getSeriesIdByEpisodeId(episodeId);
+
+                    // Thực hiện ghi nhận top 5 series cho user này
+                    updateTop5SeriesInRedis(accountId, seriesId);
+                }
+
+            } catch (Exception e) {
+                log.error("Lỗi xử lý luồng ghi Redis Top 5: {}", e.getMessage(), e);
+            }
+        }
+    }
+
+    /// Lấy khoảng cập nhập duration từ before sang after
     private double getDelta(JsonNode before, JsonNode after) {
         double afterDuration = after.has("watch_duration") ? after.get("watch_duration").asDouble() : 0.0;
         double beforeDuration = (before != null && !before.isNull() && before.has("watch_duration"))
@@ -208,5 +264,31 @@ public class WatchTimeWorker {
                 : 0.0;
         double delta = afterDuration - beforeDuration;
         return Math.max(0.0, delta);
+    }
+
+    /**
+     * Cập nhật danh sách Top 5 hoạt động gần nhất của một User cụ thể lên Redis.
+     * Cấu trúc Key: watch:top5:recent_series:{accountId}
+     */
+    private void updateTop5SeriesInRedis(String accountId, String seriesId) {
+        String userRedisKey = REDIS_KEY_PREFIX + accountId;
+
+        // 1. Lấy danh sách Top 5 hiện tại của user này trên Redis (từ index 0 đến 4)
+        List<String> currentTop5 = redisTemplate.opsForList().range(userRedisKey, 0, 4);
+
+        // 2. Nếu danh sách trống hoặc chưa chứa seriesId này
+        if (currentTop5 == null || !currentTop5.contains(seriesId)) {
+
+            // Đẩy phần tử mới vào đầu danh sách (Left Push)
+            redisTemplate.opsForList().leftPush(userRedisKey, seriesId);
+
+            // Cắt tỉa danh sách, chỉ giữ lại index từ 0 đến 4 (tổng cộng 5 phần tử mới nhất)
+            redisTemplate.opsForList().trim(userRedisKey, 0, 4);
+            redisTemplate.expire(userRedisKey, Duration.ofDays(1));
+
+            log.info("Đã thêm series {} vào Top 5 của user: {}", seriesId, accountId);
+        } else {
+            log.debug("Series {} đã tồn tại trong Top 5 của user {}, bỏ qua không cập nhật.", seriesId, accountId);
+        }
     }
 }

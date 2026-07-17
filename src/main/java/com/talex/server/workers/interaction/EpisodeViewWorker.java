@@ -67,11 +67,11 @@ public class EpisodeViewWorker {
         }
     }
 
-//    @KafkaListener(
-//            topics = "talex-interaction.episode-viewed",
-//            groupId = "talex-view-postgres-group",
-//            containerFactory = "batchFactory"
-//    )
+    @KafkaListener(
+            topics = "talex-interaction.episode-viewed",
+            groupId = "talex-view-postgres-group",
+            containerFactory = "batchFactory"
+    )
     @Transactional
     public void processViewsForPostgreSQL(List<String> messages) {
         Map<String, Long> episodeDeltaMap = new HashMap<>();
@@ -129,7 +129,7 @@ public class EpisodeViewWorker {
 
     @KafkaListener(
             topics = "talex-interaction.episode-viewed",
-            groupId = "talex-view-postgres-session-init-group",
+            groupId = "talex-view-postgres-session-init-group-local",
             containerFactory = "batchFactory"
     )
     @Transactional
