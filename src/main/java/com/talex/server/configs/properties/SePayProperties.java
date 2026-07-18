@@ -21,4 +21,9 @@ public class SePayProperties {
      * (VietinBank requires "SEVQR "). Empty by default; set per linked bank.
      */
     private String transferContentPrefix = "";
+
+    // SePay eInvoice API (https://developer.sepay.vn/vi/einvoice-api/v1/tong-quan)
+    private String einvoiceBaseUrl = "https://einvoice-api-sandbox.sepay.vn";
+    private String einvoiceUsername = "";
+    private String einvoicePassword = "";
 }

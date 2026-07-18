@@ -9,4 +9,8 @@ public interface EmailService {
     void sendPasswordResetEmail(String to, String otpCode);
 
     void sendPasswordResetEmailAsync(String to, String otpCode);
+
+    void sendInvoiceEmail(String to, String invoicePdfUrl, byte[] invoicePdfBytes);
+
+    void sendInvoiceEmailAsync(String to, String invoicePdfUrl, byte[] invoicePdfBytes);
 }

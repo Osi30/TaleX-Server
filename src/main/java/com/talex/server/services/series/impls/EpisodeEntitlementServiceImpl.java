@@ -5,7 +5,6 @@ import com.talex.server.entities.subscription.AccountSubscription;
 import com.talex.server.enums.series.ContentType;
 import com.talex.server.enums.series.EpisodeUnlockType;
 import com.talex.server.repositories.creator.CreatorRepository;
-import com.talex.server.repositories.series.ComboEpisodeRepository;
 import com.talex.server.repositories.series.EpisodeRepository;
 import com.talex.server.repositories.series.EpisodeUnlockedContentRepository;
 import com.talex.server.repositories.subscription.AccountSubscriptionRepository;
@@ -24,7 +23,6 @@ public class EpisodeEntitlementServiceImpl implements EpisodeEntitlementService 
     private final EpisodeRepository episodeRepository;
     private final EpisodeUnlockedContentRepository episodeUnlockedContentRepository;
     private final AccountSubscriptionRepository accountSubscriptionRepository;
-    private final ComboEpisodeRepository comboEpisodeRepository;
     private final CreatorRepository creatorRepository;
 
     @Override
@@ -73,12 +71,11 @@ public class EpisodeEntitlementServiceImpl implements EpisodeEntitlementService 
     }
 
     private boolean isUnlockedBySubscription(AccountSubscription subscription, Episode episode) {
-        boolean flagUnlocked = episode.getContentType() == ContentType.VIDEO
+        // Premium là quyền truy cập có thời hạn (không sở hữu vĩnh viễn), nên được mở khóa
+        // toàn bộ nội dung trả phí kể cả tập nằm trong Combo — không như mua lẻ/mua Combo.
+        return episode.getContentType() == ContentType.VIDEO
                 ? Boolean.TRUE.equals(subscription.getIsMovieUnlocked())
                 : Boolean.TRUE.equals(subscription.getIsStoryUnlocked());
-
-        // Premium unlocks retail episodes only; episodes bundled in a Combo stay gated behind purchase.
-        return flagUnlocked && !comboEpisodeRepository.existsByEpisodes_EpisodeId(episode.getEpisodeId());
     }
 
     private UUID parseAccountId(String viewerId) {

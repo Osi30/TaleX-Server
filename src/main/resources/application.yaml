@@ -133,11 +133,18 @@ sepay:
   order-expiry-minutes: ${SEPAY_ORDER_EXPIRY_MINUTES:30}
   retry-block-window-minutes: ${SEPAY_RETRY_BLOCK_WINDOW_MINUTES:5}
   transfer-content-prefix: ${SEPAY_TRANSFER_CONTENT_PREFIX:}
+  einvoice-base-url: ${SEPAY_EINVOICE_BASE_URL:https://einvoice-api-sandbox.sepay.vn}
+  einvoice-username: ${SEPAY_EINVOICE_USERNAME:}
+  einvoice-password: ${SEPAY_EINVOICE_PASSWORD:}
 
 payment:
   order:
     expiry-fixed-delay-ms: ${PAYMENT_ORDER_EXPIRY_FIXED_DELAY_MS:60000}
     expiry-initial-delay-ms: ${PAYMENT_ORDER_EXPIRY_INITIAL_DELAY_MS:60000}
+  invoice:
+    polling-fixed-delay-ms: ${PAYMENT_INVOICE_POLLING_FIXED_DELAY_MS:60000}
+    polling-initial-delay-ms: ${PAYMENT_INVOICE_POLLING_INITIAL_DELAY_MS:60000}
+    max-poll-attempts: ${PAYMENT_INVOICE_MAX_POLL_ATTEMPTS:20}
 
 resilience4j:
   circuitbreaker:

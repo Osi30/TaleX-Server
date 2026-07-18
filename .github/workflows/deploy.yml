@@ -70,6 +70,9 @@ jobs:
             SEPAY_BANK_NAME=${{ secrets.SEPAY_BANK_NAME }}
             SEPAY_WEBHOOK_API_KEY=${{ secrets.SEPAY_WEBHOOK_API_KEY }}
             SEPAY_TRANSFER_CONTENT_PREFIX=${{ secrets.SEPAY_TRANSFER_CONTENT_PREFIX }}
+            SEPAY_EINVOICE_BASE_URL=${{ secrets.SEPAY_EINVOICE_BASE_URL }}
+            SEPAY_EINVOICE_USERNAME=${{ secrets.SEPAY_EINVOICE_USERNAME }}
+            SEPAY_EINVOICE_PASSWORD=${{ secrets.SEPAY_EINVOICE_PASSWORD }}
             MONGO_USERNAME=${{ secrets.MONGO_USERNAME }}
             MONGO_PASSWORD=${{ secrets.MONGO_PASSWORD }}
             MONGO_HOST=${{ secrets.MONGO_HOST }}

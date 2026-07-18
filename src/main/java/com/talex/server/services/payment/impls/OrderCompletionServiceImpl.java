@@ -1,9 +1,11 @@
 package com.talex.server.services.payment.impls;
 
 import com.talex.server.entities.transaction.Order;
+import com.talex.server.entities.transaction.Transaction;
 import com.talex.server.enums.transaction.OrderStatus;
 import com.talex.server.enums.transaction.PaymentMethod;
 import com.talex.server.repositories.transaction.OrderRepository;
+import com.talex.server.services.invoice.IInvoiceService;
 import com.talex.server.services.payment.IOrderFulfillmentService;
 import com.talex.server.services.payment.ITransactionService;
 import com.talex.server.services.payment.OrderCompletionService;
@@ -26,6 +28,7 @@ public class OrderCompletionServiceImpl implements OrderCompletionService {
 
     private final OrderRepository orderRepository;
     private final ITransactionService transactionService;
+    private final IInvoiceService invoiceService;
     private final List<IOrderFulfillmentService> fulfillmentServices;
 
     private Map<String, IOrderFulfillmentService> fulfillmentServiceByItemType;
@@ -39,7 +42,7 @@ public class OrderCompletionServiceImpl implements OrderCompletionService {
     @Override
     @Transactional
     public void complete(Order order, BigDecimal paidAmount, PaymentMethod paymentMethod) {
-        transactionService.createSuccessTransaction(order, paidAmount, paymentMethod);
+        Transaction transaction = transactionService.createSuccessTransaction(order, paidAmount, paymentMethod);
 
         order.setStatus(OrderStatus.COMPLETED);
         orderRepository.save(order);
@@ -53,5 +56,14 @@ public class OrderCompletionServiceImpl implements OrderCompletionService {
 
         log.info("Order {} completed via {}, itemType={} itemId={} fulfilled",
                 order.getOrderId(), paymentMethod, order.getItemType(), order.getItemId());
+
+        // Chỉ đánh dấu PENDING trong CÙNG transaction này (ghi 1 dòng đơn giản, hầu như
+        // không thể lỗi) — việc gọi API SePay thật sự để scheduler làm riêng, độc lập
+        // hoàn toàn với vòng đời transaction thanh toán.
+        try {
+            invoiceService.markPendingInvoice(order, transaction);
+        } catch (RuntimeException exception) {
+            log.error("Failed to mark pending invoice for order {}", order.getOrderId(), exception);
+        }
     }
 }
