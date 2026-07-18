@@ -119,8 +119,21 @@ public class ComboEpisodeServiceImpl implements ComboEpisodeService {
         if (episodes.size() != episodeIds.size()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Some episodes not found");
         }
+        
+        String commonSeriesId = null;
         for (Episode episode : episodes) {
             contentOwnershipService.assertCanManage(episode, accountId);
+            
+            if (episode.getSeason() != null && episode.getSeason().getSeries() != null) {
+                String seriesId = episode.getSeason().getSeries().getSeriesId();
+                if (commonSeriesId == null) {
+                    commonSeriesId = seriesId;
+                } else if (!commonSeriesId.equals(seriesId)) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "All episodes in a combo must belong to the same series");
+                }
+            } else {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Episode " + episode.getEpisodeId() + " does not belong to a series");
+            }
         }
         return episodes;
     }
@@ -140,6 +153,7 @@ public class ComboEpisodeServiceImpl implements ComboEpisodeService {
                     summary.setSeasonId(ep.getSeason().getSeasonId());
                     summary.setSeasonTitle(ep.getSeason().getTitle());
                     if (ep.getSeason().getSeries() != null) {
+                        summary.setSeriesId(ep.getSeason().getSeries().getSeriesId());
                         summary.setSeriesTitle(ep.getSeason().getSeries().getTitle());
                     }
                 }

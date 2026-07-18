@@ -37,6 +37,7 @@ public class ComboEpisodeResponseDto {
         private Long priceVnd;
         private String seasonId;
         private String seasonTitle;
+        private String seriesId;
         private String seriesTitle;
     }
 }
