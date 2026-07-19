@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -26,6 +27,13 @@ public class TokenFamilyServiceImpl implements TokenFamilyService {
     private static final String ACCOUNT_INDEX_PREFIX = "account_families:";
     private static final String FIELD_ACCOUNT_ID = "accountId";
     private static final String FIELD_ACTIVE_TOKEN = "activeToken";
+    private static final String FIELD_PREVIOUS_TOKEN = "previousToken";
+    private static final String FIELD_PREVIOUS_TOKEN_EXPIRES_AT = "previousTokenExpiresAt";
+
+    // Nhiều tab/request refresh cùng lúc dùng chung 1 refresh token cũ (bình thường,
+    // không phải bị đánh cắp) — chấp nhận token vừa bị rotate trong khoảng này thay vì
+    // hủy cả family, để tránh đăng xuất oan do race condition.
+    private static final long GRACE_WINDOW_SECONDS = 10;
 
     @Value("${jwt.refresh-token-expiration}")
     private long refreshTokenExpirationMs;
@@ -77,13 +85,31 @@ public class TokenFamilyServiceImpl implements TokenFamilyService {
             String newSecret = UUID.randomUUID().toString();
             String newRefreshToken = familyId + "." + newSecret;
             long ttlSeconds = refreshTokenExpirationMs / 1000;
+            long previousExpiresAt = Instant.now().plusSeconds(GRACE_WINDOW_SECONDS).toEpochMilli();
 
-            // Rotate: overwrite activeToken and renew TTL
-            redisTemplate.opsForHash().put(familyKey, FIELD_ACTIVE_TOKEN, newRefreshToken);
+            // Rotate: previous activeToken stays valid for a short grace window (absorbs
+            // concurrent refresh calls from other tabs/requests using the same old token),
+            // overwrite activeToken, renew TTL.
+            redisTemplate.opsForHash().putAll(familyKey, Map.of(
+                    FIELD_PREVIOUS_TOKEN, activeToken,
+                    FIELD_PREVIOUS_TOKEN_EXPIRES_AT, String.valueOf(previousExpiresAt),
+                    FIELD_ACTIVE_TOKEN, newRefreshToken
+            ));
             redisTemplate.expire(familyKey, ttlSeconds, TimeUnit.SECONDS);
 
             log.info("Token rotated for account: {}", accountId);
             return newRefreshToken;
+        }
+
+        // Token matches the token JUST rotated away (within grace window) → this is a
+        // duplicate/racing refresh call, not theft. Return the current active token so
+        // the caller resyncs instead of triggering a fresh rotation.
+        String previousToken = (String) familyData.get(FIELD_PREVIOUS_TOKEN);
+        String previousExpiresAtRaw = (String) familyData.get(FIELD_PREVIOUS_TOKEN_EXPIRES_AT);
+        if (refreshToken.equals(previousToken) && previousExpiresAtRaw != null
+                && Instant.now().toEpochMilli() < Long.parseLong(previousExpiresAtRaw)) {
+            log.info("Refresh token reused within grace window (concurrent request) for account: {}", accountId);
+            return activeToken;
         }
 
         // Token does NOT match → reuse detected (possible theft)
