@@ -177,6 +177,11 @@ google:
     android: ${GOOGLE_CLIENT_ID_ANDROID:}
     ios: ${GOOGLE_CLIENT_ID_IOS:}
 
+admob:
+  ssv:
+    public-keys-url: ${ADMOB_SSV_PUBLIC_KEYS_URL:https://www.gstatic.com/admob/reward/verifier-keys.json}
+    signature-verification-enabled: ${ADMOB_SSV_SIGNATURE_VERIFICATION_ENABLED:true}
+
 otp:
   expiration-minutes: 10
   length: 6

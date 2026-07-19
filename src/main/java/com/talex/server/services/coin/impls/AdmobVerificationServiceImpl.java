@@ -4,16 +4,19 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.talex.server.dtos.requests.coin.AdmobCustomData;
+import com.talex.server.dtos.requests.coin.AdmobSsvCallbackRequest;
 import com.talex.server.dtos.responses.coin.AdmobKey;
 import com.talex.server.dtos.responses.coin.AdmobKeyResponse;
 import com.talex.server.services.coin.IMissionService;
 import com.talex.server.services.coin.AdmobVerificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyFactory;
 import java.security.PublicKey;
@@ -29,14 +32,23 @@ import java.util.concurrent.TimeUnit;
 @RequiredArgsConstructor
 public class AdmobVerificationServiceImpl implements AdmobVerificationService {
 
-    private static final String GOOGLE_PUBLIC_KEYS_URL = "https://gstatic.com/admob/reward/verifier-keys.json";
     private static final String PUBLIC_KEYS_CACHE_KEY = "GOOGLE_ADMOB_PUBLIC_KEYS";
     private static final String TRANSACTION_KEY_PREFIX = "admob:txn:";
+    private static final Duration PROCESSING_TTL = Duration.ofMinutes(10);
+    private static final Duration COMPLETED_TTL = Duration.ofDays(30);
+    private static final String PROCESSING_STATUS = "PROCESSING";
+    private static final String COMPLETED_STATUS = "COMPLETED";
 
     private final RestTemplate restTemplate;
     private final StringRedisTemplate stringRedisTemplate;
     private final IMissionService missionService;
     private final ObjectMapper objectMapper;
+
+    @Value("${admob.ssv.public-keys-url:https://www.gstatic.com/admob/reward/verifier-keys.json}")
+    private String publicKeysUrl;
+
+    @Value("${admob.ssv.signature-verification-enabled:true}")
+    private boolean signatureVerificationEnabled;
 
     private final Cache<String, AdmobKeyResponse> publicKeysCache = Caffeine.newBuilder()
             .expireAfterWrite(24, TimeUnit.HOURS)
@@ -44,40 +56,39 @@ public class AdmobVerificationServiceImpl implements AdmobVerificationService {
             .build();
 
     @Override
-    public void processAdmobReward(
-            String signature,
-            String keyId,
-            String customData,
-            String transactionId,
-            String timestamp,
-            String queryString) {
+    public void processAdmobReward(AdmobSsvCallbackRequest callback) {
+        validateCallback(callback);
+        verifySignature(callback);
 
-        validateRequired(signature, "signature");
-        validateRequired(keyId, "key_id");
-        validateRequired(transactionId, "transaction_id");
-        verifySignature(signature, keyId, queryString);
-
+        String redisKey = TRANSACTION_KEY_PREFIX + callback.transactionId();
         Boolean isNew = stringRedisTemplate.opsForValue().setIfAbsent(
-                TRANSACTION_KEY_PREFIX + transactionId,
-                "COMPLETED",
-                Duration.ofDays(7));
+                redisKey,
+                PROCESSING_STATUS,
+                PROCESSING_TTL);
 
         if (!Boolean.TRUE.equals(isNew)) {
-            log.info("[AdMob SSV] Duplicate transaction ignored. TransactionId: {}", transactionId);
+            log.info("[AdMob SSV] Duplicate transaction ignored. TransactionId: {}", callback.transactionId());
             return;
         }
 
-        AdmobCustomData rewardData = parseCustomData(customData);
-        UUID accountId = UUID.fromString(rewardData.getAccountId());
-        missionService.addProgress(accountId, rewardData.getMissionCode(), 1);
+        try {
+            AdmobCustomData rewardData = parseCustomData(callback.customData());
+            UUID accountId = UUID.fromString(rewardData.getAccountId());
+            missionService.addProgress(accountId, rewardData.getMissionCode(), 1);
 
-        log.info("[AdMob SSV] Reward processed. accountId={}, missionCode={}, transactionId={}, timestamp={}",
-                accountId, rewardData.getMissionCode(), transactionId, timestamp);
+            stringRedisTemplate.opsForValue().set(redisKey, COMPLETED_STATUS, COMPLETED_TTL);
+
+            log.info("[AdMob SSV] Reward processed. accountId={}, missionCode={}, transactionId={}, timestamp={}",
+                    accountId, rewardData.getMissionCode(), callback.transactionId(), callback.timestamp());
+        } catch (Exception exception) {
+            stringRedisTemplate.delete(redisKey);
+            throw exception;
+        }
     }
 
     private AdmobKeyResponse fetchGooglePublicKeys() {
         return publicKeysCache.get(PUBLIC_KEYS_CACHE_KEY, key -> {
-            AdmobKeyResponse response = restTemplate.getForObject(GOOGLE_PUBLIC_KEYS_URL, AdmobKeyResponse.class);
+            AdmobKeyResponse response = restTemplate.getForObject(publicKeysUrl, AdmobKeyResponse.class);
             if (response == null || response.getKeys() == null || response.getKeys().isEmpty()) {
                 throw new SecurityException("Unable to fetch AdMob public keys");
             }
@@ -100,16 +111,27 @@ public class AdmobVerificationServiceImpl implements AdmobVerificationService {
         }
     }
 
-    private void verifySignature(String signature, String keyId, String queryString) {
+    private void verifySignature(AdmobSsvCallbackRequest callback) {
+        if (!signatureVerificationEnabled) {
+            log.warn("[AdMob SSV] Signature verification is DISABLED. rawQuery={}, params={}",
+                    callback.queryString(), callback.queryParams());
+            return;
+        }
+
         try {
-            String signedPayload = extractSignedPayload(queryString);
-            PublicKey publicKey = getPublicKey(keyId);
+            SignedPayload signedPayload = extractSignedPayload(callback.queryString());
+            if (!signedPayload.signature().equals(callback.signature())
+                    || !signedPayload.keyId().equals(callback.keyId())) {
+                throw new SecurityException("AdMob signature/key_id mismatch");
+            }
+
+            PublicKey publicKey = getPublicKey(signedPayload.keyId());
 
             Signature ecdsaVerify = Signature.getInstance("SHA256withECDSA");
             ecdsaVerify.initVerify(publicKey);
-            ecdsaVerify.update(signedPayload.getBytes(StandardCharsets.UTF_8));
+            ecdsaVerify.update(signedPayload.payload().getBytes(StandardCharsets.UTF_8));
 
-            byte[] signatureBytes = decodeUrlSafeBase64(signature);
+            byte[] signatureBytes = decodeUrlSafeBase64(signedPayload.signature());
             if (!ecdsaVerify.verify(signatureBytes)) {
                 throw new SecurityException("Invalid AdMob signature");
             }
@@ -120,21 +142,43 @@ public class AdmobVerificationServiceImpl implements AdmobVerificationService {
         }
     }
 
-    private String extractSignedPayload(String queryString) {
+    private SignedPayload extractSignedPayload(String queryString) {
         if (queryString == null || queryString.isBlank()) {
             throw new SecurityException("Missing AdMob query string");
         }
 
-        int signatureIndex = queryString.indexOf("&signature=");
-        if (signatureIndex >= 0) {
-            return queryString.substring(0, signatureIndex);
+        String decodedQueryString = decodeQueryString(queryString);
+
+        int signatureIndex = decodedQueryString.indexOf("&signature=");
+        if (signatureIndex <= 0) {
+            throw new SecurityException("AdMob signature and key_id must be the last two query parameters");
         }
 
-        if (queryString.startsWith("signature=")) {
-            throw new SecurityException("Missing AdMob signed payload");
+        String signedPayload = decodedQueryString.substring(0, signatureIndex);
+        String signatureAndKeyId = decodedQueryString.substring(signatureIndex + 1);
+
+        int keyIdIndex = signatureAndKeyId.indexOf("&key_id=");
+        if (keyIdIndex <= 0) {
+            throw new SecurityException("AdMob signature and key_id must be the last two query parameters");
         }
 
-        throw new SecurityException("Missing AdMob signature parameter");
+        String signature = signatureAndKeyId.substring("signature=".length(), keyIdIndex);
+        String keyId = signatureAndKeyId.substring(keyIdIndex + "&key_id=".length());
+        try {
+            Long.parseLong(keyId);
+        } catch (NumberFormatException exception) {
+            throw new SecurityException("AdMob key_id must be a long", exception);
+        }
+
+        return new SignedPayload(signedPayload, signature, keyId);
+    }
+
+    private String decodeQueryString(String queryString) {
+        try {
+            return new URI("https://admob.local/callback?" + queryString).getQuery();
+        } catch (Exception exception) {
+            throw new SecurityException("Invalid AdMob query string", exception);
+        }
     }
 
     private byte[] decodeUrlSafeBase64(String value) {
@@ -165,5 +209,20 @@ public class AdmobVerificationServiceImpl implements AdmobVerificationService {
         if (value == null || value.isBlank()) {
             throw new IllegalArgumentException("Missing AdMob " + fieldName);
         }
+    }
+
+    private void validateCallback(AdmobSsvCallbackRequest callback) {
+        validateRequired(callback.adNetwork(), "ad_network");
+        validateRequired(callback.adUnit(), "ad_unit");
+        validateRequired(callback.rewardAmount(), "reward_amount");
+        validateRequired(callback.rewardItem(), "reward_item");
+        validateRequired(callback.customData(), "custom_data");
+        validateRequired(callback.signature(), "signature");
+        validateRequired(callback.keyId(), "key_id");
+        validateRequired(callback.transactionId(), "transaction_id");
+        validateRequired(callback.timestamp(), "timestamp");
+    }
+
+    private record SignedPayload(String payload, String signature, String keyId) {
     }
 }
