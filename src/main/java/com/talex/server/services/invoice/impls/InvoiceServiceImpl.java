@@ -5,6 +5,7 @@ import com.talex.server.dtos.requests.invoice.SePayInvoiceBuyerDto;
 import com.talex.server.dtos.requests.invoice.SePayInvoiceItemDto;
 import com.talex.server.dtos.responses.invoice.SePayCreateInvoiceResponseDataDto;
 import com.talex.server.dtos.responses.invoice.SePayInvoiceStatusDataDto;
+import com.talex.server.dtos.responses.invoice.SePayInvoiceTemplateDto;
 import com.talex.server.dtos.responses.invoice.SePayProviderAccountDetailDto;
 import com.talex.server.entities.auth.Account;
 import com.talex.server.entities.transaction.Invoice;
@@ -190,7 +191,7 @@ public class InvoiceServiceImpl implements IInvoiceService {
 
     private SePayCreateInvoiceRequestDto buildCreateInvoiceRequest(
             Order order, Transaction transaction, SePayProviderAccountDetailDto providerAccount) {
-        var template = providerAccount.getTemplates().get(0);
+        var template = resolveSalesInvoiceTemplate(providerAccount);
         Account account = order.getAccount();
         long amount = transaction.getPaidAmount().setScale(0, RoundingMode.HALF_UP).longValueExact();
 
@@ -223,6 +224,16 @@ public class InvoiceServiceImpl implements IInvoiceService {
                 .items(List.of(item))
                 .totalAmount(amount)
                 .build();
+    }
+
+    // Hộ kinh doanh dùng "hóa đơn bán hàng" (không kê khai VAT) chứ không phải "hóa đơn
+    // giá trị gia tăng" (bắt buộc tax_rate) — chọn đúng loại theo invoice_label thay vì
+    // lấy đại template đầu tiên trả về, phòng khi provider account có cả 2 loại.
+    private SePayInvoiceTemplateDto resolveSalesInvoiceTemplate(SePayProviderAccountDetailDto providerAccount) {
+        return providerAccount.getTemplates().stream()
+                .filter(t -> t.getInvoiceLabel() != null && t.getInvoiceLabel().toLowerCase().contains("bán hàng"))
+                .findFirst()
+                .orElseGet(() -> providerAccount.getTemplates().get(0));
     }
 
     private String resolveItemName(String itemType) {
