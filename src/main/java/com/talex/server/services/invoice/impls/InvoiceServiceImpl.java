@@ -93,10 +93,11 @@ public class InvoiceServiceImpl implements IInvoiceService {
             invoice.setTrackingCode(response.getTrackingCode());
             invoiceRepository.save(invoice);
         } catch (RuntimeException exception) {
-            log.error("Failed to submit SePay eInvoice for invoice {}", invoice.getInvoiceId(), exception);
-            invoice.setStatus(InvoiceStatus.FAILED);
-            invoice.setFailureReason(exception.getMessage());
-            invoiceRepository.save(invoice);
+            // Lỗi mạng/timeout tạm thời (SePay chậm, mất kết nối...) không được phép làm
+            // mất hóa đơn vĩnh viễn — giữ PENDING và thử lại như pollPendingInvoice, chỉ
+            // đánh FAILED sau khi vượt quá số lần thử cho phép.
+            log.warn("Failed to submit SePay eInvoice for invoice {}, will retry", invoice.getInvoiceId(), exception);
+            registerPollAttempt(invoice, exception.getMessage());
         }
     }
 
