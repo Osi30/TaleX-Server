@@ -142,8 +142,8 @@ payment:
     expiry-fixed-delay-ms: ${PAYMENT_ORDER_EXPIRY_FIXED_DELAY_MS:60000}
     expiry-initial-delay-ms: ${PAYMENT_ORDER_EXPIRY_INITIAL_DELAY_MS:60000}
   invoice:
-    polling-fixed-delay-ms: ${PAYMENT_INVOICE_POLLING_FIXED_DELAY_MS:60000}
-    polling-initial-delay-ms: ${PAYMENT_INVOICE_POLLING_INITIAL_DELAY_MS:60000}
+    polling-fixed-delay-ms: ${PAYMENT_INVOICE_POLLING_FIXED_DELAY_MS:15000}
+    polling-initial-delay-ms: ${PAYMENT_INVOICE_POLLING_INITIAL_DELAY_MS:15000}
     max-poll-attempts: ${PAYMENT_INVOICE_MAX_POLL_ATTEMPTS:20}
 
 resilience4j:
