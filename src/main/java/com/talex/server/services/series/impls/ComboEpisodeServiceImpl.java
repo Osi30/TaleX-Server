@@ -41,8 +41,10 @@ public class ComboEpisodeServiceImpl implements ComboEpisodeService {
         combo.setCreatorId(creatorId);
         
         if (request.getEpisodeIds() != null && !request.getEpisodeIds().isEmpty()) {
-            List<Episode> episodes = fetchAndValidateEpisodes(request.getEpisodeIds(), accountId);
+            List<Episode> episodes = fetchAndValidateEpisodes(request.getEpisodeIds(), accountId, request.getPriceVnd());
             combo.setEpisodes(episodes);
+        } else if (request.getPriceVnd() != null && request.getPriceVnd() > 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Combo price must be less than or equal to the total price of its episodes");
         }
         
         combo = comboEpisodeRepository.save(combo);
@@ -83,10 +85,13 @@ public class ComboEpisodeServiceImpl implements ComboEpisodeService {
         }
         
         if (request.getEpisodeIds() != null) {
-            List<Episode> episodes = fetchAndValidateEpisodes(request.getEpisodeIds(), accountId);
+            List<Episode> episodes = fetchAndValidateEpisodes(request.getEpisodeIds(), accountId, request.getPriceVnd());
             combo.setEpisodes(episodes);
         } else {
             combo.getEpisodes().clear();
+            if (request.getPriceVnd() != null && request.getPriceVnd() > 0) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Combo price must be less than or equal to the total price of its episodes");
+            }
         }
         
         combo = comboEpisodeRepository.save(combo);
@@ -114,15 +119,22 @@ public class ComboEpisodeServiceImpl implements ComboEpisodeService {
         return combo;
     }
 
-    private List<Episode> fetchAndValidateEpisodes(List<String> episodeIds, String accountId) {
+    private List<Episode> fetchAndValidateEpisodes(List<String> episodeIds, String accountId, Long comboPrice) {
         List<Episode> episodes = episodeRepository.findAllById(episodeIds);
         if (episodes.size() != episodeIds.size()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Some episodes not found");
         }
         
         String commonSeriesId = null;
+        long originalPrice = 0L;
         for (Episode episode : episodes) {
             contentOwnershipService.assertCanManage(episode, accountId);
+            
+            if (com.talex.server.enums.series.EpisodeUnlockType.FREE.equals(episode.getUnlockType())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cannot add FREE episode to a combo");
+            }
+
+            originalPrice += (episode.getPriceVnd() != null ? episode.getPriceVnd() : 0L);
             
             if (episode.getSeason() != null && episode.getSeason().getSeries() != null) {
                 String seriesId = episode.getSeason().getSeries().getSeriesId();
@@ -134,6 +146,10 @@ public class ComboEpisodeServiceImpl implements ComboEpisodeService {
             } else {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Episode " + episode.getEpisodeId() + " does not belong to a series");
             }
+        }
+
+        if (comboPrice != null && comboPrice > originalPrice) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Combo price must be less than or equal to the total price of its episodes");
         }
         return episodes;
     }
