@@ -1,16 +1,20 @@
 package com.talex.server.controllers.order;
 
 import com.talex.server.annotations.CurrentAccountId;
+import com.talex.server.dtos.BasePageResponse;
 import com.talex.server.dtos.BaseResponse;
 import com.talex.server.dtos.requests.payment.CreateContentOrderRequestDto;
 import com.talex.server.dtos.requests.payment.CreateEngagementOrderRequestDto;
 import com.talex.server.dtos.requests.payment.CreateOrderRequestDto;
+import com.talex.server.dtos.responses.payment.OrderHistoryItemDto;
 import com.talex.server.dtos.responses.payment.OrderResponseDto;
 import com.talex.server.services.payment.IOrderService;
+import com.talex.server.services.payment.OrderHistoryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -25,6 +29,7 @@ import java.util.UUID;
 public class OrderController {
 
     private final IOrderService orderService;
+    private final OrderHistoryService orderHistoryService;
 
     @PostMapping
     @PreAuthorize("isAuthenticated()")
@@ -70,6 +75,22 @@ public class OrderController {
                         .message("Content order created")
                         .data(response)
                         .build());
+    }
+
+    @GetMapping("/history")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Lịch sử mua Episode/Combo", description = "Danh sách đơn hàng mua lẻ tập phim/truyện và combo của tài khoản đang đăng nhập, mới nhất trước.")
+    public ResponseEntity<BaseResponse> getContentPurchaseHistory(
+            @CurrentAccountId UUID accountId,
+            @RequestParam(defaultValue = "1") Integer page,
+            @RequestParam(defaultValue = "20") Integer pageSize) {
+        BasePageResponse<OrderHistoryItemDto> response = orderHistoryService
+                .getContentPurchaseHistory(accountId, PageRequest.of(page - 1, pageSize));
+        return ResponseEntity.ok(BaseResponse.builder()
+                .code(200)
+                .message("OK")
+                .data(response)
+                .build());
     }
 
     @GetMapping("/{orderId}")

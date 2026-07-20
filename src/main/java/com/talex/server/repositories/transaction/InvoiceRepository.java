@@ -11,4 +11,6 @@ import java.util.UUID;
 @Repository
 public interface InvoiceRepository extends JpaRepository<Invoice, UUID> {
     List<Invoice> findTop50ByStatusOrderByCreatedAtAsc(InvoiceStatus status);
+
+    List<Invoice> findByTransaction_TransactionIdIn(List<String> transactionIds);
 }
