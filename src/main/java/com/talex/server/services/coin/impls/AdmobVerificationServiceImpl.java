@@ -16,7 +16,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
-import java.net.URI;
+import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyFactory;
 import java.security.PublicKey;
@@ -76,10 +76,10 @@ public class AdmobVerificationServiceImpl implements AdmobVerificationService {
             UUID accountId = UUID.fromString(rewardData.getAccountId());
             missionService.addProgress(accountId, rewardData.getMissionCode(), 1);
 
-            stringRedisTemplate.opsForValue().set(redisKey, COMPLETED_STATUS, COMPLETED_TTL);
-
             log.info("[AdMob SSV] Reward processed. accountId={}, missionCode={}, transactionId={}, timestamp={}",
                     accountId, rewardData.getMissionCode(), callback.transactionId(), callback.timestamp());
+
+            stringRedisTemplate.opsForValue().set(redisKey, COMPLETED_STATUS, COMPLETED_TTL);
         } catch (Exception exception) {
             stringRedisTemplate.delete(redisKey);
             throw exception;
@@ -147,15 +147,13 @@ public class AdmobVerificationServiceImpl implements AdmobVerificationService {
             throw new SecurityException("Missing AdMob query string");
         }
 
-        String decodedQueryString = decodeQueryString(queryString);
-
-        int signatureIndex = decodedQueryString.indexOf("&signature=");
+        int signatureIndex = queryString.indexOf("&signature=");
         if (signatureIndex <= 0) {
             throw new SecurityException("AdMob signature and key_id must be the last two query parameters");
         }
 
-        String signedPayload = decodedQueryString.substring(0, signatureIndex);
-        String signatureAndKeyId = decodedQueryString.substring(signatureIndex + 1);
+        String signedPayload = queryString.substring(0, signatureIndex);
+        String signatureAndKeyId = queryString.substring(signatureIndex + 1);
 
         int keyIdIndex = signatureAndKeyId.indexOf("&key_id=");
         if (keyIdIndex <= 0) {
@@ -173,14 +171,6 @@ public class AdmobVerificationServiceImpl implements AdmobVerificationService {
         return new SignedPayload(signedPayload, signature, keyId);
     }
 
-    private String decodeQueryString(String queryString) {
-        try {
-            return new URI("https://admob.local/callback?" + queryString).getQuery();
-        } catch (Exception exception) {
-            throw new SecurityException("Invalid AdMob query string", exception);
-        }
-    }
-
     private byte[] decodeUrlSafeBase64(String value) {
         int padding = (4 - value.length() % 4) % 4;
         return Base64.getUrlDecoder().decode(value + "=".repeat(padding));
@@ -192,7 +182,8 @@ public class AdmobVerificationServiceImpl implements AdmobVerificationService {
         }
 
         try {
-            AdmobCustomData rewardData = objectMapper.readValue(customData, AdmobCustomData.class);
+            String decodedCustomData = URLDecoder.decode(customData, StandardCharsets.UTF_8);
+            AdmobCustomData rewardData = objectMapper.readValue(decodedCustomData, AdmobCustomData.class);
             if (rewardData.getAccountId() == null || rewardData.getAccountId().isBlank()
                     || rewardData.getMissionCode() == null || rewardData.getMissionCode().isBlank()) {
                 throw new IllegalArgumentException("Invalid AdMob custom_data");
