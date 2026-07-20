@@ -130,6 +130,10 @@ public class ComboEpisodeServiceImpl implements ComboEpisodeService {
         for (Episode episode : episodes) {
             contentOwnershipService.assertCanManage(episode, accountId);
             
+            if (!EpisodeStatus.PUBLISHED.equals(episode.getStatus())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Can only add published episodes to a combo");
+            }
+            
             if (com.talex.server.enums.series.EpisodeUnlockType.FREE.equals(episode.getUnlockType())) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cannot add FREE episode to a combo");
             }
