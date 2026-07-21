@@ -1,6 +1,6 @@
-package com.talex.server.exceptions.details;
+package com.talex.server.exceptions.details.kyc;
 
-import com.talex.server.exceptions.codes.FptAIIDRecognitionErrorCode;
+import com.talex.server.exceptions.codes.kyc.FptAIIDRecognitionErrorCode;
 import lombok.Getter;
 
 @Getter

@@ -2,7 +2,18 @@ package com.talex.server.exceptions;
 
 import com.talex.server.dtos.BaseResponse;
 import com.talex.server.exceptions.codes.*;
+import com.talex.server.exceptions.codes.kyc.KycSessionErrorCode;
+import com.talex.server.exceptions.codes.payment.PaymentErrorCode;
 import com.talex.server.exceptions.details.*;
+import com.talex.server.exceptions.details.creator.CreatorException;
+import com.talex.server.exceptions.details.creator.CreatorIdentityException;
+import com.talex.server.exceptions.details.creator.CreatorTermsLogException;
+import com.talex.server.exceptions.details.creator.CreatorTierException;
+import com.talex.server.exceptions.details.kyc.FptAIIDRecognitionException;
+import com.talex.server.exceptions.details.kyc.KycSessionException;
+import com.talex.server.exceptions.details.kyc.KycStepException;
+import com.talex.server.exceptions.details.payment.PaymentException;
+import com.talex.server.exceptions.details.payment.PaymentProfileException;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
@@ -101,6 +112,17 @@ public class ExceptionGlobalHandler {
                 .code(ex.getErrorCode().getCode())
                 .data(request.getDescription(false))
                 .build();
+        return new ResponseEntity<>(exceptionResponse, ex.getErrorCode().getHttpStatus());
+    }
+
+    @ExceptionHandler(CampaignSeriesException.class)
+    public ResponseEntity<BaseResponse> handleCampaignSeriesException(CampaignSeriesException ex, WebRequest request) {
+        BaseResponse exceptionResponse = BaseResponse.builder()
+                .message(ex.getMessage())
+                .code(ex.getErrorCode().getCode())
+                .data(request.getDescription(false))
+                .build();
+
         return new ResponseEntity<>(exceptionResponse, ex.getErrorCode().getHttpStatus());
     }
 

@@ -26,6 +26,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -155,6 +156,17 @@ public class CampaignService implements ICampaignService {
         Campaign campaign = findById(campaignId);
         campaign.updateStatus(CampaignStatus.CANCELLED);
         campaignRepository.save(campaign);
+    }
+
+    @Async("kafkaExecutor")
+    @Override
+    @Transactional
+    public void refundIfAllCampaignCancelled(String campaignId) {
+        Campaign campaign = findById(campaignId);
+        if (campaign.getCampaignStatus().equals(CampaignStatus.CANCELLED)) {
+            // Send event
+            System.out.println("Campaign is cancelled");
+        }
     }
 
     private Campaign findById(String id) {

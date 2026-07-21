@@ -14,6 +14,8 @@ import java.util.List;
 @Repository
 public interface CampaignSeriesRepository extends JpaRepository<CampaignSeries, String> {
 
+    List<CampaignSeries> findByCampaign_CampaignId(String campaignId);
+
     @Query("""
         SELECT cs.series.seriesId
         FROM CampaignSeries cs

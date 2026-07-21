@@ -86,7 +86,7 @@ public class CampaignController {
             @RequestParam(defaultValue = "1") Integer page,
             @RequestParam(defaultValue = "20") Integer pageSize
     ) {
-        criteria.put("accountId", accountId);
+        criteria.put("accountId", accountId.toString());
         BasePageResponse<CampaignResponseDto> pageResponse = campaignService
                 .filterCampaigns(CampaignFilterRequestDto.builder()
                         .criteria(criteria)

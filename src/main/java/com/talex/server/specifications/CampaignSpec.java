@@ -10,6 +10,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 public class CampaignSpec {
 
@@ -22,7 +23,7 @@ public class CampaignSpec {
             if (criteria != null && !criteria.isEmpty()) {
                 String accountId = (String) criteria.get("accountId");
                 if (!ValidationUtils.isNullOrEmpty(accountId)) {
-                    predicates.add(builder.equal(root.get("accountId"), accountId));
+                    predicates.add(builder.equal(root.get("accountId"), UUID.fromString(accountId)));
                 }
 
                 // 1. Lọc theo khoảng startAt (startAtFrom -> startAtTo)

@@ -1,6 +1,6 @@
-package com.talex.server.exceptions.details;
+package com.talex.server.exceptions.details.kyc;
 
-import com.talex.server.exceptions.codes.KycStepErrorCode;
+import com.talex.server.exceptions.codes.kyc.KycStepErrorCode;
 import lombok.Getter;
 
 @Getter

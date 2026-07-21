@@ -1,6 +1,6 @@
-package com.talex.server.exceptions.details;
+package com.talex.server.exceptions.details.creator;
 
-import com.talex.server.exceptions.codes.CreatorTierErrorCode;
+import com.talex.server.exceptions.codes.creator.CreatorTierErrorCode;
 import lombok.Getter;
 
 @Getter

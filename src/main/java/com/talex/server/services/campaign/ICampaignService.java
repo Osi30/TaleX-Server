@@ -21,4 +21,6 @@ public interface ICampaignService {
     CampaignResponseDto updateCampaign(String campaignId, CampaignUpdateDto requestDto);
 
     void deleteCampaign(String campaignId);
+
+    void refundIfAllCampaignCancelled(String campaignId);
 }

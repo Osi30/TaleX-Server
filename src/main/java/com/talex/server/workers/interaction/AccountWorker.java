@@ -3,7 +3,7 @@ package com.talex.server.workers.interaction;
 import com.talex.server.entities.auth.Role;
 import com.talex.server.enums.creator.CreatorIdentityStatus;
 import com.talex.server.enums.creator.PaymentProfileStatus;
-import com.talex.server.exceptions.details.CreatorException;
+import com.talex.server.exceptions.details.creator.CreatorException;
 import com.talex.server.records.CreatorVerificationStatus;
 import com.talex.server.repositories.auth.AccountRepository;
 import com.talex.server.services.auth.IRoleService;

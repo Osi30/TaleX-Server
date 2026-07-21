@@ -1,6 +1,6 @@
-package com.talex.server.exceptions.details;
+package com.talex.server.exceptions.details.payment;
 
-import com.talex.server.exceptions.codes.PaymentProfileErrorCode;
+import com.talex.server.exceptions.codes.payment.PaymentProfileErrorCode;
 import lombok.Getter;
 
 @Getter

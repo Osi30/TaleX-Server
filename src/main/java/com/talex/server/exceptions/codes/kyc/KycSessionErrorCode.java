@@ -1,4 +1,4 @@
-package com.talex.server.exceptions.codes;
+package com.talex.server.exceptions.codes.kyc;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
