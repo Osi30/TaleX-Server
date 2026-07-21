@@ -1,6 +1,5 @@
 package com.talex.server.dtos.requests.campaign;
 
-import com.talex.server.enums.engagement.EngagementTarget;
 import com.talex.server.enums.engagement.EngagementType;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -31,9 +30,6 @@ public class EngagementServiceRequestDto {
 
     @NotNull
     private EngagementType engagementType;
-
-    @NotNull
-    private EngagementTarget engagementTarget;
 
     @Min(value = 1, message = "Mục tiêu tối thiểu phải lớn hơn 0")
     @Max(value = 1000, message = "Mục tiêu tối đa phải nhỏ hơn 1000")

@@ -48,7 +48,8 @@ public class OrderController {
             @Valid @RequestBody CreateEngagementOrderRequestDto request,
             @CurrentAccountId UUID accountId
     ) {
-        OrderResponseDto response = orderService.createEngagementOrder(accountId, request);
+        OrderResponseDto response = orderService
+                .createEngagementOrder(accountId, request);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(BaseResponse.builder()
                         .code(201)

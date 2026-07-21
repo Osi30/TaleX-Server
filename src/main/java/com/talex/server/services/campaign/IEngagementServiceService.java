@@ -13,10 +13,13 @@ public interface IEngagementServiceService {
             EngagementServiceFilterRequestDto filterRequest);
 
     EngagementServiceResponseDto getEngagementServiceById(String engagementServiceId);
+
     EngagementService findById(String id);
 
+    EngagementService findActive(String id);
+
     EngagementServiceResponseDto updateEngagementService(String engagementServiceId,
-            EngagementServiceRequestDto requestDto);
+                                                         EngagementServiceRequestDto requestDto);
 
     void deleteEngagementService(String engagementServiceId);
 }

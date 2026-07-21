@@ -99,9 +99,9 @@ public class AccountShareWorker {
                     String seriesId = episodeService.getSeriesIdByEpisodeId(episodeId);
                     shareAggregationRepository.updateEpisodeShareCount(episodeId, totalDelta);
                     shareAggregationRepository.updateSeriesShareCount(seriesId, totalDelta, LocalDateTime.now());
-                    shareAggregationRepository.updateCampaignSeriesShareCount(seriesId, totalDelta);
-                    shareAggregationRepository.updateCampaignShareCountAndTarget(seriesId, totalDelta);
                     shareAggregationRepository.updateCreatorShareCount(seriesId, totalDelta);
+                    int updatedRow = shareAggregationRepository.updateCampaignSeriesShareCount(seriesId, totalDelta);
+                    if (updatedRow > 0) shareAggregationRepository.updateCampaignShareCountAndTarget(seriesId, totalDelta);
                 }
             });
 
@@ -112,7 +112,6 @@ public class AccountShareWorker {
                     shareAggregationRepository.upsertEpisodeLog(key.getEpisodeId(), key.getHourBucket(), totalDelta);
                     shareAggregationRepository.upsertSeriesLog(seriesId, key.getHourBucket(), totalDelta);
                     shareAggregationRepository.upsertCampaignSeriesLog(seriesId, key.getHourBucket(), totalDelta);
-                    shareAggregationRepository.upsertCampaignLog(seriesId, key.getHourBucket(), totalDelta);
                     shareAggregationRepository.upsertCreatorLog(seriesId, key.getHourBucket(), totalDelta);
                 }
             });

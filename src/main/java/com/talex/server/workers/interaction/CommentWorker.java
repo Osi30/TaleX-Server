@@ -159,9 +159,9 @@ public class CommentWorker {
                     String seriesId = episodeService.getSeriesIdByEpisodeId(episodeId);
                     aggregationRepository.updateEpisodeCommentCount(episodeId, totalDelta);
                     aggregationRepository.updateSeriesCommentCount(seriesId, totalDelta, LocalDateTime.now());
-                    aggregationRepository.updateCampaignSeriesCommentCount(seriesId, totalDelta);
-                    aggregationRepository.updateCampaignCommentCountAndTarget(seriesId, totalDelta);
                     aggregationRepository.updateCreatorCommentCount(seriesId, totalDelta);
+                    int updatedRow = aggregationRepository.updateCampaignSeriesCommentCount(seriesId, totalDelta);
+                    if (updatedRow > 0) aggregationRepository.updateCampaignCommentCountAndTarget(seriesId, totalDelta);
                 }
             });
 
@@ -172,7 +172,6 @@ public class CommentWorker {
                     aggregationRepository.upsertEpisodeLog(key.getEpisodeId(), key.getHourBucket(), totalDelta);
                     aggregationRepository.upsertSeriesLog(seriesId, key.getHourBucket(), totalDelta);
                     aggregationRepository.upsertCampaignSeriesLog(seriesId, key.getHourBucket(), totalDelta);
-                    aggregationRepository.upsertCampaignLog(seriesId, key.getHourBucket(), totalDelta);
                     aggregationRepository.upsertCreatorLogComments(seriesId, key.getHourBucket(), totalDelta);
                 }
             });

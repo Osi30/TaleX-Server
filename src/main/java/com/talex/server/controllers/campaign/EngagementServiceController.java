@@ -12,6 +12,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -24,6 +25,7 @@ public class EngagementServiceController {
     private final IEngagementServiceService engagementServiceService;
 
     @PostMapping
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(
             summary = "Tạo dịch vụ tương tác mới",
             description = "Tạo một dịch vụ tương tác để sử dụng trong chiến dịch quảng cáo."
@@ -82,6 +84,7 @@ public class EngagementServiceController {
     }
 
     @PutMapping("/{engagementServiceId}")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Cập nhật dịch vụ tương tác", description = "Cập nhật thông tin dịch vụ tương tác theo id.")
     public ResponseEntity<BaseResponse> update(
             @PathVariable String engagementServiceId,
@@ -97,6 +100,7 @@ public class EngagementServiceController {
     }
 
     @DeleteMapping("/{engagementServiceId}")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Xóa dịch vụ tương tác", description = "Xóa dịch vụ tương tác theo id.")
     public ResponseEntity<BaseResponse> delete(@PathVariable String engagementServiceId) {
         engagementServiceService.deleteEngagementService(engagementServiceId);

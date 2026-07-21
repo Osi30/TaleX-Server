@@ -3,6 +3,7 @@ package com.talex.server.entities.campaign;
 import com.talex.server.entities.AnalyticData;
 import com.talex.server.entities.series.Episode;
 import com.talex.server.entities.series.Series;
+import com.talex.server.enums.engagement.CampaignStatus;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -31,7 +32,16 @@ public class CampaignSeries implements Serializable {
     @JoinColumn(name = "series_id", nullable = false)
     private Series series;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false)
+    @Builder.Default
+    private CampaignStatus status = CampaignStatus.RUNNING;
+
     @Embedded
     @Builder.Default
     private AnalyticData analyticData = new AnalyticData();
+
+    @Column(name = "total_impression")
+    @Builder.Default
+    private Long totalImpression = 0L;
 }

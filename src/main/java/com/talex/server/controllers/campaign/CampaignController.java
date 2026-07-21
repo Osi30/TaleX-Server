@@ -29,7 +29,7 @@ public class CampaignController {
     private final ICampaignService campaignService;
 
     @PostMapping
-    @Operation(summary = "Tạo chiến dịch mới", description = "Tạo một chiến dịch mới cho creator và tài khoản.")
+    @Operation(summary = "Tạo chiến dịch mới (Only For Demo)", description = "Tạo một chiến dịch mới cho creator và tài khoản.")
     public ResponseEntity<BaseResponse> create(
             @CurrentAccountId UUID accountId,
             @Valid @RequestBody CampaignRequestDto request
@@ -44,10 +44,9 @@ public class CampaignController {
                         .build());
     }
 
-    // Chỉ Admin/Staff
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN','STAFF')")
-    @Operation(summary = "Lọc danh sách chiến dịch", description = "Lấy danh sách các chiến dịch theo điều kiện lọc, trạng thái và phân trang. Chỉ Admin/Staff.")
+    @Operation(summary = "Lọc danh sách chiến dịch (Admin/Staff)", description = "Lấy danh sách các chiến dịch theo điều kiện lọc, trạng thái và phân trang. Chỉ Admin/Staff.")
     public ResponseEntity<BaseResponse> filterCampaigns(
             @RequestParam(required = false) String[] targets,
             @RequestParam(required = false) String[] statuses,
@@ -75,8 +74,37 @@ public class CampaignController {
                 .build());
     }
 
+    @GetMapping("/own")
+    @Operation(summary = "Lọc danh sách chiến dịch cá nhân", description = "Lấy danh sách các chiến dịch theo điều kiện lọc, trạng thái và phân trang của chử sở hữu")
+    public ResponseEntity<BaseResponse> filterOwnCampaigns(
+            @CurrentAccountId UUID accountId,
+            @RequestParam(required = false) String[] targets,
+            @RequestParam(required = false) String[] statuses,
+            @RequestParam(required = false) Map<String, Object> criteria,
+            @RequestParam(required = false) String sortBy,
+            @RequestParam(required = false) String sortDirection,
+            @RequestParam(defaultValue = "1") Integer page,
+            @RequestParam(defaultValue = "20") Integer pageSize
+    ) {
+        criteria.put("accountId", accountId);
+        BasePageResponse<CampaignResponseDto> pageResponse = campaignService
+                .filterCampaigns(CampaignFilterRequestDto.builder()
+                        .criteria(criteria)
+                        .targets(targets)
+                        .statuses(statuses)
+                        .sortBy(sortBy)
+                        .sortDirection(sortDirection)
+                        .page(page)
+                        .pageSize(pageSize)
+                        .build());
 
-    // Chỉ Admin/Staff
+        return ResponseEntity.ok(BaseResponse.builder()
+                .code(200)
+                .message("OK")
+                .data(pageResponse)
+                .build());
+    }
+
     @GetMapping("/{campaignId}")
     @PreAuthorize("hasAnyRole('ADMIN','STAFF')")
     @Operation(summary = "Lấy chiến dịch theo ID", description = "Trả về chi tiết chiến dịch theo id. Chỉ Admin/Staff.")
@@ -88,8 +116,6 @@ public class CampaignController {
                 .data(response)
                 .build());
     }
-
-
 
     @PutMapping("/{campaignId}")
     @PreAuthorize("hasAnyRole('ADMIN','STAFF')")
@@ -108,7 +134,6 @@ public class CampaignController {
     }
 
     @DeleteMapping("/{campaignId}")
-    @PreAuthorize("hasAnyRole('ADMIN','STAFF')")
     @Operation(summary = "Hủy chiến dịch", description = "Hủy chiến dịch cụ thể. Chỉ Admin/Staff.")
     public ResponseEntity<BaseResponse> delete(@PathVariable String campaignId) {
         campaignService.deleteCampaign(campaignId);

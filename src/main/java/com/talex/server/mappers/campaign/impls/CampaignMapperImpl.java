@@ -16,10 +16,10 @@ public class CampaignMapperImpl implements ICampaignMapper {
 
         return CampaignResponseDto.builder()
                 .campaignId(entity.getCampaignId())
-                .status(entity.getStatus())
-                .targetValue(entity.getTargetValue())
-                .currentValue(entity.getCurrentValue())
-                .engagementTarget(entity.getEngagementTarget())
+                .status(entity.getCampaignStatus())
+                .targetImpression(entity.getTargetImpression())
+                .currentImpression(entity.getCurrentImpression())
+                .engagementType(entity.getEngagementType())
                 .startAt(entity.getStartAt())
                 .endAt(entity.getEndAt())
                 .orderId(entity.getOrderId())
@@ -28,6 +28,7 @@ public class CampaignMapperImpl implements ICampaignMapper {
                                 : null)
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
+                .analyticData(entity.getAnalyticData())
                 .build();
     }
 }

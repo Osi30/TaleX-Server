@@ -9,12 +9,12 @@ import com.talex.server.entities.campaign.Campaign;
 import com.talex.server.entities.campaign.EngagementService;
 import com.talex.server.entities.series.Series;
 import com.talex.server.enums.engagement.CampaignStatus;
-import com.talex.server.enums.engagement.EngagementTarget;
 import com.talex.server.enums.series.SeriesStatus;
 import com.talex.server.exceptions.codes.CampaignErrorCode;
 import com.talex.server.exceptions.details.CampaignException;
 import com.talex.server.mappers.campaign.ICampaignMapper;
 import com.talex.server.repositories.campaign.CampaignRepository;
+import com.talex.server.repositories.campaign.CampaignSeriesRepository;
 import com.talex.server.repositories.series.SeriesRepository;
 import com.talex.server.services.campaign.ICampaignService;
 import com.talex.server.services.campaign.IEngagementServiceService;
@@ -30,15 +30,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class CampaignService implements ICampaignService {
     private final CampaignRepository campaignRepository;
+    private final CampaignSeriesRepository campaignSeriesRepository;
     private final SeriesRepository seriesRepository;
     private final ICreatorService creatorService;
     private final IEngagementServiceService engagementService;
@@ -53,32 +52,19 @@ public class CampaignService implements ICampaignService {
             throw new CampaignException(CampaignErrorCode.INVALID_REQUEST, "Danh sách series không được để trống");
         }
 
-        // 2. Kiểm tra nhanh số lượng tập phim hợp lệ
-        String creatorId = creatorService.getIdByAccountId(requestDto.getAccountId());
-        long validSeriesCount = seriesRepository.countBySeriesIdInAndStatusAndIsDeletedFalseAndCreator_CreatorId(
-                uniqueSeriesIds,
-                SeriesStatus.PUBLISHED,
-                creatorId
-        );
-        // Nếu số lượng trong DB không khớp với số lượng ID
-        if (validSeriesCount != uniqueSeriesIds.size()) {
-            throw new CampaignException(CampaignErrorCode.INVALID_REQUEST, "Có series không hợp lệ hoặc chưa được xuất bản");
-        }
+        // 2. Lấy thông tin dịch vụ tương tác
+        EngagementService service = engagementService.findActive(requestDto.getEngagementServiceId());
 
-        // 3. Lấy thông tin dịch vụ tương tác
-        EngagementService service = engagementService.findById(requestDto.getEngagementServiceId());
-
-        // 4. Khởi tạo Campaign
+        // 3. Khởi tạo Campaign
         Campaign campaign = new Campaign();
         campaign.setAccountId(requestDto.getAccountId());
         campaign.setOrderId(requestDto.getOrderId());
         campaign.setEngagementService(service);
-        campaign.setTargetValue(service.getTargetValue());
-        campaign.setEngagementTarget(service.getEngagementTarget());
-        campaign.setStatus(CampaignStatus.RUNNING);
+        campaign.setEngagementType(service.getEngagementType());
+        campaign.setTargetImpression(service.getTargetValue());
         campaign.setStartAt(LocalDateTime.now());
 
-        // 5. Liên kết các Series vào Campaign
+        // 4. Liên kết các Series vào Campaign
         for (String seriesId : uniqueSeriesIds) {
             Series seriesProxy = seriesRepository.getReferenceById(seriesId);
             campaign.addSeries(seriesProxy);
@@ -89,17 +75,44 @@ public class CampaignService implements ICampaignService {
     }
 
     @Override
+    public void validateCampaign(UUID accountId, List<String> seriesIds){
+        // 1. Kiểm tra nhanh số lượng tập phim hợp lệ
+        String creatorId = creatorService.getIdByAccountId(accountId);
+        long validSeriesCount = seriesRepository.countBySeriesIdInAndStatusAndIsDeletedFalseAndCreator_CreatorId(
+                seriesIds,
+                SeriesStatus.PUBLISHED,
+                creatorId
+        );
+        // Nếu số lượng trong DB không khớp với số lượng ID
+        if (validSeriesCount != seriesIds.size()) {
+            throw new CampaignException(CampaignErrorCode.INVALID_REQUEST, "Có series không hợp lệ hoặc chưa được xuất bản");
+        }
+
+        // 2. Kiểm tra đã có trong campaign nào trước chưa
+        List<String> duplicatedSeries = campaignSeriesRepository.findDuplicatedPromotedSeriesIds(
+                List.of(CampaignStatus.RUNNING, CampaignStatus.PAUSED),
+                seriesIds
+        );
+        if (!duplicatedSeries.isEmpty()) {
+            String duplicateSeries = duplicatedSeries.stream()
+                    .map(String::valueOf)
+                    .collect(Collectors.joining(", "));
+            throw new CampaignException(
+                    CampaignErrorCode.INVALID_REQUEST,
+                    "Phát hiện có series đang sử dụng dịch vụ: " + duplicateSeries);
+        }
+
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public BasePageResponse<CampaignResponseDto> filterCampaigns(CampaignFilterRequestDto filterRequest) {
         Sort sort = buildSort(filterRequest);
         Pageable pageable = PageUtils.buildPageable(
                 filterRequest.getPage(), filterRequest.getPageSize(), sort);
 
-        EngagementTarget[] targets = parseTargets(filterRequest.getTargets());
-        CampaignStatus[] statuses = parseStatuses(filterRequest.getStatuses());
-
         Page<Campaign> pageResult = campaignRepository.findAll(
-                CampaignSpec.filterByCriteria(filterRequest.getCriteria(), targets, statuses),
+                CampaignSpec.filterByCriteria(filterRequest.getCriteria()),
                 pageable
         );
 
@@ -129,14 +142,7 @@ public class CampaignService implements ICampaignService {
     public CampaignResponseDto updateCampaign(String campaignId, CampaignUpdateDto requestDto) {
         Campaign existing = findById(campaignId);
 
-        Optional.ofNullable(requestDto.getCurrentValue()).ifPresent(existing::setCurrentValue);
-
-        Optional.ofNullable(requestDto.getStatus()).ifPresent(s -> {
-            if (s.equals(CampaignStatus.CANCELLED)) {
-                return;
-            }
-            existing.setStatus(s);
-        });
+        Optional.ofNullable(requestDto.getStatus()).ifPresent(existing::updateStatus);
         Optional.ofNullable(requestDto.getEndAt()).ifPresent(existing::setEndAt);
 
         Campaign updated = campaignRepository.save(existing);
@@ -147,23 +153,7 @@ public class CampaignService implements ICampaignService {
     @Transactional
     public void deleteCampaign(String campaignId) {
         Campaign campaign = findById(campaignId);
-        switch (campaign.getStatus()) {
-            case CANCELLED:
-                // Do nothing
-                break;
-            case RUNNING:
-                campaign.setStatus(CampaignStatus.CANCELLED);
-                break;
-            case PAUSED:
-                campaign.setStatus(CampaignStatus.CANCELLED);
-                break;
-            case FAILED:
-                // Do nothing
-                break;
-            case COMPLETED:
-                // Do nothing
-                break;
-        }
+        campaign.updateStatus(CampaignStatus.CANCELLED);
         campaignRepository.save(campaign);
     }
 
@@ -183,38 +173,8 @@ public class CampaignService implements ICampaignService {
             return "createdAt";
         }
         return switch (sortBy) {
-            case "startAt", "endAt", "currentValue", "targetValue", "createdAt", "updatedAt" -> sortBy;
+            case "startAt", "endAt", "currentImpression", "targetImpression", "createdAt", "updatedAt" -> sortBy;
             default -> "createdAt";
         };
-    }
-
-    private EngagementTarget[] parseTargets(String[] targets) {
-        if (targets == null || targets.length == 0) {
-            return new EngagementTarget[0];
-        }
-        EngagementTarget[] parsed = new EngagementTarget[targets.length];
-        for (int i = 0; i < targets.length; i++) {
-            try {
-                parsed[i] = EngagementTarget.valueOf(targets[i].toUpperCase());
-            } catch (Exception e) {
-                throw new CampaignException(CampaignErrorCode.INVALID_REQUEST, "Mục tiêu tương tác không hợp lệ: " + targets[i]);
-            }
-        }
-        return parsed;
-    }
-
-    private CampaignStatus[] parseStatuses(String[] statuses) {
-        if (statuses == null || statuses.length == 0) {
-            return new CampaignStatus[0];
-        }
-        CampaignStatus[] parsed = new CampaignStatus[statuses.length];
-        for (int i = 0; i < statuses.length; i++) {
-            try {
-                parsed[i] = CampaignStatus.valueOf(statuses[i].toUpperCase());
-            } catch (Exception e) {
-                throw new CampaignException(CampaignErrorCode.INVALID_REQUEST, "Trạng thái chiến dịch không hợp lệ: " + statuses[i]);
-            }
-        }
-        return parsed;
     }
 }

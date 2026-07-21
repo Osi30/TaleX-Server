@@ -19,6 +19,8 @@ import com.talex.server.exceptions.details.PaymentException;
 import com.talex.server.exceptions.details.ResourceNotFoundException;
 import com.talex.server.repositories.auth.AccountRepository;
 import com.talex.server.repositories.transaction.OrderRepository;
+import com.talex.server.services.campaign.ICampaignService;
+import com.talex.server.services.campaign.IEngagementServiceService;
 import com.talex.server.services.coin.CoinPricingConverter;
 import com.talex.server.services.coin.ICoinWalletService;
 import com.talex.server.services.payment.IOrderService;
@@ -32,6 +34,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Supplier;
@@ -47,7 +50,8 @@ public class OrderService implements IOrderService {
     private final AccountRepository accountRepository;
     private final ISubscriptionService subscriptionService;
     private final ContentOrderPreparationService contentOrderPreparationService;
-    private final EngagementOrderPreparationService engagementOrderPreparationService;
+    private final IEngagementServiceService engagementService;
+    private final ICampaignService campaignService;
     private final ISePayService sePayService;
     private final SePayProperties sePayProperties;
     private final ICoinWalletService coinWalletService;
@@ -78,19 +82,18 @@ public class OrderService implements IOrderService {
     @Transactional
     public OrderResponseDto createEngagementOrder(UUID accountId, CreateEngagementOrderRequestDto request) {
         Account account = fetchAccount(accountId);
-        EngagementService engagementService =
-                engagementOrderPreparationService.fetchActiveEngagementService(request.getEngagementServiceId());
-        engagementOrderPreparationService.validateOwnedPublishedSeries(accountId, request.getSeriesIds());
+        EngagementService service = engagementService.findActive(request.getEngagementServiceId());
+        campaignService.validateCampaign(accountId, request.getSeriesIds());
 
         BigDecimal totalAmount = BigDecimal.valueOf(
-                engagementService.getPrice() != null ? engagementService.getPrice() : 0L);
-        String metadata = engagementOrderPreparationService.serializeSeriesIds(request.getSeriesIds());
+                service.getPrice() != null ? service.getPrice() : 0L);
+        String metadata = serializeSeriesIds(request.getSeriesIds());
 
-        Order order = resolveActiveOrCreateNew(accountId, ITEM_TYPE_ENGAGEMENT, engagementService.getEngagementServiceId(),
+        Order order = resolveActiveOrCreateNew(accountId, ITEM_TYPE_ENGAGEMENT, service.getEngagementServiceId(),
                 () -> Order.builder()
                         .account(account)
                         .itemType(ITEM_TYPE_ENGAGEMENT)
-                        .itemId(engagementService.getEngagementServiceId())
+                        .itemId(service.getEngagementServiceId())
                         .totalAmount(totalAmount)
                         .fiatAmount(totalAmount)
                         .metadata(metadata)
@@ -310,6 +313,14 @@ public class OrderService implements IOrderService {
                     resolution.originalPrice(), resolution.ownedEpisodeCount(), resolution.totalEpisodeCount()));
         } catch (JsonProcessingException exception) {
             throw new IllegalStateException("Failed to serialize combo discount metadata", exception);
+        }
+    }
+
+    public String serializeSeriesIds(List<String> seriesIds) {
+        try {
+            return objectMapper.writeValueAsString(seriesIds);
+        } catch (JsonProcessingException exception) {
+            throw new IllegalStateException("Failed to serialize seriesIds for order metadata", exception);
         }
     }
 

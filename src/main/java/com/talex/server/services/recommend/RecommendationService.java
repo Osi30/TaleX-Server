@@ -1,4 +1,4 @@
-package com.talex.server.services;
+package com.talex.server.services.recommend;
 
 import com.talex.server.dtos.recommend.RankResultItem;
 

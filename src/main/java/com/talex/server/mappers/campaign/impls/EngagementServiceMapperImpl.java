@@ -21,7 +21,6 @@ public class EngagementServiceMapperImpl implements IEngagementServiceMapper {
                 .name(requestDto.getName())
                 .description(requestDto.getDescription())
                 .price(requestDto.getPrice())
-                .engagementTarget(requestDto.getEngagementTarget())
                 .engagementType(requestDto.getEngagementType())
                 .targetValue(requestDto.getTargetValue())
                 .isActive(requestDto.getIsActive())
@@ -42,7 +41,6 @@ public class EngagementServiceMapperImpl implements IEngagementServiceMapper {
                 .isActive(entity.getIsActive())
                 .engagementType(entity.getEngagementType())
                 .targetValue(entity.getTargetValue())
-                .engagementTarget(entity.getEngagementTarget())
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
                 .build();
@@ -58,7 +56,6 @@ public class EngagementServiceMapperImpl implements IEngagementServiceMapper {
         Optional.ofNullable(requestDto.getPrice()).ifPresent(entity::setPrice);
         Optional.ofNullable(requestDto.getIsActive()).ifPresent(entity::setIsActive);
         Optional.ofNullable(requestDto.getEngagementType()).ifPresent(entity::setEngagementType);
-        Optional.ofNullable(requestDto.getEngagementTarget()).ifPresent(entity::setEngagementTarget);
         Optional.ofNullable(requestDto.getTargetValue()).ifPresent(entity::setTargetValue);
     }
 }

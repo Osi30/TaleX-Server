@@ -6,7 +6,6 @@ import com.talex.server.dtos.requests.campaign.EngagementServiceRequestDto;
 import com.talex.server.dtos.requests.filters.EngagementServiceFilterRequestDto;
 import com.talex.server.dtos.responses.campaign.EngagementServiceResponseDto;
 import com.talex.server.entities.campaign.EngagementService;
-import com.talex.server.enums.engagement.EngagementTarget;
 import com.talex.server.enums.engagement.EngagementType;
 import com.talex.server.exceptions.codes.EngagementErrorCode;
 import com.talex.server.exceptions.details.EngagementServiceException;
@@ -18,7 +17,6 @@ import com.talex.server.utils.PageUtils;
 import com.talex.server.utils.ValidationUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -51,10 +49,9 @@ public class EngagementServiceService implements IEngagementServiceService {
                 filterRequest.getPage(), filterRequest.getPageSize(), sort);
 
         EngagementType[] types = parseTypes(filterRequest.getTypes());
-        EngagementTarget[] targets = parseTargets(filterRequest.getTargets());
 
         Page<EngagementService> pageResult = engagementServiceRepository.findAll(
-                EngagementServiceSpec.filterByCriteria(filterRequest.getCriteria(), types, targets),
+                EngagementServiceSpec.filterByCriteria(filterRequest.getCriteria(), types),
                 pageable
         );
 
@@ -105,6 +102,16 @@ public class EngagementServiceService implements IEngagementServiceService {
                 .orElseThrow(() -> new EngagementServiceException(EngagementErrorCode.NOT_FOUND, "EngagementService not found with id: " + id));
     }
 
+    @Override
+    public EngagementService findActive(String id){
+        EngagementService entity = findById(id);
+        if (!entity.getIsActive()){
+            throw new EngagementServiceException(EngagementErrorCode.NOT_FOUND, "Active engagementService not found with id: " + id);
+        }
+
+        return entity;
+    }
+
     private Sort buildSort(BaseFilterRequestDto filterRequest) {
         String sortDirection = Optional.ofNullable(filterRequest.getSortDirection()).orElse("DESC");
         Sort.Direction direction = "ASC".equalsIgnoreCase(sortDirection) ? Sort.Direction.ASC : Sort.Direction.DESC;
@@ -132,21 +139,6 @@ public class EngagementServiceService implements IEngagementServiceService {
                 parsed[i] = EngagementType.valueOf(types[i].toUpperCase());
             } catch (Exception e) {
                 throw new EngagementServiceException(EngagementErrorCode.TYPE_INVALID, "Loại tương tác không hợp lệ: " + types[i]);
-            }
-        }
-        return parsed;
-    }
-
-    private EngagementTarget[] parseTargets(String[] targets) {
-        if (targets == null || targets.length == 0) {
-            return new EngagementTarget[0];
-        }
-        EngagementTarget[] parsed = new EngagementTarget[targets.length];
-        for (int i = 0; i < targets.length; i++) {
-            try {
-                parsed[i] = EngagementTarget.valueOf(targets[i].toUpperCase());
-            } catch (Exception e) {
-                throw new EngagementServiceException(EngagementErrorCode.TARGET_INVALID, "Đối tượng tương tác không hợp lệ: " + targets[i]);
             }
         }
         return parsed;

@@ -1,11 +1,11 @@
-package com.talex.server.services.impls;
+package com.talex.server.services.recommend.impls;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.talex.server.dtos.recommend.RankRequestPayload;
 import com.talex.server.dtos.recommend.RankResultItem;
 import com.talex.server.repositories.mongo.SeriesRecommendationRepository;
-import com.talex.server.services.RecommendationService;
+import com.talex.server.services.recommend.RecommendationService;
 import com.talex.server.services.interaction.IViewService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;

@@ -1,6 +1,5 @@
 package com.talex.server.dtos.responses.campaign;
 
-import com.talex.server.enums.engagement.EngagementTarget;
 import com.talex.server.enums.engagement.EngagementType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -22,7 +21,6 @@ public class EngagementServiceResponseDto {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private EngagementType engagementType;
-    private EngagementTarget engagementTarget;
     private Long targetValue;
 
 }

@@ -104,9 +104,9 @@ public class ViewWorker {
                     String seriesId = episodeService.getSeriesIdByEpisodeId(episodeId);
                     viewAggregationRepository.updateEpisodeViewCount(episodeId, totalDelta);
                     viewAggregationRepository.updateSeriesViewCount(seriesId, totalDelta, LocalDateTime.now());
-                    viewAggregationRepository.updateCampaignSeriesViewCount(seriesId, totalDelta);
-                    viewAggregationRepository.updateCampaignViewCountAndTarget(seriesId, totalDelta);
                     viewAggregationRepository.updateCreatorViewCount(seriesId, totalDelta);
+                    int updatedRow = viewAggregationRepository.updateCampaignSeriesViewCount(seriesId, totalDelta);
+                    if (updatedRow > 0) viewAggregationRepository.updateCampaignViewCountAndTarget(seriesId, totalDelta);
                 }
             });
 
@@ -117,7 +117,6 @@ public class ViewWorker {
                     viewAggregationRepository.upsertEpisodeLog(key.getEpisodeId(), key.getHourBucket(), totalDelta);
                     viewAggregationRepository.upsertSeriesLog(seriesId, key.getHourBucket(), totalDelta);
                     viewAggregationRepository.upsertCampaignSeriesLog(seriesId, key.getHourBucket(), totalDelta);
-                    viewAggregationRepository.upsertCampaignLog(seriesId, key.getHourBucket(), totalDelta);
                     viewAggregationRepository.upsertCreatorLogViews(seriesId, key.getHourBucket(), totalDelta);
                 }
             });

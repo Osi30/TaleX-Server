@@ -118,9 +118,9 @@ public class BookmarkWorker {
                     String seriesId = episodeService.getSeriesIdByEpisodeId(episodeId);
                     aggregationRepository.updateEpisodeBookmarkCount(episodeId, totalDelta);
                     aggregationRepository.updateSeriesBookmarkCount(seriesId, totalDelta, LocalDateTime.now());
-                    aggregationRepository.updateCampaignSeriesBookmarkCount(seriesId, totalDelta);
-                    aggregationRepository.updateCampaignBookmarkCountAndTarget(seriesId, totalDelta);
                     aggregationRepository.updateCreatorBookmarkCount(seriesId, totalDelta);
+                    int updatedRow = aggregationRepository.updateCampaignSeriesBookmarkCount(seriesId, totalDelta);
+                    if (updatedRow > 0)  aggregationRepository.updateCampaignBookmarkCountAndTarget(seriesId, totalDelta);
                 }
             });
 
@@ -131,7 +131,6 @@ public class BookmarkWorker {
                     aggregationRepository.upsertEpisodeLog(key.getEpisodeId(), key.getHourBucket(), totalDelta);
                     aggregationRepository.upsertSeriesLog(seriesId, key.getHourBucket(), totalDelta);
                     aggregationRepository.upsertCampaignSeriesLog(seriesId, key.getHourBucket(), totalDelta);
-                    aggregationRepository.upsertCampaignLog(seriesId, key.getHourBucket(), totalDelta);
                     aggregationRepository.upsertCreatorLogBookmarks(seriesId, key.getHourBucket(), totalDelta);
                 }
             });

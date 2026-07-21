@@ -1,8 +1,8 @@
-package com.talex.server.controllers;
+package com.talex.server.controllers.recommend;
 
 import com.talex.server.annotations.CurrentAccountId;
 import com.talex.server.dtos.recommend.RankResultItem;
-import com.talex.server.services.RecommendationService;
+import com.talex.server.services.recommend.RecommendationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;

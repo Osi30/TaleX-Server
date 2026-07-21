@@ -37,24 +37,28 @@ public interface BookmarkAggregationRepository extends JpaRepository<Episode, St
             @Param("lastInteractionTime") LocalDateTime lastInteractionTime
     );
 
-    /// Cập nhật tổng bookmark của CampaignEpisode thuộc Chiến dịch
+    /// Cập nhật tổng bookmark của CampaignSeries thuộc Chiến dịch
     @Modifying
     @Transactional
     @Query("UPDATE CampaignSeries cs " +
             "SET cs.analyticData.bookmarks = cs.analyticData.bookmarks + :delta " +
-            "WHERE cs.series.seriesId = :seriesId")
-    void updateCampaignSeriesBookmarkCount(
+            "WHERE cs.series.seriesId = :seriesId " +
+            "AND cs.status = 'RUNNING'")
+    int updateCampaignSeriesBookmarkCount(
             @Param("seriesId") String seriesId,
             @Param("delta") long delta
     );
 
-    /// Cập nhật tổng bookmark của Campaign và cộng dồn currentValue nếu EngagementTarget là BOOKMARK
+    /// Cập nhật tổng bookmark của Campaign
     @Modifying
     @Transactional
     @Query("UPDATE Campaign c " +
-            "SET c.analyticData.bookmarks = c.analyticData.bookmarks + :delta, " +
-            "c.currentValue = c.currentValue + (CASE WHEN c.engagementTarget = 'BOOKMARK' THEN :delta ELSE 0 END) " +
-            "WHERE c.campaignId IN (SELECT cs.campaign.campaignId FROM CampaignSeries cs WHERE cs.series.seriesId = :seriesId)")
+            "SET c.analyticData.bookmarks = c.analyticData.bookmarks + :delta " +
+            "WHERE c.campaignId IN " +
+            "(SELECT cs.campaign.campaignId " +
+            "FROM CampaignSeries cs " +
+            "WHERE cs.series.seriesId = :seriesId " +
+            "AND cs.status = 'RUNNING')")
     void updateCampaignBookmarkCountAndTarget(
             @Param("seriesId") String seriesId,
             @Param("delta") long delta
@@ -103,23 +107,10 @@ public interface BookmarkAggregationRepository extends JpaRepository<Episode, St
             "SELECT gen_random_uuid(), :hourBucket, cs.campaign_series_id, :delta, 0, 0, 0, 0, 0 " +
             "FROM campaign_series cs " +
             "WHERE cs.series_id = :seriesId " +
+            "AND cs.status = 'RUNNING' " +
             "ON CONFLICT (campaign_series_id, hour_bucket) " +
             "DO UPDATE SET bookmarks = COALESCE(campaign_series_log.bookmarks, 0) + :delta", nativeQuery = true)
     void upsertCampaignSeriesLog(
-            @Param("seriesId") String seriesId,
-            @Param("hourBucket") LocalDateTime hourBucket,
-            @Param("delta") long delta
-    );
-
-    @Modifying
-    @Transactional
-    @Query(value = "INSERT INTO campaign_log (campaign_log_id, hour_bucket, campaign_id, bookmarks, likes, views, comments, shares, watch_time) " +
-            "SELECT gen_random_uuid(), :hourBucket, cs.campaign_id, :delta, 0, 0, 0, 0, 0 " +
-            "FROM campaign_series cs " +
-            "WHERE cs.series_id = :seriesId " +
-            "ON CONFLICT (campaign_id, hour_bucket) " +
-            "DO UPDATE SET bookmarks = COALESCE(campaign_log.bookmarks, 0) + :delta", nativeQuery = true)
-    void upsertCampaignLog(
             @Param("seriesId") String seriesId,
             @Param("hourBucket") LocalDateTime hourBucket,
             @Param("delta") long delta

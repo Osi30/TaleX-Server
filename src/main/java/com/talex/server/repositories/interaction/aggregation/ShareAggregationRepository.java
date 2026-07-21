@@ -40,17 +40,22 @@ public interface ShareAggregationRepository extends JpaRepository<Episode, Strin
     @Query("UPDATE CampaignSeries cs " +
             "SET cs.analyticData.shares = cs.analyticData.shares + :delta " +
             "WHERE cs.series.seriesId = :seriesId " +
-            "AND cs.campaign.status = 'RUNNING'")
-    void updateCampaignSeriesShareCount(@Param("seriesId") String seriesId, @Param("delta") long delta);
+            "AND cs.status = 'RUNNING'")
+    int updateCampaignSeriesShareCount(
+            @Param("seriesId") String seriesId,
+            @Param("delta") long delta
+    );
 
-    /// Cập nhật tổng share của Campaign và cộng dồn mục tiêu nếu EngagementTarget là SHARE
+    /// Cập nhật tổng share của Campaign
     @Modifying
     @Transactional
     @Query("UPDATE Campaign c " +
-            "SET c.analyticData.shares = c.analyticData.shares + :delta, " +
-            "c.currentValue = c.currentValue + :delta " +
-            "WHERE c.campaignId IN (SELECT cs.campaign.campaignId FROM CampaignSeries cs WHERE cs.series.seriesId = :seriesId) " +
-            "AND c.status = 'RUNNING'")
+            "SET c.analyticData.shares = c.analyticData.shares + :delta " +
+            "WHERE c.campaignId IN " +
+            "(SELECT cs.campaign.campaignId " +
+            "FROM CampaignSeries cs " +
+            "WHERE cs.series.seriesId = :seriesId " +
+            "AND cs.status = 'RUNNING')")
     void updateCampaignShareCountAndTarget(@Param("seriesId") String seriesId, @Param("delta") long delta);
 
     @Modifying
@@ -83,22 +88,11 @@ public interface ShareAggregationRepository extends JpaRepository<Episode, Strin
     @Query(value = "INSERT INTO campaign_series_log (campaign_series_log_id, hour_bucket, campaign_series_id, shares, likes, views, comments, bookmarks, watch_time) " +
             "SELECT gen_random_uuid(), :hourBucket, cs.campaign_series_id, :delta, 0, 0, 0, 0, 0.0 " +
             "FROM campaign_series cs " +
-            "JOIN campaign c ON cs.campaign_id = c.campaign_id " +
-            "WHERE cs.series_id = :seriesId AND c.status = 'RUNNING' " +
+            "WHERE cs.series_id = :seriesId " +
+            "AND cs.status = 'RUNNING' " +
             "ON CONFLICT (campaign_series_id, hour_bucket) " +
             "DO UPDATE SET shares = COALESCE(campaign_series_log.shares, 0) + :delta", nativeQuery = true)
     void upsertCampaignSeriesLog(@Param("seriesId") String seriesId, @Param("hourBucket") LocalDateTime hourBucket, @Param("delta") long delta);
-
-    @Modifying
-    @Transactional
-    @Query(value = "INSERT INTO campaign_log (campaign_log_id, hour_bucket, campaign_id, shares, likes, views, comments, bookmarks, watch_time) " +
-            "SELECT gen_random_uuid(), :hourBucket, cs.campaign_id, :delta, 0, 0, 0, 0, 0.0 " +
-            "FROM campaign_series cs " +
-            "JOIN campaign c ON cs.campaign_id = c.campaign_id " +
-            "WHERE cs.series_id = :seriesId AND c.status = 'RUNNING' " +
-            "ON CONFLICT (campaign_id, hour_bucket) " +
-            "DO UPDATE SET shares = COALESCE(campaign_log.shares, 0) + :delta", nativeQuery = true)
-    void upsertCampaignLog(@Param("seriesId") String seriesId, @Param("hourBucket") LocalDateTime hourBucket, @Param("delta") long delta);
 
     @Modifying
     @Transactional

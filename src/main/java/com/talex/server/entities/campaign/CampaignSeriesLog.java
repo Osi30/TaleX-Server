@@ -34,4 +34,8 @@ public class CampaignSeriesLog implements Serializable {
     @Embedded
     @Builder.Default
     private AnalyticData analyticData = new AnalyticData();
+
+    @Column(name = "total_impression")
+    @Builder.Default
+    private Long totalImpression = 0L;
 }

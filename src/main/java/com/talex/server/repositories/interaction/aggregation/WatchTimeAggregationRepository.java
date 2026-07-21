@@ -43,8 +43,8 @@ public interface WatchTimeAggregationRepository extends JpaRepository<Episode, S
     @Query("UPDATE CampaignSeries cs " +
             "SET cs.analyticData.watchTime = cs.analyticData.watchTime + :delta " +
             "WHERE cs.series.seriesId = :seriesId " +
-            "AND cs.campaign.status = 'RUNNING'")
-    void updateCampaignSeriesWatchTime(
+            "AND cs.status = 'RUNNING'")
+    int updateCampaignSeriesWatchTime(
             @Param("seriesId") String seriesId,
             @Param("delta") double delta
     );
@@ -54,8 +54,11 @@ public interface WatchTimeAggregationRepository extends JpaRepository<Episode, S
     @Transactional
     @Query("UPDATE Campaign c " +
             "SET c.analyticData.watchTime = c.analyticData.watchTime + :delta " +
-            "WHERE c.status = 'RUNNING' " +
-            "AND c.campaignId IN (SELECT cs.campaign.campaignId FROM CampaignSeries cs WHERE cs.series.seriesId = :seriesId)")
+            "WHERE c.campaignId IN " +
+            "(SELECT cs.campaign.campaignId " +
+            "FROM CampaignSeries cs " +
+            "WHERE cs.series.seriesId = :seriesId " +
+            "AND cs.status = 'RUNNING')")
     void updateCampaignWatchTimeAndTarget(
             @Param("seriesId") String seriesId,
             @Param("delta") double delta
@@ -103,26 +106,11 @@ public interface WatchTimeAggregationRepository extends JpaRepository<Episode, S
     @Query(value = "INSERT INTO campaign_series_log (campaign_series_log_id, hour_bucket, campaign_series_id, watch_time) " +
             "SELECT gen_random_uuid(), :hourBucket, cs.campaign_series_id, :delta " +
             "FROM campaign_series cs " +
-            "JOIN campaign c ON cs.campaign_id = c.campaign_id " +
-            "WHERE cs.series_id = :seriesId AND c.status = 'RUNNING' " +
+            "WHERE cs.series_id = :seriesId " +
+            "AND cs.status = 'RUNNING' " +
             "ON CONFLICT (campaign_series_id, hour_bucket) " +
             "DO UPDATE SET watch_time = COALESCE(campaign_series_log.watch_time, 0) + :delta", nativeQuery = true)
     void upsertCampaignSeriesLog(
-            @Param("seriesId") String seriesId,
-            @Param("hourBucket") LocalDateTime hourBucket,
-            @Param("delta") double delta
-    );
-
-    @Modifying
-    @Transactional
-    @Query(value = "INSERT INTO campaign_log (campaign_log_id, hour_bucket, campaign_id, watch_time) " +
-            "SELECT gen_random_uuid(), :hourBucket, cs.campaign_id, :delta " +
-            "FROM campaign_series cs " +
-            "JOIN campaign c ON cs.campaign_id = c.campaign_id " +
-            "WHERE cs.series_id = :seriesId AND c.status = 'RUNNING' " +
-            "ON CONFLICT (campaign_id, hour_bucket) " +
-            "DO UPDATE SET watch_time = COALESCE(campaign_log.watch_time, 0) + :delta", nativeQuery = true)
-    void upsertCampaignLog(
             @Param("seriesId") String seriesId,
             @Param("hourBucket") LocalDateTime hourBucket,
             @Param("delta") double delta

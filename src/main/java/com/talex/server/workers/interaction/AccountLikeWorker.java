@@ -126,9 +126,9 @@ public class AccountLikeWorker {
                     String seriesId = episodeService.getSeriesIdByEpisodeId(episodeId);
                     aggregationRepository.updateEpisodeLikeCount(episodeId, totalDelta);
                     aggregationRepository.updateSeriesLikeCount(seriesId, totalDelta, LocalDateTime.now());
-                    aggregationRepository.updateCampaignSeriesLikeCount(seriesId, totalDelta);
-                    aggregationRepository.updateCampaignLikeCountAndTarget(seriesId, totalDelta);
                     aggregationRepository.updateCreatorLikeCount(seriesId, totalDelta);
+                    int updatedRow = aggregationRepository.updateCampaignSeriesLikeCount(seriesId, totalDelta);
+                    if (updatedRow > 0) aggregationRepository.updateCampaignLikeCountAndTarget(seriesId, totalDelta);
                 }
             });
 
@@ -139,7 +139,6 @@ public class AccountLikeWorker {
                     aggregationRepository.upsertEpisodeLog(key.getEpisodeId(), key.getHourBucket(), totalDelta);
                     aggregationRepository.upsertSeriesLog(seriesId, key.getHourBucket(), totalDelta);
                     aggregationRepository.upsertCampaignSeriesLog(seriesId, key.getHourBucket(), totalDelta);
-                    aggregationRepository.upsertCampaignLog(seriesId, key.getHourBucket(), totalDelta);
                     aggregationRepository.upsertCreatorLogLikes(seriesId, key.getHourBucket(), totalDelta);
                 }
             });

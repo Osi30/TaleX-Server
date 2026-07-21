@@ -1,7 +1,8 @@
 package com.talex.server.dtos.responses.campaign;
 
+import com.talex.server.entities.AnalyticData;
 import com.talex.server.enums.engagement.CampaignStatus;
-import com.talex.server.enums.engagement.EngagementTarget;
+import com.talex.server.enums.engagement.EngagementType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -22,7 +23,9 @@ public class CampaignResponseDto {
     private LocalDateTime endAt;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
-    private Long targetValue;
-    private Long currentValue;
-    private EngagementTarget engagementTarget;
+    private Long targetImpression;
+    private Long currentImpression;
+    private EngagementType engagementType;
+    @Builder.Default
+    private AnalyticData analyticData = new AnalyticData();
 }

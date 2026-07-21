@@ -189,9 +189,9 @@ public class WatchTimeWorker {
                 String seriesId = episodeService.getSeriesIdByEpisodeId(episodeId);
                 watchTimeAggregationRepository.updateEpisodeWatchTime(episodeId, totalDelta);
                 watchTimeAggregationRepository.updateSeriesWatchTime(seriesId, totalDelta, LocalDateTime.now());
-                watchTimeAggregationRepository.updateCampaignSeriesWatchTime(seriesId, totalDelta);
-                watchTimeAggregationRepository.updateCampaignWatchTimeAndTarget(seriesId, totalDelta);
                 watchTimeAggregationRepository.updateCreatorWatchTime(seriesId, totalDelta);
+                int updatedRow = watchTimeAggregationRepository.updateCampaignSeriesWatchTime(seriesId, totalDelta);
+                if (updatedRow > 0) watchTimeAggregationRepository.updateCampaignWatchTimeAndTarget(seriesId, totalDelta);
             });
 
             logWatchTimeDeltaMap.forEach((key, totalDelta) -> {
@@ -199,7 +199,6 @@ public class WatchTimeWorker {
                 watchTimeAggregationRepository.upsertEpisodeLogWatchTime(key.getEpisodeId(), key.getHourBucket(), totalDelta);
                 watchTimeAggregationRepository.upsertSeriesLog(seriesId, key.getHourBucket(), totalDelta);
                 watchTimeAggregationRepository.upsertCampaignSeriesLog(seriesId, key.getHourBucket(), totalDelta);
-                watchTimeAggregationRepository.upsertCampaignLog(seriesId, key.getHourBucket(), totalDelta);
                 watchTimeAggregationRepository.upsertCreatorLogWatchTime(seriesId, key.getHourBucket(), totalDelta);
             });
         } catch (Exception e) {

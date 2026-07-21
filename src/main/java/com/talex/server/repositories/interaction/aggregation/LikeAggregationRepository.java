@@ -44,8 +44,9 @@ public interface LikeAggregationRepository extends JpaRepository<AccountLike, St
     @Transactional
     @Query(value = "UPDATE campaign_series " +
             "SET likes = likes + :delta " +
-            "WHERE series_id = :seriesId", nativeQuery = true)
-    void updateCampaignSeriesLikeCount(
+            "WHERE series_id = :seriesId " +
+            "AND status = 'RUNNING'", nativeQuery = true)
+    int updateCampaignSeriesLikeCount(
             @Param("seriesId") String seriesId,
             @Param("delta") int delta
     );
@@ -55,8 +56,11 @@ public interface LikeAggregationRepository extends JpaRepository<AccountLike, St
     @Transactional
     @Query(value = "UPDATE campaign " +
             "SET likes = likes + :delta, " +
-            "current_value = current_value + CASE WHEN engagement_target = 'LIKE' THEN :delta ELSE 0 END " +
-            "WHERE campaign_id IN (SELECT cs.campaign_id FROM campaign_series cs WHERE cs.series_id = :seriesId)", nativeQuery = true)
+            "WHERE campaign_id IN " +
+            "(SELECT cs.campaign_id " +
+            "FROM campaign_series cs " +
+            "WHERE cs.series_id = :seriesId " +
+            "AND status = 'RUNNING')", nativeQuery = true)
     void updateCampaignLikeCountAndTarget(
             @Param("seriesId") String seriesId,
             @Param("delta") int delta
@@ -103,23 +107,12 @@ public interface LikeAggregationRepository extends JpaRepository<AccountLike, St
     @Transactional
     @Query(value = "INSERT INTO campaign_series_log (campaign_series_log_id, hour_bucket, campaign_series_id, likes, views, comments, shares, bookmarks, watch_time) " +
             "SELECT gen_random_uuid(), :hourBucket, cs.campaign_series_id, :delta, 0, 0, 0, 0, 0 " +
-            "FROM campaign_series cs WHERE cs.series_id = :seriesId " +
+            "FROM campaign_series cs " +
+            "WHERE cs.series_id = :seriesId " +
+            "AND cs.status = 'RUNNING' " +
             "ON CONFLICT (campaign_series_id, hour_bucket) " +
             "DO UPDATE SET likes = campaign_series_log.likes + EXCLUDED.likes", nativeQuery = true)
     void upsertCampaignSeriesLog(
-            @Param("seriesId") String seriesId,
-            @Param("hourBucket") LocalDateTime hourBucket,
-            @Param("delta") int delta
-    );
-
-    @Modifying
-    @Transactional
-    @Query(value = "INSERT INTO campaign_log (campaign_log_id, hour_bucket, campaign_id, likes, views, comments, shares, bookmarks, watch_time) " +
-            "SELECT gen_random_uuid(), :hourBucket, cs.campaign_id, :delta, 0, 0, 0, 0, 0 " +
-            "FROM campaign_series cs WHERE cs.series_id = :seriesId " +
-            "ON CONFLICT (campaign_id, hour_bucket) " +
-            "DO UPDATE SET likes = campaign_log.likes + EXCLUDED.likes", nativeQuery = true)
-    void upsertCampaignLog(
             @Param("seriesId") String seriesId,
             @Param("hourBucket") LocalDateTime hourBucket,
             @Param("delta") int delta

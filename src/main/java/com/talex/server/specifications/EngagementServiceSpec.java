@@ -1,7 +1,6 @@
 package com.talex.server.specifications;
 
 import com.talex.server.entities.campaign.EngagementService;
-import com.talex.server.enums.engagement.EngagementTarget;
 import com.talex.server.enums.engagement.EngagementType;
 import com.talex.server.utils.SpecUtils;
 import com.talex.server.utils.ValidationUtils;
@@ -16,8 +15,7 @@ public class EngagementServiceSpec {
 
     public static Specification<EngagementService> filterByCriteria(
             Map<String, Object> criteria,
-            EngagementType[] types,
-            EngagementTarget[] targets
+            EngagementType[] types
     ) {
         return (root, query, builder) -> {
             List<Predicate> predicates = new ArrayList<>();
@@ -61,11 +59,6 @@ public class EngagementServiceSpec {
             // 6. Lọc IN theo mảng loại dịch vụ tương tác (EngagementType)
             if (types != null && types.length > 0) {
                 predicates.add(root.get("engagementType").in((Object[]) types));
-            }
-
-            // 7. Lọc IN theo mảng đối tượng tương tác (EngagementTarget)
-            if (targets != null && targets.length > 0) {
-                predicates.add(root.get("engagementTarget").in((Object[]) targets));
             }
 
             return builder.and(predicates.toArray(new Predicate[0]));

@@ -1,5 +1,6 @@
 package com.talex.server.dtos.requests.campaign;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.talex.server.enums.engagement.CampaignStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -14,7 +15,10 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class CampaignUpdateDto {
     private CampaignStatus status;
-    private LocalDateTime startAt;
+
+    @JsonIgnore
     private LocalDateTime endAt;
+
+    @JsonIgnore
     private Long currentValue = 0L;
 }
