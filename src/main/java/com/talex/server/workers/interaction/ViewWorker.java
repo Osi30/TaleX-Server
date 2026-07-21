@@ -27,7 +27,7 @@ import java.util.UUID;
 @Component
 @RequiredArgsConstructor
 @Slf4j
-public class EpisodeViewWorker {
+public class ViewWorker {
     private final Sender questDBSender;
     private final ObjectMapper objectMapper;
     private final EpisodeService episodeService;
@@ -69,7 +69,7 @@ public class EpisodeViewWorker {
 
     @KafkaListener(
             topics = "talex-interaction.episode-viewed",
-            groupId = "talex-view-postgres-group",
+            groupId = "talex-view-postgres-group-l",
             containerFactory = "batchFactory"
     )
     @Transactional
@@ -129,7 +129,7 @@ public class EpisodeViewWorker {
 
     @KafkaListener(
             topics = "talex-interaction.episode-viewed",
-            groupId = "talex-view-postgres-session-init-group-local",
+            groupId = "talex-view-postgres-session-init-group",
             containerFactory = "batchFactory"
     )
     @Transactional
@@ -155,6 +155,33 @@ public class EpisodeViewWorker {
             } catch (Exception ex) {
                 throw new InteractionException(InteractionErrorCode.KAFKA_PROCESSING_ERROR, "Direct Watch Session PostgreSQL worker aggregation error: " + ex.getMessage());
             }
+        }
+    }
+
+    @KafkaListener(
+            topics = "talex-interaction.series-viewed",
+            groupId = "talex-series-view-questdb-group",
+            containerFactory = "batchFactory"
+    )
+    public void processSeriesViewsForQuestDB(List<String> messages) {
+        try {
+            for (String message : messages) {
+                JsonNode eventNode = objectMapper.readTree(message);
+                if (eventNode == null) continue;
+
+                String accountId = eventNode.get("account_id").asText();
+                String seriesId = eventNode.get("series_id").asText();
+                long tsMs = eventNode.get("timestamp").asLong();
+                Instant instantTimestamp = Instant.ofEpochMilli(tsMs);
+
+                questDBSender.table("view_series_logs")
+                        .symbol("account_id", accountId)
+                        .symbol("series_id", seriesId)
+                        .at(instantTimestamp);
+            }
+            questDBSender.flush();
+        } catch (Exception e) {
+            log.error("[QUESTDB WORKER ERROR] Thất bại khi ghi dữ liệu loạt vào QuestDB: {}", e.getMessage());
         }
     }
 }

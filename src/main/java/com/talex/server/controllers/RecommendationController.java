@@ -1,15 +1,14 @@
 package com.talex.server.controllers;
 
 import com.talex.server.annotations.CurrentAccountId;
+import com.talex.server.dtos.recommend.RankResultItem;
 import com.talex.server.services.RecommendationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.UUID;
@@ -39,5 +38,54 @@ public class RecommendationController {
         List<String> recentSeries = recommendationService
                 .getRecentWatchedSeries(accountId == null ? "" : accountId.toString());
         return ResponseEntity.ok(recentSeries);
+    }
+
+    @GetMapping("/similar")
+    @Operation(
+            summary = "Lấy danh sách các series tương tự (Similar IDs)",
+            description = "API này thực hiện lấy ra danh sách các tương tự của một series_id. " +
+                    "Hệ thống kiểm tra cache Redis trước (Key dạng recommendation:series:{id}). " +
+                    "Nếu không tồn tại hoặc hết hạn, hệ thống tìm kiếm trong MongoDB bộ sưu tập 'series_recommendations', " +
+                    "sau đó tự động đồng bộ (rebuild) lại dữ liệu sang Redis với thời gian hết hạn 7 ngày để tối ưu hiệu năng."
+    )
+    public ResponseEntity<List<String>> getSimilarSeriesIds(
+            @RequestParam("seriesId") String seriesId
+    ) {
+        List<String> similarSeries = recommendationService.getSimilarSeriesIds(seriesId);
+        return ResponseEntity.ok(similarSeries);
+    }
+
+    @PostMapping("/rank")
+    @Operation(
+            summary = "Xếp hạng tinh danh sách các series ứng viên bằng mô hình AI LightGBM",
+            description = "API này nhận vào danh sách các seriesIds ứng viên (ví dụ: 100 sản phẩm thu được từ tích vô hướng ở tầng Retrieval), " +
+                    "sau đó chuyển tiếp thông tin cùng accountId sang TaleX AI Service (Python) qua giao thức HTTP REST đồng bộ. " +
+                    "Hệ thống Python sẽ trích xuất đặc trưng từ MongoDB, nạp vào mô hình LightGBM để tính điểm tương thích chi tiết, " +
+                    "và trả về danh sách các ID đã sắp xếp theo thứ tự ưu tiên giảm dần để hiển thị trực tiếp lên UI."
+    )
+    public ResponseEntity<List<RankResultItem>> rankSeriesIds(
+            @CurrentAccountId UUID accountId,
+            @RequestBody List<String> seriesIds
+    ) {
+        List<RankResultItem> rankedSeries = recommendationService.rankSeries(
+                accountId == null ? "" : accountId.toString(),
+                seriesIds
+        );
+        return ResponseEntity.ok(rankedSeries);
+    }
+
+    @GetMapping("/session")
+    @Operation(
+            summary = "Lấy danh sách series gợi ý",
+            description = "API nhận vào phiên xem để trả ra danh sách gợi ý series cho người xem."
+    )
+    public ResponseEntity<List<RankResultItem>> getSeries(
+            @RequestParam(value = "accountId") String accountId,
+            @RequestParam(value = "viewSessionId") String viewSessionId,
+            @RequestParam(value = "seriesIds") List<String> seriesIds
+    ) {
+        String userIdStr = accountId == null ? "guest_user" : accountId;
+        List<RankResultItem> finalRecommendations = recommendationService.getRecommendations(userIdStr, seriesIds, viewSessionId);
+        return ResponseEntity.ok(finalRecommendations);
     }
 }

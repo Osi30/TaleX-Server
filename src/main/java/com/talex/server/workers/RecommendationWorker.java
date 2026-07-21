@@ -8,6 +8,9 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.kafka.annotation.KafkaListener;
 import com.talex.server.entities.mongo.SeriesRecommendation;
 import com.talex.server.repositories.mongo.SeriesRecommendationRepository;
+import org.springframework.kafka.support.KafkaHeaders;
+import org.springframework.messaging.handler.annotation.Header;
+import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
@@ -57,5 +60,20 @@ public class RecommendationWorker {
         } catch (Exception e) {
             log.error("Failed to process recommendation result: {}", e.getMessage(), e);
         }
+    }
+
+    @KafkaListener(
+            topics = "recommendation-display-log",
+            groupId = "talex-creator-stats-group"
+    )
+    public void consumeDisplayLogs(
+            @Payload String messageJson,
+            @Header(KafkaHeaders.RECEIVED_KEY) String accountId
+    ) {
+        log.info("\n" + "=*".repeat(30));
+        log.info("[KAFKA WORKER RECEIVE] Phát hiện log hiển thị mới!");
+        log.info("-> Khóa Phân Vùng (User): {}", accountId);
+        log.info("-> Nội dung Payload dạng JSON: {}", messageJson);
+        log.info("=*".repeat(30) + "\n");
     }
 }

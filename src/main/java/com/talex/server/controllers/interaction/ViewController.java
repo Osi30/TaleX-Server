@@ -3,7 +3,7 @@ package com.talex.server.controllers.interaction;
 import com.talex.server.annotations.CurrentAccountId;
 import com.talex.server.dtos.BaseResponse;
 import com.talex.server.dtos.interaction.request.ViewRequest;
-import com.talex.server.services.interaction.IEpisodeViewService;
+import com.talex.server.services.interaction.IViewService;
 import com.talex.server.utils.RequestUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -18,9 +18,9 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/v1")
 @RequiredArgsConstructor
-@Tag(name = "Episode Views", description = "API ghi nhận và thống kê số lượt xem tập phim từ IP người dùng")
-public class EpisodeViewController {
-    private final IEpisodeViewService episodeViewService;
+@Tag(name = "Views", description = "API ghi nhận và thống kê số lượt xem tập phim từ IP người dùng")
+public class ViewController {
+    private final IViewService viewService;
 
     @Operation(
             summary = "Ghi nhận lượt xem Tập phim",
@@ -37,11 +37,25 @@ public class EpisodeViewController {
         viewRequest.setIpAddress(ipAddress);
         viewRequest.setAccountId(accountId);
 
-        episodeViewService.viewEpisode(viewRequest);
+        viewService.viewEpisode(viewRequest);
 
         return ResponseEntity.ok(BaseResponse.builder()
                 .code(200)
                 .message("Ghi nhận lượt xem thành công.")
                 .build());
+    }
+
+    @Operation(
+            summary = "Ghi nhận lượt xem Series",
+            description = "Hệ thống tự động trích xuất IP Address của client để đẩy vào hàng đợi Kafka xử lý bất đồng bộ."
+    )
+    @PostMapping("/series/{seriesId}/views")
+    public ResponseEntity<Void> recordSeriesView(
+            @CurrentAccountId UUID accountId,
+            @PathVariable String seriesId
+    ) {
+        String accountIdStr = (accountId == null) ? "anonymous" : accountId.toString();
+        viewService.trackSeriesViewAsync(accountIdStr, seriesId);
+        return ResponseEntity.ok().build();
     }
 }

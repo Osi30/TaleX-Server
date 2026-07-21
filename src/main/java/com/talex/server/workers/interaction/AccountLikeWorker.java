@@ -80,7 +80,7 @@ public class AccountLikeWorker {
 
     @KafkaListener(
             topics = "talex-cdc.public.account_likes",
-            groupId = "talex-like-postgres-group",
+            groupId = "talex-like-postgres-group-l",
             containerFactory = "batchFactory"
     )
     @Transactional

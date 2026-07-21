@@ -2,8 +2,8 @@ package com.talex.server.services.interaction;
 
 import com.talex.server.dtos.interaction.request.ViewRequest;
 
-import java.util.UUID;
-
-public interface IEpisodeViewService {
+public interface IViewService {
     void viewEpisode(ViewRequest request);
+    void trackSeriesViewAsync(String accountId, String seriesId);
+    void ensureBloomFilterInitialized(String accountId);
 }

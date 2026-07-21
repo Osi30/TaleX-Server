@@ -64,8 +64,11 @@ public class Series extends BaseTimeEntity {
     @Column(name = "average_rating", nullable = false, columnDefinition = "float8 default 0.0")
     private Double averageRating = 0.0;
 
+//    @Column(name = "total_impression")
+//    private Long totalImpression = 0L;
+
     @Column(name = "released_update_time")
-    private java.time.LocalDateTime releasedUpdateTime;
+    private LocalDateTime releasedUpdateTime;
 
     @Embedded
     private AnalyticData analyticData = new AnalyticData();

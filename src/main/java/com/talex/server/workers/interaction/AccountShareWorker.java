@@ -64,7 +64,7 @@ public class AccountShareWorker {
 
     @KafkaListener(
             topics = "talex-interaction.episode-shared",
-            groupId = "talex-share-postgres-group",
+            groupId = "talex-share-postgres-group-l",
             containerFactory = "batchFactory"
     )
     @Transactional
