@@ -114,17 +114,33 @@ public class DefaultMediaPlaybackSecurityService implements MediaPlaybackSecurit
                 throw ContentModuleException.forbidden("PLAYBACK_NOT_ENTITLED");
             }
             
+            MediaProtectionType protectionType = getProtectionType(media);
             LocalDateTime expiresAt = LocalDateTime.now().plusSeconds(resolveTtl(media));
+            
+            String signedPreviewUrl = previewUrl;
+            if (protectionType != MediaProtectionType.NONE
+                    && media.getPlaybackPolicy() != MediaPlaybackPolicy.PUBLIC) {
+                signedPreviewUrl = mediaProviderService.signSingleUrl(previewUrl, expiresAt);
+            }
+
+            // Sign thumbnail URL for protected content even in preview
+            String thumbnailUrl = media.getThumbnailUrl();
+            if (protectionType != MediaProtectionType.NONE
+                    && media.getPlaybackPolicy() != MediaPlaybackPolicy.PUBLIC
+                    && thumbnailUrl != null && !thumbnailUrl.isBlank()) {
+                thumbnailUrl = mediaProviderService.signSingleUrl(thumbnailUrl, expiresAt);
+            }
+
             return EpisodePlaybackResponseDto.builder()
                     .episodeId(episodeId)
                     .mediaId(media.getMediaId())
                     .mediaType(media.getMediaType())
-                    .playbackType("HLS")
+                    .playbackType("MP4")
                     .provider(media.getProvider())
-                    .protectionType(MediaProtectionType.NONE)
-                    .hlsUrl(previewUrl)
-                    .playbackUrl(previewUrl)
-                    .thumbnailUrl(media.getThumbnailUrl())
+                    .protectionType(protectionType != MediaProtectionType.NONE && media.getPlaybackPolicy() != MediaPlaybackPolicy.PUBLIC ? MediaProtectionType.SIGNED_URL : MediaProtectionType.NONE)
+                    .hlsUrl(signedPreviewUrl)
+                    .playbackUrl(signedPreviewUrl)
+                    .thumbnailUrl(thumbnailUrl)
                     .duration(10L)
                     .expiresAt(expiresAt)
                     .isLocked(true)
