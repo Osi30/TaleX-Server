@@ -208,7 +208,7 @@ public class MediaServiceImpl implements MediaService {
                 response.setProviderAssetId(null);
                 response.setDrmLicenseUrl(null);
                 response.setDrmCertificateUrl(null);
-                response.setPreviewUrl(null);
+                // Do not nullify previewUrl so frontend can use it if needed
             } else if (episode.getContentType() == ContentType.VIDEO) {
                 throw ContentModuleException.forbidden("PLAYBACK_NOT_ENTITLED");
             }
@@ -268,7 +268,7 @@ public class MediaServiceImpl implements MediaService {
                         media.setProviderAssetId(null);
                         media.setDrmLicenseUrl(null);
                         media.setDrmCertificateUrl(null);
-                        media.setPreviewUrl(null);
+                        // Do not nullify previewUrl so frontend can use it if needed
                     }
                 }
             } else if (episode.getContentType() == ContentType.VIDEO) {
