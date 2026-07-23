@@ -141,7 +141,7 @@ public class DefaultMediaPlaybackSecurityService implements MediaPlaybackSecurit
                     .hlsUrl(signedPreviewUrl)
                     .playbackUrl(signedPreviewUrl)
                     .thumbnailUrl(thumbnailUrl)
-                    .duration(10L)
+                    .duration(media.getDuration())
                     .expiresAt(expiresAt)
                     .isLocked(true)
                     .build();
