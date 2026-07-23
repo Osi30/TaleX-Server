@@ -94,6 +94,12 @@ public class ContentPipelineServiceImpl implements ContentPipelineService {
         }
 
         media.setContentId(result.getContentId());
+        
+        if (result.getPreviewS3Key() != null && !result.getPreviewS3Key().isBlank()) {
+            String domain = mediaProperties.getAws().getCloudfrontDomain();
+            String previewUrl = "https://" + domain + "/" + result.getPreviewS3Key();
+            media.setPreviewUrl(previewUrl);
+        }
 
         if (Boolean.FALSE.equals(result.getSuccess())) {
             log.error("Copyright check failed for mediaId={}: {}", result.getMediaId(), result.getErrorMessage());

@@ -19,6 +19,7 @@ public class EpisodePlaybackResponseDto {
     private String episodeId;
     private String mediaId;
     private MediaType mediaType;
+    private Boolean isLocked;
     private String playbackType;
     private MediaProvider provider;
     private MediaProtectionType protectionType;

@@ -27,4 +27,5 @@ public class CopyrightResultMessage {
     private String processedAt;     // ISO-8601 string
     private Boolean success;
     private String errorMessage;
+    private String previewS3Key;
 }

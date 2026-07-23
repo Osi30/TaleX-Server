@@ -21,6 +21,7 @@ public class MediaResponseDto {
     private String mediaId;
     private String episodeId;
     private String creatorId;
+    private Boolean isLocked;
     private MediaType mediaType;
     private String mimeType;
     private String fileUrl;

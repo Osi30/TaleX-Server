@@ -47,9 +47,7 @@ public class EpisodeEntitlementServiceImpl implements EpisodeEntitlementService 
     }
 
     private boolean isFree(Episode episode) {
-        return episode.getUnlockType() == EpisodeUnlockType.FREE
-                || episode.getPriceVnd() == null
-                || episode.getPriceVnd() <= 0;
+        return episode.getUnlockType() == EpisodeUnlockType.FREE;
     }
 
     private boolean isOwner(UUID accountId, String episodeCreatorId) {

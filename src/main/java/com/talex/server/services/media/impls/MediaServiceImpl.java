@@ -178,7 +178,7 @@ public class MediaServiceImpl implements MediaService {
 
     @Transactional(readOnly = true)
     @Override
-    public MediaResponseDto getPublicById(String id) {
+    public MediaResponseDto getPublicById(String id, String viewerId) {
         Media media = findActiveEntity(id);
         if (!PUBLIC_READY_STATUSES.contains(media.getStatus())
                 || media.getApprovalStatus() != ContentApprovalStatus.APPROVED) {
@@ -188,7 +188,35 @@ public class MediaServiceImpl implements MediaService {
         if (episode.getStatus() == EpisodeStatus.SCHEDULED) {
             throw ContentModuleException.forbidden("Cannot access media for scheduled episode: " + episode.getEpisodeId());
         }
-        return toPublicResponse(media);
+        
+        boolean isEntitled = episodeEntitlementService.hasPlaybackAccess(viewerId, episode.getEpisodeId());
+        MediaResponseDto response = toPublicResponse(media);
+        
+        if (!isEntitled) {
+            if (episode.getContentType() == ContentType.COMIC) {
+                // To be perfectly secure and consistent, we could check the index,
+                // but since frontend doesn't use this API, we can just safely lock it.
+                response.setIsLocked(true);
+                response.setFileUrl(media.getPreviewUrl());
+                response.setOriginalUrl(null);
+                response.setPlaybackUrl(null);
+                response.setHlsUrl(null);
+                response.setSignedPlaybackUrl(null);
+                response.setThumbnailUrl(null);
+                response.setExternalPublicId(null);
+                response.setProviderPublicId(null);
+                response.setProviderAssetId(null);
+                response.setDrmLicenseUrl(null);
+                response.setDrmCertificateUrl(null);
+                response.setPreviewUrl(null);
+            } else if (episode.getContentType() == ContentType.VIDEO) {
+                throw ContentModuleException.forbidden("PLAYBACK_NOT_ENTITLED");
+            }
+        } else {
+            response.setIsLocked(false);
+        }
+
+        return response;
     }
 
     @Transactional(readOnly = true)
@@ -209,10 +237,9 @@ public class MediaServiceImpl implements MediaService {
         if (episode.getStatus() == EpisodeStatus.SCHEDULED) {
             throw ContentModuleException.forbidden("Cannot access media for scheduled episode: " + episodeId);
         }
-        if (!episodeEntitlementService.hasPlaybackAccess(viewerId, episodeId)) {
-            throw ContentModuleException.forbidden("PLAYBACK_NOT_ENTITLED");
-        }
-        return mediaRepository
+        boolean isEntitled = episodeEntitlementService.hasPlaybackAccess(viewerId, episodeId);
+        
+        List<MediaResponseDto> mediaList = mediaRepository
                 .findAllByEpisode_EpisodeIdAndStatusInAndApprovalStatusAndIsDeletedFalseOrderByDisplayOrderAsc(
                         episodeId,
                         PUBLIC_READY_STATUSES,
@@ -220,7 +247,40 @@ public class MediaServiceImpl implements MediaService {
                 .stream()
                 .map(this::toPublicResponse)
                 .sorted(Comparator.comparing(MediaResponseDto::getDisplayOrder, Comparator.nullsLast(Integer::compareTo)))
-                .toList();
+                .collect(java.util.stream.Collectors.toList());
+
+        if (!isEntitled) {
+            if (episode.getContentType() == ContentType.COMIC) {
+                for (int i = 0; i < mediaList.size(); i++) {
+                    MediaResponseDto media = mediaList.get(i);
+                    if (i < 5) {
+                        media.setIsLocked(false);
+                    } else {
+                        media.setIsLocked(true);
+                        media.setFileUrl(media.getPreviewUrl());
+                        media.setOriginalUrl(null);
+                        media.setPlaybackUrl(null);
+                        media.setHlsUrl(null);
+                        media.setSignedPlaybackUrl(null);
+                        media.setThumbnailUrl(null);
+                        media.setExternalPublicId(null);
+                        media.setProviderPublicId(null);
+                        media.setProviderAssetId(null);
+                        media.setDrmLicenseUrl(null);
+                        media.setDrmCertificateUrl(null);
+                        media.setPreviewUrl(null);
+                    }
+                }
+            } else if (episode.getContentType() == ContentType.VIDEO) {
+                throw ContentModuleException.forbidden("PLAYBACK_NOT_ENTITLED");
+            }
+        } else {
+            for (MediaResponseDto media : mediaList) {
+                media.setIsLocked(false);
+            }
+        }
+
+        return mediaList;
     }
 
     @Transactional

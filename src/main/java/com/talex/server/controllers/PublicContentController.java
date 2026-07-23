@@ -99,8 +99,11 @@ public class PublicContentController {
     }
 
     @GetMapping("/media/{mediaId}")
-    public ResponseEntity<BaseResponse> getMedia(@PathVariable String mediaId) {
-        return ResponseEntity.ok(response(200, "OK", mediaService.getPublicById(mediaId)));
+    public ResponseEntity<BaseResponse> getMedia(
+            @PathVariable String mediaId,
+            @Parameter(hidden = true) @CurrentAccountId UUID accountId) {
+        String viewerId = accountId == null ? null : accountId.toString();
+        return ResponseEntity.ok(response(200, "OK", mediaService.getPublicById(mediaId, viewerId)));
     }
 
     @GetMapping("/combos")

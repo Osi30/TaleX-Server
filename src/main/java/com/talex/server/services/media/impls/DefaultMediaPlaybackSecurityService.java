@@ -83,9 +83,7 @@ public class DefaultMediaPlaybackSecurityService implements MediaPlaybackSecurit
         if (episode.getStatus() == com.talex.server.enums.series.EpisodeStatus.SCHEDULED) {
             throw ContentModuleException.forbidden("Cannot playback media for scheduled episode");
         }
-        if (!playbackAuthorizationService.canViewEpisode(viewerId, episodeId)) {
-            throw ContentModuleException.forbidden("PLAYBACK_NOT_ENTITLED");
-        }
+        boolean isEntitled = playbackAuthorizationService.canViewEpisode(viewerId, episodeId);
 
         Media media = mediaRepository
                 .findFirstByEpisode_EpisodeIdAndMediaTypeAndStatusInAndIsDeletedFalseOrderByCreatedAtDesc(
@@ -108,6 +106,29 @@ public class DefaultMediaPlaybackSecurityService implements MediaPlaybackSecurit
             log.info("PLAYBACK_REQUESTED_BEFORE_READY episodeId={} mediaId={} status={}",
                     episodeId, media.getMediaId(), media.getStatus());
             throw ContentModuleException.badRequest("VIDEO_NOT_READY");
+        }
+
+        if (!isEntitled) {
+            String previewUrl = media.getPreviewUrl();
+            if (previewUrl == null || previewUrl.isBlank()) {
+                throw ContentModuleException.forbidden("PLAYBACK_NOT_ENTITLED");
+            }
+            
+            LocalDateTime expiresAt = LocalDateTime.now().plusSeconds(resolveTtl(media));
+            return EpisodePlaybackResponseDto.builder()
+                    .episodeId(episodeId)
+                    .mediaId(media.getMediaId())
+                    .mediaType(media.getMediaType())
+                    .playbackType("HLS")
+                    .provider(media.getProvider())
+                    .protectionType(MediaProtectionType.NONE)
+                    .hlsUrl(previewUrl)
+                    .playbackUrl(previewUrl)
+                    .thumbnailUrl(media.getThumbnailUrl())
+                    .duration(10L)
+                    .expiresAt(expiresAt)
+                    .isLocked(true)
+                    .build();
         }
 
         MediaProtectionType protectionType = getProtectionType(media);
