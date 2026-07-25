@@ -96,4 +96,7 @@ public class Account {
     @Column(name = "is_7d")
     @Builder.Default
     private Boolean is7d = false;
+
+    @OneToOne(mappedBy = "account", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private com.talex.server.entities.ads.AdvertiseProfile advertiseProfile;
 }
