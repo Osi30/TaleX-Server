@@ -3,7 +3,6 @@ package com.talex.server.entities.campaign;
 import com.talex.server.entities.AnalyticData;
 import com.talex.server.entities.series.Series;
 import com.talex.server.enums.engagement.CampaignStatus;
-import com.talex.server.enums.engagement.EngagementType;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -35,10 +34,6 @@ public class Campaign implements Serializable {
 
     @Column(name = "end_at")
     private LocalDateTime endAt;
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "engagement_type", nullable = false)
-    private EngagementType engagementType;
 
     @Column(name = "target_impression")
     private Long targetImpression;

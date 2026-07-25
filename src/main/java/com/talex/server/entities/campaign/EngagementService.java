@@ -1,6 +1,5 @@
 package com.talex.server.entities.campaign;
 
-import com.talex.server.enums.engagement.EngagementType;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -36,10 +35,6 @@ public class EngagementService {
 
     @Column(name = "target_value")
     private Long targetValue;
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "engagement_type", nullable = false)
-    private EngagementType engagementType;
 
     @Column(name = "is_active", nullable = false)
     @Builder.Default

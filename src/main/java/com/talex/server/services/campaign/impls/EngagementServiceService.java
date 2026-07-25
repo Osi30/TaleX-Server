@@ -6,7 +6,6 @@ import com.talex.server.dtos.requests.campaign.EngagementServiceRequestDto;
 import com.talex.server.dtos.requests.filters.EngagementServiceFilterRequestDto;
 import com.talex.server.dtos.responses.campaign.EngagementServiceResponseDto;
 import com.talex.server.entities.campaign.EngagementService;
-import com.talex.server.enums.engagement.EngagementType;
 import com.talex.server.exceptions.codes.EngagementErrorCode;
 import com.talex.server.exceptions.details.EngagementServiceException;
 import com.talex.server.mappers.campaign.IEngagementServiceMapper;
@@ -48,10 +47,8 @@ public class EngagementServiceService implements IEngagementServiceService {
         Pageable pageable = PageUtils.buildPageable(
                 filterRequest.getPage(), filterRequest.getPageSize(), sort);
 
-        EngagementType[] types = parseTypes(filterRequest.getTypes());
-
         Page<EngagementService> pageResult = engagementServiceRepository.findAll(
-                EngagementServiceSpec.filterByCriteria(filterRequest.getCriteria(), types),
+                EngagementServiceSpec.filterByCriteria(filterRequest.getCriteria()),
                 pageable
         );
 
@@ -127,20 +124,5 @@ public class EngagementServiceService implements IEngagementServiceService {
             case "name", "price", "targetValue", "createdAt", "updatedAt" -> sortBy;
             default -> "createdAt";
         };
-    }
-
-    private EngagementType[] parseTypes(String[] types) {
-        if (types == null || types.length == 0) {
-            return new EngagementType[0];
-        }
-        EngagementType[] parsed = new EngagementType[types.length];
-        for (int i = 0; i < types.length; i++) {
-            try {
-                parsed[i] = EngagementType.valueOf(types[i].toUpperCase());
-            } catch (Exception e) {
-                throw new EngagementServiceException(EngagementErrorCode.TYPE_INVALID, "Loại tương tác không hợp lệ: " + types[i]);
-            }
-        }
-        return parsed;
     }
 }

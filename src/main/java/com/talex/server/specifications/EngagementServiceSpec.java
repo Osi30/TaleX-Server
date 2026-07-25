@@ -1,7 +1,6 @@
 package com.talex.server.specifications;
 
 import com.talex.server.entities.campaign.EngagementService;
-import com.talex.server.enums.engagement.EngagementType;
 import com.talex.server.utils.SpecUtils;
 import com.talex.server.utils.ValidationUtils;
 import jakarta.persistence.criteria.Predicate;
@@ -14,8 +13,7 @@ import java.util.Map;
 public class EngagementServiceSpec {
 
     public static Specification<EngagementService> filterByCriteria(
-            Map<String, Object> criteria,
-            EngagementType[] types
+            Map<String, Object> criteria
     ) {
         return (root, query, builder) -> {
             List<Predicate> predicates = new ArrayList<>();
@@ -54,11 +52,6 @@ public class EngagementServiceSpec {
 
                 // 5. Tích hợp lọc khoảng thời gian createdAt và updatedAt từ bộ SpecUtils chung
                 SpecUtils.addAuditDateFilters(root, builder, predicates, criteria);
-            }
-
-            // 6. Lọc IN theo mảng loại dịch vụ tương tác (EngagementType)
-            if (types != null && types.length > 0) {
-                predicates.add(root.get("engagementType").in((Object[]) types));
             }
 
             return builder.and(predicates.toArray(new Predicate[0]));

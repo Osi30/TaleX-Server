@@ -8,6 +8,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 
 @Repository
@@ -44,4 +45,43 @@ public interface SeriesLogRepository extends JpaRepository<SeriesLog, String> {
             "GROUP BY sl.series.seriesId")
     List<SeriesLogData> aggregateByHourBucketBetweenInclusiveStart(
             @Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
+
+    @Query(value = """
+    WITH RankedLogs AS (
+        SELECT
+            sl.series_id,
+            sl.hour_bucket,
+            sl.watch_time,
+            sl.likes,
+            sl.views,
+            -- Đánh số thứ tự cho từng series, log ở khung giờ MỚI NHẤT sẽ có rn = 1
+            ROW_NUMBER() OVER (
+                PARTITION BY sl.series_id 
+                ORDER BY sl.hour_bucket DESC
+            ) AS rn
+        FROM series_log sl
+        JOIN series s ON sl.series_id = s.series_id
+        WHERE s.is_deleted = false
+          AND s.status = :status
+          AND sl.hour_bucket < :beforeHour
+          AND (:isBlacklistEmpty = true OR sl.series_id NOT IN (:blacklist))
+    )
+    -- Chỉ giữ lại log mới nhất (rn = 1) của từng series => Đảm bảo distinct 100%
+    SELECT series_id
+    FROM RankedLogs
+    WHERE rn = 1
+    ORDER BY 
+        hour_bucket DESC,
+        watch_time DESC,
+        likes DESC,
+        views DESC
+    LIMIT :limit
+""", nativeQuery = true)
+    List<String> findCandidateTrendingSeriesIds(
+            @Param("status") String status,
+            @Param("beforeHour") LocalDateTime beforeHour,
+            @Param("blacklist") Collection<String> blacklist,
+            @Param("isBlacklistEmpty") boolean isBlacklistEmpty,
+            @Param("limit") int limit
+    );
 }

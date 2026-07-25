@@ -61,7 +61,6 @@ public class CampaignService implements ICampaignService {
         campaign.setAccountId(requestDto.getAccountId());
         campaign.setOrderId(requestDto.getOrderId());
         campaign.setEngagementService(service);
-        campaign.setEngagementType(service.getEngagementType());
         campaign.setTargetImpression(service.getTargetValue());
         campaign.setStartAt(LocalDateTime.now());
 

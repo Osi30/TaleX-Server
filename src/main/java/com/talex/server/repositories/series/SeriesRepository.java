@@ -83,4 +83,129 @@ public interface SeriesRepository extends JpaRepository<Series, String> {
             "SET s.is7dSync = true " +
             "WHERE s.seriesId IN :ids")
     void markAs7dSynced(@Param("ids") List<String> ids);
+
+    @Query("""
+        SELECT s.seriesId
+        FROM Series s
+        WHERE s.isDeleted = false
+          AND s.status = :status
+          AND s.totalImpression <= :maxImpression
+          AND (:isBlacklistEmpty = true OR s.seriesId NOT IN :blacklist)
+        ORDER BY s.totalImpression ASC, s.createdAt ASC
+    """)
+    List<String> findCandidateNewReleasesSeriesIds(
+            @Param("status") SeriesStatus status,
+            @Param("maxImpression") Long maxImpression,
+            @Param("blacklist") Collection<String> blacklist,
+            @Param("isBlacklistEmpty") boolean isBlacklistEmpty,
+            Pageable pageable
+    );
+
+    @Query("""
+        SELECT s.seriesId
+        FROM Series s
+        WHERE s.isDeleted = false
+          AND s.status = :status
+          AND (:isBlacklistEmpty = true OR s.seriesId NOT IN :blacklist)
+        ORDER BY s.releasedUpdateTime DESC
+    """)
+    List<String> findCandidateRecentlyUpdatedSeriesIds(
+            @Param("status") SeriesStatus status,
+            @Param("blacklist") Collection<String> blacklist,
+            @Param("isBlacklistEmpty") boolean isBlacklistEmpty,
+            Pageable pageable
+    );
+
+    @Query("""
+    SELECT s.seriesId
+    FROM Series s
+    WHERE s.isDeleted = false
+      AND s.status = :status
+      AND (:isBlacklistEmpty = true OR s.seriesId NOT IN :blacklist)
+    ORDER BY s.analyticData.watchTime DESC,
+             s.analyticData.likes DESC,
+             s.analyticData.views DESC,
+             s.analyticData.comments DESC,
+             s.analyticData.shares DESC,
+             s.analyticData.bookmarks DESC
+    """)
+    List<String> findCandidateCommunityChoiceSeriesIds(
+            @Param("status") SeriesStatus status,
+            @Param("blacklist") Collection<String> blacklist,
+            @Param("isBlacklistEmpty") boolean isBlacklistEmpty,
+            Pageable pageable
+    );
+
+    @Query(value = """
+    WITH RankedSeries AS (
+        SELECT 
+            sc.category_id,
+            s.series_id,
+            ROW_NUMBER() OVER (
+                PARTITION BY sc.category_id 
+                ORDER BY 
+                    s.watch_time DESC, 
+                    s.likes DESC, 
+                    s.views DESC, 
+                    s.comments DESC, 
+                    s.shares DESC, 
+                    s.bookmarks DESC
+            ) AS rn
+        FROM series s
+        JOIN series_categories sc ON s.series_id = sc.series_id
+        JOIN categories c ON sc.category_id = c.category_id
+        WHERE s.is_deleted = false
+          AND s.status = :status
+          AND sc.is_deleted = false
+          AND c.is_deleted = false
+          AND c.status = :categoryStatus
+          AND (:isBlacklistEmpty = true OR s.series_id NOT IN (:blacklist))
+    )
+    SELECT DISTINCT series_id
+    FROM RankedSeries
+    WHERE rn <= :limitPerCategory
+    """, nativeQuery = true)
+    List<String> findTopSeriesPerCategory(
+            @Param("status") String status,
+            @Param("categoryStatus") String categoryStatus,
+            @Param("blacklist") Collection<String> blacklist,
+            @Param("isBlacklistEmpty") boolean isBlacklistEmpty,
+            @Param("limitPerCategory") int limitPerCategory
+    );
+
+    @Query(value = """
+    WITH RankedSeries AS (
+        SELECT 
+            c.creator_id,
+            s.series_id,
+            ROW_NUMBER() OVER (
+                PARTITION BY c.creator_id 
+                ORDER BY 
+                    s.released_update_time DESC,
+                    s.watch_time DESC, 
+                    s.likes DESC, 
+                    s.views DESC, 
+                    s.comments DESC, 
+                    s.shares DESC, 
+                    s.bookmarks DESC
+            ) AS rn
+        FROM account_follow af
+        JOIN creator c ON af.followed_id = c.account_id
+        JOIN series s ON c.creator_id = s.creator_id
+        WHERE CAST(af.follower_id AS text) = :accountId
+          AND s.is_deleted = false
+          AND s.status = :status
+          AND (:isBlacklistEmpty = true OR s.series_id NOT IN (:blacklist))
+    )
+    SELECT DISTINCT series_id
+    FROM RankedSeries
+    WHERE rn <= :limitPerCreator
+    """, nativeQuery = true)
+    List<String> findTopSeriesFromFollowedCreators(
+            @Param("accountId") String accountId,
+            @Param("status") String status,
+            @Param("blacklist") Collection<String> blacklist,
+            @Param("isBlacklistEmpty") boolean isBlacklistEmpty,
+            @Param("limitPerCreator") int limitPerCreator
+    );
 }

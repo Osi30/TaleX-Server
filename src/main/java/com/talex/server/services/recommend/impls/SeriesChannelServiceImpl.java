@@ -1,50 +1,99 @@
 package com.talex.server.services.recommend.impls;
 
 import com.talex.server.enums.engagement.CampaignStatus;
+import com.talex.server.enums.series.CategoryStatus;
+import com.talex.server.enums.series.SeriesStatus;
 import com.talex.server.repositories.campaign.CampaignSeriesRepository;
+import com.talex.server.repositories.series.SeriesLogRepository;
+import com.talex.server.repositories.series.SeriesRepository;
 import com.talex.server.services.recommend.SeriesChannelService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class SeriesChannelServiceImpl implements SeriesChannelService {
+    private final SeriesRepository seriesRepository;
+    private final SeriesLogRepository seriesLogRepository;
     private final CampaignSeriesRepository campaignSeriesRepository;
     private final StringRedisTemplate redisTemplate;
 
+    @Value("${app.recommendation.new-releases.max-impression}")
+    private Long maxImpressionThreshold;
+
+    // Channels
+    private static final String PROMOTED_CHANNEL = "promoted";
+    private static final String NEW_RELEASES_CHANNEL = "new_releases";
+    private static final String RECENTLY_UPDATED_CHANNEL = "recently_updated";
+    private static final String LATEST_COMMUNITY_CHOICE_CHANNEL = "latest_community_choice";
+    private static final String COMMUNITY_CHOICE_CHANNEL = "community_choice";
+    private static final String RANDOM_CATEGORY_CHANNEL = "random_category";
+    private static final String SUBSCRIBED_CREATORS_CHANNEL = "subscribed_creators";
+
+    // Redis Keys - Promoted
     private static final String REDIS_KEY_PROMOTED_POOL = "pool:promoted";
+    private static final String REDIS_KEY_PROMOTED_OFFSET_PREFIX = "offset:promoted:";
+
+    // Redis Keys - New Releases
+    private static final String REDIS_KEY_NEW_RELEASES_POOL = "pool:new_releases";
+    private static final String REDIS_KEY_NEW_RELEASES_OFFSET_PREFIX = "offset:new_releases:";
+
+    // Redis Keys - Recently Updated
+    private static final String REDIS_KEY_RECENTLY_UPDATED_POOL = "pool:recently_updated";
+    private static final String REDIS_KEY_RECENTLY_UPDATED_OFFSET_PREFIX = "offset:recently_updated:";
+
+    // Redis Keys - Latest Community Choice
+    private static final String REDIS_KEY_LATEST_COMMUNITY_CHOICE_POOL = "pool:latest_community_choice";
+    private static final String REDIS_KEY_LATEST_COMMUNITY_CHOICE_OFFSET_PREFIX = "offset:latest_community_choice:";
+
+    // Redis Keys - Community Choice
+    private static final String REDIS_KEY_COMMUNITY_CHOICE_POOL = "pool:community_choice";
+    private static final String REDIS_KEY_COMMUNITY_CHOICE_OFFSET_PREFIX = "offset:community_choice:";
+
+    // Redis Keys - Random Category Channel
+    private static final String REDIS_KEY_RANDOM_CATEGORY_POOL = "pool:random_category";
+    private static final String REDIS_KEY_RANDOM_CATEGORY_OFFSET_PREFIX = "offset:random_category:";
+
+    // Redis Keys - Subscribed Creator Channel
+    private static final String REDIS_KEY_SUBSCRIBED_CREATORS_POOL_PREFIX = "pool:subscribed_creators:";
+    private static final String REDIS_KEY_SUBSCRIBED_CREATORS_OFFSET_PREFIX = "offset:subscribed_creators:";
+
+    // Global IDs Key
+    private static final String REDIS_KEY_GLOBAL_IDS = "recommendation:global_ids";
     private static final Duration POOL_TTL = Duration.ofDays(1);
 
+    // =========================================================================
+    // 1. PROMOTED CHANNEL
+    // =========================================================================
+
     @Override
-    public List<String> getPromotedSeriesIds(List<String> blacklistIds, int limit) {
+    public List<String> getPromotedSeriesIds(String accountId, int limit) {
         if (limit <= 0) return Collections.emptyList();
 
-        // 1. Đọc dữ liệu từ đệm Redis Pool
-        List<String> cachedIds = redisTemplate.opsForList().range(REDIS_KEY_PROMOTED_POOL, 0, limit - 1);
+        Long poolSize = redisTemplate.opsForList().size(REDIS_KEY_PROMOTED_POOL);
 
-        // 2. Phòng ngừa sự cố (Fallback): Nếu Pool trên Redis bị trống, lập tức nạp lại từ DB
-        if (cachedIds == null || cachedIds.isEmpty()) {
-            log.warn("[PromotedChannel] Redis pool '{}' bị trống! Đang kích hoạt cơ chế Fallback truy vấn PostgreSQL...", REDIS_KEY_PROMOTED_POOL);
-            return refreshPromotedPool(limit);
+        // Fallback: Nếu Pool trống, kích hoạt nạp từ DB
+        if (poolSize == null || poolSize == 0) {
+            List<String> refreshed = refreshPromotedPool(limit);
+            if (refreshed.isEmpty()) return Collections.emptyList();
         }
 
-        // 3. Lọc bỏ các IDs dính blacklist truyền vào (nếu có)
-//        if (blacklistIds != null && !blacklistIds.isEmpty()) {
-//            Set<String> blacklistSet = new HashSet<>(blacklistIds);
-//            cachedIds = cachedIds.stream()
-//                    .filter(id -> !blacklistSet.contains(id))
-//                    .toList();
-//        }
-
-        return cachedIds;
+        return getIdsWithOffset(
+                accountId, limit, poolSize,
+                REDIS_KEY_PROMOTED_POOL,
+                REDIS_KEY_PROMOTED_OFFSET_PREFIX
+        );
     }
 
     @Override
@@ -65,23 +114,495 @@ public class SeriesChannelServiceImpl implements SeriesChannelService {
                 pageable
         );
 
-        // 3. Chèn newFetchedIds vào vị trí đầu tiên, giữ nguyên thứ tự các oldIds
-        Set<String> mergedSet = new LinkedHashSet<>(newFetchedIds);
-        mergedSet.addAll(oldIds);
+        List<String> mergedList = mergeOldAndNewIds(oldIds, newFetchedIds, limit);
 
-        List<String> mergedList = new ArrayList<>(mergedSet);
-        if (mergedList.size() > limit) {
-            mergedList = mergedList.subList(0, limit);
-        }
-
-        // 4. Ghi đè lại vào Redis RAM
+        // 3. Ghi đè lại vào Redis RAM
         redisTemplate.delete(REDIS_KEY_PROMOTED_POOL);
         if (!mergedList.isEmpty()) {
             redisTemplate.opsForList().rightPushAll(REDIS_KEY_PROMOTED_POOL, mergedList);
             redisTemplate.expire(REDIS_KEY_PROMOTED_POOL, POOL_TTL);
         }
 
-        log.info("[PromotedChannel] Đã làm mới Redis Pool '{}' với {} series IDs.", REDIS_KEY_PROMOTED_POOL, mergedList.size());
+        // 4. Cập nhật Global IDs trên Redis Hash
+        updateGlobalIds(PROMOTED_CHANNEL, mergedList);
+        return mergedList;
+    }
+
+    // =========================================================================
+    // 2. NEW RELEASES CHANNEL
+    // =========================================================================
+
+    @Override
+    public List<String> getNewReleasesSeriesIds(String accountId, int limit) {
+        if (limit <= 0) return Collections.emptyList();
+
+        Long poolSize = redisTemplate.opsForList().size(REDIS_KEY_NEW_RELEASES_POOL);
+
+        // Fallback: Nếu Pool trống, tự động kích hoạt refresh không dùng blacklist
+        if (poolSize == null || poolSize == 0) {
+            List<String> refreshed = refreshNewReleasesPool(Collections.emptyList(), limit);
+            if (refreshed.isEmpty()) return Collections.emptyList();
+        }
+
+        return getIdsWithOffset(
+                accountId, limit, poolSize,
+                REDIS_KEY_NEW_RELEASES_POOL,
+                REDIS_KEY_NEW_RELEASES_OFFSET_PREFIX
+        );
+    }
+
+    @Override
+    public List<String> refreshNewReleasesPool(List<String> blacklistIds, int limit) {
+        Pageable pageable = PageRequest.of(0, limit);
+
+        // 1. Lấy danh sách IDs cũ từ Pool hiện tại
+        List<String> oldIds = redisTemplate.opsForList().range(REDIS_KEY_NEW_RELEASES_POOL, 0, -1);
+        if (oldIds == null) oldIds = Collections.emptyList();
+
+        // 2. Gom Blacklist: Bao gồm blacklistIds từ kênh cấp trên + oldIds của chính nó để tránh trùng trong query
+        Set<String> combinedBlacklist = new HashSet<>();
+        if (blacklistIds != null) combinedBlacklist.addAll(blacklistIds);
+        combinedBlacklist.addAll(oldIds);
+
+        boolean isBlacklistEmpty = combinedBlacklist.isEmpty();
+
+        // 3. Query PostgreSQL lấy các Series mới phát hành có totalImpression <= maxImpressionThreshold
+        List<String> newFetchedIds = seriesRepository.findCandidateNewReleasesSeriesIds(
+                SeriesStatus.PUBLISHED,
+                maxImpressionThreshold,
+                combinedBlacklist,
+                isBlacklistEmpty,
+                pageable
+        );
+
+        // 4. Áp dụng logic ghép: giữ vị trí cũ + chèn danh sách mới
+        List<String> mergedList = mergeOldAndNewIds(oldIds, newFetchedIds, limit);
+
+        // 5. Cập nhật Redis Pool
+        redisTemplate.delete(REDIS_KEY_NEW_RELEASES_POOL);
+        if (!mergedList.isEmpty()) {
+            redisTemplate.opsForList().rightPushAll(REDIS_KEY_NEW_RELEASES_POOL, mergedList);
+            redisTemplate.expire(REDIS_KEY_NEW_RELEASES_POOL, POOL_TTL);
+        }
+
+        // 6. Cập nhật vào Redis Global IDs
+        updateGlobalIds(NEW_RELEASES_CHANNEL, mergedList);
+        return mergedList;
+    }
+
+    // =========================================================================
+    // 3. RECENTLY UPDATED CHANNEL (KÊNH MỚI CẬP NHẬT)
+    // =========================================================================
+
+    @Override
+    public List<String> getRecentlyUpdatedSeriesIds(String accountId, int limit) {
+        if (limit <= 0) return Collections.emptyList();
+
+        Long poolSize = redisTemplate.opsForList().size(REDIS_KEY_RECENTLY_UPDATED_POOL);
+
+        // Fallback: Nếu Pool trống, tự động kích hoạt refresh không dùng blacklist
+        if (poolSize == null || poolSize == 0) {
+            log.warn("[RecentlyUpdatedChannel] Redis pool '{}' bị trống! Đang kích hoạt Fallback...", REDIS_KEY_RECENTLY_UPDATED_POOL);
+            List<String> refreshed = refreshRecentlyUpdatedPool(Collections.emptyList(), limit);
+            if (refreshed.isEmpty()) return Collections.emptyList();
+            poolSize = (long) refreshed.size();
+        }
+
+        return getIdsWithOffset(
+                accountId, limit, poolSize,
+                REDIS_KEY_RECENTLY_UPDATED_POOL,
+                REDIS_KEY_RECENTLY_UPDATED_OFFSET_PREFIX
+        );
+    }
+
+    @Override
+    public List<String> refreshRecentlyUpdatedPool(List<String> blacklistIds, int limit) {
+        Pageable pageable = PageRequest.of(0, limit);
+
+        // 1. Lấy danh sách IDs cũ từ Pool hiện tại
+        List<String> oldIds = redisTemplate.opsForList().range(REDIS_KEY_RECENTLY_UPDATED_POOL, 0, -1);
+        if (oldIds == null) oldIds = Collections.emptyList();
+
+        // 2. Gom Blacklist: Bao gồm blacklistIds truyền từ kênh cấp trên + oldIds của chính nó
+        Set<String> combinedBlacklist = new HashSet<>();
+        if (blacklistIds != null) combinedBlacklist.addAll(blacklistIds);
+        combinedBlacklist.addAll(oldIds);
+
+        boolean isBlacklistEmpty = combinedBlacklist.isEmpty();
+
+        // 3. Query PostgreSQL lấy các Series công khai xếp giảm dần theo thời gian releasedUpdateTime DESC
+        List<String> newFetchedIds = seriesRepository.findCandidateRecentlyUpdatedSeriesIds(
+                SeriesStatus.PUBLISHED,
+                combinedBlacklist,
+                isBlacklistEmpty,
+                pageable
+        );
+
+        // 4. Áp dụng logic ghép: giữ vị trí cũ + chèn danh sách mới
+        List<String> mergedList = mergeOldAndNewIds(oldIds, newFetchedIds, limit);
+
+        // 5. Cập nhật Redis Pool
+        redisTemplate.delete(REDIS_KEY_RECENTLY_UPDATED_POOL);
+        if (!mergedList.isEmpty()) {
+            redisTemplate.opsForList().rightPushAll(REDIS_KEY_RECENTLY_UPDATED_POOL, mergedList);
+            redisTemplate.expire(REDIS_KEY_RECENTLY_UPDATED_POOL, POOL_TTL);
+        }
+
+        // 6. Cập nhật vào Redis Global IDs
+        updateGlobalIds(RECENTLY_UPDATED_CHANNEL, mergedList);
+
+        log.info("[RecentlyUpdatedChannel] Đã làm mới Pool '{}' thành công. Tổng: {} items (Giữ cũ: {}, Mới: {}).",
+                REDIS_KEY_RECENTLY_UPDATED_POOL, mergedList.size(), mergedList.size() - newFetchedIds.size(), newFetchedIds.size());
+
+        return mergedList;
+    }
+
+    // =========================================================================
+    // 4. COMMUNITY CHOICE CHANNEL (KÊNH THEO GIỜ NEAR-REALTIME)
+    // =========================================================================
+
+    @Override
+    public List<String> getLatestCommunityChoiceSeriesIds(String accountId, int limit) {
+        if (limit <= 0) return Collections.emptyList();
+
+        Long poolSize = redisTemplate.opsForList().size(REDIS_KEY_LATEST_COMMUNITY_CHOICE_POOL);
+
+        // Fallback: Nếu Pool trống, tự động kích hoạt refresh không dùng blacklist
+        if (poolSize == null || poolSize == 0) {
+            List<String> refreshed = refreshLatestCommunityChoicePool(Collections.emptyList(), limit);
+            if (refreshed.isEmpty()) return Collections.emptyList();
+            poolSize = (long) refreshed.size();
+        }
+
+        return getIdsWithOffset(
+                accountId, limit, poolSize,
+                REDIS_KEY_LATEST_COMMUNITY_CHOICE_POOL,
+                REDIS_KEY_LATEST_COMMUNITY_CHOICE_OFFSET_PREFIX
+        );
+    }
+
+    @Override
+    public List<String> refreshLatestCommunityChoicePool(List<String> blacklistIds, int limit) {
+        // 1. Lấy danh sách IDs cũ từ Pool hiện tại
+        List<String> oldIds = redisTemplate.opsForList().range(REDIS_KEY_LATEST_COMMUNITY_CHOICE_POOL, 0, -1);
+        if (oldIds == null) oldIds = Collections.emptyList();
+
+        // 2. Gom Blacklist
+        Set<String> combinedBlacklist = new HashSet<>();
+        if (blacklistIds != null) combinedBlacklist.addAll(blacklistIds);
+        combinedBlacklist.addAll(oldIds);
+
+        boolean isBlacklistEmpty = combinedBlacklist.isEmpty();
+
+        // 3. Làm tròn mốc thời gian về đầu giờ hiện tại (VD: 16:08 -> 16:00:00)
+        LocalDateTime currentHourTruncated = LocalDateTime.now().truncatedTo(ChronoUnit.HOURS);
+
+        // 4. Query DB sắp xếp ưu tiên hourBucket gần nhất trước, sau đó tới watchTime -> likes -> views
+        List<String> newFetchedIds = seriesLogRepository.findCandidateTrendingSeriesIds(
+                SeriesStatus.PUBLISHED.name(),
+                currentHourTruncated,
+                combinedBlacklist,
+                isBlacklistEmpty,
+                limit
+        );
+
+        // 5. Áp dụng logic ghép: giữ vị trí cũ + chèn danh sách mới
+        List<String> mergedList = mergeOldAndNewIds(oldIds, newFetchedIds, limit);
+
+        // 6. Cập nhật Redis Pool
+        redisTemplate.delete(REDIS_KEY_LATEST_COMMUNITY_CHOICE_POOL);
+        if (!mergedList.isEmpty()) {
+            redisTemplate.opsForList().rightPushAll(REDIS_KEY_LATEST_COMMUNITY_CHOICE_POOL, mergedList);
+            redisTemplate.expire(REDIS_KEY_LATEST_COMMUNITY_CHOICE_POOL, POOL_TTL);
+        }
+
+        // 7. Cập nhật vào Redis Global IDs
+        updateGlobalIds(LATEST_COMMUNITY_CHOICE_CHANNEL, mergedList);
+        return mergedList;
+    }
+
+    // =========================================================================
+    // 5. COMMUNITY CHOICE CHANNEL (CỘNG ĐỒNG BÌNH CHỌN ALL-TIME)
+    // =========================================================================
+
+    @Override
+    public List<String> getCommunityChoiceSeriesIds(String accountId, int limit) {
+        if (limit <= 0) return Collections.emptyList();
+
+        Long poolSize = redisTemplate.opsForList().size(REDIS_KEY_COMMUNITY_CHOICE_POOL);
+
+        // Fallback: Nếu Pool trống, tự động kích hoạt refresh không dùng blacklist
+        if (poolSize == null || poolSize == 0) {
+            log.warn("[CommunityChoiceChannel] Redis pool '{}' bị trống! Đang kích hoạt Fallback...", REDIS_KEY_COMMUNITY_CHOICE_POOL);
+            List<String> refreshed = refreshCommunityChoicePool(Collections.emptyList(), limit);
+            if (refreshed.isEmpty()) return Collections.emptyList();
+            poolSize = (long) refreshed.size();
+        }
+
+        return getIdsWithOffset(
+                accountId, limit, poolSize,
+                REDIS_KEY_COMMUNITY_CHOICE_POOL,
+                REDIS_KEY_COMMUNITY_CHOICE_OFFSET_PREFIX
+        );
+    }
+
+    @Override
+    public List<String> refreshCommunityChoicePool(List<String> blacklistIds, int limit) {
+        Pageable pageable = PageRequest.of(0, limit);
+
+        // 1. Lấy danh sách IDs cũ từ Pool hiện tại
+        List<String> oldIds = redisTemplate.opsForList().range(REDIS_KEY_COMMUNITY_CHOICE_POOL, 0, -1);
+        if (oldIds == null) oldIds = Collections.emptyList();
+
+        // 2. Gom Blacklist: Dùng blacklist cấp trên + oldIds của chính nó
+        Set<String> combinedBlacklist = new HashSet<>();
+        if (blacklistIds != null) combinedBlacklist.addAll(blacklistIds);
+        combinedBlacklist.addAll(oldIds);
+
+        boolean isBlacklistEmpty = combinedBlacklist.isEmpty();
+
+        // 3. Query PostgreSQL lấy Series công khai xếp giảm dần theo chỉ số All-time (watchTime -> likes -> views -> comments -> shares -> bookmarks)
+        List<String> newFetchedIds = seriesRepository.findCandidateCommunityChoiceSeriesIds(
+                SeriesStatus.PUBLISHED,
+                combinedBlacklist,
+                isBlacklistEmpty,
+                pageable
+        );
+
+        // 4. Áp dụng logic ghép: giữ vị trí cũ + chèn danh sách mới
+        List<String> mergedList = mergeOldAndNewIds(oldIds, newFetchedIds, limit);
+
+        // 5. Cập nhật Redis Pool
+        redisTemplate.delete(REDIS_KEY_COMMUNITY_CHOICE_POOL);
+        if (!mergedList.isEmpty()) {
+            redisTemplate.opsForList().rightPushAll(REDIS_KEY_COMMUNITY_CHOICE_POOL, mergedList);
+            redisTemplate.expire(REDIS_KEY_COMMUNITY_CHOICE_POOL, POOL_TTL);
+        }
+
+        // 6. Cập nhật vào Redis Global IDs
+        updateGlobalIds(COMMUNITY_CHOICE_CHANNEL, mergedList);
+        return mergedList;
+    }
+
+    // =========================================================================
+    // 6. RANDOM CATEGORY CHANNEL (KÊNH THỂ LOẠI NGẪU NHIÊN)
+    // =========================================================================
+
+    @Override
+    public List<String> getRandomCategorySeriesIds(String accountId, int limit) {
+        if (limit <= 0) return Collections.emptyList();
+
+        Long poolSize = redisTemplate.opsForList().size(REDIS_KEY_RANDOM_CATEGORY_POOL);
+
+        // Fallback: Nếu Pool trống, kích hoạt nạp tự động với mặc định 3 series / category
+        if (poolSize == null || poolSize == 0) {
+            log.warn("[RandomCategoryChannel] Redis pool '{}' bị trống! Đang kích hoạt Fallback...", REDIS_KEY_RANDOM_CATEGORY_POOL);
+            List<String> refreshed = refreshRandomCategoryPool(Collections.emptyList(), 3, 20);
+            if (refreshed.isEmpty()) return Collections.emptyList();
+            poolSize = (long) refreshed.size();
+        }
+
+        return getIdsWithOffset(
+                accountId, limit, poolSize,
+                REDIS_KEY_RANDOM_CATEGORY_POOL,
+                REDIS_KEY_RANDOM_CATEGORY_OFFSET_PREFIX
+        );
+    }
+
+    @Override
+    public List<String> refreshRandomCategoryPool(List<String> blacklistIds, int limitPerCategory, int totalLimit) {
+        // 1. Lấy danh sách IDs cũ từ Pool hiện tại
+        List<String> oldIds = redisTemplate.opsForList().range(REDIS_KEY_RANDOM_CATEGORY_POOL, 0, -1);
+        if (oldIds == null) oldIds = Collections.emptyList();
+
+        // 2. Gom Blacklist: Dùng blacklist các kênh trước + oldIds của chính nó
+        Set<String> combinedBlacklist = new HashSet<>();
+        if (blacklistIds != null) combinedBlacklist.addAll(blacklistIds);
+        combinedBlacklist.addAll(oldIds);
+
+        boolean isBlacklistEmpty = combinedBlacklist.isEmpty();
+
+        // 3. Đúng 1 Query duy nhất lấy Top N Series hay nhất của mỗi Category bằng Window Function
+        List<String> candidateIds = seriesRepository.findTopSeriesPerCategory(
+                SeriesStatus.PUBLISHED.name(),
+                CategoryStatus.ACTIVE.name(),
+                combinedBlacklist,
+                isBlacklistEmpty,
+                limitPerCategory
+        );
+
+        // 4. Trộn ngẫu nhiên danh sách Series thu thập từ các thể loại để tạo tính "ngẫu nhiên"
+        List<String> shuffledNewIds = new ArrayList<>(candidateIds);
+        Collections.shuffle(shuffledNewIds);
+
+        // 5. Áp dụng logic ghép: giữ vị trí cũ + chèn danh sách mới thu được
+        List<String> mergedList = mergeOldAndNewIds(oldIds, shuffledNewIds, totalLimit);
+
+        // 6. Cập nhật Redis Pool
+        redisTemplate.delete(REDIS_KEY_RANDOM_CATEGORY_POOL);
+        if (!mergedList.isEmpty()) {
+            redisTemplate.opsForList().rightPushAll(REDIS_KEY_RANDOM_CATEGORY_POOL, mergedList);
+            redisTemplate.expire(REDIS_KEY_RANDOM_CATEGORY_POOL, POOL_TTL);
+        }
+
+        // 7. Cập nhật vào Redis Global IDs
+        updateGlobalIds(RANDOM_CATEGORY_CHANNEL, mergedList);
+        return mergedList;
+    }
+
+    // =========================================================================
+    // 7. SUBSCRIBED CREATORS CHANNEL (KÊNH TÁC GIẢ ĐÃ ĐĂNG KÝ)
+    // =========================================================================
+
+    @Override
+    public List<String> getSubscribedCreatorsSeriesIds(String accountId, int limit) {
+        if (accountId == null || accountId.trim().isEmpty() || limit <= 0) {
+            return Collections.emptyList();
+        }
+
+        String poolKey = REDIS_KEY_SUBSCRIBED_CREATORS_POOL_PREFIX + accountId;
+        Long poolSize = redisTemplate.opsForList().size(poolKey);
+
+        // Fallback: Nếu Pool cá nhân bị trống, kích hoạt làm mới tự động với mặc định 3 series / creator
+        if (poolSize == null || poolSize == 0) {
+            List<String> refreshed = refreshSubscribedCreatorsPool(accountId, Collections.emptyList(), 3, 20);
+            if (refreshed.isEmpty()) return Collections.emptyList();
+            poolSize = (long) refreshed.size();
+        }
+
+        return getIdsWithOffset(
+                accountId, limit, poolSize,
+                poolKey,
+                REDIS_KEY_SUBSCRIBED_CREATORS_OFFSET_PREFIX
+        );
+    }
+
+    @Override
+    public List<String> refreshSubscribedCreatorsPool(String accountId, List<String> blacklistIds, int limitPerCreator, int totalLimit) {
+        if (accountId == null || accountId.trim().isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        String poolKey = REDIS_KEY_SUBSCRIBED_CREATORS_POOL_PREFIX + accountId;
+
+        // 1. Lấy danh sách IDs cũ từ Redis Pool cá nhân
+        List<String> oldIds = redisTemplate.opsForList().range(poolKey, 0, -1);
+        if (oldIds == null) oldIds = Collections.emptyList();
+
+        // 2. Gom Blacklist: Dùng blacklist các kênh trước + oldIds của chính user này
+        Set<String> combinedBlacklist = new HashSet<>();
+        if (blacklistIds != null) combinedBlacklist.addAll(blacklistIds);
+        combinedBlacklist.addAll(oldIds);
+
+        boolean isBlacklistEmpty = combinedBlacklist.isEmpty();
+
+        // 3. Gọi 1 Query duy nhất quét PostgreSQL lấy Series từ các Creator mà user đã follow
+        List<String> candidateIds = seriesRepository.findTopSeriesFromFollowedCreators(
+                accountId,
+                SeriesStatus.PUBLISHED.name(),
+                combinedBlacklist,
+                isBlacklistEmpty,
+                limitPerCreator
+        );
+
+        // 4. Xáo trộn ngẫu nhiên danh sách để nội dung các tác giả đan xen nhau hấp dẫn hơn
+        List<String> shuffledNewIds = new ArrayList<>(candidateIds);
+        Collections.shuffle(shuffledNewIds);
+
+        // 5. Trộn vị trí cũ và mới
+        List<String> mergedList = mergeOldAndNewIds(oldIds, shuffledNewIds, totalLimit);
+
+        // 6. Cập nhật vào Redis Pool cá nhân
+        redisTemplate.delete(poolKey);
+        if (!mergedList.isEmpty()) {
+            redisTemplate.opsForList().rightPushAll(poolKey, mergedList);
+            redisTemplate.expire(poolKey, Duration.ofHours(1)); // Đặt TTL 1 hour
+        }
+
+        // 7. Cập nhật vào Redis Global IDs
+        updateGlobalIds(SUBSCRIBED_CREATORS_CHANNEL, mergedList);
+        return mergedList;
+    }
+
+    @Override
+    public Set<String> getAllGlobalIds() {
+        List<Object> allChannelValues = redisTemplate.opsForHash().values(REDIS_KEY_GLOBAL_IDS);
+
+        Set<String> globalIds = new HashSet<>();
+        for (Object val : allChannelValues) {
+            if (val != null && !val.toString().isBlank()) {
+                String[] ids = val.toString().split(",");
+                Collections.addAll(globalIds, ids);
+            }
+        }
+        return globalIds;
+    }
+
+    private void updateGlobalIds(String channel, List<String> ids) {
+        if (ids == null || ids.isEmpty()) {
+            redisTemplate.opsForHash().delete(REDIS_KEY_GLOBAL_IDS, channel);
+        } else {
+            String joinedIds = String.join(",", ids);
+            redisTemplate.opsForHash().put(REDIS_KEY_GLOBAL_IDS, channel, joinedIds);
+        }
+    }
+
+    // =========================================================================
+    // HELPER METHODS
+    // =========================================================================
+
+    /**
+     * Hàm chung lấy dữ liệu theo Offset xoay vòng từ Redis Pool.
+     */
+    private List<String> getIdsWithOffset(String accountId, int limit, long poolSize, String poolKey, String offsetPrefix) {
+        String offsetKey = offsetPrefix + accountId;
+        String currentOffsetStr = redisTemplate.opsForValue().get(offsetKey);
+        long currentOffset = (currentOffsetStr != null) ? Long.parseLong(currentOffsetStr) : 0L;
+
+        if (currentOffset >= poolSize) {
+            currentOffset = 0L;
+        }
+
+        List<String> result = new ArrayList<>();
+
+        if (currentOffset + limit <= poolSize) {
+            List<String> fetched = redisTemplate.opsForList().range(poolKey, currentOffset, currentOffset + limit - 1);
+            if (fetched != null) result.addAll(fetched);
+        } else {
+            // Đọc đến cuối danh sách
+            List<String> part1 = redisTemplate.opsForList().range(poolKey, currentOffset, poolSize - 1);
+            if (part1 != null) result.addAll(part1);
+
+            // Quay đầu lấy phần thiếu ở đầu danh sách (Circular offset)
+            long remaining = limit - result.size();
+            List<String> part2 = redisTemplate.opsForList().range(poolKey, 0, remaining - 1);
+            if (part2 != null) result.addAll(part2);
+        }
+
+        long nextOffset = (currentOffset + limit) % poolSize;
+        redisTemplate.opsForValue().set(offsetKey, String.valueOf(nextOffset));
+
+        return result;
+    }
+
+    /**
+     * Hàm hợp nhất danh sách IDs cũ và mới theo quy tắc giữ nguyên vị trí cũ.
+     */
+    private List<String> mergeOldAndNewIds(List<String> oldIds, List<String> newFetchedIds, int limit) {
+        List<String> mergedList = new ArrayList<>();
+
+        if (newFetchedIds.size() >= limit) {
+            mergedList.addAll(newFetchedIds.subList(0, limit));
+        } else {
+            int remainder = limit - newFetchedIds.size();
+            int retainCount = Math.min(remainder, oldIds.size());
+
+            if (retainCount > 0) {
+                mergedList.addAll(oldIds.subList(0, retainCount));
+            }
+            mergedList.addAll(newFetchedIds);
+        }
+
         return mergedList;
     }
 }

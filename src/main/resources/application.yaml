@@ -181,6 +181,9 @@ app:
   env: ${APP_ENV:${SPRING_PROFILES_ACTIVE:local}}
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:8080}
+  recommendation:
+    new-releases:
+      max-impression: 100
 
 media:
   app-env: ${APP_ENV:${SPRING_PROFILES_ACTIVE:local}}
@@ -245,3 +248,4 @@ logging:
     org.apache.kafka: WARN
     org.springframework.data.redis: WARN
     io.lettuce.core: WARN
+

@@ -19,7 +19,6 @@ public class CampaignMapperImpl implements ICampaignMapper {
                 .status(entity.getCampaignStatus())
                 .targetImpression(entity.getTargetImpression())
                 .currentImpression(entity.getCurrentImpression())
-                .engagementType(entity.getEngagementType())
                 .startAt(entity.getStartAt())
                 .endAt(entity.getEndAt())
                 .orderId(entity.getOrderId())
