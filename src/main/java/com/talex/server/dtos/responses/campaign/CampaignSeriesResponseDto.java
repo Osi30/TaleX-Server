@@ -1,6 +1,6 @@
 package com.talex.server.dtos.responses.campaign;
 
-import com.talex.server.entities.AnalyticData;
+import com.talex.server.entities.analytic.AnalyticData;
 import com.talex.server.enums.engagement.CampaignStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;

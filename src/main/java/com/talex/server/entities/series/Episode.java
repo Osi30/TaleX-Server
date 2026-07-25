@@ -1,6 +1,6 @@
 package com.talex.server.entities.series;
 
-import com.talex.server.entities.AnalyticData;
+import com.talex.server.entities.analytic.AnalyticData;
 import com.talex.server.entities.BaseTimeEntity;
 import com.talex.server.entities.media.Media;
 import com.talex.server.enums.series.ContentType;

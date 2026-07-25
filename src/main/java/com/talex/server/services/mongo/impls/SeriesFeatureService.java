@@ -1,6 +1,6 @@
 package com.talex.server.services.mongo.impls;
 
-import com.talex.server.entities.SyncMetadata;
+import com.talex.server.entities.config.SyncMetadata;
 import com.talex.server.entities.mongo.SeriesMetadata;
 import com.talex.server.entities.mongo.seriesfeatures.SeriesEngagementStats;
 import com.talex.server.entities.mongo.seriesfeatures.SeriesInteractionStats;

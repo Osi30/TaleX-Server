@@ -4,7 +4,7 @@ import com.talex.server.dtos.mongo.QuestDbPreferenceResult;
 import com.talex.server.dtos.mongo.QuestDbQueryResult;
 import com.talex.server.dtos.mongo.UserFeatureRequest;
 import com.talex.server.dtos.responses.series.EpisodeRefs;
-import com.talex.server.entities.SyncMetadata;
+import com.talex.server.entities.config.SyncMetadata;
 import com.talex.server.entities.mongo.UserFeatureDocument;
 import com.talex.server.entities.mongo.userfeatures.DeepEngagementStats;
 import com.talex.server.entities.mongo.userfeatures.DynamicPreferences;

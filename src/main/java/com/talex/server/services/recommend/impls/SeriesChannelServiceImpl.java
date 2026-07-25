@@ -1,5 +1,6 @@
 package com.talex.server.services.recommend.impls;
 
+import com.talex.server.enums.ImpressionStatus;
 import com.talex.server.enums.engagement.CampaignStatus;
 import com.talex.server.enums.series.CategoryStatus;
 import com.talex.server.enums.series.SeriesStatus;
@@ -13,6 +14,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
@@ -31,15 +33,6 @@ public class SeriesChannelServiceImpl implements SeriesChannelService {
 
     @Value("${app.recommendation.new-releases.max-impression}")
     private Long maxImpressionThreshold;
-
-    // Channels
-    private static final String PROMOTED_CHANNEL = "promoted";
-    private static final String NEW_RELEASES_CHANNEL = "new_releases";
-    private static final String RECENTLY_UPDATED_CHANNEL = "recently_updated";
-    private static final String LATEST_COMMUNITY_CHOICE_CHANNEL = "latest_community_choice";
-    private static final String COMMUNITY_CHOICE_CHANNEL = "community_choice";
-    private static final String RANDOM_CATEGORY_CHANNEL = "random_category";
-    private static final String SUBSCRIBED_CREATORS_CHANNEL = "subscribed_creators";
 
     // Redis Keys - Promoted
     private static final String REDIS_KEY_PROMOTED_POOL = "pool:promoted";
@@ -123,8 +116,6 @@ public class SeriesChannelServiceImpl implements SeriesChannelService {
             redisTemplate.expire(REDIS_KEY_PROMOTED_POOL, POOL_TTL);
         }
 
-        // 4. Cập nhật Global IDs trên Redis Hash
-        updateGlobalIds(PROMOTED_CHANNEL, mergedList);
         return mergedList;
     }
 
@@ -172,6 +163,7 @@ public class SeriesChannelServiceImpl implements SeriesChannelService {
                 maxImpressionThreshold,
                 combinedBlacklist,
                 isBlacklistEmpty,
+                ImpressionStatus.ON_GOING,
                 pageable
         );
 
@@ -185,8 +177,6 @@ public class SeriesChannelServiceImpl implements SeriesChannelService {
             redisTemplate.expire(REDIS_KEY_NEW_RELEASES_POOL, POOL_TTL);
         }
 
-        // 6. Cập nhật vào Redis Global IDs
-        updateGlobalIds(NEW_RELEASES_CHANNEL, mergedList);
         return mergedList;
     }
 
@@ -247,12 +237,6 @@ public class SeriesChannelServiceImpl implements SeriesChannelService {
             redisTemplate.opsForList().rightPushAll(REDIS_KEY_RECENTLY_UPDATED_POOL, mergedList);
             redisTemplate.expire(REDIS_KEY_RECENTLY_UPDATED_POOL, POOL_TTL);
         }
-
-        // 6. Cập nhật vào Redis Global IDs
-        updateGlobalIds(RECENTLY_UPDATED_CHANNEL, mergedList);
-
-        log.info("[RecentlyUpdatedChannel] Đã làm mới Pool '{}' thành công. Tổng: {} items (Giữ cũ: {}, Mới: {}).",
-                REDIS_KEY_RECENTLY_UPDATED_POOL, mergedList.size(), mergedList.size() - newFetchedIds.size(), newFetchedIds.size());
 
         return mergedList;
     }
@@ -316,8 +300,6 @@ public class SeriesChannelServiceImpl implements SeriesChannelService {
             redisTemplate.expire(REDIS_KEY_LATEST_COMMUNITY_CHOICE_POOL, POOL_TTL);
         }
 
-        // 7. Cập nhật vào Redis Global IDs
-        updateGlobalIds(LATEST_COMMUNITY_CHOICE_CHANNEL, mergedList);
         return mergedList;
     }
 
@@ -379,8 +361,6 @@ public class SeriesChannelServiceImpl implements SeriesChannelService {
             redisTemplate.expire(REDIS_KEY_COMMUNITY_CHOICE_POOL, POOL_TTL);
         }
 
-        // 6. Cập nhật vào Redis Global IDs
-        updateGlobalIds(COMMUNITY_CHOICE_CHANNEL, mergedList);
         return mergedList;
     }
 
@@ -445,8 +425,6 @@ public class SeriesChannelServiceImpl implements SeriesChannelService {
             redisTemplate.expire(REDIS_KEY_RANDOM_CATEGORY_POOL, POOL_TTL);
         }
 
-        // 7. Cập nhật vào Redis Global IDs
-        updateGlobalIds(RANDOM_CATEGORY_CHANNEL, mergedList);
         return mergedList;
     }
 
@@ -519,31 +497,43 @@ public class SeriesChannelServiceImpl implements SeriesChannelService {
             redisTemplate.expire(poolKey, Duration.ofHours(1)); // Đặt TTL 1 hour
         }
 
-        // 7. Cập nhật vào Redis Global IDs
-        updateGlobalIds(SUBSCRIBED_CREATORS_CHANNEL, mergedList);
         return mergedList;
     }
 
+    // =========================================================================
+    // 7. GLOBAL IDS (Tất cả Series trong các kênh)
+    // =========================================================================
+
     @Override
     public Set<String> getAllGlobalIds() {
-        List<Object> allChannelValues = redisTemplate.opsForHash().values(REDIS_KEY_GLOBAL_IDS);
-
-        Set<String> globalIds = new HashSet<>();
-        for (Object val : allChannelValues) {
-            if (val != null && !val.toString().isBlank()) {
-                String[] ids = val.toString().split(",");
-                Collections.addAll(globalIds, ids);
-            }
-        }
-        return globalIds;
+        Set<String> globalIds = redisTemplate.opsForSet().members(REDIS_KEY_GLOBAL_IDS);
+        return (globalIds != null) ? globalIds : Collections.emptySet();
     }
 
-    private void updateGlobalIds(String channel, List<String> ids) {
-        if (ids == null || ids.isEmpty()) {
-            redisTemplate.opsForHash().delete(REDIS_KEY_GLOBAL_IDS, channel);
-        } else {
-            String joinedIds = String.join(",", ids);
-            redisTemplate.opsForHash().put(REDIS_KEY_GLOBAL_IDS, channel, joinedIds);
+    @Override
+    @Async("interactionExecutor")
+    public void updateGlobalIds(Set<String> globalIds) {
+        if (globalIds == null || globalIds.isEmpty()) {
+            redisTemplate.delete(REDIS_KEY_GLOBAL_IDS);
+            log.info("[GlobalIDs] Danh sách rỗng, đã dọn dẹp key '{}' trên Redis.", REDIS_KEY_GLOBAL_IDS);
+            return;
+        }
+
+        try {
+            // 1. Xóa Set cũ để chuẩn bị cập nhật dữ liệu mới nhất
+            redisTemplate.delete(REDIS_KEY_GLOBAL_IDS);
+
+            // 2. Nạp toàn bộ danh sách Candidate IDs mới vào Redis Set
+            redisTemplate.opsForSet().add(REDIS_KEY_GLOBAL_IDS, globalIds.toArray(new String[0]));
+
+            // 3. Đặt thời gian hết hạn cho Key (bằng TTL với các Pool)
+            redisTemplate.expire(REDIS_KEY_GLOBAL_IDS, POOL_TTL);
+
+            log.info("[GlobalIDs - ASYNC] Đã cập nhật thành công {} Candidate IDs vào Redis Set '{}'.",
+                    globalIds.size(), REDIS_KEY_GLOBAL_IDS);
+
+        } catch (Exception e) {
+            log.error("[GlobalIDs - ASYNC ERROR] Lỗi khi ghi đè Global Candidate IDs lên Redis: {}", e.getMessage(), e);
         }
     }
 

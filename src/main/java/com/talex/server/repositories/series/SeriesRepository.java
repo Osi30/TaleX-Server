@@ -1,6 +1,7 @@
 package com.talex.server.repositories.series;
 
 import com.talex.server.entities.series.Series;
+import com.talex.server.enums.ImpressionStatus;
 import com.talex.server.enums.series.SeriesStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -89,15 +90,17 @@ public interface SeriesRepository extends JpaRepository<Series, String> {
         FROM Series s
         WHERE s.isDeleted = false
           AND s.status = :status
-          AND s.totalImpression <= :maxImpression
+          AND s.trendingAnalyticData.totalImpression <= :maxImpression
+          AND s.trendingAnalyticData.impressionStatus = :impressionStatus
           AND (:isBlacklistEmpty = true OR s.seriesId NOT IN :blacklist)
-        ORDER BY s.totalImpression ASC, s.createdAt ASC
+        ORDER BY s.trendingAnalyticData.totalImpression ASC, s.createdAt ASC
     """)
     List<String> findCandidateNewReleasesSeriesIds(
             @Param("status") SeriesStatus status,
             @Param("maxImpression") Long maxImpression,
             @Param("blacklist") Collection<String> blacklist,
             @Param("isBlacklistEmpty") boolean isBlacklistEmpty,
+            @Param("impressionStatus") ImpressionStatus impressionStatus,
             Pageable pageable
     );
 
@@ -207,5 +210,43 @@ public interface SeriesRepository extends JpaRepository<Series, String> {
             @Param("blacklist") Collection<String> blacklist,
             @Param("isBlacklistEmpty") boolean isBlacklistEmpty,
             @Param("limitPerCreator") int limitPerCreator
+    );
+
+    /**
+     * Lấy các Series đang trong Vòng 1 (ON_GOING) có số Impression đạt ngưỡng tối thiểu minImpression
+     */
+    @Query("""
+    SELECT s FROM Series s
+    WHERE s.isDeleted = false
+      AND s.status = :status
+      AND s.trendingAnalyticData.impressionStatus = :impressionStatus
+      AND s.trendingAnalyticData.totalImpression >= :minImpression
+    """)
+    List<Series> findCandidateWilsonSeries(
+            @Param("minImpression") Long minImpression,
+            @Param("status") SeriesStatus status,
+            @Param("impressionStatus") ImpressionStatus impressionStatus
+    );
+
+    /**
+     * Lấy tất cả các Series ở trạng thái SUCCESS để chạy Cron Job cập nhật Hacker News Ranking Score mỗi giờ
+     */
+    @Query("""
+    SELECT s FROM Series s
+    WHERE s.isDeleted = false
+      AND s.status = :status
+      AND s.trendingAnalyticData.impressionStatus = 'SUCCESS'
+    """)
+    List<Series> findSuccessTrendingSeries(@Param("status") SeriesStatus status);
+
+    @Query("""
+    SELECT s.trendingAnalyticData.wilsonScore
+    FROM Series s
+    WHERE s.isDeleted = false
+      AND s.trendingAnalyticData.impressionStatus IN :statuses
+    ORDER BY s.trendingAnalyticData.wilsonScore ASC
+""")
+    List<Double> findAllEvaluatedWilsonScores(
+            @Param("statuses") List<ImpressionStatus> statuses
     );
 }

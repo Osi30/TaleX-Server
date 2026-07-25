@@ -1,6 +1,6 @@
 package com.talex.server.entities.series;
 
-import com.talex.server.entities.AnalyticData;
+import com.talex.server.entities.analytic.AnalyticData;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;

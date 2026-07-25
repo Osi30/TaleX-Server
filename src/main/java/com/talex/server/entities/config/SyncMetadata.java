@@ -1,4 +1,4 @@
-package com.talex.server.entities;
+package com.talex.server.entities.config;
 
 import com.talex.server.enums.SyncType;
 import jakarta.persistence.Entity;

@@ -1,0 +1,174 @@
+package com.talex.server.services.trending.impls;
+
+import com.talex.server.dtos.recommend.TrendingSampleConfigRes;
+import com.talex.server.entities.analytic.TrendingAnalyticData;
+import com.talex.server.entities.series.Series;
+import com.talex.server.enums.ImpressionStatus;
+import com.talex.server.enums.series.SeriesStatus;
+import com.talex.server.repositories.series.SeriesRepository;
+import com.talex.server.services.trending.TrendingSampleConfigService;
+import com.talex.server.services.trending.TrendingService;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.List;
+
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class TrendingServiceImpl implements TrendingService {
+    private final SeriesRepository seriesRepository;
+    private final TrendingSampleConfigService configService;
+
+    @Override
+    @Transactional
+    public void evaluateWilsonScoreBatch() {
+        TrendingSampleConfigRes config = configService.getConfig();
+
+        // 1. Lấy danh sách Series đang ON_GOING và có totalImpression >= minImpression
+        List<Series> candidates = seriesRepository
+                .findCandidateWilsonSeries(
+                        config.getMinImpression(),
+                        SeriesStatus.PUBLISHED,
+                        ImpressionStatus.ON_GOING
+                );
+        if (candidates.isEmpty()) {
+            return;
+        }
+
+        List<Series> updatedSeriesList = new ArrayList<>();
+        List<Double> wilsonScoreList = new ArrayList<>();
+        int evaluatedCount = 0;
+
+        for (Series series : candidates) {
+            TrendingAnalyticData analytic = series.getTrendingAnalyticData();
+            long totalImpression = analytic.getTotalImpression();
+            long engageClick = analytic.getEngageClick();
+
+            // Tính p_hat (sampleRatio) = engageClick / totalImpression
+            double sampleRatio = totalImpression > 0 ? (double) engageClick / totalImpression : 0.0;
+            analytic.setSampleRatio(sampleRatio);
+
+            // Tính Wilson Score
+            double wilsonScore = calculateWilsonScore(engageClick, totalImpression);
+            analytic.setWilsonScore(wilsonScore);
+            wilsonScoreList.add(wilsonScore);
+
+            boolean isEvaluated = false;
+
+            // Đánh giá trạng thái Vòng 1
+            if (wilsonScore >= config.getThreshold()) {
+                analytic.setImpressionStatus(ImpressionStatus.SUCCESS);
+                isEvaluated = true;
+
+                // Tính ngay Hacker News Ranking Score cho Series SUCCESS
+                double initialRankingScore = calculateHackerNewsRankingScore(
+                        series.getRatingCount(),
+                        analytic.getInteractionClick(),
+                        analytic.getEngageClick(),
+                        series.getReleasedUpdateTime(),
+                        config.getGravity()
+                );
+                analytic.setRankingScore(initialRankingScore);
+
+            } else if (totalImpression >= config.getMaxImpression()) {
+                // Nếu vượt maxImpression mà điểm vẫn < threshold -> FAILED
+                analytic.setImpressionStatus(ImpressionStatus.FAILED);
+                isEvaluated = true;
+            }
+
+            if (isEvaluated) {
+                evaluatedCount++;
+                updatedSeriesList.add(series);
+            }
+        }
+
+        // 2. Lưu các Series đã cập nhật
+        if (!updatedSeriesList.isEmpty()) {
+            seriesRepository.saveAll(updatedSeriesList);
+            log.info("[WilsonEvaluation] Đã đánh giá xong {} series trong Vòng 1.", evaluatedCount);
+
+            // 3. Cập nhật currentBatch, totalBatch và tính lại threshold nếu đạt minBatch
+            configService.incrementBatchAndRecalculateThresholdIfNeeded(evaluatedCount, wilsonScoreList);
+        }
+    }
+
+    @Override
+    @Transactional
+    public void recalculateHackerNewsRankingScores() {
+        TrendingSampleConfigRes config = configService.getConfig();
+        List<Series> successSeriesList = seriesRepository.findSuccessTrendingSeries(SeriesStatus.PUBLISHED);
+
+        if (successSeriesList.isEmpty()) {
+            return;
+        }
+
+        for (Series series : successSeriesList) {
+            TrendingAnalyticData analytic = series.getTrendingAnalyticData();
+
+            double newRankingScore = calculateHackerNewsRankingScore(
+                    series.getRatingCount(),
+                    analytic.getInteractionClick(),
+                    analytic.getEngageClick(),
+                    series.getReleasedUpdateTime(),
+                    config.getGravity()
+            );
+
+            analytic.setRankingScore(newRankingScore);
+        }
+
+        seriesRepository.saveAll(successSeriesList);
+        log.info("[RankingScore] Đã cập nhật Ranking Score cho {} series SUCCESS thành công.", successSeriesList.size());
+    }
+
+    /**
+     * Công thức khoảng tin cậy Wilson (Wilson Score Lower Bound) - Độ tin cậy 95% (z = 1.96)
+     */
+    private double calculateWilsonScore(long engageClick, long totalImpression) {
+        if (totalImpression <= 0) return 0.0;
+
+        double p = (double) engageClick / totalImpression;
+        double n = totalImpression;
+        double z = 1.96; // 95% confidence level
+
+        double z2 = z * z;
+        double denominator = 1.0 + z2 / n;
+        double p1 = p + z2 / (2.0 * n);
+        double p2 = z * Math.sqrt((p * (1.0 - p) + z2 / (4.0 * n)) / n);
+
+        double score = (p1 - p2) / denominator;
+        return Math.max(0.0, score);
+    }
+
+    /**
+     * Công thức Hacker News Ranking Score: Score = (P) / (T + 2)^G
+     * P = ratingCount + interactionClick + engageClick
+     * T = Số giờ kể từ thời điểm releasedUpdateTime
+     * G = Hệ số phân rã (gravity = 1.8)
+     */
+    private double calculateHackerNewsRankingScore(
+            Long ratingCount,
+            Long interactionClick,
+            Long engageClick,
+            LocalDateTime releasedUpdateTime,
+            Double gravity) {
+
+        long p = (ratingCount != null ? ratingCount : 0L)
+                + (interactionClick != null ? interactionClick : 0L)
+                + (engageClick != null ? engageClick : 0L);
+
+        LocalDateTime baseTime = releasedUpdateTime != null ? releasedUpdateTime : LocalDateTime.now();
+        long hours = ChronoUnit.HOURS.between(baseTime, LocalDateTime.now());
+        if (hours < 0) hours = 0;
+
+        double g = (gravity != null && gravity > 0) ? gravity : 1.8;
+        double denominator = Math.pow(hours + 2.0, g);
+
+        return (double) p / denominator;
+    }
+}

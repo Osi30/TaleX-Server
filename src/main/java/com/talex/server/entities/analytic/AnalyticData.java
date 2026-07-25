@@ -1,4 +1,4 @@
-package com.talex.server.entities;
+package com.talex.server.entities.analytic;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;

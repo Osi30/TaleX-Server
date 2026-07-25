@@ -1,7 +1,8 @@
 package com.talex.server.entities.series;
 
-import com.talex.server.entities.AnalyticData;
+import com.talex.server.entities.analytic.AnalyticData;
 import com.talex.server.entities.BaseTimeEntity;
+import com.talex.server.entities.analytic.TrendingAnalyticData;
 import com.talex.server.entities.creator.Creator;
 import com.talex.server.enums.series.ContentType;
 import com.talex.server.enums.series.SeriesStatus;
@@ -64,14 +65,14 @@ public class Series extends BaseTimeEntity {
     @Column(name = "average_rating", nullable = false, columnDefinition = "float8 default 0.0")
     private Double averageRating = 0.0;
 
-    @Column(name = "total_impression")
-    private Long totalImpression = 0L;
-
     @Column(name = "released_update_time")
     private LocalDateTime releasedUpdateTime;
 
     @Embedded
     private AnalyticData analyticData = new AnalyticData();
+
+    @Embedded
+    private TrendingAnalyticData trendingAnalyticData = new TrendingAnalyticData();
 
     // Dành cho tính năng lưu trữ động
     @Column(name = "last_interaction_time")

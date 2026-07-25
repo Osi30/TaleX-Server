@@ -1,7 +1,7 @@
 package com.talex.server.entities.creator;
 
 import com.talex.server.entities.auth.Account;
-import com.talex.server.entities.AnalyticData;
+import com.talex.server.entities.analytic.AnalyticData;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
