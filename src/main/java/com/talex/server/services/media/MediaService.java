@@ -51,6 +51,9 @@ public interface MediaService {
 
     MediaResponseDto updateProcessingStatus(String id, MediaStatusRequestDto request, String accountId);
 
+    /** Thử lại pipeline (Content ID + kiểm duyệt, resubmit transcode nếu VIDEO) cho media đang FAILED. */
+    MediaResponseDto retryPipeline(String id, String actorId);
+
     void delete(String id, String actorId);
 
     Media findActiveEntity(String id);

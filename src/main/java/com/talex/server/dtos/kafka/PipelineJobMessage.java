@@ -22,4 +22,7 @@ public class PipelineJobMessage {
     private String mediaType;       // "VIDEO" or "IMAGE"
     private String correlationId;
     private String requestedAt;     // ISO-8601 LocalDateTime string
+    // Chỉ dùng cho Content ID (copyright job) — AI loại trừ so khớp trong cùng
+    // creator (không tự báo "vi phạm" chính nội dung của mình). Rỗng ở moderation job.
+    private String creatorId;
 }

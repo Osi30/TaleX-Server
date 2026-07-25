@@ -120,5 +120,6 @@ public interface MediaRepository extends JpaRepository<Media, String> {
             MediaStatus status);
 
     // Paginated query for staff moderation — lists media awaiting review
-    Page<Media> findByApprovalStatusAndIsDeletedFalse(ContentApprovalStatus approvalStatus, Pageable pageable);
+    Page<Media> findByApprovalStatusAndStatusAndIsDeletedFalse(
+            ContentApprovalStatus approvalStatus, MediaStatus status, Pageable pageable);
 }

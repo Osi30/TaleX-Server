@@ -13,6 +13,7 @@ import com.talex.server.entities.media.ViolationDetail;
 import com.talex.server.enums.media.CensorshipStatus;
 import com.talex.server.enums.series.ContentApprovalStatus;
 import com.talex.server.enums.media.MediaStatus;
+import com.talex.server.enums.media.MediaType;
 import com.talex.server.enums.media.ViolationType;
 import com.talex.server.repositories.media.ContentCensorshipRepository;
 import com.talex.server.repositories.media.MediaCopyrightRepository;
@@ -52,7 +53,12 @@ public class ContentPipelineServiceImpl implements ContentPipelineService {
     @Override
     public void dispatchPipelineJob(Media media) {
         try {
-            media.setStatus(MediaStatus.PENDING);
+            // VIDEO: job này giờ dispatch SONG SONG lúc MediaConvert đang transcode (xem
+            // DefaultMediaUploadSessionService.complete()) — không được ghi đè HLS_PROCESSING,
+            // nếu không SqsMediaEventPoller sẽ không biết transcode đang chạy dở.
+            if (media.getStatus() != MediaStatus.HLS_PROCESSING) {
+                media.setStatus(MediaStatus.PENDING);
+            }
             media.markUpdatedBy(PIPELINE_ACTOR);
             mediaRepository.save(media);
 
@@ -64,6 +70,7 @@ public class ContentPipelineServiceImpl implements ContentPipelineService {
                     .mediaType(media.getMediaType().name())
                     .correlationId(UUID.randomUUID().toString())
                     .requestedAt(LocalDateTime.now().toString())
+                    .creatorId(resolveEpisodeCreatorId(media))
                     .build();
 
             pipelineProducer.sendPipelineJob(message);
@@ -119,17 +126,28 @@ public class ContentPipelineServiceImpl implements ContentPipelineService {
         if (Boolean.TRUE.equals(result.getIsDuplicate()) && result.getViolations() != null) {
             boolean allViolationsCC0 = processViolations(media, result.getViolations());
             if (!allViolationsCC0) {
-                log.warn("Non-CC0 copyright violation: mediaId={} blocked", result.getMediaId());
-                media.setStatus(MediaStatus.INACTIVE);
-                media.setApprovalStatus(ContentApprovalStatus.REJECTED);
-                media.setApprovalReviewedBy(PIPELINE_ACTOR);
-                media.setApprovalReviewedAt(LocalDateTime.now());
+                // Máy chỉ biết "2 nội dung giống nhau X%", không biết ai thực sự có quyền —
+                // AI service đã tự loại trừ trùng trong cùng creator rồi (nên tới đây chắc
+                // chắn là khác creator), nhưng vẫn không đủ căn cứ để tự kết luận "vi phạm"
+                // dứt khoát (có thể cả 2 đều hợp pháp, hoặc false positive do thuật toán).
+                // Đưa vào hàng chờ Staff review có sẵn thay vì tự động chặn cứng — giống
+                // đúng cách YouTube Content ID xử lý case mơ hồ (dispute/review, không phải
+                // thuật toán tự phân xử). KHÔNG set reviewedBy/At vì chưa ai review thật.
+                log.info("Non-CC0 copyright match: mediaId={} routed to Staff review", result.getMediaId());
+                // Không ghi đè nếu transcode đã fail trước đó (chạy song song, có thể fail
+                // trước khi copyright check xong) — giữ nguyên FAILED để không mất tín hiệu
+                // "video hỏng cần upload lại", tránh Staff hiểu nhầm thành vi phạm nội dung.
+                if (media.getStatus() != MediaStatus.FAILED) {
+                    media.setStatus(MediaStatus.INACTIVE);
+                }
+                media.setApprovalStatus(ContentApprovalStatus.PENDING_REVIEW);
                 media.markUpdatedBy(PIPELINE_ACTOR);
                 mediaRepository.save(media);
                 pushSseEvent(media, "pipeline:copyright_complete", PipelineEventPayload.builder()
                         .mediaId(media.getMediaId()).status("COPYRIGHT_COMPLETE")
                         .contentId(result.getContentId()).isDuplicate(true)
-                        .violationsCount(result.getViolations().size()).build());
+                        .violationsCount(result.getViolations().size())
+                        .approvalStatus(media.getApprovalStatus().name()).build());
                 return;
             }
             log.info("All violations are CC0 — auto-approved, proceeding to moderation: mediaId={}", result.getMediaId());
@@ -158,27 +176,82 @@ public class ContentPipelineServiceImpl implements ContentPipelineService {
             return;
         }
 
+        // Lỗi hệ thống (Rekognition timeout, ffmpeg crash...) khác hẳn "nội dung vi phạm thật" —
+        // AI service trả isSafe=false kèm success=false trong cả 2 trường hợp, phải phân biệt rõ
+        // ở đây, nếu không Creator/Staff nhìn vào tưởng nội dung bị từ chối thật (xem phase-01).
+        if (Boolean.FALSE.equals(result.getSuccess())) {
+            log.error("Moderation check failed for mediaId={}: {}", result.getMediaId(), result.getErrorMessage());
+            media.setStatus(MediaStatus.FAILED);
+            media.setErrorMessage("Moderation check failed: " + result.getErrorMessage());
+            media.markUpdatedBy(PIPELINE_ACTOR);
+            mediaRepository.save(media);
+            pushSseEvent(media, "pipeline:failed", PipelineEventPayload.builder()
+                    .mediaId(media.getMediaId()).status("FAILED")
+                    .errorMessage(result.getErrorMessage()).failedStep("MODERATION").build());
+            return;
+        }
+
         ContentCensorship censorship = buildCensorship(media, result);
         contentCensorshipRepository.save(censorship);
 
         if (Boolean.TRUE.equals(result.getIsSafe())) {
-            media.setStatus(MediaStatus.ACTIVE);
             media.setApprovalStatus(ContentApprovalStatus.APPROVED);
-            log.info("Moderation passed — media ACTIVE: mediaId={}", result.getMediaId());
+            media.setApprovalReviewedBy(PIPELINE_ACTOR);
+            media.setApprovalReviewedAt(LocalDateTime.now());
+            // VIDEO có thể vẫn đang transcode dở (chạy song song, xem dispatchPipelineJob) —
+            // chỉ chuyển ACTIVE khi HLS thật sự đã sẵn sàng, nếu không video sẽ lỗi vì chưa
+            // có file phát được. Nếu chưa xong, giữ nguyên HLS_PROCESSING — SqsMediaEventPoller
+            // sẽ tự chuyển ACTIVE khi transcode xong (thấy ApprovalStatus đã APPROVED sẵn).
+            // Dùng MediaStatus chứ không dùng hlsUrl — hlsUrl bị set NGAY lúc upload xong
+            // (URL dự đoán, xem S3MediaProviderService.applyCompletedUpload()), không phải
+            // khi transcode thật sự hoàn tất. Chỉ coi "đã sẵn sàng" khi status ĐÚNG LÀ
+            // HLS_READY (markHlsReady() đã xác nhận transcode xong) — không dùng kiểu phủ
+            // định "!= HLS_PROCESSING", vì nếu transcode đã FAILED thì điều kiện đó cũng
+            // đúng, sẽ set nhầm ACTIVE đè lên FAILED.
+            boolean hlsAlreadyReady = media.getMediaType() != MediaType.VIDEO
+                    || media.getStatus() == MediaStatus.HLS_READY;
+            if (hlsAlreadyReady) {
+                media.setStatus(MediaStatus.ACTIVE);
+                log.info("Moderation passed — media ACTIVE: mediaId={}", result.getMediaId());
+            } else {
+                log.info("Moderation passed, waiting for HLS transcode to finish: mediaId={}", result.getMediaId());
+            }
         } else {
-            media.setStatus(MediaStatus.INACTIVE);
-            media.setApprovalStatus(ContentApprovalStatus.REJECTED);
-            log.warn("Moderation failed — media INACTIVE: mediaId={} label={}", result.getMediaId(), result.getPrimaryLabel());
+            // AI chỉ phát hiện NHÃN nhạy cảm, không tự phán được đây là vi phạm thật hay
+            // nội dung hợp lệ theo đúng bối cảnh (series 18+ đã khai, hoặc series CHƯA
+            // khai 18+ nhưng nội dung episode này thật sự cần rating đó) — luôn đẩy qua
+            // hàng đợi Staff review thay vì tự động từ chối cứng, để tránh chặn oan nội
+            // dung hợp lệ chỉ vì Creator quên cập nhật rating series. Staff xem trực tiếp
+            // mới quyết định: duyệt (kèm nhắc Creator cập nhật rating nếu cần) hay từ chối
+            // thật. KHÔNG set reviewedBy/reviewedAt vì chưa ai thật sự review.
+            // Không ghi đè nếu transcode đã FAILED trước đó (xem giải thích ở nhánh non-CC0
+            // copyright bên trên) — giữ nguyên tín hiệu "video hỏng" cho Creator/Staff.
+            if (media.getStatus() != MediaStatus.FAILED) {
+                media.setStatus(MediaStatus.INACTIVE);
+            }
+            media.setApprovalStatus(ContentApprovalStatus.PENDING_REVIEW);
+            log.info("Moderation flagged content — routed to Staff review: mediaId={} label={} seriesAgeRating={}",
+                    result.getMediaId(), result.getPrimaryLabel(), resolveSeriesAgeRating(media));
         }
 
-        media.setApprovalReviewedBy(PIPELINE_ACTOR);
-        media.setApprovalReviewedAt(LocalDateTime.now());
         media.markUpdatedBy(PIPELINE_ACTOR);
         mediaRepository.save(media);
 
         pushSseEvent(media, "pipeline:moderation_complete", PipelineEventPayload.builder()
                 .mediaId(media.getMediaId()).status("MODERATION_COMPLETE")
-                .isSafe(result.getIsSafe()).primaryLabel(result.getPrimaryLabel()).build());
+                .isSafe(result.getIsSafe()).primaryLabel(result.getPrimaryLabel())
+                .approvalStatus(media.getApprovalStatus().name()).build());
+    }
+
+    @Override
+    public void notifyMediaDeleted(String mediaId) {
+        // Best-effort — dọn fingerprint Milvus mồ côi khi media bị xóa, không được làm
+        // fail thao tác xóa chính (đã là entity chính, quan trọng hơn việc dọn dẹp phụ).
+        try {
+            pipelineProducer.sendMediaDeleted(mediaId);
+        } catch (Exception e) {
+            log.warn("Failed to notify AI service of media deletion, fingerprint may remain orphaned: mediaId={}", mediaId, e);
+        }
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────
@@ -231,6 +304,12 @@ public class ContentPipelineServiceImpl implements ContentPipelineService {
                 .mediaType(media.getMediaType().name())
                 .correlationId(correlationId != null ? correlationId : UUID.randomUUID().toString())
                 .requestedAt(LocalDateTime.now().toString())
+                // Bắt buộc phải set — Python PipelineJobMessage.creator_id là str (default
+                // rỗng chỉ áp dụng khi field THIẾU HẲN trong JSON). Nếu không set, Java
+                // serialize thành "creatorId": null tường minh, Pydantic validate null vào
+                // str sẽ FAIL toàn bộ job trước khi kịp gửi kết quả lỗi về — job coi như
+                // mất tích vĩnh viễn.
+                .creatorId(resolveEpisodeCreatorId(media))
                 .build();
         pipelineProducer.sendModerationJob(message);
     }
@@ -307,6 +386,39 @@ public class ContentPipelineServiceImpl implements ContentPipelineService {
         String creatorId = resolveCreatorAccountId(media);
         if (creatorId != null) {
             sseNotificationService.pushEvent(creatorId, eventName, payload);
+        }
+    }
+
+    /**
+     * creatorId để AI service loại trừ so khớp Content ID trong cùng creator — không
+     * tự báo "vi phạm bản quyền" giữa các tập/trang của chính người đăng (vd. nhân vật
+     * lặp lại xuyên suốt 1 bộ truyện). Rỗng nếu chưa gắn episode — an toàn hơn NPE,
+     * AI vẫn chạy được, chỉ là không loại trừ được gì trong trường hợp hiếm này.
+     */
+    private String resolveEpisodeCreatorId(Media media) {
+        // Media đã có sẵn field creatorId riêng (denormalized, set ngay lúc tạo — xem
+        // DefaultMediaUploadSessionService/MediaServiceImpl) — dùng trực tiếp thay vì đi
+        // qua media.getEpisode().getCreatorId() (association LAZY, có rủi ro
+        // LazyInitializationException nếu Hibernate session không còn mở đúng lúc gọi,
+        // khiến catch() nuốt lỗi và trả về "" — creatorId rỗng làm loại trừ trùng lặp
+        // cùng creator KHÔNG BAO GIỜ khớp, gây báo nhầm vi phạm bản quyền với chính mình).
+        if (media.getCreatorId() != null && !media.getCreatorId().isBlank()) {
+            return media.getCreatorId();
+        }
+        try {
+            return media.getEpisode().getCreatorId();
+        } catch (Exception e) {
+            log.warn("Could not resolve episode creatorId for media: {}", media.getMediaId());
+            return "";
+        }
+    }
+
+    private String resolveSeriesAgeRating(Media media) {
+        try {
+            return media.getEpisode().getSeason().getSeries().getAgeRating();
+        } catch (Exception e) {
+            log.warn("Could not resolve series ageRating for media: {}", media.getMediaId());
+            return "";
         }
     }
 

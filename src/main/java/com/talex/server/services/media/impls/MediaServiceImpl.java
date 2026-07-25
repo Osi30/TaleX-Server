@@ -32,6 +32,7 @@ import com.talex.server.repositories.series.EpisodeRepository;
 import com.talex.server.repositories.media.MediaCopyrightRepository;
 import com.talex.server.repositories.media.MediaRepository;
 import com.talex.server.services.media.ContentPipelineService;
+import com.talex.server.services.media.MediaPackagingService;
 import com.talex.server.services.media.MediaPlaybackSecurityService;
 import com.talex.server.services.media.MediaProviderService;
 import com.talex.server.services.media.MediaService;
@@ -72,6 +73,7 @@ public class MediaServiceImpl implements MediaService {
     private final EpisodeRepository episodeRepository;
     private final EpisodeService episodeService;
     private final MediaProviderService mediaProviderService;
+    private final MediaPackagingService mediaPackagingService;
     private final MediaPlaybackSecurityService playbackSecurityService;
     private final ContentPipelineService contentPipelineService;
     private final MediaCopyrightRepository mediaCopyrightRepository;
@@ -444,6 +446,15 @@ public class MediaServiceImpl implements MediaService {
         media.setApprovalStatus(ContentApprovalStatus.APPROVED);
         media.setApprovalReviewedAt(LocalDateTime.now());
         media.setApprovalReviewedBy(actorId);
+        // Trước đây chỉ đổi approvalStatus — nếu media đang INACTIVE (bị pipeline flag
+        // chờ Staff duyệt, xem ContentPipelineServiceImpl), Staff duyệt xong media vẫn
+        // kẹt INACTIVE vĩnh viễn, không ai xem lại được (kể cả Creator/viewer công khai).
+        // Chuyển thẳng ACTIVE — media tới được hàng đợi Staff nghĩa là Content ID/kiểm
+        // duyệt đã chạy xong từ lâu (không còn race với transcode như lúc pipeline tự
+        // động xử lý), không cần qua HLS_READY trung gian.
+        if (media.getStatus() == MediaStatus.INACTIVE) {
+            media.setStatus(MediaStatus.ACTIVE);
+        }
         media.markUpdatedBy(actorId);
         return toResponse(mediaRepository.save(media));
     }
@@ -511,11 +522,40 @@ public class MediaServiceImpl implements MediaService {
             media.setStatus(MediaStatus.DELETED);
             media.softDelete(accountId);
             playbackSecurityService.revokeActiveSessions(media);
+            contentPipelineService.notifyMediaDeleted(media.getMediaId());
         } else {
             media.setStatus(request.getStatus());
             media.markUpdatedBy(accountId);
         }
         return toResponse(mediaRepository.save(media));
+    }
+
+    @Transactional
+    @Override
+    public MediaResponseDto retryPipeline(String id, String actorId) {
+        Media media = findManageableEntity(id, actorId);
+        if (media.getStatus() != MediaStatus.FAILED) {
+            throw ContentModuleException.badRequest("Chỉ có thể thử lại khi media đang ở trạng thái FAILED");
+        }
+
+        // Dọn sạch kết quả cũ — nếu không, idempotency check trong
+        // ContentPipelineServiceImpl.handleCopyrightResult()/handleModerationResult() sẽ
+        // tự skip toàn bộ (coi như đã xử lý rồi), retry sẽ không có tác dụng gì.
+        media.setContentId(null);
+        media.setErrorMessage(null);
+        mediaCopyrightRepository.deleteAll(mediaCopyrightRepository.findAllByMedia_MediaId(media.getMediaId()));
+        contentCensorshipRepository.deleteAll(contentCensorshipRepository.findAllByMedia_MediaId(media.getMediaId()));
+
+        if (media.getMediaType() == MediaType.VIDEO) {
+            // Resubmit transcode trên file gốc đã có sẵn ở S3/Cloudinary — không cần upload
+            // lại. Tự set HLS_PROCESSING, route đúng provider theo media.getProvider().
+            mediaPackagingService.createHlsPackaging(media);
+        }
+        media.markUpdatedBy(actorId);
+        media = mediaRepository.save(media);
+
+        contentPipelineService.dispatchPipelineJob(media);
+        return toResponse(media);
     }
 
     @Transactional
@@ -529,6 +569,7 @@ public class MediaServiceImpl implements MediaService {
         if (media.getMediaType() == MediaType.VIDEO && media.getProviderPublicId() != null) {
             mediaProviderService.deleteAsset(media);
         }
+        contentPipelineService.notifyMediaDeleted(media.getMediaId());
         mediaRepository.save(media);
     }
 
@@ -565,7 +606,9 @@ public class MediaServiceImpl implements MediaService {
 
         return MediaViolationsResponseDto.builder()
                 .mediaId(media.getMediaId())
-                .contentId(media.getProviderPublicId())
+                // Trước đây trả nhầm providerPublicId (S3 object key) — không phải Content
+                // ID thật (do AI service gán, dạng "CID-{mediaId}", lưu ở Media.contentId).
+                .contentId(media.getContentId())
                 .copyrightViolations(copyrightDtos)
                 .censorshipResults(censorshipDtos)
                 .build();
@@ -575,8 +618,14 @@ public class MediaServiceImpl implements MediaService {
     @Override
     public Page<MediaResponseDto> listPendingReview(int page, int size) {
         PageRequest pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        // PENDING_REVIEW cũng là giá trị MẶC ĐỊNH của approvalStatus trước khi pipeline
+        // từng chạy xong (xem Media.java) — nếu chỉ lọc theo approvalStatus, hàng đợi
+        // Staff sẽ lẫn cả media đang xử lý dở (chưa có kết quả gì) với media THẬT SỰ bị
+        // flag cần duyệt. BE chỉ set MediaStatus.INACTIVE khi chủ động flag nội dung
+        // (xem ContentPipelineServiceImpl) — thêm điều kiện này để lọc đúng.
         return mediaRepository
-                .findByApprovalStatusAndIsDeletedFalse(ContentApprovalStatus.PENDING_REVIEW, pageable)
+                .findByApprovalStatusAndStatusAndIsDeletedFalse(
+                        ContentApprovalStatus.PENDING_REVIEW, MediaStatus.INACTIVE, pageable)
                 .map(this::toResponse);
     }
 
@@ -653,7 +702,8 @@ public class MediaServiceImpl implements MediaService {
                 .createdBy(media.getCreatedBy())
                 .updatedBy(media.getUpdatedBy())
                 .deletedBy(media.getDeletedBy())
-                .isDeleted(media.getIsDeleted());
+                .isDeleted(media.getIsDeleted())
+                .contentId(media.getContentId());
     }
 
     private MediaCopyrightResponseDto mapCopyrightToDto(MediaCopyright entity) {

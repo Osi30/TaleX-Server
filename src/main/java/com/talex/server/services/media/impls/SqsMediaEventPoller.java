@@ -6,8 +6,8 @@ import com.talex.server.configs.properties.MediaProperties;
 import com.talex.server.entities.media.Media;
 import com.talex.server.enums.media.MediaProvider;
 import com.talex.server.enums.media.MediaStatus;
+import com.talex.server.enums.series.ContentApprovalStatus;
 import com.talex.server.repositories.media.MediaRepository;
-import com.talex.server.services.media.ContentPipelineService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
@@ -44,7 +44,6 @@ public class SqsMediaEventPoller {
     private final MediaRepository mediaRepository;
     private final MediaProperties mediaProperties;
     private final ObjectMapper objectMapper;
-    private final ContentPipelineService contentPipelineService;
 
     // ── Primary: SQS event-driven notification ────────────────────────────────
 
@@ -268,16 +267,24 @@ public class SqsMediaEventPoller {
         String url = StringUtils.hasText(hlsUrl) ? hlsUrl : media.getHlsUrl();
         media.setHlsUrl(url);
         media.setPlaybackUrl(url);
-        media.setStatus(MediaStatus.HLS_READY);
         media.setErrorMessage(null);
+
+        // Content ID + kiểm duyệt giờ chạy SONG SONG với transcode (dispatch sớm ở
+        // DefaultMediaUploadSessionService.complete()), có thể đã xong TRƯỚC transcode —
+        // với 3 kết quả có thể: APPROVED, PENDING_REVIEW (chờ Staff), hoặc REJECTED.
+        // Nếu ApprovalStatus đã APPROVED, chuyển thẳng ACTIVE. Nếu media đã bị AI-check
+        // chuyển sang INACTIVE (PENDING_REVIEW/REJECTED) hoặc FAILED, KHÔNG được ghi đè —
+        // trước đây code luôn set HLS_READY cho "mọi trường hợp không phải APPROVED", vô
+        // tình xóa mất tín hiệu "đang chờ Staff"/"bị từ chối", khiến hàng đợi Staff
+        // (lọc theo status=INACTIVE) không còn thấy media này nữa. Chỉ set HLS_READY khi
+        // AI-check thật sự CHƯA xong (media vẫn đang HLS_PROCESSING, không phải trạng thái
+        // terminal nào khác).
+        if (media.getApprovalStatus() == ContentApprovalStatus.APPROVED) {
+            media.setStatus(MediaStatus.ACTIVE);
+        } else if (media.getStatus() == MediaStatus.HLS_PROCESSING) {
+            media.setStatus(MediaStatus.HLS_READY);
+        }
         media.markUpdatedBy(RECONCILE_ACTOR);
         mediaRepository.save(media);
-
-        // Dispatch content pipeline job for copyright check + moderation
-        try {
-            contentPipelineService.dispatchPipelineJob(media);
-        } catch (Exception e) {
-            log.error("Failed to dispatch pipeline job for media: {}", media.getMediaId(), e);
-        }
     }
 }

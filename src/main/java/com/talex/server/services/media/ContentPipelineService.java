@@ -18,4 +18,7 @@ public interface ContentPipelineService {
 
     /** Handles the moderation result from Python and sets the final media status. */
     void handleModerationResult(ModerationResultMessage result);
+
+    /** Best-effort notify để AI service dọn fingerprint Milvus tương ứng khi media bị xóa. */
+    void notifyMediaDeleted(String mediaId);
 }

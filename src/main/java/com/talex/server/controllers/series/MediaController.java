@@ -276,6 +276,15 @@ public class MediaController {
         return ResponseEntity.ok(response(200, "Media status updated", mediaService.updateProcessingStatus(id, request, accountId.toString())));
     }
 
+    @PatchMapping("/api/v1/media/{id}/retry-pipeline")
+     @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<BaseResponse> retryPipeline(
+            @PathVariable String id,
+            @CurrentAccountId UUID accountId) {
+        return ResponseEntity.ok(response(200, "Pipeline retry dispatched",
+                mediaService.retryPipeline(id, accountId.toString())));
+    }
+
     @DeleteMapping("/api/v1/media/{id}")
      @PreAuthorize("isAuthenticated()")
     public ResponseEntity<BaseResponse> delete(

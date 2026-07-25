@@ -65,6 +65,7 @@ public class DefaultMediaUploadSessionService implements MediaUploadSessionServi
     private final CloudinaryHlsReconcileService cloudinaryHlsReconcileService;
     private final MediaUploadProgressCache uploadProgressCache;
     private final ContentOwnershipService contentOwnershipService;
+    private final ContentPipelineService contentPipelineService;
 
     @Transactional
     @Override
@@ -289,6 +290,14 @@ public class DefaultMediaUploadSessionService implements MediaUploadSessionServi
                 media.getProvider(), media.getMediaId(), media.getProviderPublicId());
         if (media.getProvider() == MediaProvider.CLOUDINARY) {
             cloudinaryHlsReconcileService.notifyProcessingMedia();
+        }
+
+        // AWS only (xem plan) — dispatch Content ID NGAY, chạy song song với MediaConvert
+        // transcode đang xử lý, thay vì đợi tới khi HLS xong mới bắt đầu (giảm tổng thời
+        // gian pipeline gần bằng đúng thời gian transcode, vì Content ID chỉ dùng file
+        // gốc trên S3, không phụ thuộc kết quả transcode).
+        if (media.getMediaType() == MediaType.VIDEO && media.getProvider() == MediaProvider.AWS) {
+            contentPipelineService.dispatchPipelineJob(media);
         }
 
         session.setUploadedBytes(request.getBytes());

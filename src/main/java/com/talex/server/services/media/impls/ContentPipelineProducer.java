@@ -10,6 +10,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 
+import java.util.Map;
+
 /**
  * Kafka producer for content pipeline jobs.
  * Sends JSON-serialized messages to Python AI service topics.
@@ -21,6 +23,7 @@ public class ContentPipelineProducer {
 
     private static final String TOPIC_PIPELINE_JOB = "content-pipeline-job";
     private static final String TOPIC_MODERATION_JOB = "content-moderation-job";
+    private static final String TOPIC_MEDIA_DELETE = "content-media-delete";
 
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final ObjectMapper objectMapper;
@@ -31,6 +34,10 @@ public class ContentPipelineProducer {
 
     public void sendModerationJob(PipelineJobMessage message) {
         sendMessage(TOPIC_MODERATION_JOB, message.getMediaId(), message);
+    }
+
+    public void sendMediaDeleted(String mediaId) {
+        sendMessage(TOPIC_MEDIA_DELETE, mediaId, Map.of("mediaId", mediaId));
     }
 
     private void sendMessage(String topic, String key, Object message) {
