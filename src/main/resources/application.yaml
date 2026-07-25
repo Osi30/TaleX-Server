@@ -99,6 +99,13 @@ spring:
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       max-poll-records: 500
+      # Mặc định Spring Boot là true — Kafka tự commit offset theo chu kỳ (5s) BẤT KỂ
+      # @KafkaListener đã xử lý xong hay chưa. Nếu xử lý bị rớt giữa chừng đúng lúc timer
+      # chạy, message coi như "đã đọc" vĩnh viễn dù chưa xử lý — mất dữ liệu âm thầm,
+      # không log, không lỗi (đã xảy ra thật ở content-copyright-result: consumer group
+      # lag=0 nhưng 4/7 message chưa hề được xử lý). Tắt để chỉ commit SAU KHI listener
+      # trả về thành công (ackMode BATCH mặc định của Spring khi tắt auto-commit).
+      enable-auto-commit: false
       properties:
         fetch.min.bytes: 1048576 # 1MB
         fetch.max.bytes: 5242880 # 5MB
