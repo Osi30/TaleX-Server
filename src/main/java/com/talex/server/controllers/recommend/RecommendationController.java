@@ -4,6 +4,7 @@ import com.talex.server.annotations.CurrentAccountId;
 import com.talex.server.dtos.BaseResponse;
 import com.talex.server.dtos.recommend.HomePoolsSeriesResponseDto;
 import com.talex.server.dtos.recommend.RankResultItem;
+import com.talex.server.dtos.recommend.SeriesCardResponseDto;
 import com.talex.server.services.recommend.RecommendationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -45,6 +46,41 @@ public class RecommendationController {
                 .code(200)
                 .message("Lấy thành công!")
                 .data(result)
+                .build());
+    }
+
+    @GetMapping("/feed")
+    @Operation(
+            summary = "Lấy danh sách Series đề xuất cá nhân hóa (Cuộn vô cùng)",
+            description = "API đề xuất Series dựa trên thói quen xem gần đây của người dùng kết hợp với 8 Kênh hệ thống và AI LightGBM. " +
+                    "Tự động tạo Redis Pool theo Session trong lần đầu và phân trang cuộn vô cùng (offset/limit). " +
+                    "Tất cả ID trả về được tự động đẩy sang Kafka cho ImpressionWorker ghi nhận lượt hiển thị."
+    )
+    public ResponseEntity<BaseResponse> getPersonalizedFeed(
+            @CurrentAccountId UUID accountId,
+            @RequestParam("sessionId") String sessionId,
+            @RequestParam(defaultValue = "HOME") String pageType,
+            @RequestParam(defaultValue = "0") int offset,
+            @RequestParam(defaultValue = "12") int limit
+    ) {
+        if (accountId == null) return ResponseEntity.ok(BaseResponse.builder()
+                .code(200)
+                .message("Chưa đăng nhập nên chưa đề xuất!")
+                .data(null)
+                .build());
+
+        List<SeriesCardResponseDto> recommendations = recommendationService.getPersonalizedRecommendations(
+                accountId.toString(),
+                sessionId,
+                pageType,
+                offset,
+                limit
+        );
+
+        return ResponseEntity.ok(BaseResponse.builder()
+                .code(200)
+                .message("Lấy danh sách đề xuất thành công!")
+                .data(recommendations)
                 .build());
     }
 

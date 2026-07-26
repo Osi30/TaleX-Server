@@ -66,12 +66,16 @@ public class RecommendationServiceImpl implements RecommendationService {
 
     private static final String REDIS_KEY_PREFIX = "watch:top5:recent_series:";
     private static final String RECOMMENDATION_PREFIX = "recommendation:series:";
+    private static final String RECOMMENDATION_POOL_PREFIX = "recommendation:pool:";
+    private static final String SESSION_KEY_PREFIX = "recommendation:session:";
+    private static final String BLOOM_WATCHED_PREFIX = "recommendation:bloom:watched:";
+
     private static final Duration CACHE_TTL = Duration.ofDays(1);
     private static final Duration RECOMMENDATION_TTL = Duration.ofDays(7);
+    private static final Duration RECOMMENDATION_POOL_TTL = Duration.ofHours(1);
+
     private static final String AI_SERVICE_RANK_URL = "http://localhost:8000/api/v1/recommendations/rank";
-    private static final String SESSION_KEY_PREFIX = "recommendation:session:";
     private static final String KAFKA_TOPIC_DISPLAY = "recommendation-display-log";
-    private static final String BLOOM_WATCHED_PREFIX = "recommendation:bloom:watched:";
     private static final RedisScript<Long> BF_EXISTS_SCRIPT =
             new DefaultRedisScript<>("return redis.call('BF.EXISTS', KEYS[1], ARGV[1])", Long.class);
 
@@ -189,6 +193,60 @@ public class RecommendationServiceImpl implements RecommendationService {
                 .randomCategory(randomCategoryCards)
                 .accountSubscription(subscriptionCards)
                 .build();
+    }
+
+    @Override
+    public List<SeriesCardResponseDto> getPersonalizedRecommendations(
+            String accountId,
+            String sessionId,
+            String pageType,
+            int offset,
+            int limit
+    ) {
+        String userIdStr = (accountId == null || accountId.trim().isEmpty()) ? "guest_user" : accountId.trim();
+        String safeSessionId = (sessionId == null || sessionId.trim().isEmpty()) ? UUID.randomUUID().toString() : sessionId.trim();
+        int safeLimit = (limit <= 0) ? 12 : limit; // Mặc định limit = 12
+
+        String redisPoolKey = RECOMMENDATION_POOL_PREFIX + userIdStr + ":" + safeSessionId;
+
+        // 1. Kiểm tra xem Pool đã tồn tại trong Redis chưa
+        Boolean hasKey = redisTemplate.hasKey(redisPoolKey);
+
+        if (Boolean.FALSE.equals(hasKey)) {
+            // Lần đầu tiên gọi API cho Session -> Khởi tạo Pool
+            initializeRecommendationPool(userIdStr, safeSessionId, pageType, redisPoolKey);
+        }
+
+        // 2. Đọc phân trang từ Redis Pool (Lấy từ index: offset -> offset + limit - 1)
+        List<String> pagedSeriesIds = redisTemplate.opsForList().range(redisPoolKey, offset, offset + safeLimit - 1);
+
+        if (pagedSeriesIds == null || pagedSeriesIds.isEmpty()) {
+            return Collections.emptyList(); // Đã xem hết Pool
+        }
+
+        // 3. Query DB lấy thông tin SeriesCard
+        List<SeriesCardResponseDto> fetchedCards = seriesRepository.findSeriesCardsByIds(
+                new HashSet<>(pagedSeriesIds), SeriesStatus.PUBLISHED
+        );
+
+        Map<String, SeriesCardResponseDto> cardMap = fetchedCards.stream()
+                .collect(Collectors.toMap(SeriesCardResponseDto::getSeriesId, c -> c, (c1, c2) -> c1));
+
+        // Bảo toàn đúng thứ tự sắp xếp từ Redis Pool
+        List<SeriesCardResponseDto> resultCards = new ArrayList<>();
+        for (String id : pagedSeriesIds) {
+            SeriesCardResponseDto card = cardMap.get(id);
+            if (card != null) {
+                resultCards.add(card);
+            }
+        }
+
+        // 4. Bắn sự kiện Async sang Kafka cho ImpressionWorker xử lý
+        if (!"guest_user".equals(userIdStr) && !"anonymous".equals(userIdStr)) {
+            sendHomeImpressionsAsync(userIdStr, pagedSeriesIds);
+        }
+
+        return resultCards;
     }
 
     /// Lấy danh sách gợi ý
@@ -447,6 +505,143 @@ public class RecommendationServiceImpl implements RecommendationService {
             SeriesCardResponseDto card = cardMap.get(id);
             if (card != null) {
                 result.add(card);
+            }
+        }
+        return result;
+    }
+
+    /**
+     * Khởi tạo Pool Đề xuất theo thuật toán 8 Kênh + AI LightGBM Scoring + Interleave 3:1
+     */
+    private void initializeRecommendationPool(String accountId, String sessionId, String pageType, String redisPoolKey) {
+        log.info("[RecPool Init] Bắt đầu khởi tạo pool cho Account: {}, Session: {}, Type: {}", accountId, sessionId, pageType);
+
+        // B1: Lấy 2 IDs từ mỗi kênh trong 8 Kênh hệ thống (Tổng tối đa 16 IDs)
+        List<String> channel16Ids = fetch16IdsFrom8Channels(accountId);
+
+        // B2: Lấy 5 series gần nhất người dùng đã xem
+        List<String> recent5Series = getRecentWatchedSeries(accountId);
+
+        // B3: Lấy tối đa 10 series tương tự cho mỗi series trong 5 series gần nhất (Tổng tối đa 50 IDs)
+        Set<String> similar50IdsSet = new LinkedHashSet<>();
+        for (String seriesId : recent5Series) {
+            similar50IdsSet.addAll(getSimilarSeriesIds(seriesId));
+        }
+        List<String> similar50Ids = new ArrayList<>(similar50IdsSet);
+
+        // B4: Lọc dữ liệu theo từng Trang (HOME / DETAIL)
+        List<String> filtered50Ids = new ArrayList<>();
+
+        if ("HOME".equalsIgnoreCase(pageType)) {
+            // Trang HOME: Lấy Global IDs và Account Subscription IDs để lọc
+            Set<String> globalIds = new HashSet<>(seriesChannelService.getAllGlobalIds());
+            Set<String> accountSubIds = new HashSet<>(seriesChannelService.getAllSubscribedCreatorsSeriesIds(accountId));
+
+            for (String id : similar50Ids) {
+                if (!globalIds.contains(id) && !accountSubIds.contains(id)) {
+                    filtered50Ids.add(id);
+                }
+            }
+        } else {
+            // Trang DETAIL: Lọc 50 IDs không trùng với 16 IDs từ 8 kênh
+            Set<String> channel16Set = new HashSet<>(channel16Ids);
+            for (String id : similar50Ids) {
+                if (!channel16Set.contains(id)) {
+                    filtered50Ids.add(id);
+                }
+            }
+        }
+
+        // B5: Gom tất cả candidates (filtered50Ids + channel16Ids) gửi sang AI chấm điểm
+        Set<String> allCandidates = new LinkedHashSet<>();
+        allCandidates.addAll(filtered50Ids);
+        allCandidates.addAll(channel16Ids);
+
+        List<RankResultItem> rankedItems = rankSeries(accountId, new ArrayList<>(allCandidates));
+
+        // Tạo Map tra cứu điểm AI (Mặc định score = 0 nếu AI fallback)
+        Map<String, Double> scoreMap = new HashMap<>();
+        if (rankedItems != null && !rankedItems.isEmpty()) {
+            for (RankResultItem item : rankedItems) {
+                scoreMap.put(item.getSeriesId(), item.getScore());
+            }
+        }
+
+        // Sắp xếp nhóm 50 IDs và nhóm 16 IDs giảm dần theo điểm AI
+        filtered50Ids.sort((a, b) -> Double.compare(scoreMap.getOrDefault(b, 0.0), scoreMap.getOrDefault(a, 0.0)));
+        channel16Ids.sort((a, b) -> Double.compare(scoreMap.getOrDefault(b, 0.0), scoreMap.getOrDefault(a, 0.0)));
+
+        // B6: Xếp xen kẽ 3 IDs thuộc bộ 50 thì đi với 1 ID thuộc bộ 16
+        List<String> finalOrderedPool = interleaveLists(filtered50Ids, channel16Ids, 3, 1);
+
+        // B7: Lưu toàn bộ danh sách đã xếp vào Redis List Pool
+        if (!finalOrderedPool.isEmpty()) {
+            redisTemplate.opsForList().rightPushAll(redisPoolKey, finalOrderedPool);
+            redisTemplate.expire(redisPoolKey, RECOMMENDATION_POOL_TTL);
+            log.info("[RecPool Init] Khởi tạo thành công Pool với {} series cho Session {}", finalOrderedPool.size(), sessionId);
+        }
+    }
+
+    /**
+     * Helper lấy 2 IDs từ 8 Kênh hệ thống (Parallel Execution)
+     */
+    private List<String> fetch16IdsFrom8Channels(String accountId) {
+        CompletableFuture<List<String>> f1 = CompletableFuture.supplyAsync(() -> seriesChannelService.getPromotedSeriesIds(accountId, 2));
+        CompletableFuture<List<String>> f2 = CompletableFuture.supplyAsync(() -> seriesChannelService.getTrendingSeriesIds(accountId, 2));
+        CompletableFuture<List<String>> f3 = CompletableFuture.supplyAsync(() -> seriesChannelService.getNewReleasesSeriesIds(accountId, 2));
+        CompletableFuture<List<String>> f4 = CompletableFuture.supplyAsync(() -> seriesChannelService.getRecentlyUpdatedSeriesIds(accountId, 2));
+        CompletableFuture<List<String>> f5 = CompletableFuture.supplyAsync(() -> seriesChannelService.getLatestCommunityChoiceSeriesIds(accountId, 2));
+        CompletableFuture<List<String>> f6 = CompletableFuture.supplyAsync(() -> seriesChannelService.getCommunityChoiceSeriesIds(accountId, 2));
+        CompletableFuture<List<String>> f7 = CompletableFuture.supplyAsync(() -> seriesChannelService.getRandomCategorySeriesIds(accountId, 2));
+        CompletableFuture<List<String>> f8 = CompletableFuture.supplyAsync(() -> {
+            Set<String> globalIds = seriesChannelService.getAllGlobalIds();
+            return seriesChannelService.getSubscribedCreatorsSeriesIds(accountId, globalIds, 2);
+        });
+
+        CompletableFuture.allOf(f1, f2, f3, f4, f5, f6, f7, f8).join();
+
+        Set<String> channel16Set = new LinkedHashSet<>();
+        try {
+            channel16Set.addAll(f1.get());
+            channel16Set.addAll(f2.get());
+            channel16Set.addAll(f3.get());
+            channel16Set.addAll(f4.get());
+            channel16Set.addAll(f5.get());
+            channel16Set.addAll(f6.get());
+            channel16Set.addAll(f7.get());
+            channel16Set.addAll(f8.get());
+        } catch (Exception e) {
+            log.error("[RecPool Error] Lỗi khi lấy 16 IDs từ 8 kênh: {}", e.getMessage());
+        }
+
+        return new ArrayList<>(channel16Set);
+    }
+
+    /**
+     * Helper trộn xen kẽ ratioA phần tử nhóm A và ratioB phần tử nhóm B
+     */
+    private List<String> interleaveLists(List<String> listA, List<String> listB, int ratioA, int ratioB) {
+        List<String> result = new ArrayList<>();
+        Set<String> addedSet = new HashSet<>();
+
+        int i = 0, j = 0;
+        int sizeA = listA.size();
+        int sizeB = listB.size();
+
+        while (i < sizeA || j < sizeB) {
+            // Lấy tối đa ratioA từ List A
+            for (int k = 0; k < ratioA && i < sizeA; k++) {
+                String id = listA.get(i++);
+                if (addedSet.add(id)) {
+                    result.add(id);
+                }
+            }
+            // Lấy tối đa ratioB từ List B
+            for (int k = 0; k < ratioB && j < sizeB; k++) {
+                String id = listB.get(j++);
+                if (addedSet.add(id)) {
+                    result.add(id);
+                }
             }
         }
         return result;
