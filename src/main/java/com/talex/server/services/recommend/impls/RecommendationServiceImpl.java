@@ -2,11 +2,16 @@ package com.talex.server.services.recommend.impls;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.talex.server.dtos.recommend.HomePoolsSeriesResponseDto;
 import com.talex.server.dtos.recommend.RankRequestPayload;
 import com.talex.server.dtos.recommend.RankResultItem;
+import com.talex.server.dtos.recommend.SeriesCardResponseDto;
+import com.talex.server.enums.series.SeriesStatus;
 import com.talex.server.repositories.mongo.SeriesRecommendationRepository;
-import com.talex.server.services.recommend.RecommendationService;
+import com.talex.server.repositories.series.SeriesRepository;
 import com.talex.server.services.interaction.IViewService;
+import com.talex.server.services.recommend.RecommendationService;
+import com.talex.server.services.recommend.SeriesChannelService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -24,12 +29,16 @@ import org.springframework.web.client.RestTemplate;
 
 import java.time.Duration;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 @Service
 @Slf4j
 public class RecommendationServiceImpl implements RecommendationService {
     private final StringRedisTemplate redisTemplate;
     private final SeriesRecommendationRepository seriesRecommendationRepository;
+    private final SeriesChannelService seriesChannelService;
+    private final SeriesRepository seriesRepository;
     private final JdbcTemplate questDbJdbcTemplate;
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final ObjectMapper objectMapper;
@@ -41,6 +50,8 @@ public class RecommendationServiceImpl implements RecommendationService {
             KafkaTemplate<String, String> kafkaTemplate,
             @Qualifier("questDbJdbcTemplate") JdbcTemplate questDbJdbcTemplate,
             SeriesRecommendationRepository seriesRecommendationRepository,
+            SeriesChannelService seriesChannelService,
+            SeriesRepository seriesRepository,
             IViewService viewService
     ) {
         this.redisTemplate = redisTemplate;
@@ -48,6 +59,8 @@ public class RecommendationServiceImpl implements RecommendationService {
         this.kafkaTemplate = kafkaTemplate;
         this.questDbJdbcTemplate = questDbJdbcTemplate;
         this.seriesRecommendationRepository = seriesRecommendationRepository;
+        this.seriesChannelService = seriesChannelService;
+        this.seriesRepository = seriesRepository;
         this.viewService = viewService;
     }
 
@@ -61,6 +74,122 @@ public class RecommendationServiceImpl implements RecommendationService {
     private static final String BLOOM_WATCHED_PREFIX = "recommendation:bloom:watched:";
     private static final RedisScript<Long> BF_EXISTS_SCRIPT =
             new DefaultRedisScript<>("return redis.call('BF.EXISTS', KEYS[1], ARGV[1])", Long.class);
+
+    /// Lấy danh sách series từ các pool
+    @Override
+    public HomePoolsSeriesResponseDto getHomeFeedSeries(String accountId, int limitPerPool) {
+        String userIdStr = (accountId == null) ? "" : accountId.trim();
+
+        // 1. Kích hoạt lấy Global IDs Async (dùng làm blacklist cho Subscription)
+        CompletableFuture<Set<String>> globalIdsFuture = CompletableFuture.supplyAsync(
+                seriesChannelService::getAllGlobalIds
+        ).exceptionally(ex -> {
+            log.error("[HomeFeed] Lỗi lấy globalIds: {}", ex.getMessage());
+            return Collections.emptySet();
+        });
+
+        // 2. Kích hoạt lấy 7 Pools độc lập cùng một lúc (Parallel Execution)
+        CompletableFuture<List<String>> promotedFuture = CompletableFuture.supplyAsync(
+                () -> seriesChannelService.getPromotedSeriesIds(userIdStr, limitPerPool)
+        ).exceptionally(ex -> Collections.emptyList());
+
+        CompletableFuture<List<String>> trendingFuture = CompletableFuture.supplyAsync(
+                () -> seriesChannelService.getTrendingSeriesIds(userIdStr, limitPerPool)
+        ).exceptionally(ex -> Collections.emptyList());
+
+        CompletableFuture<List<String>> newReleasesFuture = CompletableFuture.supplyAsync(
+                () -> seriesChannelService.getNewReleasesSeriesIds(userIdStr, limitPerPool)
+        ).exceptionally(ex -> Collections.emptyList());
+
+        CompletableFuture<List<String>> recentlyUpdatedFuture = CompletableFuture.supplyAsync(
+                () -> seriesChannelService.getRecentlyUpdatedSeriesIds(userIdStr, limitPerPool)
+        ).exceptionally(ex -> Collections.emptyList());
+
+        CompletableFuture<List<String>> latestCommunityFuture = CompletableFuture.supplyAsync(
+                () -> seriesChannelService.getLatestCommunityChoiceSeriesIds(userIdStr, limitPerPool)
+        ).exceptionally(ex -> Collections.emptyList());
+
+        CompletableFuture<List<String>> communityChoiceFuture = CompletableFuture.supplyAsync(
+                () -> seriesChannelService.getCommunityChoiceSeriesIds(userIdStr, limitPerPool)
+        ).exceptionally(ex -> Collections.emptyList());
+
+        CompletableFuture<List<String>> randomCategoryFuture = CompletableFuture.supplyAsync(
+                () -> seriesChannelService.getRandomCategorySeriesIds(userIdStr, limitPerPool)
+        ).exceptionally(ex -> Collections.emptyList());
+
+        // 3. Kênh Subscription: Đợi globalIdsFuture xong rồi mới chạy
+        CompletableFuture<List<String>> subscriptionFuture = globalIdsFuture.thenApplyAsync(
+                globalIds -> seriesChannelService.getSubscribedCreatorsSeriesIds(userIdStr, globalIds, limitPerPool)
+        ).exceptionally(ex -> Collections.emptyList());
+
+        // 4. Chờ tất cả 8 Futures hoàn tất cùng lúc
+        CompletableFuture.allOf(
+                promotedFuture, trendingFuture, newReleasesFuture, recentlyUpdatedFuture,
+                latestCommunityFuture, communityChoiceFuture, randomCategoryFuture, subscriptionFuture
+        ).join();
+
+        // 5. Trích xuất kết quả an toàn (Dùng join() hoặc getNow() vì allOf đã đảm bảo tất cả đã xong)
+        List<String> promotedIds = promotedFuture.join();
+        List<String> trendingIds = trendingFuture.join();
+        List<String> newReleasesIds = newReleasesFuture.join();
+        List<String> recentlyUpdatedIds = recentlyUpdatedFuture.join();
+        List<String> latestCommunityIds = latestCommunityFuture.join();
+        List<String> communityChoiceIds = communityChoiceFuture.join();
+        List<String> randomCategoryIds = randomCategoryFuture.join();
+        List<String> subscriptionIds = subscriptionFuture.join();
+
+        // 6. Gom tất cả IDs unique để query DB 1 lần duy nhất
+        Set<String> allUniqueIds = new LinkedHashSet<>();
+        allUniqueIds.addAll(promotedIds);
+        allUniqueIds.addAll(trendingIds);
+        allUniqueIds.addAll(newReleasesIds);
+        allUniqueIds.addAll(recentlyUpdatedIds);
+        allUniqueIds.addAll(latestCommunityIds);
+        allUniqueIds.addAll(communityChoiceIds);
+        allUniqueIds.addAll(randomCategoryIds);
+        allUniqueIds.addAll(subscriptionIds);
+
+        if (allUniqueIds.isEmpty()) {
+            return new HomePoolsSeriesResponseDto(
+                    List.of(), List.of(), List.of(), List.of(),
+                    List.of(), List.of(), List.of(), List.of()
+            );
+        }
+
+        // Bắn sự kiện Async sang Kafka cho ImpressionWorker xử lý
+        if (!userIdStr.isEmpty() && !"anonymous".equals(userIdStr) && !"guest_user".equals(userIdStr)) {
+            sendHomeImpressionsAsync(userIdStr, new ArrayList<>(allUniqueIds));
+        }
+
+        // 7. Query PostgreSQL lấy dữ liệu Card
+        List<SeriesCardResponseDto> fetchedCards = seriesRepository.findSeriesCardsByIds(
+                allUniqueIds, SeriesStatus.PUBLISHED
+        );
+
+        Map<String, SeriesCardResponseDto> cardMap = fetchedCards.stream()
+                .collect(Collectors.toMap(SeriesCardResponseDto::getSeriesId, card -> card, (c1, c2) -> c1));
+
+        // 8. Build DTOs phân loại theo từng Pool
+        List<SeriesCardResponseDto> promotedCards = mapIdsToDtos(promotedIds, cardMap);
+        List<SeriesCardResponseDto> trendingCards = mapIdsToDtos(trendingIds, cardMap);
+        List<SeriesCardResponseDto> newReleasesCards = mapIdsToDtos(newReleasesIds, cardMap);
+        List<SeriesCardResponseDto> recentlyUpdatedCards = mapIdsToDtos(recentlyUpdatedIds, cardMap);
+        List<SeriesCardResponseDto> latestCommunityCards = mapIdsToDtos(latestCommunityIds, cardMap);
+        List<SeriesCardResponseDto> communityChoiceCards = mapIdsToDtos(communityChoiceIds, cardMap);
+        List<SeriesCardResponseDto> randomCategoryCards = mapIdsToDtos(randomCategoryIds, cardMap);
+        List<SeriesCardResponseDto> subscriptionCards = mapIdsToDtos(subscriptionIds, cardMap);
+
+        return HomePoolsSeriesResponseDto.builder()
+                .promoted(promotedCards)
+                .trending(trendingCards)
+                .newReleases(newReleasesCards)
+                .recentlyUpdated(recentlyUpdatedCards)
+                .latestCommunityChoice(latestCommunityCards)
+                .communityChoice(communityChoiceCards)
+                .randomCategory(randomCategoryCards)
+                .accountSubscription(subscriptionCards)
+                .build();
+    }
 
     /// Lấy danh sách gợi ý
     @Override
@@ -305,6 +434,42 @@ public class RecommendationServiceImpl implements RecommendationService {
         } catch (Exception e) {
             log.error("Thất bại khi query QuestDB cho accountId {}: {}", accountId, e.getMessage());
             return Collections.emptyList();
+        }
+    }
+
+    /**
+     * Chuyển đổi danh sách ID sang danh sách DTO theo đúng thứ tự
+     */
+    private List<SeriesCardResponseDto> mapIdsToDtos(List<String> ids, Map<String, SeriesCardResponseDto> cardMap) {
+        if (ids == null || ids.isEmpty()) return Collections.emptyList();
+        List<SeriesCardResponseDto> result = new ArrayList<>();
+        for (String id : ids) {
+            SeriesCardResponseDto card = cardMap.get(id);
+            if (card != null) {
+                result.add(card);
+            }
+        }
+        return result;
+    }
+
+    private static final String KAFKA_TOPIC_HOME_IMPRESSION = "home-impression-log-topic";
+
+    /**
+     * Gửi danh sách ID để xử lý tăng thông số
+     */
+    @Async("kafkaExecutor")
+    public void sendHomeImpressionsAsync(String accountId, List<String> seriesIds) {
+        try {
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("accountId", accountId);
+            payload.put("seriesIds", seriesIds);
+            payload.put("timestamp", System.currentTimeMillis());
+
+            String jsonPayload = objectMapper.writeValueAsString(payload);
+            kafkaTemplate.send(KAFKA_TOPIC_HOME_IMPRESSION, accountId, jsonPayload);
+            log.info("[Kafka Impression] Đã phát log impression cho accountId: {} với {} series", accountId, seriesIds.size());
+        } catch (Exception e) {
+            log.error("[Kafka Impression Error] Lỗi khi phát log impression cho accountId {}: {}", accountId, e.getMessage(), e);
         }
     }
 }

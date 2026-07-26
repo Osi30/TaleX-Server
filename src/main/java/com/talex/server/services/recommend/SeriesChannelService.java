@@ -30,8 +30,9 @@ public interface SeriesChannelService {
     List<String> refreshRandomCategoryPool(List<String> blacklistIds, int limitPerCategory, int totalLimit);
 
     // --- Account Subscription Channel ---
-    List<String> getSubscribedCreatorsSeriesIds(String accountId, int limit);
-    List<String> refreshSubscribedCreatorsPool(String accountId, List<String> blacklistIds, int limitPerCreator, int totalLimit);
+    List<String> getSubscribedCreatorsSeriesIds(String accountId, Set<String> blacklistIds, int limit);
+    List<String> refreshSubscribedCreatorsPool(String accountId, Set<String> blacklistIds, int limitPerCreator, int totalLimit);
+    List<String> getAllSubscribedCreatorsSeriesIds(String accountId);
 
     // --- Trending Channel ---
     List<String> getTrendingSeriesIds(String accountId, int limit);

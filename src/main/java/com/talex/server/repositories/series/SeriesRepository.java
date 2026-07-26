@@ -269,7 +269,34 @@ public interface SeriesRepository extends JpaRepository<Series, String> {
             Pageable pageable
     );
 
-    List<Series> findSeriesBySeriesIdInAndIsDeletedFalseAndStatus(
-            Collection<String> seriesIds, SeriesStatus status
+    @Query("""
+    SELECT new com.talex.server.dtos.recommend.SeriesCardResponseDto(
+        s.seriesId,
+        s.creator.account.accountId,
+        s.creator.creatorId,
+        s.creator.account.fullName,
+        s.creator.account.avatarUrl,
+        s.creator.account.totalFollowersBy,
+        s.title,
+        s.description,
+        s.coverUrl,
+        s.bannerUrl,
+        s.contentType,
+        s.ageRating,
+        s.language,
+        s.analyticData.views,
+        s.createdAt,
+        s.updatedAt,
+        s.averageRating,
+        s.releasedUpdateTime
+    )
+    FROM Series s
+    WHERE s.seriesId IN :seriesIds
+    AND s.isDeleted = false
+    AND s.status = :status
+    """)
+    List<SeriesCardResponseDto> findSeriesCardsByIds(
+            @Param("seriesIds") Collection<String> seriesIds,
+            @Param("status") SeriesStatus status
     );
 }

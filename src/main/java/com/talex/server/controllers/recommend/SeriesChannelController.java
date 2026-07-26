@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -217,7 +218,7 @@ public class SeriesChannelController {
             @RequestParam(defaultValue = "3") int limit
     ) {
         if (accountId == null) return ResponseEntity.noContent().build();
-        List<String> seriesIds = seriesChannelService.getSubscribedCreatorsSeriesIds(accountId.toString(), limit);
+        List<String> seriesIds = seriesChannelService.getSubscribedCreatorsSeriesIds(accountId.toString(), Collections.emptySet(), limit);
         return ResponseEntity.ok(seriesIds);
     }
 
@@ -229,7 +230,7 @@ public class SeriesChannelController {
     )
     public ResponseEntity<List<String>> refreshSubscribedCreatorsPool(
             @CurrentAccountId UUID accountId,
-            @RequestBody(required = false) List<String> blacklistSeriesIds,
+            @RequestBody(required = false) Set<String> blacklistSeriesIds,
             @RequestParam(defaultValue = "3") int limitPerCreator,
             @RequestParam(defaultValue = "20") int totalLimit
     ) {

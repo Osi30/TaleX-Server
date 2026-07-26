@@ -1,6 +1,8 @@
 package com.talex.server.controllers.recommend;
 
 import com.talex.server.annotations.CurrentAccountId;
+import com.talex.server.dtos.BaseResponse;
+import com.talex.server.dtos.recommend.HomePoolsSeriesResponseDto;
 import com.talex.server.dtos.recommend.RankResultItem;
 import com.talex.server.services.recommend.RecommendationService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -23,6 +25,28 @@ import java.util.UUID;
 )
 public class RecommendationController {
     private final RecommendationService recommendationService;
+
+    @GetMapping("/home-feed")
+    @Operation(
+            summary = "Lấy danh sách Series đề xuất cho trang chủ từ 8 Kênh",
+            description = "Truy vấn danh sách Series IDs từ 8 kênh (Promoted, Trending, New Releases, Recently Updated, " +
+                    "Latest Community Choice, Community Choice, Random Category, và Account Subscription). " +
+                    "Kết quả trả về được phân loại rõ ràng theo từng Pool và có sẵn danh sách phẳng được xếp theo đúng thứ tự."
+    )
+    public ResponseEntity<BaseResponse> getHomeFeedSeries(
+            @CurrentAccountId UUID accountId,
+            @RequestParam(defaultValue = "5") int limitPerPool
+    ) {
+        HomePoolsSeriesResponseDto result = recommendationService.getHomeFeedSeries(
+                accountId == null ? null : accountId.toString(),
+                limitPerPool
+        );
+        return ResponseEntity.ok(BaseResponse.builder()
+                .code(200)
+                .message("Lấy thành công!")
+                .data(result)
+                .build());
+    }
 
     @GetMapping("/recent-series")
     @Operation(

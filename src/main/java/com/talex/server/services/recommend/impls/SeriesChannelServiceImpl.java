@@ -437,7 +437,7 @@ public class SeriesChannelServiceImpl implements SeriesChannelService {
     // =========================================================================
 
     @Override
-    public List<String> getSubscribedCreatorsSeriesIds(String accountId, int limit) {
+    public List<String> getSubscribedCreatorsSeriesIds(String accountId, Set<String> blacklistIds, int limit) {
         if (accountId == null || accountId.trim().isEmpty() || limit <= 0) {
             return Collections.emptyList();
         }
@@ -447,7 +447,7 @@ public class SeriesChannelServiceImpl implements SeriesChannelService {
 
         // Fallback: Nếu Pool cá nhân bị trống, kích hoạt làm mới tự động với mặc định 3 series / creator
         if (poolSize == null || poolSize == 0) {
-            List<String> refreshed = refreshSubscribedCreatorsPool(accountId, Collections.emptyList(), 3, 20);
+            List<String> refreshed = refreshSubscribedCreatorsPool(accountId, blacklistIds, 3, 20);
             if (refreshed.isEmpty()) return Collections.emptyList();
             poolSize = (long) refreshed.size();
         }
@@ -460,7 +460,7 @@ public class SeriesChannelServiceImpl implements SeriesChannelService {
     }
 
     @Override
-    public List<String> refreshSubscribedCreatorsPool(String accountId, List<String> blacklistIds, int limitPerCreator, int totalLimit) {
+    public List<String> refreshSubscribedCreatorsPool(String accountId, Set<String> blacklistIds, int limitPerCreator, int totalLimit) {
         if (accountId == null || accountId.trim().isEmpty()) {
             return Collections.emptyList();
         }
@@ -502,6 +502,18 @@ public class SeriesChannelServiceImpl implements SeriesChannelService {
         }
 
         return mergedList;
+    }
+
+    @Override
+    public List<String> getAllSubscribedCreatorsSeriesIds(String accountId) {
+        if (accountId == null || accountId.trim().isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        String redisKey = REDIS_KEY_SUBSCRIBED_CREATORS_POOL_PREFIX + accountId;
+        List<String> allIds = redisTemplate.opsForList().range(redisKey, 0, -1);
+
+        return (allIds != null) ? allIds : Collections.emptyList();
     }
 
     // =========================================================================

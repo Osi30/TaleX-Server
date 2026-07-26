@@ -20,5 +20,4 @@ public class HomePoolsSeriesResponseDto {
     private List<SeriesCardResponseDto> communityChoice;
     private List<SeriesCardResponseDto> randomCategory;
     private List<SeriesCardResponseDto> accountSubscription;
-    private List<SeriesCardResponseDto> flatOrderedSeries;
 }
