@@ -101,6 +101,16 @@ public class Media extends BaseAudit {
     @Column(name = "hls_url", columnDefinition = "TEXT")
     private String hlsUrl;
 
+    // Set DUY NHẤT bởi SqsMediaEventPoller.markHlsReady() khi MediaConvert transcode xong
+    // thật — tách riêng khỏi "status", vì status của VIDEO trước đây phải gánh 2 việc
+    // (hiển thị công khai hay không + transcode xong chưa), khiến luồng kiểm duyệt
+    // (ContentPipelineServiceImpl) ghi đè mất tín hiệu "đã xong transcode" khi chuyển
+    // status sang INACTIVE để chờ Staff duyệt. Trường này không bao giờ bị luồng kiểm
+    // duyệt/Staff đụng vào, nên luôn phản ánh đúng "transcode xong hay chưa" bất kể
+    // status đang là gì.
+    @Column(name = "hls_ready_at")
+    private LocalDateTime hlsReadyAt;
+
     @Column(name = "signed_playback_url", columnDefinition = "TEXT")
     private String signedPlaybackUrl;
 

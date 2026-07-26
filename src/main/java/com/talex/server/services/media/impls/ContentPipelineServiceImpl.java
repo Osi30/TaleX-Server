@@ -89,7 +89,15 @@ public class ContentPipelineServiceImpl implements ContentPipelineService {
     public void handleCopyrightResult(CopyrightResultMessage result) {
         Optional<Media> mediaOpt = mediaRepository.findByMediaIdAndIsDeletedFalse(result.getMediaId());
         if (mediaOpt.isEmpty()) {
-            log.warn("Copyright result received for unknown mediaId={}", result.getMediaId());
+            // Media đã bị xóa TRONG LÚC job bản quyền đang xử lý — 2 topic Kafka
+            // (content-pipeline-job và content-media-delete) không đảm bảo thứ tự với
+            // nhau, nên lệnh xóa fingerprint (gửi lúc delete()) có thể đã chạy TRƯỚC khi
+            // AI kịp insert fingerprint mới cho media này, để lại fingerprint mồ côi
+            // vĩnh viễn trong Milvus. Nhận được kết quả bản quyền ở đây nghĩa là AI VỪA
+            // insert xong — gửi lại lệnh xóa lần nữa để đảm bảo chạy SAU insert, dọn
+            // sạch fingerprint mồ côi.
+            log.warn("Copyright result received for deleted mediaId={} — re-sending cleanup", result.getMediaId());
+            notifyMediaDeleted(result.getMediaId());
             return;
         }
         Media media = mediaOpt.get();
@@ -153,10 +161,13 @@ public class ContentPipelineServiceImpl implements ContentPipelineService {
             log.info("All violations are CC0 — auto-approved, proceeding to moderation: mediaId={}", result.getMediaId());
         }
 
-        // No blocking violation — trigger moderation
-        dispatchModerationJob(media, result.getCorrelationId());
+        // No blocking violation — lưu DB TRƯỚC rồi mới gửi Kafka (khớp với
+        // dispatchPipelineJob()) — nếu gửi Kafka trước rồi save() mới lỗi, job kiểm duyệt
+        // đã đi Kafka không thể thu hồi, nhưng contentId/status vừa set lại bị rollback,
+        // gây lệch dữ liệu (AI xử lý xong nhưng BE không có contentId tương ứng).
         media.markUpdatedBy(PIPELINE_ACTOR);
         mediaRepository.save(media);
+        dispatchModerationJob(media, result.getCorrelationId());
     }
 
     @Override
@@ -241,6 +252,44 @@ public class ContentPipelineServiceImpl implements ContentPipelineService {
                 .mediaId(media.getMediaId()).status("MODERATION_COMPLETE")
                 .isSafe(result.getIsSafe()).primaryLabel(result.getPrimaryLabel())
                 .approvalStatus(media.getApprovalStatus().name()).build());
+    }
+
+    @Override
+    @Transactional
+    public void markProcessingFailed(String mediaId, String failedStep, String errorMessage) {
+        try {
+            Optional<Media> mediaOpt = mediaRepository.findByMediaIdAndIsDeletedFalse(mediaId);
+            if (mediaOpt.isEmpty()) {
+                log.warn("markProcessingFailed: mediaId={} not found (deleted?), skipping", mediaId);
+                return;
+            }
+            Media media = mediaOpt.get();
+            // Xác nhận lại NGAY TRƯỚC KHI ghi — ContentPipelineReconciler tìm ra media
+            // "kẹt" qua query rồi mới xử lý tuần tự (có độ trễ), nếu đúng lúc đó kết quả
+            // thật đã về (job không hề mất, chỉ đang chậm do dồn tải) và media đã chuyển
+            // ACTIVE/INACTIVE, KHÔNG được ghi đè thành FAILED — sẽ làm trạng thái nhảy
+            // lung tung dù pipeline đã xong đúng cách.
+            boolean stillInFlight = media.getStatus() == MediaStatus.PENDING
+                    || media.getStatus() == MediaStatus.HLS_PROCESSING
+                    || media.getStatus() == MediaStatus.HLS_READY;
+            if (!stillInFlight || media.getApprovalStatus() != ContentApprovalStatus.PENDING_REVIEW) {
+                log.info("markProcessingFailed: mediaId={} already resolved (status={}, approvalStatus={}), skipping",
+                        mediaId, media.getStatus(), media.getApprovalStatus());
+                return;
+            }
+            media.setStatus(MediaStatus.FAILED);
+            media.setErrorMessage(errorMessage);
+            media.markUpdatedBy(PIPELINE_ACTOR);
+            mediaRepository.save(media);
+            pushSseEvent(media, "pipeline:failed", PipelineEventPayload.builder()
+                    .mediaId(media.getMediaId()).status("FAILED")
+                    .errorMessage(errorMessage).failedStep(failedStep).build());
+            log.error("Marked media FAILED after unexpected processing error: mediaId={} step={}", mediaId, failedStep);
+        } catch (Exception e) {
+            // Best-effort — nếu ngay cả việc đánh dấu FAILED cũng lỗi (DB thật sự down),
+            // không còn gì để làm ngoài log rõ ràng cho vận hành viên tra cứu thủ công.
+            log.error("Failed to mark media as FAILED after processing error: mediaId={}", mediaId, e);
+        }
     }
 
     @Override
@@ -362,15 +411,19 @@ public class ContentPipelineServiceImpl implements ContentPipelineService {
             int slashIdx = url.indexOf('/', s3Idx + s3Pattern.length());
             return slashIdx >= 0 ? url.substring(slashIdx + 1) : "";
         }
-        // CloudFront URL: https://domain/key/path — strip protocol+host
-        try {
-            java.net.URI uri = new java.net.URI(url);
-            String path = uri.getPath();
-            return path.startsWith("/") ? path.substring(1) : path;
-        } catch (Exception e) {
-            log.warn("Could not parse S3 key from URL: {}", url);
-            return url;
+        // CloudFront URL: https://domain/key/path — strip protocol+host bằng string
+        // parsing thuần thay vì java.net.URI (strict parsing dễ ném URISyntaxException
+        // nếu URL chứa ký tự chưa encode đúng chuẩn — trước đây catch() sẽ trả về
+        // NGUYÊN VĂN URL đầy đủ làm S3 key, chắc chắn tải S3 thất bại).
+        int schemeEnd = url.indexOf("://");
+        if (schemeEnd >= 0) {
+            int pathStart = url.indexOf('/', schemeEnd + 3);
+            if (pathStart >= 0) {
+                return url.substring(pathStart + 1);
+            }
         }
+        log.warn("Could not parse S3 key from URL: {}", url);
+        return url;
     }
 
     private ViolationType parseViolationType(String raw) {

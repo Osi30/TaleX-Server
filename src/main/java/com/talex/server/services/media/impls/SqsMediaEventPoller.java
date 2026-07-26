@@ -221,9 +221,13 @@ public class SqsMediaEventPoller {
                         LocalDateTime.now().plusHours(1),
                         Pageable.unpaged());
 
+        // Chỉ khớp đúng jobId — trước đây có nhánh dự phòng "nếu chỉ có đúng 1 video khác
+        // đang HLS_PROCESSING thì coi như chính nó", có thể gán nhầm lỗi cho video hoàn
+        // toàn không liên quan nếu 2 Creator cùng upload gần như đồng thời. Không khớp
+        // được thì bỏ qua — reconcileStaleHlsJobs() (poll trực tiếp MediaConvert theo
+        // đúng jobId lưu ở providerAssetId, mỗi 60s) sẽ tự bắt lại sau khi stale >2 phút.
         for (Media media : processingMedia) {
-            boolean matchByJobId = jobId.equals(media.getProviderAssetId());
-            if (matchByJobId || processingMedia.size() == 1) {
+            if (jobId.equals(media.getProviderAssetId())) {
                 media.setStatus(MediaStatus.FAILED);
                 media.setErrorMessage("MediaConvert job " + status + ": " + jobId);
                 media.markUpdatedBy(RECONCILE_ACTOR);
@@ -233,6 +237,7 @@ public class SqsMediaEventPoller {
                 return;
             }
         }
+        log.info("No matching media found for failed MediaConvert job. jobId={}", jobId);
     }
 
     private String extractHlsUrl(JsonNode root) {
@@ -268,6 +273,10 @@ public class SqsMediaEventPoller {
         media.setHlsUrl(url);
         media.setPlaybackUrl(url);
         media.setErrorMessage(null);
+        // Tín hiệu "transcode xong thật" tách riêng khỏi status — status có thể bị luồng
+        // kiểm duyệt ghi đè thành INACTIVE sau đó (chờ Staff), nhưng field này thì không,
+        // nên MediaServiceImpl.approve() luôn biết chính xác video đã sẵn sàng phát chưa.
+        media.setHlsReadyAt(LocalDateTime.now());
 
         // Content ID + kiểm duyệt giờ chạy SONG SONG với transcode (dispatch sớm ở
         // DefaultMediaUploadSessionService.complete()), có thể đã xong TRƯỚC transcode —

@@ -5,7 +5,6 @@ import com.talex.server.dtos.requests.media.MediaComicPagesRequestDto;
 import com.talex.server.dtos.requests.media.MediaMetadataRequestDto;
 import com.talex.server.dtos.requests.media.MediaRejectRequestDto;
 import com.talex.server.dtos.requests.media.MediaReorderRequestDto;
-import com.talex.server.dtos.requests.media.MediaStatusRequestDto;
 import com.talex.server.dtos.requests.media.MediaUpdateRequestDto;
 import com.talex.server.dtos.responses.media.ContentCensorshipResponseDto;
 import com.talex.server.dtos.responses.media.MediaCopyrightResponseDto;
@@ -449,11 +448,22 @@ public class MediaServiceImpl implements MediaService {
         // Trước đây chỉ đổi approvalStatus — nếu media đang INACTIVE (bị pipeline flag
         // chờ Staff duyệt, xem ContentPipelineServiceImpl), Staff duyệt xong media vẫn
         // kẹt INACTIVE vĩnh viễn, không ai xem lại được (kể cả Creator/viewer công khai).
-        // Chuyển thẳng ACTIVE — media tới được hàng đợi Staff nghĩa là Content ID/kiểm
-        // duyệt đã chạy xong từ lâu (không còn race với transcode như lúc pipeline tự
-        // động xử lý), không cần qua HLS_READY trung gian.
         if (media.getStatus() == MediaStatus.INACTIVE) {
-            media.setStatus(MediaStatus.ACTIVE);
+            // VIDEO: status bị ContentPipelineServiceImpl ghi đè thành INACTIVE KHÔNG
+            // ĐIỀU KIỆN khi bị flag chờ Staff — kể cả khi transcode HLS còn đang chạy dở
+            // (kiểm duyệt và transcode chạy song song, kiểm duyệt thường xong trước).
+            // Dùng hlsReadyAt (field riêng, chỉ SqsMediaEventPoller.markHlsReady() ghi,
+            // không bao giờ bị luồng kiểm duyệt đụng vào) để biết CHẮC CHẮN transcode đã
+            // xong chưa — không suy đoán qua status như trước (dễ sai cả 2 chiều: chuyển
+            // ACTIVE sớm khi video thật ra chưa phát được, hoặc kẹt mãi nếu suy đoán
+            // ngược lại). Ảnh không có bước transcode nên luôn coi như sẵn sàng.
+            boolean hlsAlreadyReady = media.getMediaType() != MediaType.VIDEO || media.getHlsReadyAt() != null;
+            if (hlsAlreadyReady) {
+                media.setStatus(MediaStatus.ACTIVE);
+            }
+            // Video chưa xong transcode: giữ nguyên INACTIVE — approvalStatus đã APPROVED
+            // ở trên, SqsMediaEventPoller.markHlsReady() sẽ tự chuyển ACTIVE khi transcode
+            // xong thật (đã có check approvalStatus==APPROVED từ trước).
         }
         media.markUpdatedBy(actorId);
         return toResponse(mediaRepository.save(media));
@@ -512,22 +522,6 @@ public class MediaServiceImpl implements MediaService {
         contentCensorshipRepository.save(censorship);
 
         return toResponse(media);
-    }
-
-    @Transactional
-    @Override
-    public MediaResponseDto updateProcessingStatus(String id, MediaStatusRequestDto request, String accountId) {
-        Media media = findManageableEntity(id, accountId);
-        if (request.getStatus() == MediaStatus.DELETED) {
-            media.setStatus(MediaStatus.DELETED);
-            media.softDelete(accountId);
-            playbackSecurityService.revokeActiveSessions(media);
-            contentPipelineService.notifyMediaDeleted(media.getMediaId());
-        } else {
-            media.setStatus(request.getStatus());
-            media.markUpdatedBy(accountId);
-        }
-        return toResponse(mediaRepository.save(media));
     }
 
     @Transactional

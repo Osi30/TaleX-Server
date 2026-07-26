@@ -4,7 +4,6 @@ import com.talex.server.dtos.requests.media.MediaComicPagesRequestDto;
 import com.talex.server.dtos.requests.media.MediaMetadataRequestDto;
 import com.talex.server.dtos.requests.media.MediaRejectRequestDto;
 import com.talex.server.dtos.requests.media.MediaReorderRequestDto;
-import com.talex.server.dtos.requests.media.MediaStatusRequestDto;
 import com.talex.server.dtos.requests.media.MediaUpdateRequestDto;
 import com.talex.server.dtos.responses.media.CreatorViolationsSummaryDto;
 import com.talex.server.dtos.responses.media.MediaResponseDto;
@@ -48,8 +47,6 @@ public interface MediaService {
     CreatorViolationsSummaryDto getCreatorViolationsSummary(String creatorId);
 
     MediaResponseDto rejectWithReason(String id, String actorId, MediaRejectRequestDto request);
-
-    MediaResponseDto updateProcessingStatus(String id, MediaStatusRequestDto request, String accountId);
 
     /** Thử lại pipeline (Content ID + kiểm duyệt, resubmit transcode nếu VIDEO) cho media đang FAILED. */
     MediaResponseDto retryPipeline(String id, String actorId);

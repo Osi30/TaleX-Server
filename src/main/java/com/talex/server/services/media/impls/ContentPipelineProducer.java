@@ -43,8 +43,18 @@ public class ContentPipelineProducer {
     private void sendMessage(String topic, String key, Object message) {
         try {
             String json = objectMapper.writeValueAsString(message);
-            kafkaTemplate.send(topic, key, json);
-            log.info("Kafka message sent: topic={}, key={}", topic, key);
+            // kafkaTemplate.send() trả về CompletableFuture — trước đây bị bỏ qua, log
+            // "sent" ngay sau khi GỌI hàm gửi chứ không phải sau khi broker THẬT SỰ nhận.
+            // Nếu gửi thất bại không đồng bộ (mất kết nối Aiven tạm thời...), không có gì
+            // phát hiện được — job coi như đã dispatch nhưng không bao giờ tới AI, media
+            // kẹt PENDING vĩnh viễn. Gắn callback để log rõ ràng khi gửi thật sự thất bại.
+            kafkaTemplate.send(topic, key, json).whenComplete((result, ex) -> {
+                if (ex != null) {
+                    log.error("Kafka send FAILED: topic={}, key={}", topic, key, ex);
+                } else {
+                    log.info("Kafka message sent: topic={}, key={}", topic, key);
+                }
+            });
         } catch (JsonProcessingException e) {
             log.error("Failed to serialize Kafka message: topic={}, key={}", topic, key, e);
             throw new ContentPipelineException(

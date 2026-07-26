@@ -122,4 +122,16 @@ public interface MediaRepository extends JpaRepository<Media, String> {
     // Paginated query for staff moderation — lists media awaiting review
     Page<Media> findByApprovalStatusAndStatusAndIsDeletedFalse(
             ContentApprovalStatus approvalStatus, MediaStatus status, Pageable pageable);
+
+    // Reconcile fallback cho content pipeline (copyright/kiểm duyệt) bị "mất tích" do gửi
+    // Kafka thất bại không đồng bộ — status còn PENDING/HLS_PROCESSING/HLS_READY (chưa
+    // terminal) VÀ approvalStatus vẫn PENDING_REVIEW mặc định (chưa có kết luận nào) sau
+    // một khoảng lâu bất thường. Không khớp media đã bị flag thật (status=INACTIVE, loại
+    // trừ khỏi statuses) hay video đang transcode hợp lệ nhưng đã qua kiểm duyệt xong
+    // (approvalStatus đã APPROVED — loại trừ vì filter cứng PENDING_REVIEW).
+    List<Media> findAllByStatusInAndApprovalStatusAndUpdatedAtBeforeAndIsDeletedFalseOrderByUpdatedAtAsc(
+            Collection<MediaStatus> statuses,
+            ContentApprovalStatus approvalStatus,
+            LocalDateTime updatedAt,
+            Pageable pageable);
 }

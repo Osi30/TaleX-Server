@@ -21,4 +21,12 @@ public interface ContentPipelineService {
 
     /** Best-effort notify để AI service dọn fingerprint Milvus tương ứng khi media bị xóa. */
     void notifyMediaDeleted(String mediaId);
+
+    /**
+     * Đánh dấu FAILED khi BE xử lý kết quả (đã hợp lệ từ AI) bị lỗi ngoài dự kiến (DB tạm
+     * gián đoạn, bug...) — không có bước này, exception bị nuốt trong
+     * ContentPipelineWorker khiến message coi như "đã xử lý" (offset vẫn commit), media
+     * kẹt vĩnh viễn ở trạng thái trung gian, không redeliver, không có nút "Thử lại".
+     */
+    void markProcessingFailed(String mediaId, String failedStep, String errorMessage);
 }
