@@ -1,5 +1,6 @@
 package com.talex.server.repositories.series;
 
+import com.talex.server.dtos.recommend.SeriesCardResponseDto;
 import com.talex.server.entities.series.Series;
 import com.talex.server.enums.ImpressionStatus;
 import com.talex.server.enums.series.SeriesStatus;
@@ -248,5 +249,27 @@ public interface SeriesRepository extends JpaRepository<Series, String> {
 """)
     List<Double> findAllEvaluatedWilsonScores(
             @Param("statuses") List<ImpressionStatus> statuses
+    );
+
+    @Query("""
+    SELECT s.seriesId
+    FROM Series s
+    WHERE s.isDeleted = false
+      AND s.status = :status
+      AND s.trendingAnalyticData.impressionStatus = :impressionStatus
+      AND s.trendingAnalyticData.rankingScore > 0
+      AND (:isBlacklistEmpty = true OR s.seriesId NOT IN :blacklist)
+    ORDER BY s.trendingAnalyticData.rankingScore DESC
+""")
+    List<String> findCandidateTrendingSeriesIds(
+            @Param("status") SeriesStatus status,
+            @Param("impressionStatus") ImpressionStatus impressionStatus,
+            @Param("blacklist") Collection<String> blacklist,
+            @Param("isBlacklistEmpty") boolean isBlacklistEmpty,
+            Pageable pageable
+    );
+
+    List<Series> findSeriesBySeriesIdInAndIsDeletedFalseAndStatus(
+            Collection<String> seriesIds, SeriesStatus status
     );
 }

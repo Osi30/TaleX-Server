@@ -240,6 +240,36 @@ public class SeriesChannelController {
         return ResponseEntity.ok(refreshedPool);
     }
 
+    // --- Kênh: Trending ---
+
+    @PostMapping("/trending")
+    @Operation(
+            summary = "Kênh Trending: Lấy danh sách Series IDs",
+            description = "Truy vấn danh sách Candidate Series IDs từ Redis Pool kênh Trending dựa theo con trỏ Offset của Account."
+    )
+    public ResponseEntity<List<String>> getTrendingSeriesIds(
+            @CurrentAccountId UUID accountId,
+            @RequestParam(defaultValue = "3") int limit
+    ) {
+        if (accountId == null) return ResponseEntity.noContent().build();
+        List<String> seriesIds = seriesChannelService.getTrendingSeriesIds(accountId.toString(), limit);
+        return ResponseEntity.ok(seriesIds);
+    }
+
+    @PostMapping("/trending/refresh")
+    @Operation(
+            summary = "Làm mới (Refresh) Redis Pool cho Kênh Trending",
+            description = "Quét PostgreSQL lấy các Series công khai có impressionStatus là SUCCESS và rankingScore > 0, " +
+                    "sắp xếp giảm dần theo rankingScore. Truyền blacklistSeriesIds để loại trừ trùng lặp."
+    )
+    public ResponseEntity<List<String>> refreshTrendingPool(
+            @RequestBody(required = false) List<String> blacklistSeriesIds,
+            @RequestParam(defaultValue = "3") int limit
+    ) {
+        List<String> refreshedPool = seriesChannelService.refreshTrendingPool(blacklistSeriesIds, limit);
+        return ResponseEntity.ok(refreshedPool);
+    }
+
     // --- Global IDs ---
 
     @GetMapping("/global-ids")

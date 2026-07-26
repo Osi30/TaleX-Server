@@ -62,6 +62,10 @@ public class SeriesChannelServiceImpl implements SeriesChannelService {
     private static final String REDIS_KEY_SUBSCRIBED_CREATORS_POOL_PREFIX = "pool:subscribed_creators:";
     private static final String REDIS_KEY_SUBSCRIBED_CREATORS_OFFSET_PREFIX = "offset:subscribed_creators:";
 
+    // Redis Keys - Trending Channel
+    private static final String REDIS_KEY_TRENDING_POOL = "pool:trending";
+    private static final String REDIS_KEY_TRENDING_OFFSET_PREFIX = "offset:trending:";
+
     // Global IDs Key
     private static final String REDIS_KEY_GLOBAL_IDS = "recommendation:global_ids";
     private static final Duration POOL_TTL = Duration.ofDays(1);
@@ -495,6 +499,68 @@ public class SeriesChannelServiceImpl implements SeriesChannelService {
         if (!mergedList.isEmpty()) {
             redisTemplate.opsForList().rightPushAll(poolKey, mergedList);
             redisTemplate.expire(poolKey, Duration.ofHours(1)); // Đặt TTL 1 hour
+        }
+
+        return mergedList;
+    }
+
+    // =========================================================================
+    // TRENDING CHANNEL (KÊNH XU HƯỚNG)
+    // =========================================================================
+
+    @Override
+    public List<String> getTrendingSeriesIds(String accountId, int limit) {
+        if (limit <= 0) return Collections.emptyList();
+
+        Long poolSize = redisTemplate.opsForList().size(REDIS_KEY_TRENDING_POOL);
+
+        // Fallback: Nếu Pool trống, tự động kích hoạt refresh không dùng blacklist
+        if (poolSize == null || poolSize == 0) {
+            log.warn("[TrendingChannel] Redis pool '{}' bị trống! Đang kích hoạt Fallback...", REDIS_KEY_TRENDING_POOL);
+            List<String> refreshed = refreshTrendingPool(Collections.emptyList(), limit);
+            if (refreshed.isEmpty()) return Collections.emptyList();
+            poolSize = (long) refreshed.size();
+        }
+
+        return getIdsWithOffset(
+                accountId, limit, poolSize,
+                REDIS_KEY_TRENDING_POOL,
+                REDIS_KEY_TRENDING_OFFSET_PREFIX
+        );
+    }
+
+    @Override
+    public List<String> refreshTrendingPool(List<String> blacklistIds, int limit) {
+        Pageable pageable = PageRequest.of(0, limit);
+
+        // 1. Lấy danh sách IDs cũ từ Pool hiện tại
+        List<String> oldIds = redisTemplate.opsForList().range(REDIS_KEY_TRENDING_POOL, 0, -1);
+        if (oldIds == null) oldIds = Collections.emptyList();
+
+        // 2. Gom Blacklist
+        Set<String> combinedBlacklist = new HashSet<>();
+        if (blacklistIds != null) combinedBlacklist.addAll(blacklistIds);
+        combinedBlacklist.addAll(oldIds);
+
+        boolean isBlacklistEmpty = combinedBlacklist.isEmpty();
+
+        // 3. Query PostgreSQL lấy các Series có impressionStatus = SUCCESS và rankingScore > 0 xếp DESC
+        List<String> newFetchedIds = seriesRepository.findCandidateTrendingSeriesIds(
+                SeriesStatus.PUBLISHED,
+                ImpressionStatus.SUCCESS,
+                combinedBlacklist,
+                isBlacklistEmpty,
+                pageable
+        );
+
+        // 4. Áp dụng logic ghép: giữ vị trí cũ + chèn danh sách mới
+        List<String> mergedList = mergeOldAndNewIds(oldIds, newFetchedIds, limit);
+
+        // 5. Cập nhật Redis Pool
+        redisTemplate.delete(REDIS_KEY_TRENDING_POOL);
+        if (!mergedList.isEmpty()) {
+            redisTemplate.opsForList().rightPushAll(REDIS_KEY_TRENDING_POOL, mergedList);
+            redisTemplate.expire(REDIS_KEY_TRENDING_POOL, POOL_TTL);
         }
 
         return mergedList;

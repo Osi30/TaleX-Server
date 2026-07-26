@@ -33,6 +33,10 @@ public interface SeriesChannelService {
     List<String> getSubscribedCreatorsSeriesIds(String accountId, int limit);
     List<String> refreshSubscribedCreatorsPool(String accountId, List<String> blacklistIds, int limitPerCreator, int totalLimit);
 
+    // --- Trending Channel ---
+    List<String> getTrendingSeriesIds(String accountId, int limit);
+    List<String> refreshTrendingPool(List<String> blacklistIds, int limit);
+
     // --- Global IDs ---
     void updateGlobalIds(Set<String> allGlobalIds);
     Set<String> getAllGlobalIds();

@@ -1,4 +1,4 @@
-package com.talex.server.controllers;
+package com.talex.server.controllers.recommend;
 
 import com.talex.server.dtos.BaseResponse;
 import com.talex.server.dtos.recommend.TrendingSampleConfigReq;
