@@ -13,7 +13,6 @@ public interface RecommendationService {
             String accountId,
             String sessionId,
             String pageType, // "HOME" hoặc "DETAIL"
-            int offset,
             int limit
     );
 

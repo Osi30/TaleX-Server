@@ -85,7 +85,7 @@ public class MongoFeatureSyncScheduler {
         }
     }
 
-        @Scheduled(cron = "0 0 0 * * ?")
+    @Scheduled(cron = "0 0 0 * * ?")
     @Transactional
     public void processExpiredFeaturesCleanUp() {
         LocalDateTime now = LocalDateTime.now();

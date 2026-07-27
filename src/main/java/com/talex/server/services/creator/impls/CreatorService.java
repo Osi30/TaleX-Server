@@ -8,7 +8,6 @@ import com.talex.server.dtos.responses.creator.CreatorResponseDto;
 import com.talex.server.dtos.responses.creator.TermsVersionResponseDto;
 import com.talex.server.entities.auth.Account;
 import com.talex.server.entities.creator.Creator;
-import com.talex.server.entities.creator.CreatorTier;
 import com.talex.server.enums.AccountStatus;
 import com.talex.server.enums.TermsType;
 import com.talex.server.exceptions.codes.creator.CreatorErrorCode;
@@ -19,8 +18,6 @@ import com.talex.server.repositories.auth.AccountRepository;
 import com.talex.server.repositories.creator.CreatorRepository;
 import com.talex.server.services.creator.ICreatorIdentityService;
 import com.talex.server.services.creator.ICreatorService;
-import com.talex.server.services.creator.ICreatorTierService;
-import com.talex.server.services.ekyc.IKycSessionService;
 import com.talex.server.services.terms.ITermsLogService;
 import com.talex.server.services.terms.ITermsVersionService;
 import com.talex.server.specifications.CreatorSpec;
@@ -44,9 +41,8 @@ import java.util.UUID;
 public class CreatorService implements ICreatorService {
     private final ITermsVersionService termsVersionService;
     private final ITermsLogService creatorTermsLogService;
-    private final ICreatorTierService creatorTierService;
     private final ICreatorIdentityService creatorIdentityService;
-    private final IKycSessionService kycSessionService;
+//    private final IKycSessionService kycSessionService;
     private final CreatorRepository creatorRepository;
     private final AccountRepository accountRepository;
     private final ICreatorMapper creatorMapper;
@@ -61,9 +57,7 @@ public class CreatorService implements ICreatorService {
                         dto.getAccountId(), AccountStatus.ACTIVE)
                 .orElseThrow(() -> new CreatorException(CreatorErrorCode.CREATOR_NOT_FOUND, "No active account found with id: " + dto.getAccountId()));
 
-        CreatorTier tier = creatorTierService.getDefaultTier();
         Creator creator = creatorRepository.save(Creator.builder()
-                .creatorTier(tier)
                 .account(account)
                 .build());
 

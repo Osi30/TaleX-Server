@@ -12,6 +12,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -24,7 +25,7 @@ public class CreatorTierController {
     private final ICreatorTierService creatorTierService;
 
     @PostMapping
-//    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Tạo cấp độ creator mới", description = "Tạo cấp độ creator mới")
     public ResponseEntity<BaseResponse> create(@Valid @RequestBody CreatorTierRequestDto dto) {
         CreatorTierResponseDto resp = creatorTierService.create(dto);
@@ -73,8 +74,21 @@ public class CreatorTierController {
                 .build());
     }
 
+    @GetMapping("/next")
+    @Operation(summary = "Tìm cấp độ tiếp theo của creator", description = "Tìm kiếm cấp độ tiếp theo của Creator.")
+    public ResponseEntity<BaseResponse> getNextTier(
+            @RequestParam(name = "currentTierLevel", defaultValue = "0") Integer currentTierLevel
+    ) {
+        CreatorTierResponseDto result = creatorTierService.getNextTier(currentTierLevel);
+        return ResponseEntity.ok(BaseResponse.builder()
+                .code(200)
+                .message("OK")
+                .data(result)
+                .build());
+    }
+
     @PutMapping("/{id}")
-//    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Cập nhật cấp độ creator", description = "Cập nhật thông tin cấp độ creator theo ID")
     public ResponseEntity<BaseResponse> update(
             @PathVariable String id,
@@ -89,7 +103,7 @@ public class CreatorTierController {
     }
 
     @DeleteMapping("/{id}")
-//    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Xóa cấp độ creator", description = "Xóa cấp độ creator theo ID (soft delete)")
     public ResponseEntity<BaseResponse> delete(@PathVariable String id) {
         creatorTierService.delete(id);

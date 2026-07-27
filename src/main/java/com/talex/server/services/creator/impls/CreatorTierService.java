@@ -15,6 +15,8 @@ import com.talex.server.specifications.CreatorTierSpec;
 import com.talex.server.utils.PageUtils;
 import com.talex.server.utils.ValidationUtils;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -34,6 +36,7 @@ public class CreatorTierService implements ICreatorTierService {
 
     @Override
     @Transactional
+    @CacheEvict(cacheNames = "creator_next_tier", allEntries = true, cacheManager = "redisCacheManager")
     public CreatorTierResponseDto create(CreatorTierRequestDto dto) {
         if (Boolean.TRUE.equals(dto.getIsDefault())) {
             dto.setTierLevel(0);
@@ -62,15 +65,40 @@ public class CreatorTierService implements ICreatorTierService {
 
     @Override
     @Transactional(readOnly = true)
-    public CreatorTier getDefaultTier() {
-        return repository.findByIsDefaultTrueAndIsDeletedFalse().orElseThrow(
-                () -> new CreatorTierException(CreatorTierErrorCode.NOT_FOUND,
-                        "Không tìm thấy tier cấp độ 0")
-        );
+    public CreatorTierResponseDto getCurrentEligibleTier(Long followers, Long views, Double watchTime) {
+        Long safeFollowers = (followers != null) ? followers : 0L;
+        Long safeViews = (views != null) ? views : 0L;
+        Double safeWatchTime = (watchTime != null) ? watchTime : 0.0;
+
+        CreatorTier eligibleTier = repository.findCurrentEligibleTier(safeFollowers, safeViews, safeWatchTime)
+                .orElseGet(this::getDefaultTier);
+
+        return mapper.toResponseDto(eligibleTier);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    @Cacheable(
+            cacheNames = "creator_next_tier",
+            key = "#currentTierLevel",
+            cacheManager = "redisCacheManager",
+            unless = "#result == null"
+    )
+    public CreatorTierResponseDto getNextTier(Integer currentTierLevel) {
+        Integer safeLevel = (currentTierLevel != null) ? currentTierLevel : 0;
+
+        CreatorTier nextTier = repository.findFirstByTierLevelGreaterThanAndIsDeletedFalseOrderByTierLevelAsc(safeLevel)
+                .orElseThrow(() -> new CreatorTierException(
+                        CreatorTierErrorCode.NOT_FOUND,
+                        "Creator hiện tại đã đạt cấp độ (Tier Level) cao nhất"
+                ));
+
+        return mapper.toResponseDto(nextTier);
     }
 
     @Override
     @Transactional
+    @CacheEvict(cacheNames = "creator_next_tier", allEntries = true, cacheManager = "redisCacheManager")
     public CreatorTierResponseDto update(String id, CreatorTierRequestDto dto) {
         CreatorTier existing = findById(id);
 
@@ -97,6 +125,7 @@ public class CreatorTierService implements ICreatorTierService {
 
     @Override
     @Transactional
+    @CacheEvict(cacheNames = "creator_next_tier", allEntries = true, cacheManager = "redisCacheManager")
     public void delete(String id) {
         CreatorTier existing = findById(id);
         existing.setIsDeleted(true);
@@ -135,6 +164,13 @@ public class CreatorTierService implements ICreatorTierService {
         return repository.findByCreatorTierIdAndIsDeletedFalse(id)
                 .orElseThrow(() -> new CreatorTierException(CreatorTierErrorCode.NOT_FOUND,
                         "Không tìm thấy cấp độ creator với id: " + id));
+    }
+
+    private CreatorTier getDefaultTier() {
+        return repository.findByIsDefaultTrueAndIsDeletedFalse().orElseThrow(
+                () -> new CreatorTierException(CreatorTierErrorCode.NOT_FOUND,
+                        "Không tìm thấy tier cấp độ 0")
+        );
     }
 
     private void validateMonotonicConstraints(CreatorTier target) {

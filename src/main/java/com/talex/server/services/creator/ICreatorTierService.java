@@ -11,7 +11,9 @@ public interface ICreatorTierService {
 
     CreatorTierResponseDto getById(String id);
 
-    CreatorTier getDefaultTier();
+    CreatorTierResponseDto getCurrentEligibleTier(Long followers, Long views, Double watchTime);
+
+    CreatorTierResponseDto getNextTier(Integer currentTierLevel);
 
     CreatorTierResponseDto update(String id, CreatorTierRequestDto dto);
 

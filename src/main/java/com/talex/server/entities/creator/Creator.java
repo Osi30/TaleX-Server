@@ -60,10 +60,6 @@ public class Creator {
     @JoinColumn(name = "account_id", nullable = false, unique = true)
     private Account account;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "creator_tier_id", nullable = false)
-    private CreatorTier creatorTier;
-
     @OneToOne(mappedBy = "creator")
     private CreatorIdentity creatorIdentity;
 

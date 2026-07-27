@@ -67,6 +67,7 @@ public class RecommendationServiceImpl implements RecommendationService {
     private static final String REDIS_KEY_PREFIX = "watch:top5:recent_series:";
     private static final String RECOMMENDATION_PREFIX = "recommendation:series:";
     private static final String RECOMMENDATION_POOL_PREFIX = "recommendation:pool:";
+    private static final String RECOMMENDATION_OFFSET_PREFIX = "recommendation:offset:";
     private static final String SESSION_KEY_PREFIX = "recommendation:session:";
     private static final String BLOOM_WATCHED_PREFIX = "recommendation:bloom:watched:";
 
@@ -200,31 +201,46 @@ public class RecommendationServiceImpl implements RecommendationService {
             String accountId,
             String sessionId,
             String pageType,
-            int offset,
             int limit
     ) {
         String userIdStr = (accountId == null || accountId.trim().isEmpty()) ? "guest_user" : accountId.trim();
         String safeSessionId = (sessionId == null || sessionId.trim().isEmpty()) ? UUID.randomUUID().toString() : sessionId.trim();
-        int safeLimit = (limit <= 0) ? 12 : limit; // Mặc định limit = 12
+        String safePageType = (pageType == null || pageType.trim().isEmpty()) ? "HOME" : pageType.trim().toUpperCase();
+        int safeLimit = (limit <= 0) ? 12 : limit;
 
-        String redisPoolKey = RECOMMENDATION_POOL_PREFIX + userIdStr + ":" + safeSessionId;
+        // Key định danh Pool và Offset theo accountId + sessionId + pageType
+        String redisPoolKey = RECOMMENDATION_POOL_PREFIX + userIdStr + ":" + safeSessionId + ":" + safePageType;
+        String redisOffsetKey = RECOMMENDATION_OFFSET_PREFIX + userIdStr + ":" + safeSessionId + ":" + safePageType;
 
-        // 1. Kiểm tra xem Pool đã tồn tại trong Redis chưa
-        Boolean hasKey = redisTemplate.hasKey(redisPoolKey);
+        // 1. Kiểm tra nếu Pool chưa tồn tại trong Redis -> Khởi tạo Pool & Reset Offset
+        Boolean hasPool = redisTemplate.hasKey(redisPoolKey);
 
-        if (Boolean.FALSE.equals(hasKey)) {
-            // Lần đầu tiên gọi API cho Session -> Khởi tạo Pool
-            initializeRecommendationPool(userIdStr, safeSessionId, pageType, redisPoolKey);
+        if (Boolean.FALSE.equals(hasPool)) {
+            initializeRecommendationPool(userIdStr, safeSessionId, safePageType, redisPoolKey);
+            // Đặt offset ban đầu là 0
+            redisTemplate.opsForValue().set(redisOffsetKey, "0", RECOMMENDATION_POOL_TTL);
         }
 
-        // 2. Đọc phân trang từ Redis Pool (Lấy từ index: offset -> offset + limit - 1)
-        List<String> pagedSeriesIds = redisTemplate.opsForList().range(redisPoolKey, offset, offset + safeLimit - 1);
+        // 2. Lấy offset hiện tại từ Redis (Mặc định là 0 nếu không tìm thấy)
+        String currentOffsetStr = redisTemplate.opsForValue().get(redisOffsetKey);
+        int currentOffset = (currentOffsetStr != null) ? Integer.parseInt(currentOffsetStr) : 0;
+
+        // 3. Đọc dữ liệu từ Redis Pool theo dải [currentOffset -> currentOffset + limit - 1]
+        List<String> pagedSeriesIds = redisTemplate.opsForList().range(
+                redisPoolKey,
+                currentOffset,
+                currentOffset + safeLimit - 1
+        );
 
         if (pagedSeriesIds == null || pagedSeriesIds.isEmpty()) {
             return Collections.emptyList(); // Đã xem hết Pool
         }
 
-        // 3. Query DB lấy thông tin SeriesCard
+        // 4. Cập nhật offset mới = currentOffset + số lượng IDs vừa lấy ra
+        int newOffset = currentOffset + pagedSeriesIds.size();
+        redisTemplate.opsForValue().set(redisOffsetKey, String.valueOf(newOffset), RECOMMENDATION_POOL_TTL);
+
+        // 5. Query PostgreSQL lấy thông tin SeriesCard
         List<SeriesCardResponseDto> fetchedCards = seriesRepository.findSeriesCardsByIds(
                 new HashSet<>(pagedSeriesIds), SeriesStatus.PUBLISHED
         );
@@ -241,7 +257,7 @@ public class RecommendationServiceImpl implements RecommendationService {
             }
         }
 
-        // 4. Bắn sự kiện Async sang Kafka cho ImpressionWorker xử lý
+        // 6. Bắn sự kiện Async sang Kafka cho ImpressionWorker
         if (!"guest_user".equals(userIdStr) && !"anonymous".equals(userIdStr)) {
             sendHomeImpressionsAsync(userIdStr, pagedSeriesIds);
         }

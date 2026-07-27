@@ -74,10 +74,6 @@ public class Account {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    @Column(name = "two_factor_enabled", nullable = false)
-    @Builder.Default
-    private Boolean twoFactorEnabled = false;
-
     @OneToMany(mappedBy = "account", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<AccountSubscription> accountSubscriptions = new ArrayList<>();

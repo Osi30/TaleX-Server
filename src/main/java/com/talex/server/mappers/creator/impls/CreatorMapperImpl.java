@@ -3,10 +3,14 @@ package com.talex.server.mappers.creator.impls;
 import com.talex.server.dtos.responses.creator.CreatorResponseDto;
 import com.talex.server.entities.creator.Creator;
 import com.talex.server.mappers.creator.ICreatorMapper;
+import com.talex.server.services.creator.ICreatorTierService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 @Component
+@RequiredArgsConstructor
 public class CreatorMapperImpl implements ICreatorMapper {
+    private final ICreatorTierService creatorTierService;
 
     @Override
     public CreatorResponseDto toResponseDto(Creator creator) {
@@ -15,14 +19,14 @@ public class CreatorMapperImpl implements ICreatorMapper {
 
         return CreatorResponseDto.builder()
                 .creatorId(creator.getCreatorId())
-                .likes(creator.getAnalyticData().getLikes())
-                .bookmarks(creator.getAnalyticData().getBookmarks())
-                .comments(creator.getAnalyticData().getComments())
-                .shares(creator.getAnalyticData().getShares())
-                .totalViews(creator.getAnalyticData().getViews())
+                .analyticData(creator.getAnalyticData())
                 .followToCount(creator.getAccount().getTotalFollowersTo())
                 .followerCount(creator.getAccount().getTotalFollowersBy())
-                .totalWatchTime(creator.getAnalyticData().getWatchTime())
+                .creatorTier(creatorTierService.getCurrentEligibleTier(
+                        creator.getAccount().getTotalFollowersBy(),
+                        creator.getAnalyticData().getViews(),
+                        creator.getAnalyticData().getWatchTime()
+                ))
                 .createdAt(creator.getCreatedAt())
                 .updatedAt(creator.getUpdatedAt())
                 .build();

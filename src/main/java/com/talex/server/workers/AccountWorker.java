@@ -1,4 +1,4 @@
-package com.talex.server.workers.interaction;
+package com.talex.server.workers;
 
 import com.talex.server.entities.auth.Role;
 import com.talex.server.enums.creator.CreatorIdentityStatus;

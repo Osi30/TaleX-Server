@@ -60,7 +60,6 @@ public class RecommendationController {
             @CurrentAccountId UUID accountId,
             @RequestParam("sessionId") String sessionId,
             @RequestParam(defaultValue = "HOME") String pageType,
-            @RequestParam(defaultValue = "0") int offset,
             @RequestParam(defaultValue = "12") int limit
     ) {
         if (accountId == null) return ResponseEntity.ok(BaseResponse.builder()
@@ -73,7 +72,6 @@ public class RecommendationController {
                 accountId.toString(),
                 sessionId,
                 pageType,
-                offset,
                 limit
         );
 
