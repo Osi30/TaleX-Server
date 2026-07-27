@@ -51,9 +51,6 @@ public class AccountSubscriptionService implements IAccountSubscriptionService {
                 .subscription(subscription)
                 .startTime(startTime)
                 .endTime(endTime)
-                .isAdBlocked(subscription.getIsAdBlocked())
-                .isMovieUnlocked(subscription.getIsMovieUnlocked())
-                .isStoryUnlocked(subscription.getIsStoryUnlocked())
                 .build();
 
         AccountSubscription saved = accountSubscriptionRepository.save(entity);
@@ -200,9 +197,6 @@ public class AccountSubscriptionService implements IAccountSubscriptionService {
                 .endTime(subscription.getEndTime())
                 .updatedAt(subscription.getUpdatedAt())
                 .cancelledAt(subscription.getCancelledAt())
-                .isAdBlocked(subscription.getIsAdBlocked())
-                .isMovieUnlocked(subscription.getIsMovieUnlocked())
-                .isStoryUnlocked(subscription.getIsStoryUnlocked())
                 .isCancelled(subscription.getIsCancelled())
                 .build();
     }

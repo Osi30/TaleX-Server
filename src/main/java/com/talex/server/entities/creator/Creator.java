@@ -27,6 +27,7 @@ public class Creator {
     @Column(name = "creator_id")
     private String creatorId;
 
+    // Đã đồng ý điều khoản xác thức (Bước đệm để bật kiếm tiền)
     @Column(name = "is_verified")
     @Builder.Default
     private Boolean isVerified = false;

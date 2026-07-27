@@ -38,7 +38,7 @@ public class WatchTimeWorker {
     /// Gửi log thô cho QuestDB
     @KafkaListener(
             topics = "talex-cdc.public.watch_session",
-            groupId = "talex-watch-questdb-group-local",
+            groupId = "talex-watch-questdb-group",
             containerFactory = "batchFactory"
     )
     public void processWatchProgressForQuestDB(List<String> messages) {

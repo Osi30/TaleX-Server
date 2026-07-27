@@ -48,18 +48,6 @@ public class Subscription {
     @Builder.Default
     private Boolean isDeleted = false;
 
-    @Column(name = "is_ad_blocked", nullable = false)
-    @Builder.Default
-    private Boolean isAdBlocked = false;
-
-    @Column(name = "is_movie_unlocked", nullable = false)
-    @Builder.Default
-    private Boolean isMovieUnlocked = false;
-
-    @Column(name = "is_story_unlocked", nullable = false)
-    @Builder.Default
-    private Boolean isStoryUnlocked = false;
-
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

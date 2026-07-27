@@ -31,18 +31,6 @@ public class AccountSubscription {
     @Column(name = "cancelled_at")
     private LocalDateTime cancelledAt;
 
-    @Column(name = "is_ad_blocked", nullable = false)
-    @Builder.Default
-    private Boolean isAdBlocked = false;
-
-    @Column(name = "is_movie_unlocked", nullable = false)
-    @Builder.Default
-    private Boolean isMovieUnlocked = false;
-
-    @Column(name = "is_story_unlocked", nullable = false)
-    @Builder.Default
-    private Boolean isStoryUnlocked = false;
-
     @Column(name = "is_cancelled", nullable = false)
     @Builder.Default
     private Boolean isCancelled = false;

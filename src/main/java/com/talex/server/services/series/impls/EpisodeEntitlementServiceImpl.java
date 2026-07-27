@@ -2,7 +2,6 @@ package com.talex.server.services.series.impls;
 
 import com.talex.server.entities.series.Episode;
 import com.talex.server.entities.subscription.AccountSubscription;
-import com.talex.server.enums.series.ContentType;
 import com.talex.server.enums.series.EpisodeUnlockType;
 import com.talex.server.repositories.creator.CreatorRepository;
 import com.talex.server.repositories.series.ComboEpisodeRepository;
@@ -73,9 +72,7 @@ public class EpisodeEntitlementServiceImpl implements EpisodeEntitlementService 
     }
 
     private boolean isUnlockedBySubscription(AccountSubscription subscription, Episode episode) {
-        boolean flagUnlocked = episode.getContentType() == ContentType.VIDEO
-                ? Boolean.TRUE.equals(subscription.getIsMovieUnlocked())
-                : Boolean.TRUE.equals(subscription.getIsStoryUnlocked());
+        boolean flagUnlocked = subscription != null;
 
         // Premium unlocks retail episodes only; episodes bundled in a Combo stay gated behind purchase.
         return flagUnlocked && !comboEpisodeRepository.existsByEpisodes_EpisodeId(episode.getEpisodeId());

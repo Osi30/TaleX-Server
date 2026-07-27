@@ -69,7 +69,7 @@ public class ViewWorker {
 
     @KafkaListener(
             topics = "talex-interaction.episode-viewed",
-            groupId = "talex-view-postgres-group-l",
+            groupId = "talex-view-postgres-group",
             containerFactory = "batchFactory"
     )
     @Transactional

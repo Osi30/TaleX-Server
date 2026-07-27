@@ -25,9 +25,6 @@ public class SubscriptionMapper implements ISubscriptionMapper {
                 .durationUnit(Optional.ofNullable(requestDto.getDurationUnit())
                         .map(Enum::toString)
                         .orElse(null))
-                .isAdBlocked(true)
-                .isMovieUnlocked(true)
-                .isStoryUnlocked(true)
                 .build();
     }
 
@@ -46,9 +43,6 @@ public class SubscriptionMapper implements ISubscriptionMapper {
                 .durationUnit(subscription.getDurationUnit())
                 .totalPurchases(subscription.getTotalPurchases())
                 .isDeleted(subscription.getIsDeleted())
-                .isAdBlocked(subscription.getIsAdBlocked())
-                .isMovieUnlocked(subscription.getIsMovieUnlocked())
-                .isStoryUnlocked(subscription.getIsStoryUnlocked())
                 .createdAt(subscription.getCreatedAt())
                 .updatedAt(subscription.getUpdatedAt())
                 .build();
