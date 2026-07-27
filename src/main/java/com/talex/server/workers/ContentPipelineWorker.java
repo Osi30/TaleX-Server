@@ -21,7 +21,7 @@ public class ContentPipelineWorker {
     private final ContentPipelineService pipelineService;
     private final ObjectMapper objectMapper;
 
-    @KafkaListener(topics = "content-copyright-result", groupId = "content-pipeline-copyright-group111")
+    @KafkaListener(topics = "content-copyright-result", groupId = "content-pipeline-copyright-group9999")
     public void consumeCopyrightResult(String message) {
         // enable-auto-commit=false, ack-mode mặc định BATCH → offset commit ngay khi hàm
         // listener return bình thường, KỂ CẢ khi exception bị catch/nuốt bên trong. Nếu chỉ
@@ -42,7 +42,7 @@ public class ContentPipelineWorker {
         }
     }
 
-    @KafkaListener(topics = "content-moderation-result", groupId = "content-pipeline-moderation-group111")
+    @KafkaListener(topics = "content-moderation-result", groupId = "content-pipeline-moderation-group9999")
     public void consumeModerationResult(String message) {
         String mediaId = null;
         try {
