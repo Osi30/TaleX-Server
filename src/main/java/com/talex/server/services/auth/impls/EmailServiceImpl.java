@@ -7,6 +7,7 @@ import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.mail.MailException;
 import org.springframework.mail.MailSendException;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -69,6 +70,34 @@ public class EmailServiceImpl implements EmailService {
     @Override
     public void sendPasswordResetEmailAsync(String to, String otpCode) {
         sendWithRetry(() -> sendPasswordResetEmail(to, otpCode), to);
+    }
+
+    @Override
+    public void sendInvoiceEmail(String to, String invoicePdfUrl, byte[] invoicePdfBytes) {
+        try {
+            MimeMessage mimeMessage = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true, "UTF-8");
+
+            helper.setFrom(fromEmail);
+            helper.setTo(to);
+            helper.setSubject("TaleX — Hóa đơn điện tử của bạn");
+            helper.setText(EmailTemplateUtil.buildInvoiceEmailHtml(invoicePdfUrl), true);
+
+            if (invoicePdfBytes != null && invoicePdfBytes.length > 0) {
+                helper.addAttachment("hoa-don-TaleX.pdf", new ByteArrayResource(invoicePdfBytes));
+            }
+
+            mailSender.send(mimeMessage);
+            log.info("Invoice email sent to: {}", to);
+        } catch (MailException | MessagingException e) {
+            log.error("Invoice email send failed to: {}", to, e);
+            throw new MailSendException("Failed to send invoice email", e);
+        }
+    }
+
+    @Override
+    public void sendInvoiceEmailAsync(String to, String invoicePdfUrl, byte[] invoicePdfBytes) {
+        sendWithRetry(() -> sendInvoiceEmail(to, invoicePdfUrl, invoicePdfBytes), to);
     }
 
     private void sendWithRetry(Runnable sendAction, String to) {

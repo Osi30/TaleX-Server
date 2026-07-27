@@ -4,7 +4,6 @@ import com.talex.server.entities.series.Episode;
 import com.talex.server.entities.subscription.AccountSubscription;
 import com.talex.server.enums.series.EpisodeUnlockType;
 import com.talex.server.repositories.creator.CreatorRepository;
-import com.talex.server.repositories.series.ComboEpisodeRepository;
 import com.talex.server.repositories.series.EpisodeRepository;
 import com.talex.server.repositories.series.EpisodeUnlockedContentRepository;
 import com.talex.server.repositories.subscription.AccountSubscriptionRepository;
@@ -23,7 +22,6 @@ public class EpisodeEntitlementServiceImpl implements EpisodeEntitlementService 
     private final EpisodeRepository episodeRepository;
     private final EpisodeUnlockedContentRepository episodeUnlockedContentRepository;
     private final AccountSubscriptionRepository accountSubscriptionRepository;
-    private final ComboEpisodeRepository comboEpisodeRepository;
     private final CreatorRepository creatorRepository;
 
     @Override
@@ -48,9 +46,7 @@ public class EpisodeEntitlementServiceImpl implements EpisodeEntitlementService 
     }
 
     private boolean isFree(Episode episode) {
-        return episode.getUnlockType() == EpisodeUnlockType.FREE
-                || episode.getPriceVnd() == null
-                || episode.getPriceVnd() <= 0;
+        return episode.getUnlockType() == EpisodeUnlockType.FREE;
     }
 
     private boolean isOwner(UUID accountId, String episodeCreatorId) {
@@ -72,10 +68,10 @@ public class EpisodeEntitlementServiceImpl implements EpisodeEntitlementService 
     }
 
     private boolean isUnlockedBySubscription(AccountSubscription subscription, Episode episode) {
-        boolean flagUnlocked = subscription != null;
-
-        // Premium unlocks retail episodes only; episodes bundled in a Combo stay gated behind purchase.
-        return flagUnlocked && !comboEpisodeRepository.existsByEpisodes_EpisodeId(episode.getEpisodeId());
+        // Premium là quyền truy cập có thời hạn (không sở hữu vĩnh viễn), nên được mở khóa
+        // toàn bộ nội dung trả phí kể cả tập nằm trong Combo — không như mua lẻ/mua Combo.
+        // Có subscription là được
+        return subscription != null;
     }
 
     private UUID parseAccountId(String viewerId) {

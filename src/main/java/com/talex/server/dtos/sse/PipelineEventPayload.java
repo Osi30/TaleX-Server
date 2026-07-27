@@ -23,4 +23,7 @@ public class PipelineEventPayload {
     private String primaryLabel;
     private String errorMessage;
     private String failedStep;
+    // "APPROVED" | "REJECTED" | "PENDING_REVIEW" — FE cần phân biệt để không báo nhầm
+    // "bị từ chối" khi thực ra đang chờ Staff duyệt (case series MATURE).
+    private String approvalStatus;
 }

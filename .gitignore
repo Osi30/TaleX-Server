@@ -91,3 +91,6 @@ Thumbs.db
 .openaiignore
 .codex/
 AGENTS.local.md
+
+# Local planning docs — not meant for the shared repo
+plans/

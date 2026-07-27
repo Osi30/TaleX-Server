@@ -7,7 +7,6 @@ import com.talex.server.dtos.requests.media.MediaComicPagesRequestDto;
 import com.talex.server.dtos.requests.media.MediaMetadataRequestDto;
 import com.talex.server.dtos.requests.media.MediaRejectRequestDto;
 import com.talex.server.dtos.requests.media.MediaReorderRequestDto;
-import com.talex.server.dtos.requests.media.MediaStatusRequestDto;
 import com.talex.server.dtos.requests.media.MediaUpdateRequestDto;
 import com.talex.server.dtos.requests.media.MediaUploadCompleteRequestDto;
 import com.talex.server.dtos.requests.media.MediaUploadFailRequestDto;
@@ -267,13 +266,13 @@ public class MediaController {
                 mediaService.rejectWithReason(id, accountId.toString(), request)));
     }
 
-    @PatchMapping("/api/v1/media/{id}/status")
+    @PatchMapping("/api/v1/media/{id}/retry-pipeline")
      @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<BaseResponse> updateStatus(
+    public ResponseEntity<BaseResponse> retryPipeline(
             @PathVariable String id,
-            @Valid @RequestBody MediaStatusRequestDto request,
             @CurrentAccountId UUID accountId) {
-        return ResponseEntity.ok(response(200, "Media status updated", mediaService.updateProcessingStatus(id, request, accountId.toString())));
+        return ResponseEntity.ok(response(200, "Pipeline retry dispatched",
+                mediaService.retryPipeline(id, accountId.toString())));
     }
 
     @DeleteMapping("/api/v1/media/{id}")

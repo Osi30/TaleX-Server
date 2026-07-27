@@ -83,9 +83,7 @@ public class DefaultMediaPlaybackSecurityService implements MediaPlaybackSecurit
         if (episode.getStatus() == com.talex.server.enums.series.EpisodeStatus.SCHEDULED) {
             throw ContentModuleException.forbidden("Cannot playback media for scheduled episode");
         }
-        if (!playbackAuthorizationService.canViewEpisode(viewerId, episodeId)) {
-            throw ContentModuleException.forbidden("PLAYBACK_NOT_ENTITLED");
-        }
+        boolean isEntitled = playbackAuthorizationService.canViewEpisode(viewerId, episodeId);
 
         Media media = mediaRepository
                 .findFirstByEpisode_EpisodeIdAndMediaTypeAndStatusInAndIsDeletedFalseOrderByCreatedAtDesc(
@@ -108,6 +106,45 @@ public class DefaultMediaPlaybackSecurityService implements MediaPlaybackSecurit
             log.info("PLAYBACK_REQUESTED_BEFORE_READY episodeId={} mediaId={} status={}",
                     episodeId, media.getMediaId(), media.getStatus());
             throw ContentModuleException.badRequest("VIDEO_NOT_READY");
+        }
+
+        if (!isEntitled) {
+            String previewUrl = media.getPreviewUrl();
+            if (previewUrl == null || previewUrl.isBlank()) {
+                throw ContentModuleException.forbidden("PLAYBACK_NOT_ENTITLED");
+            }
+            
+            MediaProtectionType protectionType = getProtectionType(media);
+            LocalDateTime expiresAt = LocalDateTime.now().plusSeconds(resolveTtl(media));
+            
+            String signedPreviewUrl = previewUrl;
+            if (protectionType != MediaProtectionType.NONE
+                    && media.getPlaybackPolicy() != MediaPlaybackPolicy.PUBLIC) {
+                signedPreviewUrl = mediaProviderService.signSingleUrl(previewUrl, expiresAt);
+            }
+
+            // Sign thumbnail URL for protected content even in preview
+            String thumbnailUrl = media.getThumbnailUrl();
+            if (protectionType != MediaProtectionType.NONE
+                    && media.getPlaybackPolicy() != MediaPlaybackPolicy.PUBLIC
+                    && thumbnailUrl != null && !thumbnailUrl.isBlank()) {
+                thumbnailUrl = mediaProviderService.signSingleUrl(thumbnailUrl, expiresAt);
+            }
+
+            return EpisodePlaybackResponseDto.builder()
+                    .episodeId(episodeId)
+                    .mediaId(media.getMediaId())
+                    .mediaType(media.getMediaType())
+                    .playbackType("MP4")
+                    .provider(media.getProvider())
+                    .protectionType(protectionType != MediaProtectionType.NONE && media.getPlaybackPolicy() != MediaPlaybackPolicy.PUBLIC ? MediaProtectionType.SIGNED_URL : MediaProtectionType.NONE)
+                    .hlsUrl(signedPreviewUrl)
+                    .playbackUrl(signedPreviewUrl)
+                    .thumbnailUrl(thumbnailUrl)
+                    .duration(media.getDuration())
+                    .expiresAt(expiresAt)
+                    .isLocked(true)
+                    .build();
         }
 
         MediaProtectionType protectionType = getProtectionType(media);

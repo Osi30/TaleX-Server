@@ -5,7 +5,6 @@ import com.talex.server.dtos.requests.media.MediaComicPagesRequestDto;
 import com.talex.server.dtos.requests.media.MediaMetadataRequestDto;
 import com.talex.server.dtos.requests.media.MediaRejectRequestDto;
 import com.talex.server.dtos.requests.media.MediaReorderRequestDto;
-import com.talex.server.dtos.requests.media.MediaStatusRequestDto;
 import com.talex.server.dtos.requests.media.MediaUpdateRequestDto;
 import com.talex.server.dtos.responses.media.ContentCensorshipResponseDto;
 import com.talex.server.dtos.responses.media.MediaCopyrightResponseDto;
@@ -32,6 +31,7 @@ import com.talex.server.repositories.series.EpisodeRepository;
 import com.talex.server.repositories.media.MediaCopyrightRepository;
 import com.talex.server.repositories.media.MediaRepository;
 import com.talex.server.services.media.ContentPipelineService;
+import com.talex.server.services.media.MediaPackagingService;
 import com.talex.server.services.media.MediaPlaybackSecurityService;
 import com.talex.server.services.media.MediaProviderService;
 import com.talex.server.services.media.MediaService;
@@ -72,6 +72,7 @@ public class MediaServiceImpl implements MediaService {
     private final EpisodeRepository episodeRepository;
     private final EpisodeService episodeService;
     private final MediaProviderService mediaProviderService;
+    private final MediaPackagingService mediaPackagingService;
     private final MediaPlaybackSecurityService playbackSecurityService;
     private final ContentPipelineService contentPipelineService;
     private final MediaCopyrightRepository mediaCopyrightRepository;
@@ -178,7 +179,7 @@ public class MediaServiceImpl implements MediaService {
 
     @Transactional(readOnly = true)
     @Override
-    public MediaResponseDto getPublicById(String id) {
+    public MediaResponseDto getPublicById(String id, String viewerId) {
         Media media = findActiveEntity(id);
         if (!PUBLIC_READY_STATUSES.contains(media.getStatus())
                 || media.getApprovalStatus() != ContentApprovalStatus.APPROVED) {
@@ -188,7 +189,35 @@ public class MediaServiceImpl implements MediaService {
         if (episode.getStatus() == EpisodeStatus.SCHEDULED) {
             throw ContentModuleException.forbidden("Cannot access media for scheduled episode: " + episode.getEpisodeId());
         }
-        return toPublicResponse(media);
+        
+        boolean isEntitled = episodeEntitlementService.hasPlaybackAccess(viewerId, episode.getEpisodeId());
+        MediaResponseDto response = toPublicResponse(media);
+        
+        if (!isEntitled) {
+            if (episode.getContentType() == ContentType.COMIC) {
+                // To be perfectly secure and consistent, we could check the index,
+                // but since frontend doesn't use this API, we can just safely lock it.
+                response.setIsLocked(true);
+                response.setFileUrl(media.getPreviewUrl());
+                response.setOriginalUrl(null);
+                response.setPlaybackUrl(null);
+                response.setHlsUrl(null);
+                response.setSignedPlaybackUrl(null);
+                response.setThumbnailUrl(null);
+                response.setExternalPublicId(null);
+                response.setProviderPublicId(null);
+                response.setProviderAssetId(null);
+                response.setDrmLicenseUrl(null);
+                response.setDrmCertificateUrl(null);
+                // Do not nullify previewUrl so frontend can use it if needed
+            } else if (episode.getContentType() == ContentType.VIDEO) {
+                throw ContentModuleException.forbidden("PLAYBACK_NOT_ENTITLED");
+            }
+        } else {
+            response.setIsLocked(false);
+        }
+
+        return response;
     }
 
     @Transactional(readOnly = true)
@@ -209,10 +238,9 @@ public class MediaServiceImpl implements MediaService {
         if (episode.getStatus() == EpisodeStatus.SCHEDULED) {
             throw ContentModuleException.forbidden("Cannot access media for scheduled episode: " + episodeId);
         }
-        if (!episodeEntitlementService.hasPlaybackAccess(viewerId, episodeId)) {
-            throw ContentModuleException.forbidden("PLAYBACK_NOT_ENTITLED");
-        }
-        return mediaRepository
+        boolean isEntitled = episodeEntitlementService.hasPlaybackAccess(viewerId, episodeId);
+        
+        List<MediaResponseDto> mediaList = mediaRepository
                 .findAllByEpisode_EpisodeIdAndStatusInAndApprovalStatusAndIsDeletedFalseOrderByDisplayOrderAsc(
                         episodeId,
                         PUBLIC_READY_STATUSES,
@@ -220,7 +248,40 @@ public class MediaServiceImpl implements MediaService {
                 .stream()
                 .map(this::toPublicResponse)
                 .sorted(Comparator.comparing(MediaResponseDto::getDisplayOrder, Comparator.nullsLast(Integer::compareTo)))
-                .toList();
+                .collect(java.util.stream.Collectors.toList());
+
+        if (!isEntitled) {
+            if (episode.getContentType() == ContentType.COMIC) {
+                for (int i = 0; i < mediaList.size(); i++) {
+                    MediaResponseDto media = mediaList.get(i);
+                    if (i < 5) {
+                        media.setIsLocked(false);
+                    } else {
+                        media.setIsLocked(true);
+                        media.setFileUrl(media.getPreviewUrl());
+                        media.setOriginalUrl(null);
+                        media.setPlaybackUrl(null);
+                        media.setHlsUrl(null);
+                        media.setSignedPlaybackUrl(null);
+                        media.setThumbnailUrl(null);
+                        media.setExternalPublicId(null);
+                        media.setProviderPublicId(null);
+                        media.setProviderAssetId(null);
+                        media.setDrmLicenseUrl(null);
+                        media.setDrmCertificateUrl(null);
+                        // Do not nullify previewUrl so frontend can use it if needed
+                    }
+                }
+            } else if (episode.getContentType() == ContentType.VIDEO) {
+                throw ContentModuleException.forbidden("PLAYBACK_NOT_ENTITLED");
+            }
+        } else {
+            for (MediaResponseDto media : mediaList) {
+                media.setIsLocked(false);
+            }
+        }
+
+        return mediaList;
     }
 
     @Transactional
@@ -384,6 +445,26 @@ public class MediaServiceImpl implements MediaService {
         media.setApprovalStatus(ContentApprovalStatus.APPROVED);
         media.setApprovalReviewedAt(LocalDateTime.now());
         media.setApprovalReviewedBy(actorId);
+        // Trước đây chỉ đổi approvalStatus — nếu media đang INACTIVE (bị pipeline flag
+        // chờ Staff duyệt, xem ContentPipelineServiceImpl), Staff duyệt xong media vẫn
+        // kẹt INACTIVE vĩnh viễn, không ai xem lại được (kể cả Creator/viewer công khai).
+        if (media.getStatus() == MediaStatus.INACTIVE) {
+            // VIDEO: status bị ContentPipelineServiceImpl ghi đè thành INACTIVE KHÔNG
+            // ĐIỀU KIỆN khi bị flag chờ Staff — kể cả khi transcode HLS còn đang chạy dở
+            // (kiểm duyệt và transcode chạy song song, kiểm duyệt thường xong trước).
+            // Dùng hlsReadyAt (field riêng, chỉ SqsMediaEventPoller.markHlsReady() ghi,
+            // không bao giờ bị luồng kiểm duyệt đụng vào) để biết CHẮC CHẮN transcode đã
+            // xong chưa — không suy đoán qua status như trước (dễ sai cả 2 chiều: chuyển
+            // ACTIVE sớm khi video thật ra chưa phát được, hoặc kẹt mãi nếu suy đoán
+            // ngược lại). Ảnh không có bước transcode nên luôn coi như sẵn sàng.
+            boolean hlsAlreadyReady = media.getMediaType() != MediaType.VIDEO || media.getHlsReadyAt() != null;
+            if (hlsAlreadyReady) {
+                media.setStatus(MediaStatus.ACTIVE);
+            }
+            // Video chưa xong transcode: giữ nguyên INACTIVE — approvalStatus đã APPROVED
+            // ở trên, SqsMediaEventPoller.markHlsReady() sẽ tự chuyển ACTIVE khi transcode
+            // xong thật (đã có check approvalStatus==APPROVED từ trước).
+        }
         media.markUpdatedBy(actorId);
         return toResponse(mediaRepository.save(media));
     }
@@ -445,17 +526,30 @@ public class MediaServiceImpl implements MediaService {
 
     @Transactional
     @Override
-    public MediaResponseDto updateProcessingStatus(String id, MediaStatusRequestDto request, String accountId) {
-        Media media = findManageableEntity(id, accountId);
-        if (request.getStatus() == MediaStatus.DELETED) {
-            media.setStatus(MediaStatus.DELETED);
-            media.softDelete(accountId);
-            playbackSecurityService.revokeActiveSessions(media);
-        } else {
-            media.setStatus(request.getStatus());
-            media.markUpdatedBy(accountId);
+    public MediaResponseDto retryPipeline(String id, String actorId) {
+        Media media = findManageableEntity(id, actorId);
+        if (media.getStatus() != MediaStatus.FAILED) {
+            throw ContentModuleException.badRequest("Chỉ có thể thử lại khi media đang ở trạng thái FAILED");
         }
-        return toResponse(mediaRepository.save(media));
+
+        // Dọn sạch kết quả cũ — nếu không, idempotency check trong
+        // ContentPipelineServiceImpl.handleCopyrightResult()/handleModerationResult() sẽ
+        // tự skip toàn bộ (coi như đã xử lý rồi), retry sẽ không có tác dụng gì.
+        media.setContentId(null);
+        media.setErrorMessage(null);
+        mediaCopyrightRepository.deleteAll(mediaCopyrightRepository.findAllByMedia_MediaId(media.getMediaId()));
+        contentCensorshipRepository.deleteAll(contentCensorshipRepository.findAllByMedia_MediaId(media.getMediaId()));
+
+        if (media.getMediaType() == MediaType.VIDEO) {
+            // Resubmit transcode trên file gốc đã có sẵn ở S3/Cloudinary — không cần upload
+            // lại. Tự set HLS_PROCESSING, route đúng provider theo media.getProvider().
+            mediaPackagingService.createHlsPackaging(media);
+        }
+        media.markUpdatedBy(actorId);
+        media = mediaRepository.save(media);
+
+        contentPipelineService.dispatchPipelineJob(media);
+        return toResponse(media);
     }
 
     @Transactional
@@ -469,6 +563,7 @@ public class MediaServiceImpl implements MediaService {
         if (media.getMediaType() == MediaType.VIDEO && media.getProviderPublicId() != null) {
             mediaProviderService.deleteAsset(media);
         }
+        contentPipelineService.notifyMediaDeleted(media.getMediaId());
         mediaRepository.save(media);
     }
 
@@ -505,7 +600,9 @@ public class MediaServiceImpl implements MediaService {
 
         return MediaViolationsResponseDto.builder()
                 .mediaId(media.getMediaId())
-                .contentId(media.getProviderPublicId())
+                // Trước đây trả nhầm providerPublicId (S3 object key) — không phải Content
+                // ID thật (do AI service gán, dạng "CID-{mediaId}", lưu ở Media.contentId).
+                .contentId(media.getContentId())
                 .copyrightViolations(copyrightDtos)
                 .censorshipResults(censorshipDtos)
                 .build();
@@ -515,8 +612,14 @@ public class MediaServiceImpl implements MediaService {
     @Override
     public Page<MediaResponseDto> listPendingReview(int page, int size) {
         PageRequest pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        // PENDING_REVIEW cũng là giá trị MẶC ĐỊNH của approvalStatus trước khi pipeline
+        // từng chạy xong (xem Media.java) — nếu chỉ lọc theo approvalStatus, hàng đợi
+        // Staff sẽ lẫn cả media đang xử lý dở (chưa có kết quả gì) với media THẬT SỰ bị
+        // flag cần duyệt. BE chỉ set MediaStatus.INACTIVE khi chủ động flag nội dung
+        // (xem ContentPipelineServiceImpl) — thêm điều kiện này để lọc đúng.
         return mediaRepository
-                .findByApprovalStatusAndIsDeletedFalse(ContentApprovalStatus.PENDING_REVIEW, pageable)
+                .findByApprovalStatusAndStatusAndIsDeletedFalse(
+                        ContentApprovalStatus.PENDING_REVIEW, MediaStatus.INACTIVE, pageable)
                 .map(this::toResponse);
     }
 
@@ -593,7 +696,8 @@ public class MediaServiceImpl implements MediaService {
                 .createdBy(media.getCreatedBy())
                 .updatedBy(media.getUpdatedBy())
                 .deletedBy(media.getDeletedBy())
-                .isDeleted(media.getIsDeleted());
+                .isDeleted(media.getIsDeleted())
+                .contentId(media.getContentId());
     }
 
     private MediaCopyrightResponseDto mapCopyrightToDto(MediaCopyright entity) {

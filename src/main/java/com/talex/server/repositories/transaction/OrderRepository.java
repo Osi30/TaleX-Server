@@ -4,6 +4,8 @@ import com.talex.server.entities.transaction.Order;
 import com.talex.server.enums.transaction.OrderStatus;
 import com.talex.server.records.MonetizationData;
 import jakarta.persistence.LockModeType;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
@@ -13,6 +15,7 @@ import org.springframework.stereotype.Repository;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Repository
 public interface OrderRepository extends JpaRepository<Order, String> {
@@ -30,6 +33,9 @@ public interface OrderRepository extends JpaRepository<Order, String> {
 
     Optional<Order> findFirstByAccount_AccountIdAndItemTypeAndItemIdAndStatusOrderByCreatedAtDesc(
             java.util.UUID accountId, String itemType, String itemId, OrderStatus status);
+
+    Page<Order> findByAccount_AccountIdAndItemTypeInOrderByCreatedAtDesc(
+            UUID accountId, List<String> itemTypes, Pageable pageable);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT o FROM Order o WHERE o.paymentCode = :paymentCode")
