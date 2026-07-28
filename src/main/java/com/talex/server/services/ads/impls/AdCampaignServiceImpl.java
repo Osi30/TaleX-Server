@@ -58,15 +58,24 @@ public class AdCampaignServiceImpl implements IAdCampaignService {
             throw new RuntimeException("Số dư Ví tổng không đủ để cấp ngân sách cho chiến dịch này.");
         }
 
+        long cpm = 0;
+        if (slot.getTotalViewOfPrice() != null && slot.getTotalViewOfPrice() > 0) {
+            cpm = (slot.getPrice() * 1000) / slot.getTotalViewOfPrice();
+        }
+        
         AdCampaign campaign = AdCampaign.builder()
                 .profile(profile)
                 .slot(slot)
                 .name(request.getName())
-                .targetImpressions(request.getTargetImpressions())
+                .targetImpressions(request.getTargetImpressions() != null ? request.getTargetImpressions() : 0L)
+                .targetClicks(request.getTargetClicks() != null ? request.getTargetClicks() : 0L)
                 .totalBudget(request.getCampaignBudget())
                 .campaignBalance(0L) // Will be updated by fundCampaign
+                .lockedCpm(cpm)
                 .status(AdCampaignStatus.PENDING_REVIEW)
                 .labels(request.getLabels() != null ? request.getLabels() : new java.util.ArrayList<>())
+                .startDate(request.getStartDate())
+                .endDate(request.getEndDate())
                 .build();
         
         campaign = campaignRepository.save(campaign);
@@ -251,9 +260,13 @@ public class AdCampaignServiceImpl implements IAdCampaignService {
                 .status(campaign.getStatus())
                 .campaignBalance(campaign.getCampaignBalance())
                 .targetImpressions(campaign.getTargetImpressions())
+                .targetClicks(campaign.getTargetClicks())
                 .currentImpressions(campaign.getCurrentImpressions())
                 .currentClicks(campaign.getCurrentClicks())
+                .focusedViews6s(campaign.getFocusedViews6s())
+                .paidFocusedViews6s(campaign.getPaidFocusedViews6s())
                 .totalBudget(campaign.getTotalBudget())
+                .lockedCpm(campaign.getLockedCpm())
                 .adminNote(campaign.getAdminNote())
                 .startDate(campaign.getStartDate())
                 .endDate(campaign.getEndDate())
@@ -271,5 +284,111 @@ public class AdCampaignServiceImpl implements IAdCampaignService {
                 .mediaUrl(signedUrl)
                 .targetUrl(creative.getTargetUrl())
                 .build();
+    }
+
+    @Override
+    public void toggleCampaign(UUID accountId, UUID campaignId) {
+        AdCampaign campaign = campaignRepository.findById(campaignId)
+                .orElseThrow(() -> new RuntimeException("Campaign not found"));
+
+        if (!campaign.getProfile().getAccount().getAccountId().equals(accountId)) {
+            throw new RuntimeException("Unauthorized");
+        }
+
+        if (campaign.getStatus() == AdCampaignStatus.ACTIVE) {
+            campaign.setStatus(AdCampaignStatus.PAUSED);
+        } else if (campaign.getStatus() == AdCampaignStatus.PAUSED) {
+            campaign.setStatus(AdCampaignStatus.ACTIVE);
+        } else {
+            throw new RuntimeException("Cannot toggle campaign in status " + campaign.getStatus());
+        }
+
+        campaignRepository.save(campaign);
+    }
+
+    @Override
+    @org.springframework.transaction.annotation.Transactional
+    public void cancelCampaign(UUID accountId, UUID campaignId) {
+        AdCampaign campaign = campaignRepository.findById(campaignId)
+                .orElseThrow(() -> new RuntimeException("Campaign not found"));
+
+        if (!campaign.getProfile().getAccount().getAccountId().equals(accountId)) {
+            throw new RuntimeException("Unauthorized");
+        }
+
+        if (campaign.getStatus() == AdCampaignStatus.COMPLETED ||
+            campaign.getStatus() == AdCampaignStatus.CANCELLED ||
+            campaign.getStatus() == AdCampaignStatus.REJECTED) {
+            throw new RuntimeException("Cannot cancel campaign in status " + campaign.getStatus());
+        }
+
+        Long balanceToRefund = campaign.getCampaignBalance();
+
+        if (balanceToRefund > 0) {
+            AdvertiseProfile profile = campaign.getProfile();
+            profile.setWalletBalance(profile.getWalletBalance() + balanceToRefund);
+            profileRepository.save(profile);
+
+            campaign.setCampaignBalance(0L);
+
+            com.talex.server.entities.ads.AdTransaction transaction = com.talex.server.entities.ads.AdTransaction.builder()
+                    .profile(profile)
+                    .campaign(campaign)
+                    .amount(balanceToRefund)
+                    .type(com.talex.server.enums.ads.AdTransactionType.REFUND)
+                    .note("Hoàn tiền khi hủy chiến dịch")
+                    .build();
+            transactionRepository.save(transaction);
+        }
+
+        campaign.setStatus(AdCampaignStatus.CANCELLED);
+        campaignRepository.save(campaign);
+    }
+
+    @Override
+    public void updateCampaignSchedule(UUID accountId, UUID campaignId, java.time.LocalDateTime startDate, java.time.LocalDateTime endDate) {
+        AdCampaign campaign = campaignRepository.findById(campaignId)
+                .orElseThrow(() -> new RuntimeException("Campaign not found"));
+
+        if (!campaign.getProfile().getAccount().getAccountId().equals(accountId)) {
+            throw new RuntimeException("Unauthorized");
+        }
+
+        if (campaign.getStatus() != AdCampaignStatus.PAUSED && campaign.getStatus() != AdCampaignStatus.PENDING_REVIEW) {
+            throw new RuntimeException("Chỉ có thể thay đổi lịch khi chiến dịch đang Tạm dừng (PAUSED) hoặc Chờ duyệt (PENDING_REVIEW)");
+        }
+
+        if (startDate != null && endDate != null && endDate.isBefore(startDate)) {
+            throw new RuntimeException("End date must be after start date");
+        }
+
+        campaign.setStartDate(startDate);
+        campaign.setEndDate(endDate);
+        campaignRepository.save(campaign);
+    }
+
+    @Override
+    @Transactional
+    public void topupCampaign(UUID accountId, UUID campaignId, Long amount) {
+        AdCampaign campaign = campaignRepository.findById(campaignId)
+                .orElseThrow(() -> new RuntimeException("Campaign not found"));
+
+        if (!campaign.getProfile().getAccount().getAccountId().equals(accountId)) {
+            throw new RuntimeException("Unauthorized");
+        }
+
+        if (campaign.getStatus() != AdCampaignStatus.ACTIVE && campaign.getStatus() != AdCampaignStatus.PAUSED && campaign.getStatus() != AdCampaignStatus.PENDING_REVIEW) {
+            throw new RuntimeException("Chỉ có thể nạp thêm tiền cho chiến dịch đang hoạt động, tạm dừng hoặc chờ duyệt");
+        }
+
+        if (amount < 10000) {
+            throw new RuntimeException("Số tiền nạp tối thiểu là 10,000 VND");
+        }
+
+        walletService.fundCampaign(campaign.getProfile().getProfileId(), amount, campaignId);
+        
+        // Cập nhật lại totalBudget
+        campaign.setTotalBudget(campaign.getTotalBudget() + amount);
+        campaignRepository.save(campaign);
     }
 }

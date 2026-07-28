@@ -25,7 +25,7 @@ public class AdSlotSeeder implements CommandLineRunner {
                     .codeName("HOME_BANNER")
                     .displayName("Banner Trang Chủ")
                     .type(AdSlotType.BANNER)
-                    .price(100000L)
+                    .price(100000L) // CPM
                     .totalViewOfPrice(1000L)
                     .isActive(true)
                     .build();

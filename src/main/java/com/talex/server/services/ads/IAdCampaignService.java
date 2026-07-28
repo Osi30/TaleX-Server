@@ -28,4 +28,12 @@ public interface IAdCampaignService {
     // Delivery
     AdServeResponseDto serveAd(String slotCode);
     List<AdServeResponseDto> serveAllAds(String slotCode);
+    
+    void toggleCampaign(UUID accountId, UUID campaignId);
+    
+    void cancelCampaign(UUID accountId, UUID campaignId);
+
+    void updateCampaignSchedule(UUID accountId, UUID campaignId, java.time.LocalDateTime startDate, java.time.LocalDateTime endDate);
+
+    void topupCampaign(UUID accountId, UUID campaignId, Long amount);
 }

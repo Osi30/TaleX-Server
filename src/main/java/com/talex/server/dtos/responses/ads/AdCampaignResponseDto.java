@@ -19,9 +19,13 @@ public class AdCampaignResponseDto {
     private AdCampaignStatus status;
     private Long campaignBalance;
     private Long targetImpressions;
+    private Long targetClicks;
     private Long currentImpressions;
     private Long currentClicks;
+    private Long focusedViews6s;
+    private Long paidFocusedViews6s;
     private Long totalBudget;
+    private Long lockedCpm;
     private String adminNote;
     private LocalDateTime startDate;
     private LocalDateTime endDate;

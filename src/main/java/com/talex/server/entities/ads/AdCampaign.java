@@ -47,7 +47,12 @@ public class AdCampaign {
     private AdCampaignStatus status = AdCampaignStatus.PENDING_REVIEW;
 
     @Column(name = "target_impressions", nullable = false)
-    private Long targetImpressions;
+    @Builder.Default
+    private Long targetImpressions = 0L;
+
+    @Column(name = "target_clicks", nullable = false)
+    @Builder.Default
+    private Long targetClicks = 0L;
 
     @Column(name = "current_impressions", nullable = false)
     @Builder.Default
@@ -57,12 +62,23 @@ public class AdCampaign {
     @Builder.Default
     private Long currentClicks = 0L;
 
+    @Column(name = "focused_views_6s", nullable = false)
+    @Builder.Default
+    private Long focusedViews6s = 0L;
+
+    @Column(name = "paid_focused_views_6s", nullable = false)
+    @Builder.Default
+    private Long paidFocusedViews6s = 0L;
+
     @Column(name = "total_budget", nullable = false)
     private Long totalBudget;
 
     @Column(name = "campaign_balance", nullable = false)
     @Builder.Default
     private Long campaignBalance = 0L;
+
+    @Column(name = "locked_cpm")
+    private Long lockedCpm;
 
     @Column(name = "admin_note", columnDefinition = "TEXT")
     private String adminNote;

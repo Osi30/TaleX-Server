@@ -6,6 +6,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Min;
 import java.util.UUID;
+import java.time.LocalDateTime;
 
 @Data
 public class AdCampaignCreateRequestDto {
@@ -18,6 +19,8 @@ public class AdCampaignCreateRequestDto {
     @NotNull(message = "Target impressions is required")
     @Min(value = 1, message = "Target impressions must be at least 1")
     private Long targetImpressions;
+
+    private Long targetClicks;
 
     @NotNull(message = "Campaign budget is required")
     @Min(value = 10000, message = "Budget must be at least 10,000 VND")
@@ -33,4 +36,8 @@ public class AdCampaignCreateRequestDto {
     private String targetUrl;
 
     private java.util.List<String> labels;
+
+    private LocalDateTime startDate;
+    
+    private LocalDateTime endDate;
 }
