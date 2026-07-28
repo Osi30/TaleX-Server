@@ -36,6 +36,7 @@ public class AdCampaignServiceImpl implements IAdCampaignService {
     private final AdSlotRepository slotRepository;
     private final AdvertiseProfileRepository profileRepository;
     private final com.talex.server.repositories.ads.AdMetricRepository metricRepository;
+    private final com.talex.server.repositories.ads.AdTransactionRepository transactionRepository;
     private final IAdWalletService walletService;
     private final com.talex.server.services.ads.IAdMediaUploadService adMediaUploadService;
     private final Random random = new Random();
@@ -53,11 +54,8 @@ public class AdCampaignServiceImpl implements IAdCampaignService {
             throw new RuntimeException("Ad slot is not active");
         }
 
-        // Calculate total budget
-        long totalBudget = (long) Math.ceil((double) request.getTargetImpressions() / slot.getTotalViewOfPrice()) * slot.getPrice();
-
-        if (profile.getWalletBalance() < totalBudget) {
-            throw new RuntimeException("Insufficient wallet balance. Need: " + totalBudget);
+        if (profile.getWalletBalance() < request.getCampaignBudget()) {
+            throw new RuntimeException("Số dư Ví tổng không đủ để cấp ngân sách cho chiến dịch này.");
         }
 
         AdCampaign campaign = AdCampaign.builder()
@@ -65,8 +63,10 @@ public class AdCampaignServiceImpl implements IAdCampaignService {
                 .slot(slot)
                 .name(request.getName())
                 .targetImpressions(request.getTargetImpressions())
-                .totalBudget(totalBudget)
+                .totalBudget(request.getCampaignBudget())
+                .campaignBalance(0L) // Will be updated by fundCampaign
                 .status(AdCampaignStatus.PENDING_REVIEW)
+                .labels(request.getLabels() != null ? request.getLabels() : new java.util.ArrayList<>())
                 .build();
         
         campaign = campaignRepository.save(campaign);
@@ -80,8 +80,8 @@ public class AdCampaignServiceImpl implements IAdCampaignService {
         
         creativeRepository.save(creative);
 
-        // Hold funds
-        walletService.holdFunds(profile.getProfileId(), totalBudget, campaign.getCampaignId());
+        // Nạp tiền từ Ví Tổng vào Ví Chiến Dịch
+        walletService.fundCampaign(profile.getProfileId(), request.getCampaignBudget(), campaign.getCampaignId());
 
         return toDto(campaign, List.of(creative));
     }
@@ -96,17 +96,28 @@ public class AdCampaignServiceImpl implements IAdCampaignService {
     }
 
     @Override
-    public List<com.talex.server.dtos.responses.ads.AdMetricResponseDto> getCampaignMetrics(UUID accountId, UUID campaignId) {
-        AdvertiseProfile profile = profileRepository.findByAccount_AccountId(accountId)
-                .orElseThrow(() -> new RuntimeException("Advertise profile not found"));
-                
+    public AdCampaignResponseDto updateCampaignLabels(UUID accountId, UUID campaignId, List<String> labels) {
         AdCampaign campaign = campaignRepository.findById(campaignId)
                 .orElseThrow(() -> new RuntimeException("Campaign not found"));
-                
-        if (!campaign.getProfile().getProfileId().equals(profile.getProfileId())) {
-            throw new RuntimeException("You do not own this campaign");
+
+        if (!campaign.getProfile().getAccount().getAccountId().equals(accountId)) {
+            throw new RuntimeException("Unauthorized");
         }
-        
+
+        campaign.setLabels(labels != null ? labels : new java.util.ArrayList<>());
+        campaign = campaignRepository.save(campaign);
+        return toDto(campaign, campaign.getCreatives());
+    }
+
+    @Override
+    public List<com.talex.server.dtos.responses.ads.AdMetricResponseDto> getCampaignMetrics(UUID accountId, UUID campaignId) {
+        AdCampaign campaign = campaignRepository.findById(campaignId)
+                .orElseThrow(() -> new RuntimeException("Campaign not found"));
+
+        if (!campaign.getProfile().getAccount().getAccountId().equals(accountId)) {
+            throw new RuntimeException("Unauthorized");
+        }
+
         return metricRepository.findByCampaign_CampaignIdOrderByReportDateAsc(campaignId).stream()
                 .map(m -> com.talex.server.dtos.responses.ads.AdMetricResponseDto.builder()
                         .reportDate(m.getReportDate())
@@ -114,6 +125,18 @@ public class AdCampaignServiceImpl implements IAdCampaignService {
                         .clicks(m.getClicks())
                         .build())
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<com.talex.server.entities.ads.AdTransaction> getCampaignTransactions(UUID accountId, UUID campaignId) {
+        AdCampaign campaign = campaignRepository.findById(campaignId)
+                .orElseThrow(() -> new RuntimeException("Campaign not found"));
+
+        if (!campaign.getProfile().getAccount().getAccountId().equals(accountId)) {
+            throw new RuntimeException("Unauthorized");
+        }
+
+        return transactionRepository.findByCampaign_CampaignIdOrderByCreatedAtDesc(campaignId);
     }
 
     @Override
@@ -223,8 +246,10 @@ public class AdCampaignServiceImpl implements IAdCampaignService {
                 .campaignId(campaign.getCampaignId())
                 .profileId(campaign.getProfile().getProfileId())
                 .slotId(campaign.getSlot().getSlotId())
+                .slotCodeName(campaign.getSlot().getCodeName())
                 .name(campaign.getName())
                 .status(campaign.getStatus())
+                .campaignBalance(campaign.getCampaignBalance())
                 .targetImpressions(campaign.getTargetImpressions())
                 .currentImpressions(campaign.getCurrentImpressions())
                 .currentClicks(campaign.getCurrentClicks())
@@ -233,6 +258,7 @@ public class AdCampaignServiceImpl implements IAdCampaignService {
                 .startDate(campaign.getStartDate())
                 .endDate(campaign.getEndDate())
                 .createdAt(campaign.getCreatedAt())
+                .labels(campaign.getLabels() != null ? new java.util.ArrayList<>(campaign.getLabels()) : new java.util.ArrayList<>())
                 .creatives(creatives != null ? creatives.stream().map(this::toCreativeDto).collect(Collectors.toList()) : List.of())
                 .build();
     }

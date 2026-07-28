@@ -19,6 +19,10 @@ public class AdCampaignCreateRequestDto {
     @Min(value = 1, message = "Target impressions must be at least 1")
     private Long targetImpressions;
 
+    @NotNull(message = "Campaign budget is required")
+    @Min(value = 10000, message = "Budget must be at least 10,000 VND")
+    private Long campaignBudget;
+
     @NotNull(message = "Media type is required")
     private AdMediaType mediaType;
 
@@ -27,4 +31,6 @@ public class AdCampaignCreateRequestDto {
 
     @NotBlank(message = "Target URL is required")
     private String targetUrl;
+
+    private java.util.List<String> labels;
 }

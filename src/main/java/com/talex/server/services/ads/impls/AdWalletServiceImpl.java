@@ -45,6 +45,20 @@ public class AdWalletServiceImpl implements IAdWalletService {
 
     @Override
     @Transactional
+    public AdvertiseProfileResponseDto setupProfile(UUID accountId, com.talex.server.dtos.requests.ads.AdProfileSetupRequestDto request) {
+        AdvertiseProfile profile = profileRepository.findByAccount_AccountId(accountId)
+                .orElseThrow(() -> new RuntimeException("Profile not found. Please visit dashboard first."));
+        
+        profile.setCompanyName(request.getCompanyName());
+        profile.setPhone(request.getPhone());
+        profile.setWebsite(request.getWebsite());
+        profile.setIsSetupCompleted(true);
+        
+        return toDto(profileRepository.save(profile));
+    }
+
+    @Override
+    @Transactional
     public AdvertiseProfileResponseDto topupWallet(UUID accountId, AdTopupRequestDto request) {
         AdvertiseProfile profile = profileRepository.findByAccount_AccountId(accountId)
                 .orElseGet(() -> {
@@ -69,25 +83,28 @@ public class AdWalletServiceImpl implements IAdWalletService {
 
     @Override
     @Transactional
-    public void holdFunds(UUID profileId, Long amount, UUID campaignId) {
+    public void fundCampaign(UUID profileId, Long amount, UUID campaignId) {
         AdvertiseProfile profile = profileRepository.findById(profileId)
                 .orElseThrow(() -> new RuntimeException("Profile not found"));
         AdCampaign campaign = campaignRepository.findById(campaignId)
                 .orElseThrow(() -> new RuntimeException("Campaign not found"));
 
         if (profile.getWalletBalance() < amount) {
-            throw new RuntimeException("Insufficient balance");
+            throw new RuntimeException("Số dư không đủ. Vui lòng nạp thêm tiền vào ví tổng.");
         }
 
         profile.setWalletBalance(profile.getWalletBalance() - amount);
         profileRepository.save(profile);
 
+        campaign.setCampaignBalance(campaign.getCampaignBalance() + amount);
+        campaignRepository.save(campaign);
+
         AdTransaction transaction = AdTransaction.builder()
                 .profile(profile)
                 .campaign(campaign)
                 .amount(amount)
-                .type(AdTransactionType.HOLD)
-                .note("Hold funds for campaign: " + campaign.getName())
+                .type(AdTransactionType.FUND_CAMPAIGN)
+                .note("Nạp tiền vào chiến dịch: " + campaign.getName())
                 .build();
         transactionRepository.save(transaction);
     }
@@ -131,12 +148,34 @@ public class AdWalletServiceImpl implements IAdWalletService {
         transactionRepository.save(transaction);
     }
 
+    @Override
+    public java.util.List<com.talex.server.dtos.responses.ads.AdTransactionResponseDto> getWalletTransactions(UUID accountId) {
+        AdvertiseProfile profile = profileRepository.findByAccount_AccountId(accountId)
+                .orElseThrow(() -> new RuntimeException("Profile not found"));
+        return transactionRepository.findByProfile_ProfileIdOrderByCreatedAtDesc(profile.getProfileId())
+                .stream().map(this::toTransactionDto).collect(java.util.stream.Collectors.toList());
+    }
+
+    private com.talex.server.dtos.responses.ads.AdTransactionResponseDto toTransactionDto(AdTransaction transaction) {
+        return com.talex.server.dtos.responses.ads.AdTransactionResponseDto.builder()
+                .transactionId(transaction.getTransactionId())
+                .amount(transaction.getAmount())
+                .type(transaction.getType().name())
+                .note(transaction.getNote())
+                .createdAt(transaction.getCreatedAt())
+                .build();
+    }
+
     private AdvertiseProfileResponseDto toDto(AdvertiseProfile profile) {
         return AdvertiseProfileResponseDto.builder()
                 .profileId(profile.getProfileId())
                 .accountId(profile.getAccount().getAccountId())
                 .walletBalance(profile.getWalletBalance())
                 .billingInfo(profile.getBillingInfo())
+                .companyName(profile.getCompanyName())
+                .phone(profile.getPhone())
+                .website(profile.getWebsite())
+                .isSetupCompleted(profile.getIsSetupCompleted())
                 .createdAt(profile.getCreatedAt())
                 .updatedAt(profile.getUpdatedAt())
                 .build();

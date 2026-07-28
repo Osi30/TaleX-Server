@@ -25,6 +25,7 @@ public class AdUserController {
 
     private final IAdCampaignService campaignService;
     private final IAdMediaUploadService mediaUploadService;
+    private final com.talex.server.services.ads.IAdWalletService walletService;
 
     @PostMapping(value = "/upload", consumes = "multipart/form-data")
     @Operation(summary = "Upload file quảng cáo (Banner/Video) lên S3", description = "User tải file ảnh/video lên, trả về link URL gốc S3.")
@@ -59,6 +60,31 @@ public class AdUserController {
                 .build());
     }
 
+    @PostMapping("/profile/setup")
+    @Operation(summary = "Thiết lập hồ sơ doanh nghiệp", description = "Lưu thông tin công ty lần đầu vào dashboard")
+    public ResponseEntity<BaseResponse> setupProfile(
+            @CurrentAccountId UUID accountId,
+            @Valid @RequestBody com.talex.server.dtos.requests.ads.AdProfileSetupRequestDto request) {
+        return ResponseEntity.ok(BaseResponse.builder()
+                .code(200)
+                .message("Profile setup completed")
+                .data(walletService.setupProfile(accountId, request))
+                .build());
+    }
+
+    @PatchMapping("/{campaignId}/labels")
+    @Operation(summary = "Cập nhật nhãn của chiến dịch", description = "User tự gắn nhãn cho chiến dịch của mình")
+    public ResponseEntity<BaseResponse> updateCampaignLabels(
+            @CurrentAccountId UUID accountId,
+            @PathVariable UUID campaignId,
+            @RequestBody java.util.List<String> labels) {
+        return ResponseEntity.ok(BaseResponse.builder()
+                .code(200)
+                .message("Labels updated successfully")
+                .data(campaignService.updateCampaignLabels(accountId, campaignId, labels))
+                .build());
+    }
+
     @GetMapping("/{campaignId}/metrics")
     @Operation(summary = "Lấy thống kê biểu đồ của 1 chiến dịch", description = "Trả về lịch sử View/Click theo từng ngày")
     public ResponseEntity<BaseResponse> getCampaignMetrics(
@@ -68,6 +94,20 @@ public class AdUserController {
                 .code(200)
                 .message("OK")
                 .data(campaignService.getCampaignMetrics(accountId, campaignId))
+                .build());
+    }
+
+    @GetMapping("/{campaignId}/transactions")
+    @Operation(summary = "Lấy lịch sử giao dịch của 1 chiến dịch", description = "Xem lịch sử nạp tiền và trừ tiền")
+    public ResponseEntity<BaseResponse> getCampaignTransactions(
+            @CurrentAccountId UUID accountId,
+            @PathVariable UUID campaignId) {
+        return ResponseEntity.ok(BaseResponse.builder()
+                .code(200)
+                .message("OK")
+                // Using a quick query via repository or adding it to campaignService
+                // Ideally should add to campaignService:
+                .data(campaignService.getCampaignTransactions(accountId, campaignId))
                 .build());
     }
 }

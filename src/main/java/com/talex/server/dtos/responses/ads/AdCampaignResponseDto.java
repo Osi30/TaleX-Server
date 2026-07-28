@@ -14,8 +14,10 @@ public class AdCampaignResponseDto {
     private UUID campaignId;
     private UUID profileId;
     private UUID slotId;
+    private String slotCodeName;
     private String name;
     private AdCampaignStatus status;
+    private Long campaignBalance;
     private Long targetImpressions;
     private Long currentImpressions;
     private Long currentClicks;
@@ -25,5 +27,6 @@ public class AdCampaignResponseDto {
     private LocalDateTime endDate;
     private LocalDateTime createdAt;
     
+    private List<String> labels;
     private List<AdCreativeResponseDto> creatives;
 }
