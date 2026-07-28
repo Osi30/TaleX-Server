@@ -26,26 +26,7 @@ public class UserFeatureDocument {
 
     // NHÓM ĐẶC TRƯNG TĨNH (STATIC FEATURES)
 
-    // 1. Thiết bị
-    @Field("device_types")
-    private List<String> deviceTypes = new ArrayList<>();
-    private List<String> os = new ArrayList<>();
-
-    // 2. Địa lý
     private String language;
-    private String timezone;
-
-    // 3. Profile
-    @Field("account_age")
-    private Long accountAge;
-
-    @Field("register_by")
-    private String registerBy;
-
-    @Field("creator_tier")
-    private String creatorTier;
-
-    // 4. Demographic
     private String gender;
     private Integer age;
 

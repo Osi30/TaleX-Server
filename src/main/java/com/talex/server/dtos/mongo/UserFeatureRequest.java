@@ -1,5 +1,6 @@
 package com.talex.server.dtos.mongo;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -12,19 +13,8 @@ import java.util.List;
 @NoArgsConstructor
 @Builder
 public class UserFeatureRequest {
-    private String deviceType;
-    private String os;
-
-    // Địa lý
+    @JsonIgnore
     private String language;
-    private String timezone;
-
-    // Profile
-    private Long accountAge;
-    private String registerBy;
-    private String creatorTier;
-
-    // Demographic
     private String gender;
     private Integer age;
 

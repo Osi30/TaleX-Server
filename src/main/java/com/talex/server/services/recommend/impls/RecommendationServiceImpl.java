@@ -14,6 +14,7 @@ import com.talex.server.services.recommend.RecommendationService;
 import com.talex.server.services.recommend.SeriesChannelService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.data.redis.core.script.RedisScript;
@@ -35,6 +36,7 @@ import java.util.stream.Collectors;
 @Service
 @Slf4j
 public class RecommendationServiceImpl implements RecommendationService {
+    private final String pythonApi;
     private final StringRedisTemplate redisTemplate;
     private final SeriesRecommendationRepository seriesRecommendationRepository;
     private final SeriesChannelService seriesChannelService;
@@ -45,7 +47,7 @@ public class RecommendationServiceImpl implements RecommendationService {
     private final IViewService viewService;
 
     public RecommendationServiceImpl(
-            StringRedisTemplate redisTemplate,
+            @Value("${python.api}") String pythonApi, StringRedisTemplate redisTemplate,
             ObjectMapper objectMapper,
             KafkaTemplate<String, String> kafkaTemplate,
             @Qualifier("questDbJdbcTemplate") JdbcTemplate questDbJdbcTemplate,
@@ -54,6 +56,7 @@ public class RecommendationServiceImpl implements RecommendationService {
             SeriesRepository seriesRepository,
             IViewService viewService
     ) {
+        this.pythonApi = pythonApi;
         this.redisTemplate = redisTemplate;
         this.objectMapper = objectMapper;
         this.kafkaTemplate = kafkaTemplate;
@@ -75,7 +78,7 @@ public class RecommendationServiceImpl implements RecommendationService {
     private static final Duration RECOMMENDATION_TTL = Duration.ofDays(7);
     private static final Duration RECOMMENDATION_POOL_TTL = Duration.ofHours(1);
 
-    private static final String AI_SERVICE_RANK_URL = "http://localhost:8000/api/v1/recommendations/rank";
+    private static final String AI_SERVICE_RANK_URL = "/api/v1/recommendations/rank";
     private static final String KAFKA_TOPIC_DISPLAY = "recommendation-display-log";
     private static final RedisScript<Long> BF_EXISTS_SCRIPT =
             new DefaultRedisScript<>("return redis.call('BF.EXISTS', KEYS[1], ARGV[1])", Long.class);
@@ -395,7 +398,7 @@ public class RecommendationServiceImpl implements RecommendationService {
             RestTemplate isolatedRestTemplate = new RestTemplate();
 
             ResponseEntity<List<RankResultItem>> response = isolatedRestTemplate.exchange(
-                    AI_SERVICE_RANK_URL,
+                    pythonApi + AI_SERVICE_RANK_URL,
                     org.springframework.http.HttpMethod.POST,
                     entity,
                     new org.springframework.core.ParameterizedTypeReference<List<RankResultItem>>() {

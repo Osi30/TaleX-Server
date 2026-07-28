@@ -267,3 +267,6 @@ logging:
     org.apache.kafka: WARN
     org.springframework.data.redis: WARN
     io.lettuce.core: WARN
+
+python:
+  api: ${PYTHON_API}
