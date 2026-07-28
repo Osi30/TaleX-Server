@@ -35,6 +35,7 @@ public class AdCampaignServiceImpl implements IAdCampaignService {
     private final AdCreativeRepository creativeRepository;
     private final AdSlotRepository slotRepository;
     private final AdvertiseProfileRepository profileRepository;
+    private final com.talex.server.repositories.ads.AdMetricRepository metricRepository;
     private final IAdWalletService walletService;
     private final com.talex.server.services.ads.IAdMediaUploadService adMediaUploadService;
     private final Random random = new Random();
@@ -91,6 +92,27 @@ public class AdCampaignServiceImpl implements IAdCampaignService {
                 .orElseThrow(() -> new RuntimeException("Ad profile not found"));
         return campaignRepository.findByProfile_ProfileIdOrderByCreatedAtDesc(profile.getProfileId()).stream()
                 .map(c -> toDto(c, c.getCreatives()))
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<com.talex.server.dtos.responses.ads.AdMetricResponseDto> getCampaignMetrics(UUID accountId, UUID campaignId) {
+        AdvertiseProfile profile = profileRepository.findByAccount_AccountId(accountId)
+                .orElseThrow(() -> new RuntimeException("Advertise profile not found"));
+                
+        AdCampaign campaign = campaignRepository.findById(campaignId)
+                .orElseThrow(() -> new RuntimeException("Campaign not found"));
+                
+        if (!campaign.getProfile().getProfileId().equals(profile.getProfileId())) {
+            throw new RuntimeException("You do not own this campaign");
+        }
+        
+        return metricRepository.findByCampaign_CampaignIdOrderByReportDateAsc(campaignId).stream()
+                .map(m -> com.talex.server.dtos.responses.ads.AdMetricResponseDto.builder()
+                        .reportDate(m.getReportDate())
+                        .impressions(m.getImpressions())
+                        .clicks(m.getClicks())
+                        .build())
                 .collect(Collectors.toList());
     }
 

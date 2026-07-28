@@ -58,4 +58,16 @@ public class AdUserController {
                 .data(campaignService.getMyCampaigns(accountId))
                 .build());
     }
+
+    @GetMapping("/{campaignId}/metrics")
+    @Operation(summary = "Lấy thống kê biểu đồ của 1 chiến dịch", description = "Trả về lịch sử View/Click theo từng ngày")
+    public ResponseEntity<BaseResponse> getCampaignMetrics(
+            @CurrentAccountId UUID accountId,
+            @PathVariable UUID campaignId) {
+        return ResponseEntity.ok(BaseResponse.builder()
+                .code(200)
+                .message("OK")
+                .data(campaignService.getCampaignMetrics(accountId, campaignId))
+                .build());
+    }
 }

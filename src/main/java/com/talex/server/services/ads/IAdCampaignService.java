@@ -13,6 +13,8 @@ public interface IAdCampaignService {
     AdCampaignResponseDto createCampaign(UUID accountId, AdCampaignCreateRequestDto request);
     List<AdCampaignResponseDto> getMyCampaigns(UUID accountId);
     
+    List<com.talex.server.dtos.responses.ads.AdMetricResponseDto> getCampaignMetrics(UUID accountId, UUID campaignId);
+    
     // Admin functions
     List<AdCampaignResponseDto> getPendingCampaigns();
     List<AdCampaignResponseDto> getAllCampaignsForAdmin();
