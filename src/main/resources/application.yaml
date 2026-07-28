@@ -269,4 +269,4 @@ logging:
     io.lettuce.core: WARN
 
 python:
-  api: ${PYTHON_API}
+  api: ${PYTHON_API:http://localhost:8000}
