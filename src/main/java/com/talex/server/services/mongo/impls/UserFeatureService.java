@@ -14,6 +14,8 @@ import com.talex.server.enums.SyncType;
 import com.talex.server.records.MonetizationData;
 import com.talex.server.repositories.SyncMetadataRepository;
 import com.talex.server.repositories.mongo.UserFeatureRepository;
+import com.talex.server.repositories.series.CategoryRepository;
+import com.talex.server.repositories.series.TagRepository;
 import com.talex.server.repositories.transaction.OrderRepository;
 import com.talex.server.services.series.EpisodeService;
 import com.talex.server.services.QuestDbService;
@@ -39,6 +41,8 @@ import java.util.stream.Collectors;
 public class UserFeatureService implements IUserFeatureService {
     private final UserFeatureRepository featureRepository;
     private final OrderRepository orderRepository;
+    private final TagRepository tagRepository;
+    private final CategoryRepository categoryRepository;
     private final QuestDbService questDbService;
     private final EpisodeService episodeService;
     private final SyncMetadataRepository syncMetadataRepository;
@@ -60,10 +64,14 @@ public class UserFeatureService implements IUserFeatureService {
         if (incoming.getAge() != null) existing.setAge(incoming.getAge());
 
         if (existing.getOnboardingMovieGenres().isEmpty() && incoming.getOnboardingMovieGenres() != null) {
-            existing.setOnboardingMovieGenres(incoming.getOnboardingMovieGenres());
+            List<String> genres = categoryRepository
+                    .findCategoryNamesByCategoryIds(incoming.getOnboardingMovieGenres());
+            existing.setOnboardingMovieGenres(genres);
         }
         if (existing.getOnboardingComicGenres().isEmpty() && incoming.getOnboardingComicGenres() != null) {
-            existing.setOnboardingComicGenres(incoming.getOnboardingComicGenres());
+            List<String> tags = tagRepository
+                    .findTagNamesByTagIds(incoming.getOnboardingComicGenres());
+            existing.setOnboardingComicGenres(tags);
         }
 
         return featureRepository.save(existing);

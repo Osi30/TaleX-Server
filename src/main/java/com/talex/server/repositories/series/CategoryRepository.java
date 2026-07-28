@@ -32,4 +32,10 @@ public interface CategoryRepository extends JpaRepository<Category, String> {
             "AND sc.isDeleted = false " +
             "AND sc.category.isDeleted = false")
     List<String> findCategoriesBySeriesId(@Param("seriesId") String seriesId);
+
+    /// Hỗ trợ lấy category name cho mongo user feature
+    @Query("SELECT c.categoryName FROM Category c " +
+            "WHERE c.categoryId IN :categoryIds " +
+            "AND c.isDeleted = false")
+    List<String> findCategoryNamesByCategoryIds(@Param("categoryIds") Collection<String> categoryIds);
 }

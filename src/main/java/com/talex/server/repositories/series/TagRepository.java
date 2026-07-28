@@ -32,4 +32,10 @@ public interface TagRepository extends JpaRepository<Tag, String> {
             "AND st.isDeleted = false " +
             "AND st.tag.isDeleted = false")
     List<String> findTagsBySeriesId(@Param("seriesId") String seriesId);
+
+    /// Hỗ trợ lấy tag name cho mongo user feature
+    @Query("SELECT t.tagName FROM Tag t " +
+            "WHERE t.tagId IN :tagIds " +
+            "AND t.isDeleted = false")
+    List<String> findTagNamesByTagIds(@Param("tagIds") Collection<String> tagIds);
 }

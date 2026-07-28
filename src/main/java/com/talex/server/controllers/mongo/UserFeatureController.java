@@ -8,6 +8,7 @@ import com.talex.server.services.mongo.IUserFeatureService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -32,7 +33,7 @@ public class UserFeatureController {
     )
     public ResponseEntity<UserFeatureDocument> saveUserFeatures(
             @CurrentAccountId UUID accountId,
-            @RequestBody UserFeatureRequest request,
+            @Valid @RequestBody UserFeatureRequest request,
             HttpServletRequest servletRequest
     ) {
         request.setLanguage(servletRequest.getLocale().toLanguageTag());
