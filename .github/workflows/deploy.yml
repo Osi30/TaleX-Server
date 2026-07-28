@@ -78,6 +78,7 @@ jobs:
             MONGO_HOST=${{ secrets.MONGO_HOST }}
             MONGO_APP_NAME=${{ secrets.MONGO_APP_NAME }}
             MONGO_DATABASE=${{ secrets.MONGO_DATABASE }}
+            PYTHON_API=${{ secrets.PYTHON_API }}
             ENVEOF
 
             sed -i 's/^[[:space:]]*//' .env
