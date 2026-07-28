@@ -28,8 +28,8 @@ public class UserFeatureRequest {
     private Integer age;
 
     @NotNull
-    private List<String> onboardingMovieGenres;
+    private List<String> onboardingGenres;
 
     @NotNull
-    private List<String> onboardingComicGenres;
+    private List<String> onboardingTags;
 }

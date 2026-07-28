@@ -63,15 +63,15 @@ public class UserFeatureService implements IUserFeatureService {
         if (incoming.getGender() != null) existing.setGender(incoming.getGender());
         if (incoming.getAge() != null) existing.setAge(incoming.getAge());
 
-        if (existing.getOnboardingMovieGenres().isEmpty() && incoming.getOnboardingMovieGenres() != null) {
+        if (existing.getOnboardingGenres().isEmpty() && incoming.getOnboardingGenres() != null) {
             List<String> genres = categoryRepository
-                    .findCategoryNamesByCategoryIds(incoming.getOnboardingMovieGenres());
-            existing.setOnboardingMovieGenres(genres);
+                    .findCategoryNamesByCategoryIds(incoming.getOnboardingGenres());
+            existing.setOnboardingGenres(genres);
         }
-        if (existing.getOnboardingComicGenres().isEmpty() && incoming.getOnboardingComicGenres() != null) {
+        if (existing.getOnboardingTags().isEmpty() && incoming.getOnboardingTags() != null) {
             List<String> tags = tagRepository
-                    .findTagNamesByTagIds(incoming.getOnboardingComicGenres());
-            existing.setOnboardingComicGenres(tags);
+                    .findTagNamesByTagIds(incoming.getOnboardingTags());
+            existing.setOnboardingTags(tags);
         }
 
         return featureRepository.save(existing);

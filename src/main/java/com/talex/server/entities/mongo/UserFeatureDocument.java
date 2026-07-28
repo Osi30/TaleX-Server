@@ -32,11 +32,11 @@ public class UserFeatureDocument {
 
     @Field("onboarding_movie_genres")
     @Builder.Default
-    private List<String> onboardingMovieGenres = new ArrayList<>();
+    private List<String> onboardingGenres = new ArrayList<>();
 
     @Field("onboarding_comic_genres")
     @Builder.Default
-    private List<String> onboardingComicGenres = new ArrayList<>();
+    private List<String> onboardingTags = new ArrayList<>();
 
     // NHÓM ĐẶC TRƯNG ĐỘNG (DYNAMIC FEATURES)
 
