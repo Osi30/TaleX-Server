@@ -2,6 +2,7 @@ package com.talex.server.services.recommend.impls;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.talex.server.dtos.mongo.UserStaticFeature;
 import com.talex.server.dtos.recommend.HomePoolsSeriesResponseDto;
 import com.talex.server.dtos.recommend.RankRequestPayload;
 import com.talex.server.dtos.recommend.RankResultItem;
@@ -10,6 +11,7 @@ import com.talex.server.enums.series.SeriesStatus;
 import com.talex.server.repositories.mongo.SeriesRecommendationRepository;
 import com.talex.server.repositories.series.SeriesRepository;
 import com.talex.server.services.interaction.IViewService;
+import com.talex.server.services.mongo.IUserFeatureService;
 import com.talex.server.services.recommend.RecommendationService;
 import com.talex.server.services.recommend.SeriesChannelService;
 import lombok.extern.slf4j.Slf4j;
@@ -29,6 +31,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
 import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
@@ -45,6 +50,7 @@ public class RecommendationServiceImpl implements RecommendationService {
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final ObjectMapper objectMapper;
     private final IViewService viewService;
+    private final IUserFeatureService userFeatureService;
 
     public RecommendationServiceImpl(
             @Value("${python.api}") String pythonApi, StringRedisTemplate redisTemplate,
@@ -54,7 +60,7 @@ public class RecommendationServiceImpl implements RecommendationService {
             SeriesRecommendationRepository seriesRecommendationRepository,
             SeriesChannelService seriesChannelService,
             SeriesRepository seriesRepository,
-            IViewService viewService
+            IViewService viewService, IUserFeatureService userFeatureService
     ) {
         this.pythonApi = pythonApi;
         this.redisTemplate = redisTemplate;
@@ -65,6 +71,7 @@ public class RecommendationServiceImpl implements RecommendationService {
         this.seriesChannelService = seriesChannelService;
         this.seriesRepository = seriesRepository;
         this.viewService = viewService;
+        this.userFeatureService = userFeatureService;
     }
 
     private static final String REDIS_KEY_PREFIX = "watch:top5:recent_series:";
@@ -73,10 +80,12 @@ public class RecommendationServiceImpl implements RecommendationService {
     private static final String RECOMMENDATION_OFFSET_PREFIX = "recommendation:offset:";
     private static final String SESSION_KEY_PREFIX = "recommendation:session:";
     private static final String BLOOM_WATCHED_PREFIX = "recommendation:bloom:watched:";
+    private static final String RECOMMENDATION_ALREADY_WATCHED_PREFIX = "recommendation:already_watched:";
 
     private static final Duration CACHE_TTL = Duration.ofDays(1);
     private static final Duration RECOMMENDATION_TTL = Duration.ofDays(7);
     private static final Duration RECOMMENDATION_POOL_TTL = Duration.ofHours(1);
+    private static final Duration ALREADY_WATCHED_POOL_TTL = Duration.ofHours(1);
 
     private static final String AI_SERVICE_RANK_URL = "/api/v1/recommendations/rank";
     private static final String KAFKA_TOPIC_DISPLAY = "recommendation-display-log";
@@ -263,6 +272,7 @@ public class RecommendationServiceImpl implements RecommendationService {
         // 6. Bắn sự kiện Async sang Kafka cho ImpressionWorker
         if (!"guest_user".equals(userIdStr) && !"anonymous".equals(userIdStr)) {
             sendHomeImpressionsAsync(userIdStr, pagedSeriesIds);
+            saveToAlreadyWatchedPool(userIdStr, pagedSeriesIds);
         }
 
         return resultCards;
@@ -274,10 +284,10 @@ public class RecommendationServiceImpl implements RecommendationService {
         if (seriesIds == null || seriesIds.isEmpty()) return Collections.emptyList();
 
         // 1. Tách biệt lấy danh sách đã hiển thị trong phiên
-        Set<String> alreadyShownIds = this.getAlreadyShownSessionIds(accountId, viewSessionId);
+        Set<String> alreadyShownIds = getAlreadyShownSessionIds(accountId, viewSessionId);
 
         // 2. Thực hiện hàm lọc phụ 1 (Theo Phiên)
-        List<String> sessionFilteredCandidates = this.filterBySession(seriesIds, alreadyShownIds);
+        List<String> sessionFilteredCandidates = filterBySession(seriesIds, alreadyShownIds);
         if (sessionFilteredCandidates.isEmpty()) return Collections.emptyList();
 
         // 3. Thực hiện hàm lọc phụ 2 (Lịch sử xem vĩnh viễn)
@@ -540,33 +550,73 @@ public class RecommendationServiceImpl implements RecommendationService {
 
         // B2: Lấy 5 series gần nhất người dùng đã xem
         List<String> recent5Series = getRecentWatchedSeries(accountId);
-
-        // B3: Lấy tối đa 10 series tương tự cho mỗi series trong 5 series gần nhất (Tổng tối đa 50 IDs)
-        Set<String> similar50IdsSet = new LinkedHashSet<>();
-        for (String seriesId : recent5Series) {
-            similar50IdsSet.addAll(getSimilarSeriesIds(seriesId));
-        }
-        List<String> similar50Ids = new ArrayList<>(similar50IdsSet);
-
-        // B4: Lọc dữ liệu theo từng Trang (HOME / DETAIL)
         List<String> filtered50Ids = new ArrayList<>();
 
-        if ("HOME".equalsIgnoreCase(pageType)) {
-            // Trang HOME: Lấy Global IDs và Account Subscription IDs để lọc
-            Set<String> globalIds = new HashSet<>(seriesChannelService.getAllGlobalIds());
-            Set<String> accountSubIds = new HashSet<>(seriesChannelService.getAllSubscribedCreatorsSeriesIds(accountId));
+        // Lấy danh sách IDs đã xem gần đây trong vòng 1 tiếng từ alreadyWatchPool
+        Set<String> alreadyWatchedPoolIds = getAlreadyWatchedPoolIds(accountId);
 
-            for (String id : similar50Ids) {
-                if (!globalIds.contains(id) && !accountSubIds.contains(id)) {
-                    filtered50Ids.add(id);
-                }
+        // Lấy Ids của Global và Kênh Account Sub
+        Set<String> globalIds = new HashSet<>(seriesChannelService.getAllGlobalIds());
+        Set<String> accountSubIds = new HashSet<>(seriesChannelService.getAllSubscribedCreatorsSeriesIds(accountId));
+        Set<String> blacklist = new HashSet<>(channel16Ids);
+        blacklist.addAll(globalIds);
+        blacklist.addAll(accountSubIds);
+        blacklist.addAll(alreadyWatchedPoolIds);
+
+        // TH1: Người dùng CHƯA XEM bất kỳ series nào
+        if (recent5Series.isEmpty()) {
+            List<String> onboardingIds = seriesChannelService.getOnboardingPreferencesSeriesIds(accountId, blacklist, 50);
+            if (onboardingIds != null && !onboardingIds.isEmpty()) {
+                filtered50Ids.addAll(onboardingIds);
             }
         } else {
-            // Trang DETAIL: Lọc 50 IDs không trùng với 16 IDs từ 8 kênh
-            Set<String> channel16Set = new HashSet<>(channel16Ids);
-            for (String id : similar50Ids) {
-                if (!channel16Set.contains(id)) {
-                    filtered50Ids.add(id);
+            // TH2: Người dùng ĐÃ XEM ít nhất 1 series -> Lấy tối đa 10 series tương tự cho mỗi series
+            Set<String> similar50IdsSet = new LinkedHashSet<>();
+            for (String seriesId : recent5Series) {
+                similar50IdsSet.addAll(getSimilarSeriesIds(seriesId));
+            }
+            List<String> similar50Ids = new ArrayList<>(similar50IdsSet);
+
+            // Lọc dữ liệu theo từng Trang (HOME / DETAIL)
+            if ("HOME".equalsIgnoreCase(pageType)) {
+                for (String id : similar50Ids) {
+                    if (!blacklist.contains(id)) {
+                        filtered50Ids.add(id);
+                    }
+                }
+            } else {
+                Set<String> channel16Set = new HashSet<>(channel16Ids);
+                for (String id : similar50Ids) {
+                    if (!channel16Set.contains(id) && !alreadyWatchedPoolIds.contains(id)) {
+                        filtered50Ids.add(id);
+                    }
+                }
+            }
+
+            blacklist.addAll(filtered50Ids);
+
+            // Đã xem series nhưng danh sách tương tự chưa đủ 50 -> Bổ sung thêm
+            if (filtered50Ids.size() < 50) {
+                int needed = 50 - filtered50Ids.size();
+                UserStaticFeature staticFeature = userFeatureService.getUserStaticFeatureByAccountId(accountId);
+                boolean isOlderThan1Hour = false;
+
+                if (staticFeature != null && staticFeature.getCreatedAt() != null) {
+                    Instant createdAt = staticFeature.getCreatedAt().atZone(ZoneId.systemDefault()).toInstant();
+                    isOlderThan1Hour = createdAt.isBefore(Instant.now().minus(1, ChronoUnit.HOURS));
+                }
+
+                List<String> additionalIds;
+                if (isOlderThan1Hour) {
+                    // Tạo tài khoản > 1 tiếng -> Ưu tiên lấy theo dữ liệu động
+                    additionalIds = seriesChannelService.getDynamicPreferencesSeriesIds(accountId, blacklist, needed);
+                } else {
+                    // Tạo tài khoản <= 1 tiếng -> Lấy theo dữ liệu tĩnh
+                    additionalIds = seriesChannelService.getOnboardingPreferencesSeriesIds(accountId, blacklist, needed);
+                }
+
+                if (additionalIds != null && !additionalIds.isEmpty()) {
+                    filtered50Ids.addAll(additionalIds);
                 }
             }
         }
@@ -684,6 +734,39 @@ public class RecommendationServiceImpl implements RecommendationService {
             log.info("[Kafka Impression] Đã phát log impression cho accountId: {} với {} series", accountId, seriesIds.size());
         } catch (Exception e) {
             log.error("[Kafka Impression Error] Lỗi khi phát log impression cho accountId {}: {}", accountId, e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Lưu danh sách các Series IDs vừa lấy hiển thị vào Redis Set (TTL 1 Giờ)
+     */
+    private void saveToAlreadyWatchedPool(String accountId, List<String> seriesIds) {
+        if (accountId == null || accountId.trim().isEmpty() || seriesIds == null || seriesIds.isEmpty()) {
+            return;
+        }
+        String key = RECOMMENDATION_ALREADY_WATCHED_PREFIX + accountId;
+        try {
+            redisTemplate.opsForSet().add(key, seriesIds.toArray(new String[0]));
+            redisTemplate.expire(key, ALREADY_WATCHED_POOL_TTL);
+        } catch (Exception e) {
+            log.error("[AlreadyWatchedPool Error] Lỗi khi lưu Redis cho accountId {}: {}", accountId, e.getMessage());
+        }
+    }
+
+    /**
+     * Lấy tập hợp các Series IDs đã hiển thị gần đây (trong 1 Giờ qua) từ Redis Set
+     */
+    private Set<String> getAlreadyWatchedPoolIds(String accountId) {
+        if (accountId == null || accountId.trim().isEmpty() || "guest_user".equals(accountId) || "anonymous".equals(accountId)) {
+            return Collections.emptySet();
+        }
+        String key = RECOMMENDATION_ALREADY_WATCHED_PREFIX + accountId;
+        try {
+            Set<String> members = redisTemplate.opsForSet().members(key);
+            return members != null ? members : Collections.emptySet();
+        } catch (Exception e) {
+            log.error("[AlreadyWatchedPool Error] Lỗi khi đọc Redis cho accountId {}: {}", accountId, e.getMessage());
+            return Collections.emptySet();
         }
     }
 }

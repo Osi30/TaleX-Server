@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.talex.server.dtos.interaction.EpisodeHourKey;
 import com.talex.server.exceptions.codes.InteractionErrorCode;
 import com.talex.server.exceptions.details.InteractionException;
+import com.talex.server.repositories.auth.AccountRepository;
 import com.talex.server.repositories.interaction.aggregation.LikeAggregationRepository;
 import com.talex.server.services.series.EpisodeService;
 import io.questdb.client.Sender;
@@ -20,6 +21,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 @Component
 @RequiredArgsConstructor
@@ -28,6 +30,7 @@ public class AccountLikeWorker {
     private final ObjectMapper objectMapper;
     private final EpisodeService episodeService;
     private final LikeAggregationRepository aggregationRepository;
+    private final AccountRepository accountRepository;
 
     @KafkaListener(
             topics = "talex-cdc.public.account_likes",
@@ -103,6 +106,7 @@ public class AccountLikeWorker {
 
                 String episodeId = targetNode.has("episode_id") ? targetNode.get("episode_id").asText() : null;
                 long createdAtUs = targetNode.has("created_at") ? targetNode.get("created_at").asLong() : System.currentTimeMillis() * 1000;
+                String accountId = targetNode.has("account_id") ? targetNode.get("account_id").asText() : null;
 
                 // Quy ước: Xóa cứng (d) = giảm 1 (-1), Tạo mới (c) = tăng 1 (+1)
                 int delta = "d".equals(op) ? -1 : 1;
@@ -117,6 +121,12 @@ public class AccountLikeWorker {
 
                     EpisodeHourKey key = new EpisodeHourKey(episodeId, hourBucket);
                     logDeltaMap.put(key, logDeltaMap.getOrDefault(key, 0) + delta);
+                }
+
+                if (accountId != null) {
+                    accountRepository.updateLastInteractionTime(
+                            LocalDateTime.now(), UUID.fromString(accountId)
+                    );
                 }
             }
 

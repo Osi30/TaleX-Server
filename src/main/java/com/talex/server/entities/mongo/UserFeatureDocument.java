@@ -3,7 +3,6 @@ package com.talex.server.entities.mongo;
 import com.talex.server.entities.mongo.userfeatures.DeepEngagementStats;
 import com.talex.server.entities.mongo.userfeatures.DynamicPreferences;
 import com.talex.server.entities.mongo.userfeatures.InteractionStats;
-import com.talex.server.entities.mongo.userfeatures.MonetizationStats;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -12,6 +11,7 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -29,6 +29,7 @@ public class UserFeatureDocument {
     private String language;
     private String gender;
     private Integer age;
+    private LocalDateTime createdAt;
 
     @Field("onboarding_movie_genres")
     @Builder.Default
@@ -49,9 +50,4 @@ public class UserFeatureDocument {
 
     @Builder.Default
     private DynamicPreferences preferences = new DynamicPreferences();
-
-    @Builder.Default
-    private MonetizationStats monetization = new MonetizationStats();
-
-
 }

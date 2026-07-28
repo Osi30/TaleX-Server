@@ -5,8 +5,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.talex.server.dtos.interaction.EpisodeHourKey;
 import com.talex.server.exceptions.codes.InteractionErrorCode;
 import com.talex.server.exceptions.details.InteractionException;
+import com.talex.server.repositories.auth.AccountRepository;
 import com.talex.server.repositories.interaction.aggregation.ShareAggregationRepository;
 import com.talex.server.services.series.EpisodeService;
+import com.talex.server.utils.ValidationUtils;
 import io.questdb.client.Sender;
 import lombok.RequiredArgsConstructor;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -20,6 +22,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 @Component
 @RequiredArgsConstructor
@@ -28,6 +31,7 @@ public class AccountShareWorker {
     private final ObjectMapper objectMapper;
     private final EpisodeService episodeService;
     private final ShareAggregationRepository shareAggregationRepository;
+    private final AccountRepository accountRepository;
 
     @KafkaListener(
             topics = "talex-interaction.episode-shared",
@@ -78,6 +82,8 @@ public class AccountShareWorker {
                 if (eventNode == null) continue;
 
                 String episodeId = eventNode.get("episode_id").asText();
+                String accountId = eventNode.get("account_id").asText();
+
                 long tsMs = eventNode.get("timestamp").asLong();
 
                 long delta = 1L; // Cố định tăng tịnh tiến 1
@@ -91,6 +97,12 @@ public class AccountShareWorker {
 
                 EpisodeHourKey hourKey = new EpisodeHourKey(episodeId, hourBucket);
                 logDeltaMap.put(hourKey, logDeltaMap.getOrDefault(hourKey, 0L) + delta);
+
+                if (!ValidationUtils.isNullOrEmpty(accountId)){
+                    accountRepository.updateLastInteractionTime(
+                            LocalDateTime.now(), UUID.fromString(accountId)
+                    );
+                }
             }
 
             // Cập nhật các bảng tổng số lượng lũy kế tổng thể

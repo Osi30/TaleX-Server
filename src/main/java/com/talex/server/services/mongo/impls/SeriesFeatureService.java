@@ -56,7 +56,6 @@ public class SeriesFeatureService implements ISeriesFeatureService {
                     .tags(tagNames)
                     .ageRating(series.getAgeRating())
                     .language(series.getLanguage())
-//                    .creatorTier(series.getCreator() != null && series.getCreator().getCreatorTier() != null ? series.getCreator().getCreatorTier().getTierName() : null)
                     .rating(series.getAverageRating())
                     .bannerUrl(series.getBannerUrl())
                     .coverUrl(series.getCoverUrl())

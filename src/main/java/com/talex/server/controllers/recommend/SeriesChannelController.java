@@ -2,6 +2,7 @@ package com.talex.server.controllers.recommend;
 
 import com.talex.server.annotations.CurrentAccountId;
 import com.talex.server.services.recommend.SeriesChannelService;
+import com.talex.server.services.recommend.SeriesPoolService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +23,17 @@ import java.util.UUID;
 )
 public class SeriesChannelController {
     private final SeriesChannelService seriesChannelService;
+    private final SeriesPoolService seriesPoolService;
+
+    @PostMapping("/pool")
+    @Operation(
+            summary = "Kích hoạt tiến trình tạo pool cho các series",
+            description = "Thực hiện tạo pool cho 6 kênh thuộc kênh chung của hệ thống thủ công"
+    )
+    public ResponseEntity<?> initGlobalPools() {
+        seriesPoolService.rebuildAllGlobalPools();
+        return ResponseEntity.ok("Khởi tạo thành công");
+    }
 
     // --- Kênh: Promoted ---
 
@@ -269,6 +281,43 @@ public class SeriesChannelController {
     ) {
         List<String> refreshedPool = seriesChannelService.refreshTrendingPool(blacklistSeriesIds, limit);
         return ResponseEntity.ok(refreshedPool);
+    }
+
+    // --- Kênh: Sở thích Onboarding (Onboarding Preferences) ---
+
+    @GetMapping("/onboarding-preferences")
+    @Operation(
+            summary = "Kênh Sở thích Onboarding: Lấy danh sách Series IDs cá nhân hóa",
+            description = "Truy vấn danh sách Candidate Series IDs từ Redis Pool cá nhân dựa theo Onboarding Genres & Tags thu thập khi khảo sát người dùng. " +
+                    "Sử dụng con trỏ offset tự động xoay vòng trên Redis."
+    )
+    public ResponseEntity<List<String>> getOnboardingPreferencesSeriesIds(
+            @CurrentAccountId UUID accountId,
+            @RequestParam(defaultValue = "3") int limit
+    ) {
+        if (accountId == null) return ResponseEntity.noContent().build();
+        List<String> seriesIds = seriesChannelService.getOnboardingPreferencesSeriesIds(
+                accountId.toString(), Collections.emptySet(), limit
+        );
+        return ResponseEntity.ok(seriesIds);
+    }
+
+    @GetMapping("/dynamic-preferences")
+    @Operation(
+            summary = "Kênh Sở thích Động: Lấy danh sách Series IDs cá nhân hóa theo tương tác",
+            description = "Lấy dữ liệu thói quen người dùng (Top Categories & Tags thời gian xem cao nhất từ MongoDB), " +
+                    "sau đó truy vấn danh sách Series tương ứng từ PostgreSQL có hỗ trợ Blacklist."
+    )
+    public ResponseEntity<List<String>> getDynamicPreferencesSeriesIds(
+            @CurrentAccountId UUID accountId,
+            @RequestBody(required = false) Set<String> blacklistSeriesIds,
+            @RequestParam(defaultValue = "10") int totalLimit
+    ) {
+        if (accountId == null) return ResponseEntity.noContent().build();
+        List<String> seriesIds = seriesChannelService.getDynamicPreferencesSeriesIds(
+                accountId.toString(), blacklistSeriesIds, totalLimit
+        );
+        return ResponseEntity.ok(seriesIds);
     }
 
     // --- Global IDs ---

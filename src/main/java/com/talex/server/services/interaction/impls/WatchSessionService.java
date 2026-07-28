@@ -25,7 +25,7 @@ public class WatchSessionService implements IWatchSessionService {
     @Override
     public void sendWatchHeartbeat(WatchTimeRequest request, UUID accountId, String ipAddress) {
         try {
-            String finalAccountId = (accountId == null || accountId.toString().trim().isEmpty()) ? "anonymous" : accountId.toString();
+            String finalAccountId = (accountId == null || accountId.toString().trim().isEmpty()) ? "" : accountId.toString();
             String finalIpAddress = (ipAddress == null || ipAddress.trim().isEmpty()) ? "0.0.0.0" : ipAddress;
 
             Map<String, Object> watchEvent = Map.of(

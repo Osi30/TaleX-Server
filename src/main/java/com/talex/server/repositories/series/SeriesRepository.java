@@ -299,4 +299,25 @@ public interface SeriesRepository extends JpaRepository<Series, String> {
             @Param("seriesIds") Collection<String> seriesIds,
             @Param("status") SeriesStatus status
     );
+
+    /**
+     * Truy vấn Series IDs dựa theo tên Categories và Tags thu thập từ Onboarding
+     */
+    @Query("SELECT DISTINCT s.seriesId FROM Series s " +
+            "LEFT JOIN s.seriesCategories sc LEFT JOIN sc.category c " +
+            "LEFT JOIN s.seriesTags st LEFT JOIN st.tag t " +
+            "WHERE s.status = :status AND s.isDeleted = false " +
+            "AND (:isBlacklistEmpty = true OR s.seriesId NOT IN :blacklistIds) " +
+            "AND ((:hasGenres = true AND c.categoryName IN :genres) OR (:hasTags = true AND t.tagName IN :tags)) " +
+            "ORDER BY s.analyticData.views DESC, s.createdAt DESC")
+    List<String> findCandidateSeriesByGenresAndTags(
+            @Param("status") SeriesStatus status,
+            @Param("genres") List<String> genres,
+            @Param("hasGenres") boolean hasGenres,
+            @Param("tags") List<String> tags,
+            @Param("hasTags") boolean hasTags,
+            @Param("blacklistIds") Collection<String> blacklistIds,
+            @Param("isBlacklistEmpty") boolean isBlacklistEmpty,
+            Pageable pageable
+    );
 }

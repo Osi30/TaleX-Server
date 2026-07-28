@@ -1,5 +1,7 @@
 package com.talex.server.services.recommend.impls;
 
+import com.talex.server.dtos.mongo.UserDynamicFeature;
+import com.talex.server.dtos.mongo.UserStaticFeature;
 import com.talex.server.enums.ImpressionStatus;
 import com.talex.server.enums.engagement.CampaignStatus;
 import com.talex.server.enums.series.CategoryStatus;
@@ -7,6 +9,7 @@ import com.talex.server.enums.series.SeriesStatus;
 import com.talex.server.repositories.campaign.CampaignSeriesRepository;
 import com.talex.server.repositories.series.SeriesLogRepository;
 import com.talex.server.repositories.series.SeriesRepository;
+import com.talex.server.services.mongo.IUserFeatureService;
 import com.talex.server.services.recommend.SeriesChannelService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,6 +29,7 @@ import java.util.*;
 @RequiredArgsConstructor
 @Slf4j
 public class SeriesChannelServiceImpl implements SeriesChannelService {
+    private final IUserFeatureService userFeatureService;
     private final SeriesRepository seriesRepository;
     private final SeriesLogRepository seriesLogRepository;
     private final CampaignSeriesRepository campaignSeriesRepository;
@@ -576,6 +580,116 @@ public class SeriesChannelServiceImpl implements SeriesChannelService {
         }
 
         return mergedList;
+    }
+
+    // =========================================================================
+    // ONBOARDING PREFERENCES CHANNEL (KÊNH SỞ THÍCH ONBOARDING)
+    // =========================================================================
+
+    @Override
+    public List<String> getOnboardingPreferencesSeriesIds(String accountId, Set<String> blacklistIds, int totalLimit) {
+        if (accountId == null || accountId.trim().isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        // 1. Lấy dữ liệu tĩnh (Onboarding Features) từ UserFeatureService
+        UserStaticFeature staticFeature = userFeatureService.getUserStaticFeatureByAccountId(accountId);
+        if (staticFeature == null) {
+            log.warn("[OnboardingChannel] Không tìm thấy dữ liệu tĩnh cho Account ID: {}", accountId);
+            return Collections.emptyList();
+        }
+
+        List<String> genres = staticFeature.getOnboardingGenres();
+        List<String> tags = staticFeature.getOnboardingTags();
+
+        boolean hasGenres = genres != null && !genres.isEmpty();
+        boolean hasTags = tags != null && !tags.isEmpty();
+
+        // Nếu user chưa chọn thể loại lẫn tag nào lúc onboarding -> không thể đề xuất theo kênh này
+        if (!hasGenres && !hasTags) {
+            log.info("[OnboardingChannel] Account ID {} không có Onboarding Genres/Tags.", accountId);
+            return Collections.emptyList();
+        }
+
+        // 3. Gom Blacklist
+        Set<String> combinedBlacklist = new HashSet<>();
+        if (blacklistIds != null) combinedBlacklist.addAll(blacklistIds);
+        boolean isBlacklistEmpty = combinedBlacklist.isEmpty();
+
+        // 4. Query PostgreSQL tìm Candidate Series IDs phù hợp
+        Pageable pageable = PageRequest.of(0, totalLimit);
+        List<String> candidateIds = seriesRepository.findCandidateSeriesByGenresAndTags(
+                SeriesStatus.PUBLISHED,
+                hasGenres ? genres : Collections.emptyList(),
+                hasGenres,
+                hasTags ? tags : Collections.emptyList(),
+                hasTags,
+                combinedBlacklist,
+                isBlacklistEmpty,
+                pageable
+        );
+
+        // 5. Trộn ngẫu nhiên để nội dung thêm đa dạng khi người dùng xem lại
+        List<String> shuffledNewIds = new ArrayList<>(candidateIds);
+        Collections.shuffle(shuffledNewIds);
+
+        return shuffledNewIds;
+    }
+
+    // =========================================================================
+    // DYNAMIC PREFERENCES CHANNEL (KÊNH SỞ THÍCH ĐỘNG TƯƠNG TÁC)
+    // =========================================================================
+
+    @Override
+    public List<String> getDynamicPreferencesSeriesIds(String accountId, Set<String> blacklistIds, int totalLimit) {
+        if (accountId == null || accountId.trim().isEmpty() || totalLimit <= 0) {
+            return Collections.emptyList();
+        }
+
+        // 1. Lấy dữ liệu đặc trưng động (Dynamic Features) từ UserFeatureService
+        UserDynamicFeature dynamicFeature = userFeatureService.getUserDynamicFeatureByAccountId(accountId);
+        if (dynamicFeature == null) {
+            log.warn("[DynamicChannel] Không tìm thấy dữ liệu động cho Account ID: {}", accountId);
+            return Collections.emptyList();
+        }
+
+        List<String> categories = dynamicFeature.getCategories();
+        List<String> tags = dynamicFeature.getTags();
+
+        boolean hasCategories = categories != null && !categories.isEmpty();
+        boolean hasTags = tags != null && !tags.isEmpty();
+
+        // Nếu user chưa có lịch sử tương tác/thời gian xem đủ tạo thành sở thích động -> bỏ qua
+        if (!hasCategories && !hasTags) {
+            log.info("[DynamicChannel] Account ID {} chưa có Dynamic Categories/Tags tương tác.", accountId);
+            return Collections.emptyList();
+        }
+
+        // 2. Gom Blacklist
+        Set<String> combinedBlacklist = new HashSet<>();
+        if (blacklistIds != null) {
+            combinedBlacklist.addAll(blacklistIds);
+        }
+        boolean isBlacklistEmpty = combinedBlacklist.isEmpty();
+
+        // 3. Query PostgreSQL tìm Candidate Series IDs phù hợp với Categories & Tags động
+        Pageable pageable = PageRequest.of(0, totalLimit);
+        List<String> candidateIds = seriesRepository.findCandidateSeriesByGenresAndTags(
+                SeriesStatus.PUBLISHED,
+                hasCategories ? categories : Collections.emptyList(),
+                hasCategories,
+                hasTags ? tags : Collections.emptyList(),
+                hasTags,
+                combinedBlacklist,
+                isBlacklistEmpty,
+                pageable
+        );
+
+        // 4. Trộn ngẫu nhiên danh sách ứng viên để tăng tính đa dạng hiển thị
+        List<String> shuffledNewIds = new ArrayList<>(candidateIds);
+        Collections.shuffle(shuffledNewIds);
+
+        return shuffledNewIds;
     }
 
     // =========================================================================

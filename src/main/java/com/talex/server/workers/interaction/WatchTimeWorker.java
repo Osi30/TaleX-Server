@@ -5,9 +5,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.talex.server.dtos.interaction.EpisodeHourKey;
 import com.talex.server.exceptions.codes.InteractionErrorCode;
 import com.talex.server.exceptions.details.InteractionException;
+import com.talex.server.repositories.auth.AccountRepository;
 import com.talex.server.repositories.interaction.WatchSessionRepository;
 import com.talex.server.repositories.interaction.aggregation.WatchTimeAggregationRepository;
 import com.talex.server.services.series.EpisodeService;
+import com.talex.server.utils.ValidationUtils;
 import io.questdb.client.Sender;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,6 +23,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 @Component
 @RequiredArgsConstructor
@@ -30,6 +33,7 @@ public class WatchTimeWorker {
     private final Sender questDBSender;
     private final EpisodeService episodeService;
     private final WatchSessionRepository watchSessionRepository;
+    private final AccountRepository accountRepository;
     private final WatchTimeAggregationRepository watchTimeAggregationRepository;
     private final StringRedisTemplate redisTemplate;
 
@@ -114,6 +118,7 @@ public class WatchTimeWorker {
 
                 String sessionId = eventNode.get("session_id").asText();
                 String episodeId = eventNode.get("episode_id").asText();
+                String accountId = eventNode.get("account_id").asText();
                 double currentPosition = eventNode.get("current_position").asDouble();
                 double heartbeatValue = eventNode.get("heartbeat_value").asDouble();
                 long tsMs = eventNode.get("timestamp").asLong();
@@ -126,6 +131,12 @@ public class WatchTimeWorker {
 
                 if (updatedRows == 0) {
                     log.warn("Heartbeat bị loại bỏ bởi DB chống gian lận (Spam/Gửi ngược/Sai lệch delta): Session {}", sessionId);
+                }
+
+                if (!ValidationUtils.isNullOrEmpty(accountId)) {
+                    accountRepository.updateLastInteractionTime(
+                            LocalDateTime.now(), UUID.fromString(accountId)
+                    );
                 }
 
             } catch (IllegalArgumentException ex) {

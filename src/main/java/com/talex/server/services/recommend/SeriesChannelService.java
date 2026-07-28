@@ -29,14 +29,20 @@ public interface SeriesChannelService {
     List<String> getRandomCategorySeriesIds(String accountId, int limit);
     List<String> refreshRandomCategoryPool(List<String> blacklistIds, int limitPerCategory, int totalLimit);
 
+    // --- Trending Channel ---
+    List<String> getTrendingSeriesIds(String accountId, int limit);
+    List<String> refreshTrendingPool(List<String> blacklistIds, int limit);
+
     // --- Account Subscription Channel ---
     List<String> getSubscribedCreatorsSeriesIds(String accountId, Set<String> blacklistIds, int limit);
     List<String> refreshSubscribedCreatorsPool(String accountId, Set<String> blacklistIds, int limitPerCreator, int totalLimit);
     List<String> getAllSubscribedCreatorsSeriesIds(String accountId);
 
-    // --- Trending Channel ---
-    List<String> getTrendingSeriesIds(String accountId, int limit);
-    List<String> refreshTrendingPool(List<String> blacklistIds, int limit);
+    // --- Onboarding Preferences Channel ---
+    List<String> getOnboardingPreferencesSeriesIds(String accountId, Set<String> blacklistIds, int totalLimit);
+
+    // --- Dynamic Preferences Channel ---
+    List<String> getDynamicPreferencesSeriesIds(String accountId, Set<String> blacklistIds, int totalLimit);
 
     // --- Global IDs ---
     void updateGlobalIds(Set<String> allGlobalIds);

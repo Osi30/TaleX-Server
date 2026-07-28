@@ -7,7 +7,6 @@ import com.talex.server.exceptions.details.InteractionException;
 import com.talex.server.services.interaction.IViewService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.data.redis.core.script.RedisScript;
@@ -59,7 +58,7 @@ public class ViewService implements IViewService {
             String ipAddress = viewRequest.getIpAddress();
             String finalAccountId = (accountId == null
                     || accountId.toString().trim().isEmpty())
-                    ? "anonymous" : accountId.toString();
+                    ? "" : accountId.toString();
 
             // Đóng gói JSON phẳng tối ưu băng thông mạng
             Map<String, Object> viewEvent = Map.of(

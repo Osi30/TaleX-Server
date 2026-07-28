@@ -146,4 +146,5 @@ public class RecommendationController {
         List<RankResultItem> finalRecommendations = recommendationService.getRecommendations(userIdStr, seriesIds, viewSessionId);
         return ResponseEntity.ok(finalRecommendations);
     }
+
 }

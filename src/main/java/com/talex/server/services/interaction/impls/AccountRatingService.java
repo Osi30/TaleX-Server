@@ -16,6 +16,7 @@ import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Service
@@ -54,6 +55,7 @@ public class AccountRatingService implements IAccountRatingService {
                                     .build();
                             ratingRepository.save(newRating);
                             ratingRepository.updateSeriesRatingMetrics(request.getSeriesId(), request.getRate(), 1);
+                            accountRepository.updateLastInteractionTime(LocalDateTime.now(), request.getAccountId());
                         }
                 );
     }

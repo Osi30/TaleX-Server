@@ -66,4 +66,16 @@ public interface AccountRepository extends JpaRepository<Account, UUID>, JpaSpec
     void updateIs7dByAccountIds(
             @Param("accountIds") List<UUID> accountIds
     );
+
+    @Modifying
+    @Transactional
+    @Query("UPDATE Account a " +
+            "SET a.lastInteractionTime = :lastInteractionTime, " +
+            "    a.is24h = false, " +
+            "    a.is7d = false " +
+            "WHERE a.accountId = :accountId")
+    int updateLastInteractionTime(
+            @Param("lastInteractionTime") LocalDateTime lastInteractionTime,
+            @Param("accountId") UUID accountId
+    );
 }

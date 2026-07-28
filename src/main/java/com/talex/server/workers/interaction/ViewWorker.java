@@ -5,9 +5,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.talex.server.dtos.interaction.EpisodeHourKey;
 import com.talex.server.exceptions.codes.InteractionErrorCode;
 import com.talex.server.exceptions.details.InteractionException;
+import com.talex.server.repositories.auth.AccountRepository;
 import com.talex.server.repositories.interaction.WatchSessionRepository;
 import com.talex.server.repositories.interaction.aggregation.ViewAggregationRepository;
 import com.talex.server.services.series.EpisodeService;
+import com.talex.server.utils.ValidationUtils;
 import io.questdb.client.Sender;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -33,6 +35,7 @@ public class ViewWorker {
     private final EpisodeService episodeService;
     private final ViewAggregationRepository viewAggregationRepository;
     private final WatchSessionRepository watchSessionRepository;
+    private final AccountRepository accountRepository;
 
     @KafkaListener(
             topics = "talex-interaction.episode-viewed",
@@ -84,6 +87,7 @@ public class ViewWorker {
 
                 String episodeId = eventNode.get("episode_id").asText();
                 long tsMs = eventNode.get("timestamp").asLong();
+                String accountId = eventNode.get("account_id").asText();
 
                 long delta = 1L;
 
@@ -96,6 +100,12 @@ public class ViewWorker {
 
                 EpisodeHourKey hourKey = new EpisodeHourKey(episodeId, hourBucket);
                 logDeltaMap.put(hourKey, logDeltaMap.getOrDefault(hourKey, 0L) + delta);
+
+                if (!ValidationUtils.isNullOrEmpty(accountId)) {
+                    accountRepository.updateLastInteractionTime(
+                            LocalDateTime.now(), UUID.fromString(accountId)
+                    );
+                }
             }
 
             // Cập nhật các bảng lũy kế tổng số lượng view tổng thể
@@ -106,7 +116,8 @@ public class ViewWorker {
                     viewAggregationRepository.updateSeriesViewCount(seriesId, totalDelta, LocalDateTime.now());
                     viewAggregationRepository.updateCreatorViewCount(seriesId, totalDelta);
                     int updatedRow = viewAggregationRepository.updateCampaignSeriesViewCount(seriesId, totalDelta);
-                    if (updatedRow > 0) viewAggregationRepository.updateCampaignViewCountAndTarget(seriesId, totalDelta);
+                    if (updatedRow > 0)
+                        viewAggregationRepository.updateCampaignViewCountAndTarget(seriesId, totalDelta);
                 }
             });
 

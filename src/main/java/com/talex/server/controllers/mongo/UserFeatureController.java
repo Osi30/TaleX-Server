@@ -1,6 +1,7 @@
 package com.talex.server.controllers.mongo;
 
 import com.talex.server.annotations.CurrentAccountId;
+import com.talex.server.dtos.mongo.UserDynamicFeature;
 import com.talex.server.dtos.mongo.UserFeatureRequest;
 import com.talex.server.entities.mongo.UserFeatureDocument;
 import com.talex.server.repositories.auth.AccountRepository;
@@ -53,6 +54,30 @@ public class UserFeatureController {
         return featureService.getFeaturesByUserId(accountId.toString())
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
+    }
+
+    @GetMapping("/static")
+    @Operation(
+            summary = "Lấy thông tin đặc điểm của người dùng",
+            description = "Truy vấn và trả về dữ liệu đặc điểm của người dùng"
+    )
+    public ResponseEntity<?> getUserStaticFeatures(
+            @CurrentAccountId UUID accountId
+    ) {
+        return ResponseEntity.ok(featureService
+                .getUserStaticFeatureByAccountId(accountId.toString()));
+    }
+
+    @GetMapping("/dynamic")
+    @Operation(
+            summary = "Lấy thông tin đặc điểm động của người dùng",
+            description = "Truy vấn và trả về danh sách Top 5 tên danh mục và thẻ được người dùng xem nhiều nhất"
+    )
+    public ResponseEntity<UserDynamicFeature> getUserDynamicFeatures(
+            @CurrentAccountId UUID accountId
+    ) {
+        return ResponseEntity.ok(featureService
+                .getUserDynamicFeatureByAccountId(accountId.toString()));
     }
 
     @PostMapping("/stats/reset")

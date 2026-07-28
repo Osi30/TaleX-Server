@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.talex.server.dtos.interaction.EpisodeHourKey;
 import com.talex.server.exceptions.codes.InteractionErrorCode;
 import com.talex.server.exceptions.details.InteractionException;
+import com.talex.server.repositories.auth.AccountRepository;
 import com.talex.server.repositories.interaction.aggregation.BookmarkAggregationRepository;
 import com.talex.server.services.series.EpisodeService;
 import io.questdb.client.Sender;
@@ -19,6 +20,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 @Component
 @RequiredArgsConstructor
@@ -27,7 +29,7 @@ public class BookmarkWorker {
     private final ObjectMapper objectMapper;
     private final EpisodeService episodeService;
     private final BookmarkAggregationRepository aggregationRepository;
-
+    private final AccountRepository accountRepository;
 
     @KafkaListener(
             topics = "talex-cdc.public.account_bookmarks",
@@ -96,6 +98,7 @@ public class BookmarkWorker {
 
                 String episodeId = targetNode.get("episode_id").asText();
                 long createdAt = targetNode.has("created_at") ? targetNode.get("created_at").asLong() : Instant.now().toEpochMilli() * 1000;
+                String accountId = targetNode.has("account_id") ? targetNode.get("account_id").asText() : null;
 
                 // Định dạng localdatetime gom cụm theo giờ (Hour Bucket)
                 LocalDateTime hourBucket = LocalDateTime.ofInstant(
@@ -110,6 +113,12 @@ public class BookmarkWorker {
 
                 EpisodeHourKey key = new EpisodeHourKey(episodeId, hourBucket);
                 logDeltaMap.put(key, logDeltaMap.getOrDefault(key, 0L) + delta);
+
+                if (accountId != null) {
+                    accountRepository.updateLastInteractionTime(
+                            LocalDateTime.now(), UUID.fromString(accountId)
+                    );
+                }
             }
 
             // 1. Đồng bộ số lượng tổng hợp thực thể (Mục 3 & 5)

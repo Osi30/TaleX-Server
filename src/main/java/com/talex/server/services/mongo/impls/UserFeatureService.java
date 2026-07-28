@@ -1,36 +1,30 @@
 package com.talex.server.services.mongo.impls;
 
-import com.talex.server.dtos.mongo.QuestDbPreferenceResult;
-import com.talex.server.dtos.mongo.QuestDbQueryResult;
-import com.talex.server.dtos.mongo.UserFeatureRequest;
+import com.talex.server.dtos.mongo.*;
 import com.talex.server.dtos.responses.series.EpisodeRefs;
 import com.talex.server.entities.config.SyncMetadata;
 import com.talex.server.entities.mongo.UserFeatureDocument;
 import com.talex.server.entities.mongo.userfeatures.DeepEngagementStats;
 import com.talex.server.entities.mongo.userfeatures.DynamicPreferences;
 import com.talex.server.entities.mongo.userfeatures.InteractionStats;
-import com.talex.server.entities.mongo.userfeatures.MonetizationStats;
 import com.talex.server.enums.SyncType;
-import com.talex.server.records.MonetizationData;
 import com.talex.server.repositories.SyncMetadataRepository;
 import com.talex.server.repositories.mongo.UserFeatureRepository;
 import com.talex.server.repositories.series.CategoryRepository;
 import com.talex.server.repositories.series.TagRepository;
-import com.talex.server.repositories.transaction.OrderRepository;
-import com.talex.server.services.series.EpisodeService;
 import com.talex.server.services.QuestDbService;
 import com.talex.server.services.mongo.IUserFeatureService;
+import com.talex.server.services.series.EpisodeService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.stereotype.Service;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -40,7 +34,6 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class UserFeatureService implements IUserFeatureService {
     private final UserFeatureRepository featureRepository;
-    private final OrderRepository orderRepository;
     private final TagRepository tagRepository;
     private final CategoryRepository categoryRepository;
     private final QuestDbService questDbService;
@@ -56,6 +49,7 @@ public class UserFeatureService implements IUserFeatureService {
                 .orElseGet(() -> {
                     UserFeatureDocument newDoc = new UserFeatureDocument();
                     newDoc.setAccountId(userId);
+                    newDoc.setCreatedAt(LocalDateTime.now());
                     return newDoc;
                 });
 
@@ -82,6 +76,62 @@ public class UserFeatureService implements IUserFeatureService {
         return featureRepository.findByAccountId(userId);
     }
 
+    @Override
+    @Cacheable(value = "user_static_features", key = "#accountId", unless = "#result == null")
+    public UserStaticFeature getUserStaticFeatureByAccountId(String accountId) {
+        return getFeaturesByUserId(accountId)
+                .map(doc -> UserStaticFeature.builder()
+                        .accountId(doc.getAccountId())
+                        .language(doc.getLanguage())
+                        .gender(doc.getGender())
+                        .age(doc.getAge())
+                        .createdAt(doc.getCreatedAt())
+                        .onboardingGenres(doc.getOnboardingGenres() != null ? doc.getOnboardingGenres() : Collections.emptyList())
+                        .onboardingTags(doc.getOnboardingTags() != null ? doc.getOnboardingTags() : Collections.emptyList())
+                        .build())
+                .orElse(null);
+    }
+
+    @Override
+    public UserDynamicFeature getUserDynamicFeatureByAccountId(String accountId) {
+        Optional<UserFeatureDocument> docOpt = getFeaturesByUserId(accountId);
+
+        if (docOpt.isEmpty() || docOpt.get().getPreferences() == null) {
+            return UserDynamicFeature.builder()
+                    .categories(Collections.emptyList())
+                    .tags(Collections.emptyList())
+                    .build();
+        }
+
+        DynamicPreferences preferences = docOpt.get().getPreferences();
+
+        // 1. Lấy Top 5 Genre IDs có thời gian xem cao nhất (genresWatchTimeRaw)
+        List<String> top5GenreIds = preferences.getGenresWatchTimeRaw().entrySet().stream()
+                .sorted((e1, e2) -> Double.compare(e2.getValue(), e1.getValue()))
+                .limit(5)
+                .map(Map.Entry::getKey)
+                .toList();
+
+        // 2. Lấy Top 5 Tag IDs có thời gian xem cao nhất (tagsWatchTimeRaw)
+        List<String> top5TagIds = preferences.getTagsWatchTimeRaw().entrySet().stream()
+                .sorted((e1, e2) -> Double.compare(e2.getValue(), e1.getValue()))
+                .limit(5)
+                .map(Map.Entry::getKey)
+                .toList();
+
+        // 3. Chuyển đổi ID thành Name thông qua Repository
+        List<String> categories = top5GenreIds.isEmpty() ? Collections.emptyList()
+                : categoryRepository.findCategoryNamesByCategoryIds(top5GenreIds);
+
+        List<String> tags = top5TagIds.isEmpty() ? Collections.emptyList()
+                : tagRepository.findTagNamesByTagIds(top5TagIds);
+
+        return UserDynamicFeature.builder()
+                .categories(categories)
+                .tags(tags)
+                .build();
+    }
+
     /// Lưu trữ InteractionStats và DeepEngagementStats
     @Override
     public synchronized void syncUserDynamicFeatures() {
@@ -91,7 +141,7 @@ public class UserFeatureService implements IUserFeatureService {
             SyncMetadata syncMetadata = syncMetadataRepository.findById(SyncType.USER_INTERACTION_DEEP_ENGAGEMENT)
                     .orElseGet(() -> SyncMetadata.builder()
                             .syncType(SyncType.USER_INTERACTION_DEEP_ENGAGEMENT)
-                            .lastSyncTime(now.minus(1, ChronoUnit.DAYS))
+                            .lastSyncTime(Instant.EPOCH)
                             .build());
 
             Instant lastSync = syncMetadata.getLastSyncTime();
@@ -149,7 +199,7 @@ public class UserFeatureService implements IUserFeatureService {
                 QuestDbQueryResult t24hRes = t24hMap.get(accountId);
                 QuestDbQueryResult t7dRes = t7dMap.get(accountId);
 
-                // GỌI CÁC PHƯƠNG THỨC XỬ LÝ RIÊNG BIỆT (ĐÃ CHIA NHỎ)
+                // GỌI CÁC PHƯƠNG THỨC XỬ LÝ RIÊNG BIỆT
                 updateInteractionStats(doc, deltaRes, t24hRes, t7dRes);
                 updateDeepEngagementStats(doc, deltaRes, t24hRes, t7dRes);
 
@@ -175,7 +225,7 @@ public class UserFeatureService implements IUserFeatureService {
         SyncMetadata syncMetadata = syncMetadataRepository.findById(SyncType.USER_DYNAMIC_PREFERENCES)
                 .orElseGet(() -> SyncMetadata.builder()
                         .syncType(SyncType.USER_DYNAMIC_PREFERENCES)
-                        .lastSyncTime(now.minus(1, ChronoUnit.DAYS))
+                        .lastSyncTime(Instant.EPOCH)
                         .build());
         Instant lastSyncTime = syncMetadata.getLastSyncTime();
 
@@ -267,87 +317,6 @@ public class UserFeatureService implements IUserFeatureService {
 
         } catch (Exception e) {
             throw new RuntimeException("Quy trình đồng bộ dữ liệu Dynamic Preferences thất bại", e);
-        }
-    }
-
-    /// Lưu trữ Monetization
-    @Override
-    public void syncUserMonetizationFeatures() {
-        try {
-            // 1. Lấy mốc thời gian UTC từ bảng sync_metadata (Postgres)
-            SyncMetadata syncMetadata = syncMetadataRepository.findById(SyncType.USER_MONETIZATION)
-                    .orElseGet(() -> SyncMetadata.builder()
-                            .syncType(SyncType.USER_MONETIZATION)
-                            .lastSyncTime(Instant.EPOCH) // Lần đầu chạy sẽ quét từ mốc thời gian gốc ban đầu
-                            .build());
-
-            // Mốc thời gian hiện tại của hệ thống (Dạng Instant UTC để lưu lại vào metadata an toàn)
-            Instant nowInstant = Instant.now();
-
-            // 2. Chuyển đổi cẩn thận sang LocalDateTime theo Múi giờ hệ thống / Múi giờ lưu trữ của DB
-            ZoneId systemZone = ZoneId.systemDefault();
-            LocalDateTime lastSyncLocalDateTime = LocalDateTime.ofInstant(syncMetadata.getLastSyncTime(), systemZone);
-            LocalDateTime nowLocalDateTime = LocalDateTime.ofInstant(nowInstant, systemZone);
-
-            // 3. Thực hiện quét DELTA từ Postgres
-            List<MonetizationData> deltas = orderRepository.aggregateMonetizationStatsDelta(lastSyncLocalDateTime, nowLocalDateTime);
-
-            if (deltas.isEmpty()) {
-                syncMetadata.setLastSyncTime(nowInstant);
-                syncMetadataRepository.save(syncMetadata);
-                return;
-            }
-
-            List<UserFeatureDocument> docsToSave = new ArrayList<>();
-
-            // 4. Lặp qua các bản ghi phát sinh để CỘNG DỒN dữ liệu
-            for (MonetizationData delta : deltas) {
-                if (delta.accountId() == null) continue;
-                String userIdStr = delta.accountId().toString();
-
-                // Tìm document sẵn có trong MongoDB, nếu không có thì khởi tạo mới
-                UserFeatureDocument doc = featureRepository.findByAccountId(userIdStr)
-                        .orElseGet(() -> UserFeatureDocument.builder().accountId(userIdStr).build());
-
-                if (doc.getMonetization() == null) {
-                    doc.setMonetization(new MonetizationStats());
-                }
-
-                MonetizationStats monoStats = doc.getMonetization();
-
-                // --- TIẾN HÀNH CỘNG DỒN DỮ LIỆU ---
-                BigDecimal currentSpent = monoStats.getTotalSpentAmount() != null ? monoStats.getTotalSpentAmount() : BigDecimal.ZERO;
-                BigDecimal deltaSpent = delta.totalSpentAmount() != null ? delta.totalSpentAmount() : BigDecimal.ZERO;
-                monoStats.setTotalSpentAmount(currentSpent.add(deltaSpent)); // Cộng dồn tổng tiền
-
-                long currentSubCount = monoStats.getPremiumSubscriptionCount() != null ? monoStats.getPremiumSubscriptionCount() : 0L;
-                monoStats.setPremiumSubscriptionCount(currentSubCount + (delta.premiumSubscriptionCount() != null ? delta.premiumSubscriptionCount() : 0L));
-
-                long currentSingleCount = monoStats.getSinglePurchaseCount() != null ? monoStats.getSinglePurchaseCount() : 0L;
-                monoStats.setSinglePurchaseCount(currentSingleCount + (delta.singlePurchaseCount() != null ? delta.singlePurchaseCount() : 0L));
-
-                long currentPushCount = monoStats.getInteractionPushCount() != null ? monoStats.getInteractionPushCount() : 0L;
-                monoStats.setInteractionPushCount(currentPushCount + (delta.interactionPushCount() != null ? delta.interactionPushCount() : 0L));
-
-                // Cập nhật mốc thời gian mua hàng cuối cùng (Vì quét delta tịnh tiến, mốc này luôn là mới nhất)
-                if (delta.lastPurchaseTime() != null) {
-                    monoStats.setLastPurchaseTime(delta.lastPurchaseTime());
-                }
-
-                docsToSave.add(doc);
-            }
-
-            // 5. Lưu đồng loạt các bản ghi cập nhật/cộng dồn vào MongoDB
-            if (!docsToSave.isEmpty()) {
-                featureRepository.saveAll(docsToSave);
-            }
-
-            // 6. Ghi nhận lại mốc thời gian đã quét thành công an toàn dưới dạng Instant UTC
-            syncMetadata.setLastSyncTime(nowInstant);
-            syncMetadataRepository.save(syncMetadata);
-
-        } catch (Exception e) {
-            throw new RuntimeException("Quy trình đồng bộ dữ liệu doanh thu thất bại", e);
         }
     }
 
