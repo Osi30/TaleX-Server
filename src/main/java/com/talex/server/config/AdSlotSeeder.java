@@ -30,10 +30,10 @@ public class AdSlotSeeder implements CommandLineRunner {
                     .isActive(true)
                     .build();
 
-            AdSlot thumbnail = AdSlot.builder()
-                    .codeName("THUMBNAIL")
-                    .displayName("Thumbnail Banner")
-                    .type(AdSlotType.BANNER)
+            AdSlot popupOverlay = AdSlot.builder()
+                    .codeName("POPUP_OVERLAY")
+                    .displayName("Popup Overlay")
+                    .type(AdSlotType.POPUP)
                     .price(50000L)
                     .totalViewOfPrice(1000L)
                     .isActive(true)
@@ -49,7 +49,7 @@ public class AdSlotSeeder implements CommandLineRunner {
                     .build();
 
             slotRepository.save(homeBanner);
-            slotRepository.save(thumbnail);
+            slotRepository.save(popupOverlay);
             slotRepository.save(inVideo);
             log.info("Ad Slots seeded successfully.");
         }
