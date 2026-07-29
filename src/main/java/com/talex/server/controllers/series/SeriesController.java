@@ -4,6 +4,7 @@ import com.talex.server.annotations.CurrentAccountId;
 import com.talex.server.dtos.BaseResponse;
 import com.talex.server.dtos.requests.series.SeriesRequestDto;
 import com.talex.server.dtos.responses.series.SeriesResponseDto;
+import com.talex.server.enums.series.SeriesStatus;
 import com.talex.server.services.series.SeriesService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -14,6 +15,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -48,11 +50,12 @@ public class SeriesController {
     @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Danh sách series của creator hiện tại", description = "Lấy danh sách phân trang các series thuộc về profile creator được liên kết với tài khoản đang đăng nhập.")
     public ResponseEntity<BaseResponse> listByCreator(
+            @RequestParam(required = false) List<SeriesStatus> statuses,
             @RequestParam(defaultValue = "1") Integer page,
             @RequestParam(defaultValue = "20") Integer pageSize,
             @CurrentAccountId UUID accountId) {
         return ResponseEntity.ok(response(200, "OK",
-                seriesService.listByCreator(accountId, page, pageSize)));
+                seriesService.listByCreator(accountId, statuses, page, pageSize)));
     }
 
     @GetMapping("/{id}")

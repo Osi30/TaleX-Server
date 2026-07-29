@@ -110,10 +110,26 @@ public class SeriesServiceImpl implements SeriesService {
 
     @Transactional(readOnly = true)
     @Override
-    public BasePageResponse<SeriesResponseDto> listByCreator(UUID accountId, Integer page, Integer pageSize) {
+    public BasePageResponse<SeriesResponseDto> listByCreator(
+            UUID accountId,
+            List<SeriesStatus> statuses,
+            Integer page,
+            Integer pageSize
+    ) {
         String creatorId = creatorService.getEntityByAccountId(accountId).getCreatorId();
-        Page<Series> result = seriesRepository
-                .findAllByCreator_CreatorIdAndIsDeletedFalse(creatorId, PageUtils.buildPageable(page, pageSize));
+        Page<Series> result;
+        if (statuses != null && !statuses.isEmpty()) {
+            result = seriesRepository.findAllByCreator_CreatorIdAndStatusInAndIsDeletedFalse(
+                    creatorId,
+                    statuses,
+                    PageUtils.buildPageable(page, pageSize)
+            );
+        } else {
+            result = seriesRepository.findAllByCreator_CreatorIdAndIsDeletedFalse(
+                    creatorId,
+                    PageUtils.buildPageable(page, pageSize)
+            );
+        }
         return toPageResponse(result, toResponses(result.getContent()));
     }
 

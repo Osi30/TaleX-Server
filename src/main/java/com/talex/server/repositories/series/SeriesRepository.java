@@ -4,6 +4,7 @@ import com.talex.server.dtos.recommend.SeriesCardResponseDto;
 import com.talex.server.entities.series.Series;
 import com.talex.server.enums.ImpressionStatus;
 import com.talex.server.enums.series.SeriesStatus;
+import com.talex.server.repositories.series.projections.SeriesWithAvatarProjection;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -26,6 +27,12 @@ public interface SeriesRepository extends JpaRepository<Series, String> {
 
     Page<Series> findAllByCreator_CreatorIdAndIsDeletedFalse(String creatorId, Pageable pageable);
 
+    Page<Series> findAllByCreator_CreatorIdAndStatusInAndIsDeletedFalse(
+            String creatorId,
+            Collection<SeriesStatus> statuses,
+            Pageable pageable
+    );
+
     Page<Series> findAllByStatusAndIsDeletedFalse(
             SeriesStatus status,
             Pageable pageable);
@@ -39,7 +46,7 @@ public interface SeriesRepository extends JpaRepository<Series, String> {
             "JOIN s.creator c " +
             "JOIN c.account a " +
             "WHERE s.status IN :statuses AND s.isDeleted = false")
-    Page<com.talex.server.repositories.series.projections.SeriesWithAvatarProjection> findPublicSeriesWithAvatar(
+    Page<SeriesWithAvatarProjection> findPublicSeriesWithAvatar(
             @Param("statuses") Collection<SeriesStatus> statuses,
             Pageable pageable);
 
@@ -48,7 +55,7 @@ public interface SeriesRepository extends JpaRepository<Series, String> {
             "JOIN s.creator c " +
             "JOIN c.account a " +
             "WHERE s.seriesId = :seriesId AND s.isDeleted = false")
-    Optional<com.talex.server.repositories.series.projections.SeriesWithAvatarProjection> findActiveSeriesWithAvatarById(
+    Optional<SeriesWithAvatarProjection> findActiveSeriesWithAvatarById(
             @Param("seriesId") String seriesId);
 
     long countBySeriesIdInAndStatusAndIsDeletedFalseAndCreator_CreatorId(Collection<String> seriesIds, SeriesStatus status, String creatorId);

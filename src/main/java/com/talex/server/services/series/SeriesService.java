@@ -4,7 +4,9 @@ import com.talex.server.dtos.BasePageResponse;
 import com.talex.server.dtos.requests.series.SeriesRequestDto;
 import com.talex.server.dtos.responses.series.SeriesResponseDto;
 import com.talex.server.entities.series.Series;
+import com.talex.server.enums.series.SeriesStatus;
 
+import java.util.List;
 import java.util.UUID;
 
 public interface SeriesService {
@@ -16,7 +18,7 @@ public interface SeriesService {
 
     BasePageResponse<SeriesResponseDto> list(Integer page, Integer pageSize);
 
-    BasePageResponse<SeriesResponseDto> listByCreator(UUID accountId, Integer page, Integer pageSize);
+    BasePageResponse<SeriesResponseDto> listByCreator(UUID accountId, List<SeriesStatus> statuses, Integer page, Integer pageSize);
 
     BasePageResponse<SeriesResponseDto> listPublic(Integer page, Integer pageSize);
 
