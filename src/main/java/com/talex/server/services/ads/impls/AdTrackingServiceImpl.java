@@ -23,6 +23,8 @@ public class AdTrackingServiceImpl implements IAdTrackingService {
     private final AdCampaignRepository campaignRepository;
     private final AdMetricRepository metricRepository;
 
+    private final com.talex.server.repositories.ads.AdTransactionRepository transactionRepository;
+
     @Override
     @Async
     @Transactional
@@ -31,11 +33,33 @@ public class AdTrackingServiceImpl implements IAdTrackingService {
             AdCampaign campaign = campaignRepository.findById(request.getCampaignId()).orElse(null);
             if (campaign == null || campaign.getStatus() != AdCampaignStatus.ACTIVE) return;
 
+            long costPerImpression = campaign.getLockedCpm() != null ? campaign.getLockedCpm() / 1000 : 0;
+
+            if (costPerImpression > 0 && campaign.getCampaignBalance() < costPerImpression) {
+                campaign.setStatus(AdCampaignStatus.COMPLETED);
+                campaignRepository.save(campaign);
+                return;
+            }
+
+            campaign.setCampaignBalance(campaign.getCampaignBalance() - costPerImpression);
             campaign.setCurrentImpressions(campaign.getCurrentImpressions() + 1);
-            if (campaign.getCurrentImpressions() >= campaign.getTargetImpressions()) {
+
+            if (campaign.getCampaignBalance() <= 0 || (campaign.getTargetImpressions() > 0 && campaign.getCurrentImpressions() >= campaign.getTargetImpressions())) {
                 campaign.setStatus(AdCampaignStatus.COMPLETED);
             }
             campaignRepository.save(campaign);
+
+            // Log deduction transaction if cost > 0
+            if (costPerImpression > 0) {
+                com.talex.server.entities.ads.AdTransaction transaction = com.talex.server.entities.ads.AdTransaction.builder()
+                        .profile(campaign.getProfile())
+                        .campaign(campaign)
+                        .amount(costPerImpression)
+                        .type(com.talex.server.enums.ads.AdTransactionType.DEDUCT_CAMPAIGN)
+                        .note("Trừ phí lượt xem")
+                        .build();
+                transactionRepository.save(transaction);
+            }
 
             upsertMetric(campaign, true);
         } catch (Exception e) {
@@ -52,6 +76,10 @@ public class AdTrackingServiceImpl implements IAdTrackingService {
             if (campaign == null || campaign.getStatus() != AdCampaignStatus.ACTIVE) return;
 
             campaign.setCurrentClicks(campaign.getCurrentClicks() + 1);
+
+            if (campaign.getTargetClicks() > 0 && campaign.getCurrentClicks() >= campaign.getTargetClicks()) {
+                campaign.setStatus(AdCampaignStatus.COMPLETED);
+            }
             campaignRepository.save(campaign);
 
             upsertMetric(campaign, false);

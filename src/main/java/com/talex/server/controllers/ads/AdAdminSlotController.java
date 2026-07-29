@@ -32,15 +32,15 @@ public class AdAdminSlotController {
                 .build());
     }
 
-    @PostMapping
-    @Operation(summary = "Tạo cấu hình Slot mới", description = "Admin tạo thêm vị trí cho phép user đặt QC.")
-    public ResponseEntity<BaseResponse> createSlot(@Valid @RequestBody AdSlotRequestDto request) {
-        return ResponseEntity.ok(BaseResponse.builder()
-                .code(200)
-                .message("Slot created")
-                .data(slotService.createSlot(request))
-                .build());
-    }
+    // @PostMapping
+    // @Operation(summary = "Tạo cấu hình Slot mới", description = "Admin tạo thêm vị trí cho phép user đặt QC.")
+    // public ResponseEntity<BaseResponse> createSlot(@Valid @RequestBody AdSlotRequestDto request) {
+    //     return ResponseEntity.ok(BaseResponse.builder()
+    //             .code(200)
+    //             .message("Slot created")
+    //             .data(slotService.createSlot(request))
+    //             .build());
+    // }
 
     @PutMapping("/{slotId}")
     @Operation(summary = "Cập nhật cấu hình Slot", description = "Admin đổi giá, đổi tên Slot.")
@@ -66,13 +66,13 @@ public class AdAdminSlotController {
                 .build());
     }
 
-    @DeleteMapping("/{slotId}")
-    @Operation(summary = "Xoá cấu hình Slot", description = "Admin xoá vị trí QC.")
-    public ResponseEntity<BaseResponse> deleteSlot(@PathVariable UUID slotId) {
-        slotService.deleteSlot(slotId);
-        return ResponseEntity.ok(BaseResponse.builder()
-                .code(200)
-                .message("Slot deleted")
-                .build());
-    }
+    // @DeleteMapping("/{slotId}")
+    // @Operation(summary = "Xoá cấu hình Slot", description = "Admin xoá vị trí QC.")
+    // public ResponseEntity<BaseResponse> deleteSlot(@PathVariable UUID slotId) {
+    //     slotService.deleteSlot(slotId);
+    //     return ResponseEntity.ok(BaseResponse.builder()
+    //             .code(200)
+    //             .message("Slot deleted")
+    //             .build());
+    // }
 }

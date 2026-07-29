@@ -5,14 +5,15 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDate;
+import java.util.UUID;
 
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class AdMetricResponseDto {
-    private LocalDate reportDate;
-    private Long impressions;
-    private Long clicks;
+public class AdLabelResponseDto {
+    private UUID labelId;
+    private UUID profileId;
+    private String name;
+    private String color;
 }

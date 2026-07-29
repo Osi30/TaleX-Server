@@ -13,6 +13,10 @@ public class AdvertiseProfileResponseDto {
     private UUID accountId;
     private Long walletBalance;
     private String billingInfo;
+    private String companyName;
+    private String phone;
+    private String website;
+    private Boolean isSetupCompleted;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

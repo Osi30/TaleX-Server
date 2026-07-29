@@ -10,4 +10,5 @@ import java.util.UUID;
 @Repository
 public interface AdTransactionRepository extends JpaRepository<AdTransaction, UUID> {
     List<AdTransaction> findByProfile_ProfileIdOrderByCreatedAtDesc(UUID profileId);
+    List<AdTransaction> findByCampaign_CampaignIdOrderByCreatedAtDesc(UUID campaignId);
 }

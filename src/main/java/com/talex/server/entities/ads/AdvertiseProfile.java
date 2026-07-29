@@ -38,6 +38,19 @@ public class AdvertiseProfile {
     @Column(name = "billing_info", columnDefinition = "TEXT")
     private String billingInfo;
 
+    @Column(name = "company_name")
+    private String companyName;
+
+    @Column(name = "phone")
+    private String phone;
+
+    @Column(name = "website")
+    private String website;
+
+    @Column(name = "is_setup_completed", nullable = false)
+    @Builder.Default
+    private Boolean isSetupCompleted = false;
+
     @OneToMany(mappedBy = "profile", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<AdTransaction> transactions = new ArrayList<>();

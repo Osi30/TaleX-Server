@@ -44,4 +44,14 @@ public class AdUserWalletController {
                 .data(walletService.topupWallet(accountId, request))
                 .build());
     }
+
+    @GetMapping("/transactions")
+    @Operation(summary = "Lấy lịch sử giao dịch", description = "Lấy danh sách lịch sử nạp/trừ tiền của ví.")
+    public ResponseEntity<BaseResponse> getWalletTransactions(@CurrentAccountId UUID accountId) {
+        return ResponseEntity.ok(BaseResponse.builder()
+                .code(200)
+                .message("OK")
+                .data(walletService.getWalletTransactions(accountId))
+                .build());
+    }
 }

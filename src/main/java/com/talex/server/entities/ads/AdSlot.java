@@ -41,6 +41,7 @@ public class AdSlot {
     @Column(name = "total_view_of_price", nullable = false)
     private Long totalViewOfPrice;
 
+
     @Column(name = "is_active", nullable = false)
     @Builder.Default
     private Boolean isActive = true;
