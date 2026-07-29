@@ -46,8 +46,6 @@ public class EngagementServiceController {
     @GetMapping("/search")
     @Operation(summary = "Lấy danh sách dịch vụ tương tác", description = "Lọc và phân trang các dịch vụ tương tác theo trạng thái, id và từ khóa.")
     public ResponseEntity<BaseResponse> list(
-            @RequestParam(required = false) String[] types,
-            @RequestParam(required = false) String[] targets,
             @RequestParam(required = false) Map<String, Object> criteria,
             @RequestParam(required = false) String sortBy,
             @RequestParam(required = false) String sortDirection,
@@ -57,8 +55,6 @@ public class EngagementServiceController {
         BasePageResponse<EngagementServiceResponseDto> pageResponse = engagementServiceService
                 .filterEngagementServices(EngagementServiceFilterRequestDto.builder()
                         .criteria(criteria)
-                        .types(types)
-                        .targets(targets)
                         .sortBy(sortBy)
                         .sortDirection(sortDirection)
                         .page(page)

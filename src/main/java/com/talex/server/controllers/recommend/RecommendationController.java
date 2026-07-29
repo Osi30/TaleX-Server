@@ -2,12 +2,14 @@ package com.talex.server.controllers.recommend;
 
 import com.talex.server.annotations.CurrentAccountId;
 import com.talex.server.dtos.BaseResponse;
+import com.talex.server.dtos.recommend.HomeFeedRequestDto;
 import com.talex.server.dtos.recommend.HomePoolsSeriesResponseDto;
 import com.talex.server.dtos.recommend.RankResultItem;
 import com.talex.server.dtos.recommend.SeriesCardResponseDto;
 import com.talex.server.services.recommend.RecommendationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -36,11 +38,11 @@ public class RecommendationController {
     )
     public ResponseEntity<BaseResponse> getHomeFeedSeries(
             @CurrentAccountId UUID accountId,
-            @RequestParam(defaultValue = "5") int limitPerPool
+            @Valid @ModelAttribute HomeFeedRequestDto request
     ) {
         HomePoolsSeriesResponseDto result = recommendationService.getHomeFeedSeries(
                 accountId == null ? null : accountId.toString(),
-                limitPerPool
+                request
         );
         return ResponseEntity.ok(BaseResponse.builder()
                 .code(200)

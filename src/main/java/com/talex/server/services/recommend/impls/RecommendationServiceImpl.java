@@ -3,10 +3,7 @@ package com.talex.server.services.recommend.impls;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.talex.server.dtos.mongo.UserStaticFeature;
-import com.talex.server.dtos.recommend.HomePoolsSeriesResponseDto;
-import com.talex.server.dtos.recommend.RankRequestPayload;
-import com.talex.server.dtos.recommend.RankResultItem;
-import com.talex.server.dtos.recommend.SeriesCardResponseDto;
+import com.talex.server.dtos.recommend.*;
 import com.talex.server.enums.series.SeriesStatus;
 import com.talex.server.repositories.mongo.SeriesRecommendationRepository;
 import com.talex.server.repositories.series.SeriesRepository;
@@ -94,8 +91,12 @@ public class RecommendationServiceImpl implements RecommendationService {
 
     /// Lấy danh sách series từ các pool
     @Override
-    public HomePoolsSeriesResponseDto getHomeFeedSeries(String accountId, int limitPerPool) {
+    public HomePoolsSeriesResponseDto getHomeFeedSeries(String accountId, HomeFeedRequestDto request) {
         String userIdStr = (accountId == null) ? "" : accountId.trim();
+        if (request == null) {
+            request = new HomeFeedRequestDto();
+        }
+        final HomeFeedRequestDto req = request;
 
         // 1. Kích hoạt lấy Global IDs Async (dùng làm blacklist cho Subscription)
         CompletableFuture<Set<String>> globalIdsFuture = CompletableFuture.supplyAsync(
@@ -105,38 +106,38 @@ public class RecommendationServiceImpl implements RecommendationService {
             return Collections.emptySet();
         });
 
-        // 2. Kích hoạt lấy 7 Pools độc lập cùng một lúc (Parallel Execution)
+        // 2. Kích hoạt lấy 7 Pools độc lập cùng một lúc với limit riêng biệt
         CompletableFuture<List<String>> promotedFuture = CompletableFuture.supplyAsync(
-                () -> seriesChannelService.getPromotedSeriesIds(userIdStr, limitPerPool)
+                () -> seriesChannelService.getPromotedSeriesIds(userIdStr, req.getPromotedLimit())
         ).exceptionally(ex -> Collections.emptyList());
 
         CompletableFuture<List<String>> trendingFuture = CompletableFuture.supplyAsync(
-                () -> seriesChannelService.getTrendingSeriesIds(userIdStr, limitPerPool)
+                () -> seriesChannelService.getTrendingSeriesIds(userIdStr, req.getTrendingLimit())
         ).exceptionally(ex -> Collections.emptyList());
 
         CompletableFuture<List<String>> newReleasesFuture = CompletableFuture.supplyAsync(
-                () -> seriesChannelService.getNewReleasesSeriesIds(userIdStr, limitPerPool)
+                () -> seriesChannelService.getNewReleasesSeriesIds(userIdStr, req.getNewReleasesLimit())
         ).exceptionally(ex -> Collections.emptyList());
 
         CompletableFuture<List<String>> recentlyUpdatedFuture = CompletableFuture.supplyAsync(
-                () -> seriesChannelService.getRecentlyUpdatedSeriesIds(userIdStr, limitPerPool)
+                () -> seriesChannelService.getRecentlyUpdatedSeriesIds(userIdStr, req.getRecentlyUpdatedLimit())
         ).exceptionally(ex -> Collections.emptyList());
 
         CompletableFuture<List<String>> latestCommunityFuture = CompletableFuture.supplyAsync(
-                () -> seriesChannelService.getLatestCommunityChoiceSeriesIds(userIdStr, limitPerPool)
+                () -> seriesChannelService.getLatestCommunityChoiceSeriesIds(userIdStr, req.getLatestCommunityChoiceLimit())
         ).exceptionally(ex -> Collections.emptyList());
 
         CompletableFuture<List<String>> communityChoiceFuture = CompletableFuture.supplyAsync(
-                () -> seriesChannelService.getCommunityChoiceSeriesIds(userIdStr, limitPerPool)
+                () -> seriesChannelService.getCommunityChoiceSeriesIds(userIdStr, req.getCommunityChoiceLimit())
         ).exceptionally(ex -> Collections.emptyList());
 
         CompletableFuture<List<String>> randomCategoryFuture = CompletableFuture.supplyAsync(
-                () -> seriesChannelService.getRandomCategorySeriesIds(userIdStr, limitPerPool)
+                () -> seriesChannelService.getRandomCategorySeriesIds(userIdStr, req.getRandomCategoryLimit())
         ).exceptionally(ex -> Collections.emptyList());
 
-        // 3. Kênh Subscription: Đợi globalIdsFuture xong rồi mới chạy
+        // 3. Kênh Subscription
         CompletableFuture<List<String>> subscriptionFuture = globalIdsFuture.thenApplyAsync(
-                globalIds -> seriesChannelService.getSubscribedCreatorsSeriesIds(userIdStr, globalIds, limitPerPool)
+                globalIds -> seriesChannelService.getSubscribedCreatorsSeriesIds(userIdStr, globalIds, req.getSubscriptionLimit())
         ).exceptionally(ex -> Collections.emptyList());
 
         // 4. Chờ tất cả 8 Futures hoàn tất cùng lúc

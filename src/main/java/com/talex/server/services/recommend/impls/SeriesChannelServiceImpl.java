@@ -83,11 +83,8 @@ public class SeriesChannelServiceImpl implements SeriesChannelService {
         if (limit <= 0) return Collections.emptyList();
 
         Long poolSize = redisTemplate.opsForList().size(REDIS_KEY_PROMOTED_POOL);
-
-        // Fallback: Nếu Pool trống, kích hoạt nạp từ DB
         if (poolSize == null || poolSize == 0) {
-            List<String> refreshed = refreshPromotedPool(limit);
-            if (refreshed.isEmpty()) return Collections.emptyList();
+            return Collections.emptyList();
         }
 
         return getIdsWithOffset(
@@ -136,11 +133,8 @@ public class SeriesChannelServiceImpl implements SeriesChannelService {
         if (limit <= 0) return Collections.emptyList();
 
         Long poolSize = redisTemplate.opsForList().size(REDIS_KEY_NEW_RELEASES_POOL);
-
-        // Fallback: Nếu Pool trống, tự động kích hoạt refresh không dùng blacklist
         if (poolSize == null || poolSize == 0) {
-            List<String> refreshed = refreshNewReleasesPool(Collections.emptyList(), limit);
-            if (refreshed.isEmpty()) return Collections.emptyList();
+            return Collections.emptyList();
         }
 
         return getIdsWithOffset(
@@ -197,13 +191,8 @@ public class SeriesChannelServiceImpl implements SeriesChannelService {
         if (limit <= 0) return Collections.emptyList();
 
         Long poolSize = redisTemplate.opsForList().size(REDIS_KEY_RECENTLY_UPDATED_POOL);
-
-        // Fallback: Nếu Pool trống, tự động kích hoạt refresh không dùng blacklist
         if (poolSize == null || poolSize == 0) {
-            log.warn("[RecentlyUpdatedChannel] Redis pool '{}' bị trống! Đang kích hoạt Fallback...", REDIS_KEY_RECENTLY_UPDATED_POOL);
-            List<String> refreshed = refreshRecentlyUpdatedPool(Collections.emptyList(), limit);
-            if (refreshed.isEmpty()) return Collections.emptyList();
-            poolSize = (long) refreshed.size();
+            return Collections.emptyList();
         }
 
         return getIdsWithOffset(
@@ -258,12 +247,8 @@ public class SeriesChannelServiceImpl implements SeriesChannelService {
         if (limit <= 0) return Collections.emptyList();
 
         Long poolSize = redisTemplate.opsForList().size(REDIS_KEY_LATEST_COMMUNITY_CHOICE_POOL);
-
-        // Fallback: Nếu Pool trống, tự động kích hoạt refresh không dùng blacklist
         if (poolSize == null || poolSize == 0) {
-            List<String> refreshed = refreshLatestCommunityChoicePool(Collections.emptyList(), limit);
-            if (refreshed.isEmpty()) return Collections.emptyList();
-            poolSize = (long) refreshed.size();
+            return Collections.emptyList();
         }
 
         return getIdsWithOffset(
@@ -320,13 +305,8 @@ public class SeriesChannelServiceImpl implements SeriesChannelService {
         if (limit <= 0) return Collections.emptyList();
 
         Long poolSize = redisTemplate.opsForList().size(REDIS_KEY_COMMUNITY_CHOICE_POOL);
-
-        // Fallback: Nếu Pool trống, tự động kích hoạt refresh không dùng blacklist
         if (poolSize == null || poolSize == 0) {
-            log.warn("[CommunityChoiceChannel] Redis pool '{}' bị trống! Đang kích hoạt Fallback...", REDIS_KEY_COMMUNITY_CHOICE_POOL);
-            List<String> refreshed = refreshCommunityChoicePool(Collections.emptyList(), limit);
-            if (refreshed.isEmpty()) return Collections.emptyList();
-            poolSize = (long) refreshed.size();
+            return Collections.emptyList();
         }
 
         return getIdsWithOffset(
@@ -381,13 +361,8 @@ public class SeriesChannelServiceImpl implements SeriesChannelService {
         if (limit <= 0) return Collections.emptyList();
 
         Long poolSize = redisTemplate.opsForList().size(REDIS_KEY_RANDOM_CATEGORY_POOL);
-
-        // Fallback: Nếu Pool trống, kích hoạt nạp tự động với mặc định 3 series / category
         if (poolSize == null || poolSize == 0) {
-            log.warn("[RandomCategoryChannel] Redis pool '{}' bị trống! Đang kích hoạt Fallback...", REDIS_KEY_RANDOM_CATEGORY_POOL);
-            List<String> refreshed = refreshRandomCategoryPool(Collections.emptyList(), 3, 20);
-            if (refreshed.isEmpty()) return Collections.emptyList();
-            poolSize = (long) refreshed.size();
+            return Collections.emptyList();
         }
 
         return getIdsWithOffset(
@@ -448,12 +423,8 @@ public class SeriesChannelServiceImpl implements SeriesChannelService {
 
         String poolKey = REDIS_KEY_SUBSCRIBED_CREATORS_POOL_PREFIX + accountId;
         Long poolSize = redisTemplate.opsForList().size(poolKey);
-
-        // Fallback: Nếu Pool cá nhân bị trống, kích hoạt làm mới tự động với mặc định 3 series / creator
         if (poolSize == null || poolSize == 0) {
-            List<String> refreshed = refreshSubscribedCreatorsPool(accountId, blacklistIds, 3, 20);
-            if (refreshed.isEmpty()) return Collections.emptyList();
-            poolSize = (long) refreshed.size();
+            return Collections.emptyList();
         }
 
         return getIdsWithOffset(
@@ -529,13 +500,8 @@ public class SeriesChannelServiceImpl implements SeriesChannelService {
         if (limit <= 0) return Collections.emptyList();
 
         Long poolSize = redisTemplate.opsForList().size(REDIS_KEY_TRENDING_POOL);
-
-        // Fallback: Nếu Pool trống, tự động kích hoạt refresh không dùng blacklist
         if (poolSize == null || poolSize == 0) {
-            log.warn("[TrendingChannel] Redis pool '{}' bị trống! Đang kích hoạt Fallback...", REDIS_KEY_TRENDING_POOL);
-            List<String> refreshed = refreshTrendingPool(Collections.emptyList(), limit);
-            if (refreshed.isEmpty()) return Collections.emptyList();
-            poolSize = (long) refreshed.size();
+            return Collections.emptyList();
         }
 
         return getIdsWithOffset(
