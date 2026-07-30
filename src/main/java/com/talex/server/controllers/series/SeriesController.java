@@ -10,11 +10,13 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -65,6 +67,20 @@ public class SeriesController {
             @PathVariable String id,
             @CurrentAccountId UUID accountId) {
         return ResponseEntity.ok(response(200, "OK", seriesService.getById(id, accountId.toString())));
+    }
+
+    @GetMapping("/{id}/logs")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(
+            summary = "Lấy danh sách log thống kê của series theo khoảng thời gian",
+            description = "Truyền vào seriesId dưới dạng path variable cùng thời gian bắt đầu (start) và kết thúc (end)."
+    )
+    public ResponseEntity<BaseResponse> getSeriesLogs(
+            @PathVariable String id,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime start,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime end,
+            @CurrentAccountId UUID accountId) {
+        return ResponseEntity.ok(response(200, "OK", seriesService.getSeriesLogs(id, start, end, accountId.toString())));
     }
 
     @PutMapping("/{id}")

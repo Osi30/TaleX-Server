@@ -1,11 +1,13 @@
 package com.talex.server.services.series;
 
 import com.talex.server.dtos.BasePageResponse;
+import com.talex.server.dtos.analytic.SeriesLogResponseDto;
 import com.talex.server.dtos.requests.series.SeriesRequestDto;
 import com.talex.server.dtos.responses.series.SeriesResponseDto;
 import com.talex.server.entities.series.Series;
 import com.talex.server.enums.series.SeriesStatus;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -37,6 +39,8 @@ public interface SeriesService {
     Series findActiveEntity(String id);
 
     Series findPublicEntity(String id);
+
+    List<SeriesLogResponseDto> getSeriesLogs(String id, LocalDateTime start, LocalDateTime end, String accountId);
 
     SeriesResponseDto toResponse(Series series);
 }

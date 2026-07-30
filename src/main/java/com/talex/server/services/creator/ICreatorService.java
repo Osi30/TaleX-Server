@@ -1,12 +1,15 @@
 package com.talex.server.services.creator;
 
 import com.talex.server.dtos.BasePageResponse;
+import com.talex.server.dtos.analytic.CreatorLogResponseDto;
 import com.talex.server.dtos.requests.creator.CreatorRegisterDto;
 import com.talex.server.dtos.requests.filters.CreatorFilterRequestDto;
 import com.talex.server.dtos.responses.creator.CreatorResponseDto;
 import com.talex.server.entities.creator.Creator;
 import com.talex.server.records.CreatorVerificationStatus;
 
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 public interface ICreatorService {
@@ -29,4 +32,6 @@ public interface ICreatorService {
     Creator getEntityById(String creatorId);
 
     BasePageResponse<CreatorResponseDto> filterCreators(CreatorFilterRequestDto filterRequest);
+
+    List<CreatorLogResponseDto> getCreatorLogs(UUID accountId, LocalDateTime from, LocalDateTime to);
 }

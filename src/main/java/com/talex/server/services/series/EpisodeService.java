@@ -1,5 +1,6 @@
 package com.talex.server.services.series;
 
+import com.talex.server.dtos.analytic.EpisodeLogResponseDto;
 import com.talex.server.dtos.requests.series.EpisodeRequestDto;
 import com.talex.server.dtos.responses.series.EpisodeRefs;
 import com.talex.server.dtos.requests.series.EpisodeUnlockSettingsRequestDto;
@@ -51,4 +52,6 @@ public interface EpisodeService {
     String getSeriesIdByEpisodeId(String episodeId);
 
     EpisodeRefs getEpisodeRefsByEpisodeId(String episodeId);
+
+    List<EpisodeLogResponseDto> getEpisodeLogs(String episodeId, LocalDateTime from, LocalDateTime to, String accountId);
 }

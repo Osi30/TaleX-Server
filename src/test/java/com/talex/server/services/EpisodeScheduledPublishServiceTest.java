@@ -13,6 +13,7 @@ import com.talex.server.exceptions.details.ContentModuleException;
 import com.talex.server.repositories.auth.AccountRepository;
 import com.talex.server.repositories.media.MediaRepository;
 import com.talex.server.repositories.series.CategoryRepository;
+import com.talex.server.repositories.series.EpisodeLogRepository;
 import com.talex.server.repositories.series.EpisodeRepository;
 import com.talex.server.repositories.series.TagRepository;
 import com.talex.server.services.audit.ContentAuditLogger;
@@ -53,6 +54,8 @@ class EpisodeScheduledPublishServiceTest {
     @Mock
     private SeasonService seasonService;
     @Mock
+    private EpisodeLogRepository episodeLogRepository;
+    @Mock
     private ContentOwnershipService contentOwnershipService;
     @Mock
     private ContentAuditLogger contentAuditLogger;
@@ -62,7 +65,7 @@ class EpisodeScheduledPublishServiceTest {
     @BeforeEach
     void setUp() {
         episodeService = new EpisodeServiceImpl(
-                episodeRepository, mediaRepository, tagRepository, categoryRepository, accountRepository, seasonService, contentOwnershipService, contentAuditLogger);
+                episodeRepository, mediaRepository, tagRepository, categoryRepository, accountRepository, episodeLogRepository, seasonService, contentOwnershipService, contentAuditLogger);
         lenient().when(contentOwnershipService.isPrivileged()).thenReturn(true);
         lenient().when(episodeRepository.save(any(Episode.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));

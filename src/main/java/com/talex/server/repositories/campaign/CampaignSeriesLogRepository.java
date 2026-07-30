@@ -9,10 +9,17 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 
 @Repository
 public interface CampaignSeriesLogRepository extends JpaRepository<CampaignSeriesLog, String> {
+
+    List<CampaignSeriesLog> findByCampaignSeries_CampaignSeriesIdAndHourBucketBetweenOrderByHourBucketAsc(
+            String campaignSeriesId,
+            LocalDateTime startTime,
+            LocalDateTime endTime
+    );
 
     @Modifying
     @Query(value = """

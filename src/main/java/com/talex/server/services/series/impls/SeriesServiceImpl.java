@@ -1,6 +1,7 @@
 package com.talex.server.services.series.impls;
 
 import com.talex.server.dtos.BasePageResponse;
+import com.talex.server.dtos.analytic.SeriesLogResponseDto;
 import com.talex.server.dtos.requests.series.SeriesRequestDto;
 import com.talex.server.dtos.responses.series.CategoryResponseDto;
 import com.talex.server.dtos.responses.series.SeriesResponseDto;
@@ -25,6 +26,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -37,6 +39,7 @@ public class SeriesServiceImpl implements SeriesService {
     private final SeriesTagRepository seriesTagRepository;
     private final CategoryRepository categoryRepository;
     private final TagRepository tagRepository;
+    private final SeriesLogRepository seriesLogRepository;
     private final CategoryService categoryService;
     private final TagService tagService;
     private final ContentOwnershipService contentOwnershipService;
@@ -264,6 +267,22 @@ public class SeriesServiceImpl implements SeriesService {
                         series,
                         categoriesBySeriesId.getOrDefault(series.getSeriesId(), List.of()),
                         tagsBySeriesId.getOrDefault(series.getSeriesId(), List.of())))
+                .toList();
+    }
+
+    @Override
+    public List<SeriesLogResponseDto> getSeriesLogs(String id, LocalDateTime start, LocalDateTime end, String accountId) {
+        // 2. Query log từ database
+        List<SeriesLog> logs = seriesLogRepository.findBySeriesSeriesIdAndHourBucketBetweenOrderByHourBucketAsc(id, start, end);
+
+        // 3. Map sang DTO
+        return logs.stream()
+                .map(log -> SeriesLogResponseDto.builder()
+                        .seriesLogId(log.getSeriesLogId())
+                        .hourBucket(log.getHourBucket())
+                        .seriesId(log.getSeries().getSeriesId())
+                        .analyticData(log.getAnalyticData())
+                        .build())
                 .toList();
     }
 

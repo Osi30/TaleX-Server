@@ -9,6 +9,7 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Repository
@@ -24,5 +25,11 @@ public interface CreatorLogRepository extends JpaRepository<CreatorLog, String> 
             @Param("followedId") UUID followedId,
             @Param("hourBucket") LocalDateTime hourBucket,
             @Param("delta") long delta
+    );
+
+    List<CreatorLog> findByAccount_AccountIdAndHourBucketBetweenOrderByHourBucketAsc(
+            UUID accountId,
+            LocalDateTime from,
+            LocalDateTime to
     );
 }

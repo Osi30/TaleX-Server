@@ -13,6 +13,11 @@ import java.util.List;
 
 @Repository
 public interface SeriesLogRepository extends JpaRepository<SeriesLog, String> {
+    List<SeriesLog> findBySeriesSeriesIdAndHourBucketBetweenOrderByHourBucketAsc(
+            String seriesId,
+            LocalDateTime start,
+            LocalDateTime end
+    );
 
     // Luồng Cumulative: gom nhóm trong khoảng (start, end)
     @Query("SELECT new com.talex.server.records.SeriesLogData(" +

@@ -1,6 +1,7 @@
 package com.talex.server.services.creator.impls;
 
 import com.talex.server.dtos.BasePageResponse;
+import com.talex.server.dtos.analytic.CreatorLogResponseDto;
 import com.talex.server.dtos.requests.creator.CreatorRegisterDto;
 import com.talex.server.dtos.requests.filters.CreatorFilterRequestDto;
 import com.talex.server.dtos.requests.terms.CreatorTermsLogRequestDto;
@@ -8,6 +9,7 @@ import com.talex.server.dtos.responses.creator.CreatorResponseDto;
 import com.talex.server.dtos.responses.creator.TermsVersionResponseDto;
 import com.talex.server.entities.auth.Account;
 import com.talex.server.entities.creator.Creator;
+import com.talex.server.entities.creator.CreatorLog;
 import com.talex.server.enums.AccountStatus;
 import com.talex.server.enums.TermsType;
 import com.talex.server.exceptions.codes.creator.CreatorErrorCode;
@@ -15,6 +17,7 @@ import com.talex.server.exceptions.details.creator.CreatorException;
 import com.talex.server.mappers.creator.ICreatorMapper;
 import com.talex.server.records.CreatorVerificationStatus;
 import com.talex.server.repositories.auth.AccountRepository;
+import com.talex.server.repositories.creator.CreatorLogRepository;
 import com.talex.server.repositories.creator.CreatorRepository;
 import com.talex.server.services.creator.ICreatorIdentityService;
 import com.talex.server.services.creator.ICreatorService;
@@ -33,6 +36,8 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -45,6 +50,7 @@ public class CreatorService implements ICreatorService {
 //    private final IKycSessionService kycSessionService;
     private final CreatorRepository creatorRepository;
     private final AccountRepository accountRepository;
+    private final CreatorLogRepository creatorLogRepository;
     private final ICreatorMapper creatorMapper;
 
     private final KafkaTemplate<String, String> kafkaTemplate;
@@ -199,6 +205,30 @@ public class CreatorService implements ICreatorService {
     public String getIdByAccountId(UUID accountId) {
         return creatorRepository.findCreatorIdByAccountId(accountId)
                 .orElseThrow(() -> new CreatorException(CreatorErrorCode.CREATOR_NOT_FOUND, "Không tìm thấy hồ sơ Creator cho tài khoản."));
+    }
+
+    @Override
+    public List<CreatorLogResponseDto> getCreatorLogs(UUID accountId, LocalDateTime from, LocalDateTime to) {
+        // Nếu from null -> lấy từ mốc đầu tiên (Epoch)
+        LocalDateTime effectiveFrom = (from != null) ? from : LocalDateTime.of(1970, 1, 1, 0, 0);
+
+        // Nếu to null -> lấy đến thời điểm hiện tại
+        LocalDateTime effectiveTo = (to != null) ? to : LocalDateTime.now();
+
+        List<CreatorLog> logs = creatorLogRepository.findByAccount_AccountIdAndHourBucketBetweenOrderByHourBucketAsc(
+                accountId,
+                effectiveFrom,
+                effectiveTo
+        );
+
+        return logs.stream()
+                .map(log -> CreatorLogResponseDto.builder()
+                        .creatorLogId(log.getCreatorLogId())
+                        .hourBucket(log.getHourBucket())
+                        .analyticData(log.getAnalyticData())
+                        .follows(log.getFollows())
+                        .build())
+                .toList();
     }
 
     private Sort getSort(CreatorFilterRequestDto filterRequest) {

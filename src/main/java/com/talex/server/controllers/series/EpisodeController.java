@@ -10,11 +10,13 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @RestController
@@ -23,7 +25,7 @@ import java.util.UUID;
 public class EpisodeController {
     private final EpisodeService episodeService;
 
-     @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("isAuthenticated()")
     @PostMapping("/api/v1/seasons/{seasonId}/episodes")
     @Operation(summary = "Tạo tập mới", description = "Tạo một tập mới trong một season cụ thể với trạng thái mặc định là DRAFT. Nếu không truyền số tập (episodeNumber), hệ thống tự động tăng. Định dạng nội dung (ContentType) bắt buộc phải khớp với Series. Có thể thiết lập chế độ miễn phí (FREE) hoặc trả phí (PAID). Yêu cầu quyền sở hữu nội dung.")
     public ResponseEntity<BaseResponse> create(
@@ -35,7 +37,7 @@ public class EpisodeController {
                         episodeService.create(seasonId, request, accountId.toString())));
     }
 
-     @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("isAuthenticated()")
     @GetMapping("/api/v1/seasons/{seasonId}/episodes")
     @Operation(summary = "Lấy danh sách tập theo season", description = "Lấy danh sách tất cả các tập của một season, được sắp xếp tăng dần theo số tập (episodeNumber). Yêu cầu quyền quản lý nội dung (hoặc quyền Admin/Staff).")
     public ResponseEntity<BaseResponse> listBySeason(
@@ -45,7 +47,7 @@ public class EpisodeController {
                 episodeService.listBySeason(seasonId, accountId.toString())));
     }
 
-     @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("isAuthenticated()")
     @GetMapping("/api/v1/episodes/{id}")
     @Operation(summary = "Lấy chi tiết tập", description = "Lấy toàn bộ thông tin chi tiết của một tập. Yêu cầu quyền sở hữu nội dung.")
     public ResponseEntity<BaseResponse> getById(
@@ -54,7 +56,22 @@ public class EpisodeController {
         return ResponseEntity.ok(response(200, "OK", episodeService.getById(id, accountId.toString())));
     }
 
-     @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("isAuthenticated()")
+    @GetMapping("/api/v1/episodes/{id}/logs")
+    @Operation(
+            summary = "Lấy log phân tích của tập theo khoảng thời gian",
+            description = "Lấy danh sách các bản ghi log (analytic data) của một episode trong khoảng thời gian chỉ định. Yêu cầu truyền 'from' và 'to' dưới dạng ISO DateTime."
+    )
+    public ResponseEntity<BaseResponse> getEpisodeLogs(
+            @PathVariable("id") String id,
+            @RequestParam("from") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
+            @RequestParam("to") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to,
+            @CurrentAccountId UUID accountId) {
+        return ResponseEntity.ok(response(200, "OK",
+                episodeService.getEpisodeLogs(id, from, to, accountId.toString())));
+    }
+
+    @PreAuthorize("isAuthenticated()")
     @PutMapping("/api/v1/episodes/{id}")
     @Operation(summary = "Cập nhật thông tin tập", description = "Cập nhật các trường thông tin (tiêu đề, mô tả, số tập, cài đặt giá tiền). Nếu thay đổi trạng thái sang PUBLISHED, hệ thống sẽ kiểm tra xem tập đã có media (Video/Image) được duyệt (APPROVED) và sẵn sàng hay chưa. Yêu cầu quyền sở hữu nội dung.")
     public ResponseEntity<BaseResponse> update(
@@ -76,7 +93,7 @@ public class EpisodeController {
                 episodeService.updateUnlockSettings(id, request, accountId.toString())));
     }
 
-     @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("isAuthenticated()")
     @PatchMapping("/api/v1/episodes/{id}/schedule-publish")
     @Operation(summary = "Lên lịch xuất bản tập", description = "Lên lịch để xuất bản tập vào một thời điểm trong tương lai. Yêu cầu tập này phải có ít nhất một media đã sẵn sàng và được duyệt. Nếu đây là tập đầu tiên, hệ thống sẽ tự động lên lịch hiển thị cho cả Season và Series cha. Yêu cầu quyền sở hữu nội dung.")
     public ResponseEntity<BaseResponse> schedulePublish(
@@ -96,7 +113,7 @@ public class EpisodeController {
         return ResponseEntity.ok(response(200, "Episode schedule canceled", episodeService.cancelSchedule(id, accountId.toString())));
     }
 
-     @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("isAuthenticated()")
     @PatchMapping("/api/v1/episodes/{id}/publish")
     @Operation(summary = "Xuất bản tập ngay lập tức", description = "Chuyển trạng thái tập sang PUBLISHED. Yêu cầu bắt buộc phải có ít nhất một media (Video hoặc Image) đã xử lý xong và được duyệt (APPROVED). Yêu cầu quyền sở hữu nội dung.")
     public ResponseEntity<BaseResponse> publish(
@@ -105,7 +122,7 @@ public class EpisodeController {
         return ResponseEntity.ok(response(200, "Episode published", episodeService.publish(id, accountId.toString())));
     }
 
-     @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("isAuthenticated()")
     @PatchMapping("/api/v1/episodes/{id}/hide")
     @Operation(summary = "Ẩn tập", description = "Chuyển trạng thái của tập sang HIDDEN để tạm thời gỡ khỏi chế độ hiển thị công khai. Yêu cầu quyền sở hữu nội dung.")
     public ResponseEntity<BaseResponse> hide(
@@ -114,7 +131,7 @@ public class EpisodeController {
         return ResponseEntity.ok(response(200, "Episode hidden", episodeService.hide(id, accountId.toString())));
     }
 
-     @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("isAuthenticated()")
     @PatchMapping("/api/v1/episodes/{id}/unhide")
     @Operation(summary = "Bỏ ẩn tập", description = "Khôi phục trạng thái từ HIDDEN về lại PUBLISHED. Hệ thống sẽ kiểm tra lại tính hợp lệ của media đính kèm. Yêu cầu quyền sở hữu nội dung.")
     public ResponseEntity<BaseResponse> unhide(
@@ -141,7 +158,7 @@ public class EpisodeController {
         return ResponseEntity.ok(response(200, "Episode force-unhidden", episodeService.forceUnhide(id, accountId.toString())));
     }
 
-     @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("isAuthenticated()")
     @DeleteMapping("/api/v1/episodes/{id}")
     @Operation(summary = "Xóa tập", description = "Xóa mềm (soft-delete) tập bằng cách chuyển trạng thái sang DELETED. Yêu cầu quyền sở hữu nội dung.")
     public ResponseEntity<BaseResponse> delete(

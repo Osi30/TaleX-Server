@@ -7,12 +7,9 @@ import com.talex.server.entities.series.Season;
 import com.talex.server.entities.series.Series;
 import com.talex.server.entities.creator.Creator;
 import com.talex.server.exceptions.details.ContentModuleException;
-import com.talex.server.repositories.series.CategoryRepository;
+import com.talex.server.repositories.series.*;
 import com.talex.server.repositories.auth.AccountRepository;
-import com.talex.server.repositories.series.EpisodeRepository;
 import com.talex.server.repositories.media.MediaRepository;
-import com.talex.server.repositories.series.SeasonRepository;
-import com.talex.server.repositories.series.TagRepository;
 import com.talex.server.services.creator.ICreatorService;
 import com.talex.server.services.media.impls.ContentOwnershipService;
 import com.talex.server.services.series.impls.EpisodeServiceImpl;
@@ -58,6 +55,8 @@ class ContentCrudOwnershipServiceTest {
     @Mock
     private TagRepository tagRepository;
     @Mock
+    private EpisodeLogRepository episodeLogRepository;
+    @Mock
     private CategoryRepository categoryRepository;
     @Mock
     private MediaRepository mediaRepository;
@@ -84,6 +83,7 @@ class ContentCrudOwnershipServiceTest {
                 tagRepository,
                 categoryRepository,
                 accountRepository,
+                episodeLogRepository,
                 seasonService,
                 ownershipService,
                 contentAuditLogger);

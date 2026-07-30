@@ -1,11 +1,13 @@
 package com.talex.server.services.series.impls;
 
+import com.talex.server.dtos.analytic.EpisodeLogResponseDto;
 import com.talex.server.dtos.requests.series.EpisodeRequestDto;
 import com.talex.server.dtos.requests.series.EpisodeUnlockSettingsRequestDto;
 import com.talex.server.dtos.responses.series.EpisodeRefs;
 import com.talex.server.dtos.responses.series.EpisodeResponseDto;
 import com.talex.server.entities.auth.Account;
 import com.talex.server.entities.series.Episode;
+import com.talex.server.entities.series.EpisodeLog;
 import com.talex.server.entities.series.Season;
 import com.talex.server.entities.series.Series;
 import com.talex.server.enums.media.MediaStatus;
@@ -15,12 +17,13 @@ import com.talex.server.exceptions.details.ContentModuleException;
 import com.talex.server.repositories.auth.AccountRepository;
 import com.talex.server.repositories.media.MediaRepository;
 import com.talex.server.repositories.series.CategoryRepository;
+import com.talex.server.repositories.series.EpisodeLogRepository;
 import com.talex.server.repositories.series.EpisodeRepository;
 import com.talex.server.repositories.series.TagRepository;
+import com.talex.server.services.audit.ContentAuditLogger;
 import com.talex.server.services.media.impls.ContentOwnershipService;
 import com.talex.server.services.series.EpisodeService;
 import com.talex.server.services.series.SeasonService;
-import com.talex.server.services.audit.ContentAuditLogger;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -42,6 +45,7 @@ public class EpisodeServiceImpl implements EpisodeService {
     private final TagRepository tagRepository;
     private final CategoryRepository categoryRepository;
     private final AccountRepository accountRepository;
+    private final EpisodeLogRepository episodeLogRepository;
     private final SeasonService seasonService;
     private final ContentOwnershipService contentOwnershipService;
     private final ContentAuditLogger contentAuditLogger;
@@ -412,6 +416,21 @@ public class EpisodeServiceImpl implements EpisodeService {
         } catch (IllegalArgumentException e) {
             return new EpisodeRefs(episodeId, Collections.emptyList(), Collections.emptyList());
         }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<EpisodeLogResponseDto> getEpisodeLogs(String episodeId, LocalDateTime from, LocalDateTime to, String accountId) {
+        List<EpisodeLog> logs = episodeLogRepository.findByEpisode_EpisodeIdAndHourBucketBetweenOrderByHourBucketAsc(
+                episodeId, from, to
+        );
+        return logs.stream()
+                .map(log -> EpisodeLogResponseDto.builder()
+                        .episodeLogId(log.getEpisodeLogId())
+                        .hourBucket(log.getHourBucket())
+                        .analyticData(log.getAnalyticData())
+                        .build())
+                .toList();
     }
 
     @Override

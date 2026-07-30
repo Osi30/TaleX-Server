@@ -3,6 +3,7 @@ package com.talex.server.controllers.creator;
 import com.talex.server.annotations.CurrentAccountId;
 import com.talex.server.dtos.BasePageResponse;
 import com.talex.server.dtos.BaseResponse;
+import com.talex.server.dtos.analytic.CreatorLogResponseDto;
 import com.talex.server.dtos.requests.creator.CreatorRegisterDto;
 import com.talex.server.dtos.requests.filters.CreatorFilterRequestDto;
 import com.talex.server.dtos.responses.creator.CreatorResponseDto;
@@ -12,11 +13,14 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -146,6 +150,26 @@ public class CreatorController {
                 .code(200)
                 .message("OK")
                 .data(resp)
+                .build());
+    }
+
+    @GetMapping("/logs")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(
+            summary = "Lấy thống kê Creator Log theo thời gian",
+            description = "Truy vấn log thống kê của creator hiện tại. " +
+                    "Nếu 'from' hoặc 'to' để trống/null, hệ thống sẽ tự động lấy từ mốc bắt đầu đến thời điểm hiện tại."
+    )
+    public ResponseEntity<BaseResponse> getCreatorLogs(
+            @CurrentAccountId UUID accountId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to
+    ) {
+        List<CreatorLogResponseDto> logs = creatorService.getCreatorLogs(accountId, from, to);
+        return ResponseEntity.ok(BaseResponse.builder()
+                .code(200)
+                .message("Lấy dữ liệu Creator Log thành công")
+                .data(logs)
                 .build());
     }
 }

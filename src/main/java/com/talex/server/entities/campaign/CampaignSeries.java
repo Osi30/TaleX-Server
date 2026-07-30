@@ -21,7 +21,7 @@ public class CampaignSeries implements Serializable {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     @Column(name = "campaign_series_id")
-    private String campaignEpisodeId;
+    private String campaignSeriesId;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "campaign_id", nullable = false)

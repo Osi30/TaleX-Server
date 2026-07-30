@@ -1,6 +1,7 @@
 package com.talex.server.controllers.campaign;
 
 import com.talex.server.dtos.BaseResponse;
+import com.talex.server.dtos.analytic.CampaignSeriesLogResponseDto;
 import com.talex.server.dtos.responses.campaign.CampaignSeriesResponseDto;
 import com.talex.server.enums.engagement.CampaignStatus;
 import com.talex.server.services.campaign.CampaignSeriesService;
@@ -8,10 +9,12 @@ import com.talex.server.services.campaign.impls.CampaignService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @RestController
@@ -32,6 +35,24 @@ public class CampaignSeriesController {
             @PathVariable String campaignId
     ) {
         List<CampaignSeriesResponseDto> response = campaignSeriesService.getByCampaignId(campaignId);
+        return ResponseEntity.ok(BaseResponse.builder()
+                .code(200)
+                .message("OK")
+                .data(response)
+                .build());
+    }
+
+    @GetMapping("/{campaignSeriesId}/logs")
+    @Operation(
+            summary = "Lấy danh sách log của Campaign Series theo khoảng thời gian",
+            description = "Lấy ra danh sách các log thống kê theo giờ (hourBucket) trong khoảng từ startTime đến endTime dựa vào campaignSeriesId."
+    )
+    public ResponseEntity<BaseResponse> getLogs(
+            @PathVariable String campaignSeriesId,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startTime,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endTime
+    ) {
+        List<CampaignSeriesLogResponseDto> response = campaignSeriesService.getLogs(campaignSeriesId, startTime, endTime);
         return ResponseEntity.ok(BaseResponse.builder()
                 .code(200)
                 .message("OK")
