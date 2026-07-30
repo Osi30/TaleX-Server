@@ -21,13 +21,9 @@ public class ContentPipelineWorker {
     private final ContentPipelineService pipelineService;
     private final ObjectMapper objectMapper;
 
-    @KafkaListener(topics = "content-copyright-result", groupId = "content-pipeline-copyright-group9999")
+    @KafkaListener(topics = "content-copyright-result${KAFKA_TOPIC_SUFFIX:}",
+            groupId = "content-pipeline-copyright${KAFKA_TOPIC_SUFFIX:}")
     public void consumeCopyrightResult(String message) {
-        // enable-auto-commit=false, ack-mode mặc định BATCH → offset commit ngay khi hàm
-        // listener return bình thường, KỂ CẢ khi exception bị catch/nuốt bên trong. Nếu chỉ
-        // log mà không đánh dấu FAILED, message coi như "đã xử lý" vĩnh viễn dù thực ra
-        // chưa hề — media kẹt trạng thái trung gian, không redeliver, Creator không thấy
-        // nút "Thử lại" vì status không đổi.
         String mediaId = null;
         try {
             CopyrightResultMessage result = objectMapper.readValue(message, CopyrightResultMessage.class);
@@ -42,7 +38,8 @@ public class ContentPipelineWorker {
         }
     }
 
-    @KafkaListener(topics = "content-moderation-result", groupId = "content-pipeline-moderation-group9999")
+    @KafkaListener(topics = "content-moderation-result${KAFKA_TOPIC_SUFFIX:}",
+            groupId = "content-pipeline-moderation-group${KAFKA_TOPIC_SUFFIX:}")
     public void consumeModerationResult(String message) {
         String mediaId = null;
         try {
