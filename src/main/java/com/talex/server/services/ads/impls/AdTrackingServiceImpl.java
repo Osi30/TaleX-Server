@@ -88,6 +88,25 @@ public class AdTrackingServiceImpl implements IAdTrackingService {
         }
     }
 
+    @Override
+    @Async
+    @Transactional
+    public void track6sViewAsync(AdTrackRequestDto request) {
+        try {
+            AdCampaign campaign = campaignRepository.findById(request.getCampaignId()).orElse(null);
+            if (campaign == null || campaign.getStatus() != AdCampaignStatus.ACTIVE) return;
+
+            campaign.setFocusedViews6s(campaign.getFocusedViews6s() + 1);
+            if (campaign.getLockedCpm() != null && campaign.getLockedCpm() > 0) {
+                campaign.setPaidFocusedViews6s(campaign.getPaidFocusedViews6s() + 1);
+            }
+
+            campaignRepository.save(campaign);
+        } catch (Exception e) {
+            log.error("Error tracking 6s view for campaign {}: {}", request.getCampaignId(), e.getMessage());
+        }
+    }
+
     private void upsertMetric(AdCampaign campaign, boolean isImpression) {
         LocalDate today = LocalDate.now();
         AdMetric metric = metricRepository.findByCampaign_CampaignIdAndReportDate(campaign.getCampaignId(), today)
