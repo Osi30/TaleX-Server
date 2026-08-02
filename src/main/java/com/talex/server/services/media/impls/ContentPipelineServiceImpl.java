@@ -89,15 +89,23 @@ public class ContentPipelineServiceImpl implements ContentPipelineService {
     public void handleCopyrightResult(CopyrightResultMessage result) {
         Optional<Media> mediaOpt = mediaRepository.findByMediaIdAndIsDeletedFalse(result.getMediaId());
         if (mediaOpt.isEmpty()) {
-            // Media đã bị xóa TRONG LÚC job bản quyền đang xử lý — 2 topic Kafka
-            // (content-pipeline-job và content-media-delete) không đảm bảo thứ tự với
-            // nhau, nên lệnh xóa fingerprint (gửi lúc delete()) có thể đã chạy TRƯỚC khi
-            // AI kịp insert fingerprint mới cho media này, để lại fingerprint mồ côi
-            // vĩnh viễn trong Milvus. Nhận được kết quả bản quyền ở đây nghĩa là AI VỪA
-            // insert xong — gửi lại lệnh xóa lần nữa để đảm bảo chạy SAU insert, dọn
-            // sạch fingerprint mồ côi.
-            log.warn("Copyright result received for deleted mediaId={} — re-sending cleanup", result.getMediaId());
-            notifyMediaDeleted(result.getMediaId());
+            // "Không tìm thấy" có 2 nguyên nhân KHÔNG phân biệt được nếu chỉ dựa vào
+            // isEmpty(): (a) media đã bị soft-delete TRONG LÚC job bản quyền đang xử lý
+            // (2 topic content-pipeline-job/content-media-delete không đảm bảo thứ tự,
+            // lệnh xóa có thể chạy TRƯỚC khi AI kịp insert fingerprint, để lại fingerprint
+            // mồ côi), hoặc (b) mediaId hoàn toàn xa lạ với môi trường này (message từ môi
+            // trường khác lẫn vào do trùng topic/group, message cũ bị replay...). Trước đây
+            // code coi cả 2 trường hợp là (a) và luôn gửi lại lệnh xóa — đã từng gây xóa
+            // nhầm fingerprint của môi trường khác. Tra thêm 1 lần KHÔNG lọc isDeleted để
+            // phân biệt: chỉ khi row tồn tại VÀ đã soft-delete mới là race hợp lệ.
+            Optional<Media> anyOpt = mediaRepository.findByMediaId(result.getMediaId());
+            if (anyOpt.isPresent() && Boolean.TRUE.equals(anyOpt.get().getIsDeleted())) {
+                log.warn("Copyright result for soft-deleted mediaId={} — re-sending cleanup", result.getMediaId());
+                notifyMediaDeleted(result.getMediaId());
+            } else {
+                log.warn("Copyright result for mediaId={} unknown to this environment — ignoring (no cleanup fired)",
+                        result.getMediaId());
+            }
             return;
         }
         Media media = mediaOpt.get();
@@ -132,6 +140,12 @@ public class ContentPipelineServiceImpl implements ContentPipelineService {
         }
 
         if (Boolean.TRUE.equals(result.getIsDuplicate()) && result.getViolations() != null) {
+            // INVARIANT: nhánh CC0 dưới đây tin tưởng Copyright.code=="CC0" của media nguồn
+            // để bỏ qua hàng chờ Staff review. An toàn CHỈ VÌ Copyright hiện là dữ liệu
+            // seed/tham chiếu, chưa có nơi nào cho Creator tự gán bản quyền cho media. Nếu
+            // sau này có tính năng gán bản quyền, cờ CC0 phải được Staff xác nhận trước khi
+            // được dùng để bỏ qua PENDING_REVIEW ở đây — nếu không, Creator có thể tự khai
+            // CC0 để né kiểm tra trùng lặp.
             boolean allViolationsCC0 = processViolations(media, result.getViolations());
             if (!allViolationsCC0) {
                 // Máy chỉ biết "2 nội dung giống nhau X%", không biết ai thực sự có quyền —
@@ -158,7 +172,7 @@ public class ContentPipelineServiceImpl implements ContentPipelineService {
                         .approvalStatus(media.getApprovalStatus().name()).build());
                 return;
             }
-            log.info("All violations are CC0 — auto-approved, proceeding to moderation: mediaId={}", result.getMediaId());
+            log.warn("CC0 auto-approval bypassed Staff review: mediaId={} — sources self-declared CC0", result.getMediaId());
         }
 
         // No blocking violation — lưu DB TRƯỚC rồi mới gửi Kafka (khớp với
@@ -290,6 +304,24 @@ public class ContentPipelineServiceImpl implements ContentPipelineService {
             // không còn gì để làm ngoài log rõ ràng cho vận hành viên tra cứu thủ công.
             log.error("Failed to mark media as FAILED after processing error: mediaId={}", mediaId, e);
         }
+    }
+
+    @Override
+    @Transactional
+    public void markStalePipelineFailed(String mediaId, LocalDateTime staleBefore, String errorMessage, String failedStep) {
+        int updated = mediaRepository.markStalePipelineFailed(
+                mediaId, List.of(MediaStatus.PENDING, MediaStatus.HLS_PROCESSING, MediaStatus.HLS_READY),
+                staleBefore, errorMessage, PIPELINE_ACTOR);
+        if (updated == 0) {
+            // Kết quả thật đã commit đúng lúc UPDATE này chạy — row đã rời khỏi predicate
+            // in-flight, WHERE không khớp dòng nào. Không ghi đè, pipeline đã xong đúng cách.
+            log.info("Stale-mark no-op for mediaId={} — already resolved concurrently", mediaId);
+            return;
+        }
+        mediaRepository.findByMediaIdAndIsDeletedFalse(mediaId).ifPresent(media ->
+                pushSseEvent(media, "pipeline:failed", PipelineEventPayload.builder()
+                        .mediaId(mediaId).status("FAILED").errorMessage(errorMessage).failedStep(failedStep).build()));
+        log.error("Marked media FAILED after pipeline timeout: mediaId={}", mediaId);
     }
 
     @Override

@@ -38,7 +38,8 @@ import java.time.LocalDateTime;
                 @Index(name = "idx_media_checksum_deleted", columnList = "checksum,is_deleted"),
                 @Index(name = "idx_media_provider_public_deleted", columnList = "provider_public_id,is_deleted"),
                 @Index(name = "idx_media_provider_status_updated_deleted", columnList = "provider,status,updated_at,is_deleted"),
-                @Index(name = "idx_media_creator_deleted", columnList = "creator_id,is_deleted")
+                @Index(name = "idx_media_creator_deleted", columnList = "creator_id,is_deleted"),
+                @Index(name = "idx_media_status_approval_updated_deleted", columnList = "status,approval_status,updated_at,is_deleted")
         })
 @Getter
 @Setter

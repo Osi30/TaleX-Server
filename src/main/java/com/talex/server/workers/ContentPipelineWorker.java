@@ -7,6 +7,8 @@ import com.talex.server.services.media.ContentPipelineService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.support.KafkaHeaders;
+import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.stereotype.Component;
 
 /**
@@ -22,9 +24,12 @@ public class ContentPipelineWorker {
     private final ObjectMapper objectMapper;
 
     @KafkaListener(topics = "content-copyright-result${KAFKA_TOPIC_SUFFIX:}",
-            groupId = "content-pipeline-copyright${KAFKA_TOPIC_SUFFIX:}")
-    public void consumeCopyrightResult(String message) {
-        String mediaId = null;
+            groupId = "content-pipeline-copyright${KAFKA_TOPIC_SUFFIX:}",
+            containerFactory = "singleFactory")
+    public void consumeCopyrightResult(String message, @Header(KafkaHeaders.RECEIVED_KEY) String key) {
+        // Kafka record key = mediaId (ContentPipelineProducer) — seed từ key trước để lỗi
+        // vẫn báo được ngay cả khi body không parse nổi (thay vì chờ reconciler 10 phút).
+        String mediaId = key;
         try {
             CopyrightResultMessage result = objectMapper.readValue(message, CopyrightResultMessage.class);
             mediaId = result.getMediaId();
@@ -39,9 +44,10 @@ public class ContentPipelineWorker {
     }
 
     @KafkaListener(topics = "content-moderation-result${KAFKA_TOPIC_SUFFIX:}",
-            groupId = "content-pipeline-moderation-group${KAFKA_TOPIC_SUFFIX:}")
-    public void consumeModerationResult(String message) {
-        String mediaId = null;
+            groupId = "content-pipeline-moderation-group${KAFKA_TOPIC_SUFFIX:}",
+            containerFactory = "singleFactory")
+    public void consumeModerationResult(String message, @Header(KafkaHeaders.RECEIVED_KEY) String key) {
+        String mediaId = key;
         try {
             ModerationResultMessage result = objectMapper.readValue(message, ModerationResultMessage.class);
             mediaId = result.getMediaId();

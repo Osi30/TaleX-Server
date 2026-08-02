@@ -4,6 +4,8 @@ import com.talex.server.dtos.kafka.CopyrightResultMessage;
 import com.talex.server.dtos.kafka.ModerationResultMessage;
 import com.talex.server.entities.media.Media;
 
+import java.time.LocalDateTime;
+
 /**
  * Orchestrates the content pipeline state machine:
  * PENDING -> copyright check -> moderation check -> ACTIVE/INACTIVE
@@ -29,4 +31,11 @@ public interface ContentPipelineService {
      * kẹt vĩnh viễn ở trạng thái trung gian, không redeliver, không có nút "Thử lại".
      */
     void markProcessingFailed(String mediaId, String failedStep, String errorMessage);
+
+    /**
+     * Đánh dấu FAILED cho media kẹt quá lâu (dùng bởi ContentPipelineReconciler) bằng UPDATE
+     * có điều kiện nguyên tử — khác markProcessingFailed() ở chỗ đường này CÓ THỂ đua với 1
+     * kết quả hợp lệ đang commit cùng lúc, nên phải atomic thay vì read-then-write.
+     */
+    void markStalePipelineFailed(String mediaId, LocalDateTime staleBefore, String errorMessage, String failedStep);
 }

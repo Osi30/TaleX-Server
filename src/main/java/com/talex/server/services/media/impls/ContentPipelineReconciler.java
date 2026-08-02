@@ -52,11 +52,15 @@ public class ContentPipelineReconciler {
 
         for (Media media : stale) {
             try {
-                contentPipelineService.markProcessingFailed(
+                // UPDATE nguyên tử thay vì markProcessingFailed() (read-then-write) — sweep
+                // này có độ trễ (chạy mỗi 120s), nếu 1 kết quả hợp lệ commit ĐÚNG lúc đang
+                // quét, markProcessingFailed có thể ghi đè mất trạng thái đúng vừa xong.
+                contentPipelineService.markStalePipelineFailed(
                         media.getMediaId(),
-                        "PIPELINE_TIMEOUT",
+                        LocalDateTime.now().minusMinutes(STALE_MINUTES),
                         "Quá trình xử lý bản quyền/kiểm duyệt không phản hồi sau " + STALE_MINUTES
-                                + " phút — có thể do lỗi gửi/nhận Kafka.");
+                                + " phút — có thể do lỗi gửi/nhận Kafka.",
+                        "PIPELINE_TIMEOUT");
             } catch (Exception e) {
                 log.error("Reconcile failed for mediaId={}", media.getMediaId(), e);
             }
