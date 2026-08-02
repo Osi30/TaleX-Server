@@ -3,6 +3,13 @@ services:
     build: .
     ports:
       - "8080:8080"
+    # VPS chỉ có 5.8GB RAM chia cho nhiều service (BE+Postgres+QuestDB, AI+Milvus) — không
+    # giới hạn thì JVM có thể phình không kiểm soát dưới tải cao, cạn RAM cả máy chủ và kéo
+    # sập container khác. Đặt trần để nếu vượt, chỉ container này bị Docker tự kill + restart.
+    mem_limit: 1.5g
+    # VPS chỉ có 4 core — giới hạn để JVM không chiếm hết CPU khi tải cao, tránh làm container
+    # AI Python (đang xử lý video/ảnh) hoặc Postgres/QuestDB bị nghẽn theo. 1.5 = tối đa 1.5 core.
+    cpus: 1.5
     env_file: .env
     environment:
       # Override DB to use local PostgreSQL container
