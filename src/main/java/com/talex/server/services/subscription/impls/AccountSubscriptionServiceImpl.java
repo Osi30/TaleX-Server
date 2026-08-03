@@ -12,8 +12,8 @@ import com.talex.server.exceptions.details.ResourceNotFoundException;
 import com.talex.server.exceptions.details.SubscriptionException;
 import com.talex.server.repositories.auth.AccountRepository;
 import com.talex.server.repositories.subscription.AccountSubscriptionRepository;
-import com.talex.server.services.subscription.IAccountSubscriptionService;
-import com.talex.server.services.subscription.ISubscriptionService;
+import com.talex.server.services.subscription.AccountSubscriptionService;
+import com.talex.server.services.subscription.SubscriptionService;
 import com.talex.server.specifications.AccountSubscriptionSpec;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -33,8 +33,8 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
-public class AccountSubscriptionService implements IAccountSubscriptionService {
-    private final ISubscriptionService subscriptionService;
+public class AccountSubscriptionServiceImpl implements AccountSubscriptionService {
+    private final SubscriptionService subscriptionService;
     private final AccountSubscriptionRepository accountSubscriptionRepository;
     private final AccountRepository accountRepository;
 

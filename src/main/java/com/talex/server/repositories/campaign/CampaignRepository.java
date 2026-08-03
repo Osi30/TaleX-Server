@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.Collection;
 
 @Repository
@@ -16,17 +17,22 @@ public interface CampaignRepository extends JpaRepository<Campaign, String>, Jpa
     @Modifying
     @Query(value = """
     UPDATE campaign c
-    SET current_impression = COALESCE(c.current_impression, 0) + sub.cnt
+    SET current_impression = COALESCE(c.current_impression, 0) + sub.cnt,
+        end_at = CASE 
+            WHEN (COALESCE(c.current_impression, 0) + sub.cnt) >= c.target_impression THEN :now 
+            ELSE c.end_at 
+        END
     FROM (
         SELECT cs.campaign_id, COUNT(*) AS cnt
         FROM campaign_series cs
-        WHERE cs.series_id IN (:seriesIds) 
+        WHERE cs.series_id IN (:seriesIds)
           AND cs.status = 'RUNNING'
         GROUP BY cs.campaign_id
     ) sub
     WHERE c.campaign_id = sub.campaign_id
     """, nativeQuery = true)
     int incrementCampaignImpressionsBySeriesIds(
-            @Param("seriesIds") Collection<String> seriesIds
+            @Param("seriesIds") Collection<String> seriesIds,
+            @Param("now") LocalDateTime now
     );
 }

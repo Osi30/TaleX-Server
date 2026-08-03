@@ -398,6 +398,18 @@ public class EpisodeServiceImpl implements EpisodeService {
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy Series cho Episode ID: " + episodeId));
     }
 
+    @Cacheable(
+            value = "episode_creator",
+            key = "#episodeId",
+            cacheManager = "redisCacheManager",
+            unless = "#result == null"
+    )
+    @Override
+    public String getCreatorIdByEpisodeId(String episodeId) {
+        return episodeRepository.getCreatorIdByEpisodeId(episodeId)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy Creator cho Episode ID: " + episodeId));
+    }
+
     @Override
     @Transactional(readOnly = true)
     @Cacheable(

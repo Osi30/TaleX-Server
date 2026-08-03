@@ -7,7 +7,7 @@ import com.talex.server.dtos.responses.subscription.AccountSubscriptionResponseD
 
 import java.util.UUID;
 
-public interface IAccountSubscriptionService {
+public interface AccountSubscriptionService {
     AccountSubscriptionResponseDto createAccountSubscription(AccountSubscriptionRequestDto requestDto);
 
     BasePageResponse<AccountSubscriptionResponseDto> filterAndSortAccountSubscriptions(BaseFilterRequestDto filterRequest);

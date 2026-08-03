@@ -26,7 +26,7 @@ import com.talex.server.services.coin.ICoinWalletService;
 import com.talex.server.services.payment.IOrderService;
 import com.talex.server.services.payment.ISePayService;
 import com.talex.server.services.payment.OrderCompletionService;
-import com.talex.server.services.subscription.ISubscriptionService;
+import com.talex.server.services.subscription.SubscriptionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -48,7 +48,7 @@ public class OrderService implements IOrderService {
 
     private final OrderRepository orderRepository;
     private final AccountRepository accountRepository;
-    private final ISubscriptionService subscriptionService;
+    private final SubscriptionService subscriptionService;
     private final ContentOrderPreparationService contentOrderPreparationService;
     private final IEngagementServiceService engagementService;
     private final ICampaignService campaignService;

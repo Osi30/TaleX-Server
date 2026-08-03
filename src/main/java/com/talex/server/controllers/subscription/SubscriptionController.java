@@ -5,7 +5,7 @@ import com.talex.server.dtos.BaseResponse;
 import com.talex.server.dtos.requests.subscription.SubscriptionRequestDto;
 import com.talex.server.dtos.requests.filters.SubscriptionFilterRequestDto;
 import com.talex.server.dtos.responses.subscription.SubscriptionResponseDto;
-import com.talex.server.services.subscription.ISubscriptionService;
+import com.talex.server.services.subscription.SubscriptionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -21,7 +21,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 @Tag(name = "Subscriptions", description = "API quản lý các gói đăng ký")
 public class SubscriptionController {
-    private final ISubscriptionService subscriptionService;
+    private final SubscriptionService subscriptionService;
 
     @PostMapping
     @Operation(summary = "Tạo gói đăng ký mới", description = "Tạo gói đăng ký mới")

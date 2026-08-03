@@ -1,5 +1,6 @@
 package com.talex.server.entities.auth;
 
+import com.talex.server.entities.ads.AdvertiseProfile;
 import com.talex.server.entities.subscription.AccountSubscription;
 import com.talex.server.enums.AccountStatus;
 import jakarta.persistence.*;
@@ -94,5 +95,5 @@ public class Account {
     private Boolean is7d = false;
 
     @OneToOne(mappedBy = "account", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    private com.talex.server.entities.ads.AdvertiseProfile advertiseProfile;
+    private AdvertiseProfile advertiseProfile;
 }

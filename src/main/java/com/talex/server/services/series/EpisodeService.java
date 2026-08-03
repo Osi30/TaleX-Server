@@ -51,6 +51,8 @@ public interface EpisodeService {
 
     String getSeriesIdByEpisodeId(String episodeId);
 
+    String getCreatorIdByEpisodeId(String episodeId);
+
     EpisodeRefs getEpisodeRefsByEpisodeId(String episodeId);
 
     List<EpisodeLogResponseDto> getEpisodeLogs(String episodeId, LocalDateTime from, LocalDateTime to, String accountId);

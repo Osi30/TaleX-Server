@@ -59,12 +59,6 @@ public class CampaignSpec {
                     predicates.add(builder.lessThanOrEqualTo(root.get("currentImpression"), Long.valueOf(currentValueTo)));
                 }
 
-                // 5. Lọc theo episodeId (Khóa ngoại)
-                String episodeId = (String) criteria.get("episodeId");
-                if (!ValidationUtils.isNullOrEmpty(episodeId)) {
-                    predicates.add(builder.equal(root.get("episode").get("episodeId"), episodeId));
-                }
-
                 // 6. Lọc theo engagementServiceId (Khóa ngoại)
                 String engagementServiceId = (String) criteria.get("engagementServiceId");
                 if (!ValidationUtils.isNullOrEmpty(engagementServiceId)) {

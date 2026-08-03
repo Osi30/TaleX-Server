@@ -32,6 +32,10 @@ public class Creator {
     @Builder.Default
     private Boolean isVerified = false;
 
+    @Column(name = "is_banned")
+    @Builder.Default
+    private Boolean isBanned = false;
+
     @Embedded
     @Builder.Default
     private AnalyticData analyticData = new AnalyticData();

@@ -6,7 +6,7 @@ import com.talex.server.dtos.requests.filters.SubscriptionFilterRequestDto;
 import com.talex.server.dtos.responses.subscription.SubscriptionResponseDto;
 import com.talex.server.entities.subscription.Subscription;
 
-public interface ISubscriptionService {
+public interface SubscriptionService {
     SubscriptionResponseDto createSubscription(SubscriptionRequestDto requestDto);
 
     BasePageResponse<SubscriptionResponseDto> filterSubscriptions(SubscriptionFilterRequestDto filterRequest);

@@ -9,7 +9,7 @@ import com.talex.server.exceptions.codes.SubscriptionErrorCode;
 import com.talex.server.exceptions.details.SubscriptionException;
 import com.talex.server.mappers.subscription.ISubscriptionMapper;
 import com.talex.server.repositories.subscription.SubscriptionRepository;
-import com.talex.server.services.subscription.ISubscriptionService;
+import com.talex.server.services.subscription.SubscriptionService;
 import com.talex.server.specifications.SubscriptionSpec;
 import com.talex.server.utils.ValidationUtils;
 import lombok.RequiredArgsConstructor;
@@ -26,7 +26,7 @@ import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
-public class SubscriptionService implements ISubscriptionService {
+public class SubscriptionServiceImpl implements SubscriptionService {
     private final SubscriptionRepository subscriptionRepository;
     private final ISubscriptionMapper subscriptionMapper;
 

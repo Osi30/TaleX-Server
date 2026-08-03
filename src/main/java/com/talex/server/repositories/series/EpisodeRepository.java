@@ -87,4 +87,9 @@ public interface EpisodeRepository extends JpaRepository<Episode, String> {
             @Param("episodeIds") Set<String> episodeIds,
             @Param("status") EpisodeStatus status,
             @Param("creatorId") String creatorId);
+
+    @Query("SELECT e.creatorId " +
+            "FROM Episode e " +
+            "WHERE e.episodeId = :episodeId")
+    Optional<String> getCreatorIdByEpisodeId(@Param("episodeId") String episodeId);
 }

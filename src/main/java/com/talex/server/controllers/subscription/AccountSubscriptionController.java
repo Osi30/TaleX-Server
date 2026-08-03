@@ -6,7 +6,7 @@ import com.talex.server.dtos.BasePageResponse;
 import com.talex.server.dtos.BaseResponse;
 import com.talex.server.dtos.requests.subscription.AccountSubscriptionRequestDto;
 import com.talex.server.dtos.responses.subscription.AccountSubscriptionResponseDto;
-import com.talex.server.services.subscription.IAccountSubscriptionService;
+import com.talex.server.services.subscription.AccountSubscriptionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -29,7 +29,7 @@ import java.util.UUID;
 public class AccountSubscriptionController {
         private static final Set<String> PRIVILEGED_ROLES = Set.of("ROLE_STAFF", "ROLE_ADMIN");
 
-        private final IAccountSubscriptionService accountSubscriptionService;
+        private final AccountSubscriptionService accountSubscriptionService;
 
         @PostMapping
         @Operation(summary = "Tạo đăng ký gói tài khoản", description = "Tạo đăng ký gói dịch vụ cho tài khoản đang đăng nhập.")

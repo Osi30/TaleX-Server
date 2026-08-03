@@ -9,6 +9,8 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "account_subscription")
@@ -28,6 +30,10 @@ public class AccountSubscription {
     @Column(name = "end_time", nullable = false)
     private LocalDateTime endTime;
 
+    @Column(name = "total_views")
+    @Builder.Default
+    private Long totalViews = 0L;
+
     @Column(name = "cancelled_at")
     private LocalDateTime cancelledAt;
 
@@ -38,6 +44,10 @@ public class AccountSubscription {
     @Column(name = "order_id")
     private String orderId;
 
+    @UpdateTimestamp
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "account_id", nullable = false)
     private Account account;
@@ -46,7 +56,7 @@ public class AccountSubscription {
     @JoinColumn(name = "subscription_id", nullable = false)
     private Subscription subscription;
 
-    @UpdateTimestamp
-    @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
+    @OneToMany(mappedBy = "accountSubscription", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<SubscriptionStat> subscriptionStats = new ArrayList<>();
 }

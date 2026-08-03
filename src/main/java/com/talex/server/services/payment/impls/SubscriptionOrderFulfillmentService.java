@@ -3,7 +3,7 @@ package com.talex.server.services.payment.impls;
 import com.talex.server.dtos.requests.subscription.AccountSubscriptionRequestDto;
 import com.talex.server.entities.transaction.Order;
 import com.talex.server.services.payment.IOrderFulfillmentService;
-import com.talex.server.services.subscription.IAccountSubscriptionService;
+import com.talex.server.services.subscription.AccountSubscriptionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -13,7 +13,7 @@ public class SubscriptionOrderFulfillmentService implements IOrderFulfillmentSer
 
     public static final String ITEM_TYPE = "SUBSCRIPTION";
 
-    private final IAccountSubscriptionService accountSubscriptionService;
+    private final AccountSubscriptionService accountSubscriptionService;
 
     @Override
     public String getSupportedItemType() {

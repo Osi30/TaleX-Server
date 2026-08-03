@@ -69,7 +69,7 @@ public class ImpressionWorker {
                 campaignSeriesLogRepository.upsertBatchLogImpressions(seriesIds, currentHourBucket);
 
                 // 2.3. Cập nhật current_impression cho Campaign
-                campaignRepository.incrementCampaignImpressionsBySeriesIds(seriesIds);
+                campaignRepository.incrementCampaignImpressionsBySeriesIds(seriesIds, LocalDateTime.now());
 
                 // 2.4. Tự động hoàn thành các CampaignSeries đã đạt Target Impression
                 int completedCount = campaignSeriesRepository.autoCompleteReachedCampaignSeries();

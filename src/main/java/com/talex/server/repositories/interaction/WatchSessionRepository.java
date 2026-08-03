@@ -1,6 +1,7 @@
 package com.talex.server.repositories.interaction;
 
 import com.talex.server.entities.interaction.WatchSession;
+import com.talex.server.records.WatchSessionResponseDto;
 import io.lettuce.core.dynamic.annotation.Param;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
@@ -9,6 +10,7 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Repository
@@ -47,4 +49,16 @@ public interface WatchSessionRepository extends JpaRepository<WatchSession, Stri
             @Param("heartbeatValue") Double heartbeatValue,
             @Param("heartbeatTime") LocalDateTime heartbeatTime
     );
+
+    @Query("SELECT new com.talex.server.records.WatchSessionResponseDto(" +
+            "    ws.id, " +
+            "    a.accountId, " +
+            "    e.creatorId, " +
+            "    ws.startTime" +
+            ") " +
+            "FROM WatchSession ws " +
+            "LEFT JOIN ws.account a " +
+            "JOIN ws.episode e " +
+            "WHERE ws.watchDuration >= :minDuration")
+    List<WatchSessionResponseDto> findSessionsByMinWatchDuration(@Param("minDuration") Double minDuration);
 }
