@@ -6,9 +6,13 @@ import com.talex.server.services.auth.TokenFamilyService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.connection.RedisConnection;
+import org.springframework.data.redis.core.Cursor;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.ScanOptions;
 import org.springframework.stereotype.Service;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -165,6 +169,36 @@ public class TokenFamilyServiceImpl implements TokenFamilyService {
 
         redisTemplate.delete(indexKey);
         log.info("All token families deleted for account: {}", accountId);
+    }
+
+    @Override
+    public void pruneStaleFamilyIndexes() {
+        int prunedCount = 0;
+        int scannedIndexes = 0;
+
+        try (Cursor<byte[]> cursor = redisTemplate.execute((RedisConnection connection) ->
+                connection.scan(ScanOptions.scanOptions().match(ACCOUNT_INDEX_PREFIX + "*").count(200).build()))) {
+            if (cursor == null) {
+                return;
+            }
+            while (cursor.hasNext()) {
+                String indexKey = new String(cursor.next(), StandardCharsets.UTF_8);
+                scannedIndexes++;
+
+                Set<String> familyIds = redisTemplate.opsForSet().members(indexKey);
+                if (familyIds == null || familyIds.isEmpty()) {
+                    continue;
+                }
+                for (String familyId : familyIds) {
+                    if (Boolean.FALSE.equals(redisTemplate.hasKey(FAMILY_PREFIX + familyId))) {
+                        redisTemplate.opsForSet().remove(indexKey, familyId);
+                        prunedCount++;
+                    }
+                }
+            }
+        }
+
+        log.info("Pruned {} stale family index entries across {} account indexes", prunedCount, scannedIndexes);
     }
 
     private String extractFamilyId(String refreshToken) {

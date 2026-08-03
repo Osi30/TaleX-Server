@@ -15,6 +15,7 @@ import com.talex.server.services.auth.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -37,6 +38,7 @@ public class AuthServiceImpl implements AuthService {
     private final GoogleAuthService googleAuthService;
     private final AccountProfileService accountProfileService;
     private final StringRedisTemplate redisTemplate;
+    private final GoogleAccountCreationExecutor googleAccountCreationExecutor;
 
     private static final String LOGIN_FAIL_PREFIX = "login_fail:";
     private static final int MAX_LOGIN_ATTEMPTS = 5;
@@ -288,12 +290,25 @@ public class AuthServiceImpl implements AuthService {
     }
 
     private GoogleAuthResponseDto linkGoogleToExistingAccount(Account account, GoogleUserInfo googleInfo) {
+        // Chỉ tự động link khi Google đã xác minh email — tránh account takeover nếu 1 email
+        // chưa qua verification pipeline của Google trùng với email account đã tồn tại
+        // (attacker sở hữu ID token hợp lệ nhưng email_verified=false cho chính email nạn nhân).
+        if (!Boolean.TRUE.equals(googleInfo.getEmailVerified())) {
+            log.warn("Rejected Google auto-link: email not verified by Google for {}", account.getEmail());
+            throw new AuthException(AuthErrorCode.GOOGLE_EMAIL_NOT_VERIFIED);
+        }
+
         // Link Google identity to existing account
         account.setGoogleSubId(googleInfo.getGoogleSubId());
         if (account.getAvatarUrl() == null && googleInfo.getPictureUrl() != null) {
             account.setAvatarUrl(googleInfo.getPictureUrl());
         }
         accountRepository.save(account);
+
+        // Liên kết thêm 1 phương thức đăng nhập mới là hành động nhạy cảm tương đương đổi
+        // password — thu hồi mọi session cũ để chủ tài khoản biết có đăng nhập mới (cùng
+        // pattern với AccountProfileServiceImpl.changePassword).
+        tokenFamilyService.deleteAllFamilies(account.getAccountId());
 
         log.info("Linked Google to existing account: {}", account.getEmail());
         return handleExistingGoogleAccount(account);
@@ -312,12 +327,26 @@ public class AuthServiceImpl implements AuthService {
                 .role(roleService.findByCode("VIEWER"))
                 .build();
 
-        accountRepository.save(newAccount);
+        Account savedAccount;
+        try {
+            savedAccount = googleAccountCreationExecutor.createIsolated(newAccount);
+        } catch (DataIntegrityViolationException e) {
+            // Race: request khác (double-click / mobile retry) đã tạo account này trước.
+            // Không phải lỗi thật — re-lookup rồi login bằng account vừa được tạo đó.
+            Account existing = accountRepository.findByGoogleSubId(googleInfo.getGoogleSubId())
+                    .or(() -> accountRepository.findByEmail(googleInfo.getEmail()))
+                    .orElse(null);
+            if (existing == null) {
+                throw e;
+            }
+            log.info("Concurrent Google account creation resolved for: {}", googleInfo.getEmail());
+            return handleExistingGoogleAccount(existing);
+        }
 
         log.info("New Google account (ONBOARDING): {}", googleInfo.getEmail());
         return GoogleAuthResponseDto.builder()
                 .status("ONBOARDING")
-                .verificationToken(jwtTokenProvider.generateVerificationToken(newAccount.getAccountId()))
+                .verificationToken(jwtTokenProvider.generateVerificationToken(savedAccount.getAccountId()))
                 .build();
     }
 
