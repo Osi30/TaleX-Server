@@ -367,11 +367,17 @@ public class AuthServiceImpl implements AuthService {
     }
 
     private void incrementLoginFail(String email) {
+        // INCR và EXPIRE là 2 lệnh Redis riêng biệt (không atomic) — trước đây chỉ set TTL
+        // ở lần fail ĐẦU TIÊN (count==1). Nếu lệnh expire() đó vì bất kỳ lý do gì không
+        // chạy được (timeout/lỗi mạng tới Redis), key sẽ tồn tại vĩnh viễn không TTL, và vì
+        // điều kiện count==1 không bao giờ đúng lại, TTL không bao giờ được set lại — counter
+        // cứ cộng dồn mãi mãi, khóa tài khoản vĩnh viễn (clearLoginFail chỉ chạy khi login
+        // thành công, mà giờ không login được nữa — deadlock không tự thoát được).
+        // Fix: luôn renew TTL sau MỖI lần fail, không chỉ lần đầu — key không bao giờ có thể
+        // tồn tại mà thiếu TTL.
         String key = LOGIN_FAIL_PREFIX + email;
-        Long count = redisTemplate.opsForValue().increment(key);
-        if (count != null && count == 1) {
-            redisTemplate.expire(key, Duration.ofMinutes(rateLimitMinutes));
-        }
+        redisTemplate.opsForValue().increment(key);
+        redisTemplate.expire(key, Duration.ofMinutes(rateLimitMinutes));
     }
 
     private void clearLoginFail(String email) {
