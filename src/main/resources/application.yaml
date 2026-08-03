@@ -270,3 +270,10 @@ logging:
 
 python:
   api: ${PYTHON_API:http://localhost:8000}
+
+payos:
+  client-id: ${PAYOS_CLIENT_ID:Dien_Client_ID_Tu_Dashboard}
+  api-key: ${PAYOS_API_KEY:Dien_API_Key_Tu_Dashboard}
+  checksum-key: ${PAYOS_CHECKSUM_KEY:Dien_Checksum_Key_Tu_Dashboard}
+  payout-url: ${PAYOS_PAYOUT_URL:https://api-merchant.payos.vn/v2/payouts}
+  payout-account-balance-url: ${PAYOUT_ACCOUNT_BALANCE_URL:https://api-merchant.payos.vn/v1/payouts-account/balance}
