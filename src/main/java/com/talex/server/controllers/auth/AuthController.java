@@ -10,13 +10,16 @@ import com.talex.server.dtos.requests.auth.RefreshTokenRequest;
 import com.talex.server.dtos.requests.auth.RegisterRequest;
 import com.talex.server.dtos.requests.auth.ResendOtpRequest;
 import com.talex.server.dtos.requests.auth.ResetPasswordRequest;
+import com.talex.server.dtos.requests.auth.SsoHandoffExchangeRequest;
 import com.talex.server.dtos.requests.auth.UpdateProfileRequest;
 import com.talex.server.dtos.requests.auth.VerifyOtpRequest;
 import com.talex.server.dtos.responses.auth.AccountProfileResponse;
 import com.talex.server.dtos.responses.ApiResponse;
 import com.talex.server.dtos.responses.auth.AuthResponse;
 import com.talex.server.dtos.responses.auth.GoogleAuthResponseDto;
+import com.talex.server.dtos.responses.auth.SsoHandoffResponse;
 import com.talex.server.services.auth.AuthService;
+import com.talex.server.services.auth.SsoHandoffService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -40,6 +43,7 @@ import java.util.UUID;
 public class AuthController {
 
     private final AuthService authService;
+    private final SsoHandoffService ssoHandoffService;
 
     @PostMapping("/register")
     @Operation(summary = "Register new account — returns verification token")
@@ -99,6 +103,25 @@ public class AuthController {
     public ResponseEntity<ApiResponse<Void>> resendOtp(@Valid @RequestBody ResendOtpRequest request) {
         String message = authService.resendOtp(request);
         return ResponseEntity.ok(ApiResponse.ok(message));
+    }
+
+    // ── SSO Handoff (Mobile → Web, no manual re-login) ───────────────
+
+    @PostMapping("/sso-handoff")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Issue a short-lived one-time code so the website can auto-login this account")
+    public ResponseEntity<ApiResponse<SsoHandoffResponse>> createSsoHandoffCode(
+            @CurrentAccountId UUID accountId) {
+        SsoHandoffResponse data = ssoHandoffService.createCode(accountId);
+        return ResponseEntity.ok(ApiResponse.ok("SSO handoff code issued", data));
+    }
+
+    @PostMapping("/sso-handoff/exchange")
+    @Operation(summary = "Exchange a one-time SSO handoff code for a fresh access/refresh token pair")
+    public ResponseEntity<ApiResponse<AuthResponse>> exchangeSsoHandoffCode(
+            @Valid @RequestBody SsoHandoffExchangeRequest request) {
+        AuthResponse data = ssoHandoffService.exchange(request.getCode());
+        return ResponseEntity.ok(ApiResponse.ok("Login successful", data));
     }
 
     // ── Profile Management (Authenticated) ──────────────────────────

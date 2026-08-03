@@ -268,6 +268,12 @@ public class AuthServiceImpl implements AuthService {
         accountProfileService.resetPassword(request);
     }
 
+    @Override
+    public AuthResponse issueTokensFor(Account account) {
+        validateAccountStatus(account);
+        return generateAuthResponse(account);
+    }
+
     // ── Private: Google Login Helpers ────────────────────────────────
 
     private GoogleAuthResponseDto handleExistingGoogleAccount(Account account) {

@@ -27,6 +27,8 @@ public enum AuthErrorCode {
     PASSWORD_CONFIRMATION_MISMATCH(4025, HttpStatus.BAD_REQUEST, "Mật khẩu xác nhận không khớp"),
     GOOGLE_EMAIL_NOT_VERIFIED(4026, HttpStatus.CONFLICT, "Email Google chưa được xác minh. Vui lòng đăng nhập bằng mật khẩu, sau đó liên kết Google trong Cài đặt tài khoản."),
     LOGIN_RATE_LIMITED(4027, HttpStatus.TOO_MANY_REQUESTS, "Đăng nhập sai quá nhiều lần, vui lòng thử lại sau 15 phút"),
+    SSO_HANDOFF_INVALID(4028, HttpStatus.UNAUTHORIZED, "Mã đăng nhập nhanh không hợp lệ hoặc đã hết hạn"),
+    SSO_HANDOFF_RATE_LIMITED(4029, HttpStatus.TOO_MANY_REQUESTS, "Yêu cầu quá nhiều lần, vui lòng thử lại sau"),
 
     ROLE_NOT_FOUND(5001, HttpStatus.INTERNAL_SERVER_ERROR, "Không tìm thấy role"),
     EMAIL_SERVICE_UNAVAILABLE(5030, HttpStatus.SERVICE_UNAVAILABLE, "Dịch vụ email không khả dụng");

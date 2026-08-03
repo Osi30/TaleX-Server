@@ -14,6 +14,7 @@ import com.talex.server.dtos.requests.auth.VerifyOtpRequest;
 import com.talex.server.dtos.responses.auth.AccountProfileResponse;
 import com.talex.server.dtos.responses.auth.AuthResponse;
 import com.talex.server.dtos.responses.auth.GoogleAuthResponseDto;
+import com.talex.server.entities.auth.Account;
 
 import java.util.UUID;
 
@@ -44,4 +45,7 @@ public interface AuthService {
     String forgotPassword(ForgotPasswordRequest request);
 
     void resetPassword(ResetPasswordRequest request);
+
+    /** Validates account status and mints a fresh access/refresh token pair — used by the SSO handoff exchange. */
+    AuthResponse issueTokensFor(Account account);
 }
