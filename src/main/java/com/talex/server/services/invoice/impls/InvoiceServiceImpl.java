@@ -8,12 +8,18 @@ import com.talex.server.dtos.responses.invoice.SePayInvoiceStatusDataDto;
 import com.talex.server.dtos.responses.invoice.SePayInvoiceTemplateDto;
 import com.talex.server.dtos.responses.invoice.SePayProviderAccountDetailDto;
 import com.talex.server.entities.auth.Account;
+import com.talex.server.entities.series.ComboEpisode;
+import com.talex.server.entities.series.Episode;
+import com.talex.server.entities.subscription.Subscription;
 import com.talex.server.entities.transaction.Invoice;
 import com.talex.server.entities.transaction.Order;
 import com.talex.server.entities.transaction.Transaction;
 import com.talex.server.enums.transaction.InvoiceStatus;
 import com.talex.server.enums.transaction.PaymentMethod;
 import com.talex.server.enums.transaction.ReferenceType;
+import com.talex.server.repositories.series.ComboEpisodeRepository;
+import com.talex.server.repositories.series.EpisodeRepository;
+import com.talex.server.repositories.subscription.SubscriptionRepository;
 import com.talex.server.repositories.transaction.InvoiceRepository;
 import com.talex.server.repositories.transaction.OrderRepository;
 import com.talex.server.services.auth.EmailService;
@@ -53,6 +59,9 @@ public class InvoiceServiceImpl implements IInvoiceService {
 
     private final InvoiceRepository invoiceRepository;
     private final OrderRepository orderRepository;
+    private final SubscriptionRepository subscriptionRepository;
+    private final ComboEpisodeRepository comboEpisodeRepository;
+    private final EpisodeRepository episodeRepository;
     private final SePayEInvoiceClient eInvoiceClient;
     private final EmailService emailService;
     private final RestTemplate restTemplate;
@@ -199,7 +208,7 @@ public class InvoiceServiceImpl implements IInvoiceService {
                 .lineNumber(1)
                 .lineType(LINE_TYPE_PRODUCT)
                 .itemCode(order.getItemType())
-                .itemName(resolveItemName(order.getItemType()))
+                .itemName(resolveItemName(order))
                 .unit("Gói")
                 .quantity(BigDecimal.ONE)
                 .unitPrice(amount)
@@ -236,16 +245,48 @@ public class InvoiceServiceImpl implements IInvoiceService {
                 .orElseGet(() -> providerAccount.getTemplates().get(0));
     }
 
-    private String resolveItemName(String itemType) {
+    private static final String FALLBACK_ITEM_NAME = "Đơn hàng TaleX";
+
+    // Ưu tiên tên hàng cụ thể (tên gói/tập/combo thật) thay vì nhãn chung chung theo
+    // itemType, để hóa đơn phản ánh đúng đơn hàng đã mua. Nếu entity tham chiếu đã bị
+    // xóa/không còn (data cũ), rơi về nhãn chung theo itemType — không được throw ở đây
+    // vì sẽ làm hỏng toàn bộ luồng xuất hóa đơn.
+    private String resolveItemName(Order order) {
+        String itemType = order.getItemType();
         if (itemType == null) {
-            return "Đơn hàng TaleX";
+            return FALLBACK_ITEM_NAME;
         }
         return switch (itemType) {
-            case SubscriptionOrderFulfillmentService.ITEM_TYPE -> "Gói Premium TaleX";
+            case SubscriptionOrderFulfillmentService.ITEM_TYPE -> resolveSubscriptionItemName(order.getItemId());
             case EngagementOrderFulfillmentService.ITEM_TYPE -> "Gói tương tác TaleX";
-            case EpisodeOrderFulfillmentService.ITEM_TYPE -> "Mua tập nội dung TaleX";
-            case ComboOrderFulfillmentService.ITEM_TYPE -> "Mua combo nội dung TaleX";
-            default -> "Đơn hàng TaleX";
+            case EpisodeOrderFulfillmentService.ITEM_TYPE -> resolveEpisodeItemName(order.getItemId());
+            case ComboOrderFulfillmentService.ITEM_TYPE -> resolveComboItemName(order.getItemId());
+            default -> FALLBACK_ITEM_NAME;
         };
+    }
+
+    private String resolveSubscriptionItemName(String subscriptionId) {
+        return subscriptionRepository.findById(subscriptionId)
+                .map(Subscription::getTier)
+                .filter(tier -> !tier.isBlank())
+                .map(tier -> "Gói Premium TaleX - " + tier)
+                .orElse("Gói Premium TaleX");
+    }
+
+    private String resolveComboItemName(String comboId) {
+        return comboEpisodeRepository.findById(comboId)
+                .map(ComboEpisode::getTitle)
+                .filter(title -> !title.isBlank())
+                .map(title -> "Combo: " + title)
+                .orElse("Mua combo nội dung TaleX");
+    }
+
+    private String resolveEpisodeItemName(String episodeId) {
+        return episodeRepository.findById(episodeId)
+                .map(episode -> {
+                    String seriesTitle = episode.getSeason().getSeries().getTitle();
+                    return "Tập %d: %s - %s".formatted(episode.getEpisodeNumber(), episode.getTitle(), seriesTitle);
+                })
+                .orElse("Mua tập nội dung TaleX");
     }
 }
