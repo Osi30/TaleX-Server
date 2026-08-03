@@ -32,11 +32,10 @@ public class AccountSubscriptionController {
         private final IAccountSubscriptionService accountSubscriptionService;
 
         @PostMapping
-        @Operation(summary = "Tạo đăng ký gói tài khoản", description = "Tạo đăng ký gói dịch vụ cho tài khoản đang đăng nhập.")
+        @PreAuthorize("hasAnyRole('ADMIN','STAFF')")
+        @Operation(summary = "Cấp đăng ký gói tài khoản thủ công", description = "Admin/Staff cấp thủ công gói dịch vụ cho một tài khoản đích (accountId truyền trong body). Mua Premium thông thường phải đi qua luồng Order/thanh toán, không dùng endpoint này.")
         public ResponseEntity<BaseResponse> create(
-                        @RequestBody AccountSubscriptionRequestDto request,
-                        @CurrentAccountId UUID accountId) {
-                request.setAccountId(accountId);
+                        @jakarta.validation.Valid @RequestBody AccountSubscriptionRequestDto request) {
                 AccountSubscriptionResponseDto response = accountSubscriptionService.createAccountSubscription(request);
                 return ResponseEntity.status(HttpStatus.CREATED)
                                 .body(BaseResponse.builder()

@@ -25,6 +25,7 @@ public class SubscriptionOrderFulfillmentService implements IOrderFulfillmentSer
         AccountSubscriptionRequestDto subscriptionRequest = AccountSubscriptionRequestDto.builder()
                 .accountId(order.getAccount().getAccountId())
                 .subscriptionId(order.getItemId())
+                .orderId(order.getOrderId())
                 .build();
         accountSubscriptionService.createAccountSubscription(subscriptionRequest);
     }

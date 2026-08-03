@@ -39,4 +39,12 @@ public interface OrderRepository extends JpaRepository<Order, String> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT o FROM Order o WHERE o.paymentCode = :paymentCode")
     Optional<Order> findWithLockByPaymentCode(@Param("paymentCode") String paymentCode);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT o FROM Order o WHERE o.orderId = :orderId")
+    Optional<Order> findWithLockByOrderId(@Param("orderId") String orderId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT o FROM Order o WHERE o.orderId = :orderId AND o.account.accountId = :accountId")
+    Optional<Order> findWithLockByOrderIdAndAccountId(@Param("orderId") String orderId, @Param("accountId") UUID accountId);
 }

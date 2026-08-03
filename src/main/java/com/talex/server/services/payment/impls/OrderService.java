@@ -215,7 +215,7 @@ public class OrderService implements IOrderService {
     @Override
     @Transactional
     public OrderResponseDto confirmCoinPayment(String orderId, UUID accountId) {
-        Order order = orderRepository.findByOrderIdAndAccountId(orderId, accountId)
+        Order order = orderRepository.findWithLockByOrderIdAndAccountId(orderId, accountId)
                 .orElseThrow(() -> new PaymentException(PaymentErrorCode.ORDER_NOT_FOUND));
 
         if (order.getStatus() != OrderStatus.AWAITING_PAYMENT) {
