@@ -129,9 +129,10 @@ public class Campaign implements Serializable {
                     series.setStatus(targetStatus);
                 }
             }
-            // 2. Nếu đang là PAUSED -> Cho phép sang RUNNING, COMPLETED
+            // 2. Nếu đang là PAUSED -> Cho phép sang RUNNING, CANCELLED, COMPLETED
             else if (currentStatus == CampaignStatus.PAUSED) {
                 if (targetStatus == CampaignStatus.RUNNING ||
+                        targetStatus == CampaignStatus.CANCELLED ||
                         targetStatus == CampaignStatus.COMPLETED) {
                     series.setStatus(targetStatus);
                 }

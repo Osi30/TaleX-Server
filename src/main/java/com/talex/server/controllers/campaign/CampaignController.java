@@ -29,7 +29,7 @@ public class CampaignController {
     private final ICampaignService campaignService;
 
     @PostMapping
-    @Operation(summary = "Tạo chiến dịch mới (Only For Demo)", description = "Tạo một chiến dịch mới cho creator và tài khoản.")
+    @Operation(summary = "Tạo chiến dịch mới (Demo Only)", description = "Tạo một chiến dịch mới cho creator và tài khoản.")
     public ResponseEntity<BaseResponse> create(
             @CurrentAccountId UUID accountId,
             @Valid @RequestBody CampaignRequestDto request
@@ -75,6 +75,7 @@ public class CampaignController {
     }
 
     @GetMapping("/own")
+    @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Lọc danh sách chiến dịch cá nhân", description = "Lấy danh sách các chiến dịch theo điều kiện lọc, trạng thái và phân trang của chử sở hữu")
     public ResponseEntity<BaseResponse> filterOwnCampaigns(
             @CurrentAccountId UUID accountId,
@@ -134,6 +135,7 @@ public class CampaignController {
     }
 
     @DeleteMapping("/{campaignId}")
+    @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Hủy chiến dịch", description = "Hủy chiến dịch cụ thể. Chỉ Admin/Staff.")
     public ResponseEntity<BaseResponse> delete(@PathVariable String campaignId) {
         campaignService.deleteCampaign(campaignId);
