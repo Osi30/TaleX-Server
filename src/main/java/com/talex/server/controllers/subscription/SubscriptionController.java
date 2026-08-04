@@ -12,6 +12,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -24,7 +25,8 @@ public class SubscriptionController {
     private final SubscriptionService subscriptionService;
 
     @PostMapping
-    @Operation(summary = "Tạo gói đăng ký mới", description = "Tạo gói đăng ký mới")
+    @PreAuthorize("hasAnyRole('ADMIN','STAFF')")
+    @Operation(summary = "Tạo gói đăng ký mới", description = "Tạo gói đăng ký mới. Chỉ Admin/Staff.")
     public ResponseEntity<BaseResponse> create(@Valid @RequestBody SubscriptionRequestDto request) {
         SubscriptionResponseDto response = subscriptionService.createSubscription(request);
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -74,7 +76,8 @@ public class SubscriptionController {
     }
 
     @PutMapping("/{subscriptionId}")
-    @Operation(summary = "Cập nhật thông tin gói đăng ký", description = "Cập nhật thông tin gói đăng ký theo ID")
+    @PreAuthorize("hasAnyRole('ADMIN','STAFF')")
+    @Operation(summary = "Cập nhật thông tin gói đăng ký", description = "Cập nhật thông tin gói đăng ký theo ID. Chỉ Admin/Staff.")
     public ResponseEntity<BaseResponse> update(
             @PathVariable String subscriptionId,
             @Valid @RequestBody SubscriptionRequestDto request) {
@@ -87,7 +90,8 @@ public class SubscriptionController {
     }
 
     @DeleteMapping("/{subscriptionId}")
-    @Operation(summary = "Xóa gói đăng ký", description = "Xóa gói đăng ký theo ID")
+    @PreAuthorize("hasAnyRole('ADMIN','STAFF')")
+    @Operation(summary = "Xóa gói đăng ký", description = "Xóa gói đăng ký theo ID. Chỉ Admin/Staff.")
     public ResponseEntity<BaseResponse> delete(@PathVariable String subscriptionId) {
         subscriptionService.deleteSubscription(subscriptionId);
         return ResponseEntity.ok(BaseResponse.builder()

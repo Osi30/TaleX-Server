@@ -5,8 +5,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.talex.server.dtos.kafka.PipelineJobMessage;
 import com.talex.server.exceptions.codes.ContentPipelineErrorCode;
 import com.talex.server.exceptions.details.ContentPipelineException;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 
@@ -17,27 +17,38 @@ import java.util.Map;
  * Sends JSON-serialized messages to Python AI service topics.
  */
 @Component
-@RequiredArgsConstructor
 @Slf4j
 public class ContentPipelineProducer {
 
-    private static final String TOPIC_PIPELINE_JOB = "content-pipeline-job";
-    private static final String TOPIC_MODERATION_JOB = "content-moderation-job";
-    private static final String TOPIC_MEDIA_DELETE = "content-media-delete";
+    private final String topicPipelineJob;
+    private final String topicModerationJob;
+    private final String topicMediaDelete;
 
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final ObjectMapper objectMapper;
 
+    // KAFKA_TOPIC_SUFFIX cho phép local dev dùng topic riêng (vd "-local"), tách biệt hoàn
+    // toàn khỏi VPS dùng chung 1 cụm Kafka Aiven — mặc định rỗng nên VPS không cần đổi gì.
+    public ContentPipelineProducer(KafkaTemplate<String, String> kafkaTemplate,
+                                    ObjectMapper objectMapper,
+                                    @Value("${KAFKA_TOPIC_SUFFIX:}") String topicSuffix) {
+        this.kafkaTemplate = kafkaTemplate;
+        this.objectMapper = objectMapper;
+        this.topicPipelineJob = "content-pipeline-job" + topicSuffix;
+        this.topicModerationJob = "content-moderation-job" + topicSuffix;
+        this.topicMediaDelete = "content-media-delete" + topicSuffix;
+    }
+
     public void sendPipelineJob(PipelineJobMessage message) {
-        sendMessage(TOPIC_PIPELINE_JOB, message.getMediaId(), message);
+        sendMessage(topicPipelineJob, message.getMediaId(), message);
     }
 
     public void sendModerationJob(PipelineJobMessage message) {
-        sendMessage(TOPIC_MODERATION_JOB, message.getMediaId(), message);
+        sendMessage(topicModerationJob, message.getMediaId(), message);
     }
 
     public void sendMediaDeleted(String mediaId) {
-        sendMessage(TOPIC_MEDIA_DELETE, mediaId, Map.of("mediaId", mediaId));
+        sendMessage(topicMediaDelete, mediaId, Map.of("mediaId", mediaId));
     }
 
     private void sendMessage(String topic, String key, Object message) {

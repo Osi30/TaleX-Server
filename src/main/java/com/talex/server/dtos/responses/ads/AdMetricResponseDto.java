@@ -15,4 +15,8 @@ public class AdMetricResponseDto {
     private LocalDate reportDate;
     private Long impressions;
     private Long clicks;
+    private Long focusedViews6s;
+    private Long paidFocusedViews6s;
+    private Long spend;
+    private Double ctr;
 }

@@ -1,6 +1,7 @@
 package com.talex.server.dtos.requests.subscription;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -14,9 +15,13 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 public class AccountSubscriptionRequestDto {
-    @JsonIgnore
+    @NotNull(message = "Account ID is required")
     private UUID accountId;
     private String subscriptionId;
+
+    /** Order gốc khi subscription được cấp qua thanh toán — null nếu Admin/Staff cấp thủ công. */
+    @JsonIgnore
+    private String orderId;
 
     @JsonIgnore
     private LocalDateTime startTime;

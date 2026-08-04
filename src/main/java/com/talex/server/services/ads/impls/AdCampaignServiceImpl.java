@@ -132,6 +132,10 @@ public class AdCampaignServiceImpl implements IAdCampaignService {
                         .reportDate(m.getReportDate())
                         .impressions(m.getImpressions())
                         .clicks(m.getClicks())
+                        .focusedViews6s(m.getFocusedViews6s())
+                        .paidFocusedViews6s(m.getPaidFocusedViews6s())
+                        .spend(m.getImpressions() * (campaign.getLockedCpm() != null ? campaign.getLockedCpm() : 0) / 1000)
+                        .ctr(m.getImpressions() > 0 ? (double) m.getClicks() / m.getImpressions() * 100 : 0.0)
                         .build())
                 .collect(Collectors.toList());
     }

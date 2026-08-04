@@ -40,6 +40,7 @@ public class GoogleAuthServiceImpl implements GoogleAuthService {
                     .googleSubId(payload.getSubject())
                     .name((String) payload.get("name"))
                     .pictureUrl((String) payload.get("picture"))
+                    .emailVerified(payload.getEmailVerified())
                     .build();
 
         } catch (GeneralSecurityException | IOException e) {

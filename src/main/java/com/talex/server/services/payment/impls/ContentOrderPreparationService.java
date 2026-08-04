@@ -33,6 +33,11 @@ public class ContentOrderPreparationService {
         return upper;
     }
 
+    /**
+     * Giá được chốt (snapshot) tại thời điểm gọi method này — nếu creator đổi giá episode/combo
+     * trong lúc Order đang AWAITING_PAYMENT, Order vẫn thanh toán theo giá cũ đã chốt. Đây là
+     * chủ đích (giống thương mại điện tử thông thường: giá tại thời điểm đặt hàng), không phải bug.
+     */
     public ContentPriceResolution resolvePrice(UUID accountId, String itemType, String itemId) {
         return EpisodeOrderFulfillmentService.ITEM_TYPE.equals(itemType)
                 ? resolveEpisodePrice(accountId, itemId)

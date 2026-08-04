@@ -556,6 +556,8 @@ public class MediaServiceImpl implements MediaService {
     @Override
     public void delete(String id, String actorId) {
         Media media = findManageableEntity(id, actorId);
+        log.warn("Media delete requested: mediaId={}, actorId={}, episodeId={}",
+                id, actorId, media.getEpisode() != null ? media.getEpisode().getEpisodeId() : null);
         validateEpisodeStatusForMediaModification(media.getEpisode());
         media.setStatus(MediaStatus.DELETED);
         media.softDelete(actorId);

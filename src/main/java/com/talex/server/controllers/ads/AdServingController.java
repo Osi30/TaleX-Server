@@ -61,6 +61,16 @@ public class AdServingController {
                 .build());
     }
 
+    @PostMapping("/track/view-6s")
+    @Operation(summary = "Đếm View 6s", description = "Gọi ngầm khi quảng cáo video phát được 6 giây (Async).")
+    public ResponseEntity<BaseResponse> track6sView(@Valid @RequestBody AdTrackRequestDto request) {
+        trackingService.track6sViewAsync(request);
+        return ResponseEntity.ok(BaseResponse.builder()
+                .code(200)
+                .message("6s view tracked asynchronously")
+                .build());
+    }
+
     @PostMapping("/track/click")
     @Operation(summary = "Đếm Click", description = "Gọi ngầm khi người dùng click vào quảng cáo (Async).")
     public ResponseEntity<BaseResponse> trackClick(@Valid @RequestBody AdTrackRequestDto request) {

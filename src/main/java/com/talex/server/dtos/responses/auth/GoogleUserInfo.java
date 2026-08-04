@@ -14,4 +14,6 @@ public class GoogleUserInfo {
     private String googleSubId;
     private String name;
     private String pictureUrl;
+    /** Claim `email_verified` từ Google ID token — null/false nghĩa là CHƯA verified. */
+    private Boolean emailVerified;
 }

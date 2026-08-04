@@ -22,16 +22,17 @@ public final class EmailTemplateUtil {
         if (otpCode == null || otpCode.isBlank()) {
             throw new IllegalArgumentException("OTP code must not be blank");
         }
-        String spaced = String.join("  ", otpCode.split(""));
-        return OTP_TEMPLATE.replace(OTP_PLACEHOLDER, spaced);
+        // Không chèn space thật giữa các chữ số — người dùng copy-paste mã vào ô input
+        // có maxLength giới hạn, nếu content lẫn space thì bị cắt mất chữ số. Giãn cách
+        // hiển thị đã có CSS letter-spacing lo, không cần space trong text content.
+        return OTP_TEMPLATE.replace(OTP_PLACEHOLDER, otpCode);
     }
 
     public static String buildPasswordResetEmailHtml(String otpCode) {
         if (otpCode == null || otpCode.isBlank()) {
             throw new IllegalArgumentException("OTP code must not be blank");
         }
-        String spaced = String.join("  ", otpCode.split(""));
-        return PWD_RESET_TEMPLATE.replace(OTP_PLACEHOLDER, spaced);
+        return PWD_RESET_TEMPLATE.replace(OTP_PLACEHOLDER, otpCode);
     }
 
     public static String buildInvoiceEmailHtml(String invoicePdfUrl) {

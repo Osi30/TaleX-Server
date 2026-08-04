@@ -29,7 +29,7 @@ public class EpisodeEntitlementServiceImpl implements EpisodeEntitlementService 
     public boolean hasPlaybackAccess(String viewerId, String episodeId) {
         Episode episode = episodeRepository.findById(episodeId).orElse(null);
         if (episode == null) {
-            return true;
+            return false;
         }
         if (isFree(episode)) {
             return true;

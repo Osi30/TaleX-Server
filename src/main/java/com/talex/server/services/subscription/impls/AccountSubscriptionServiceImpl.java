@@ -14,6 +14,7 @@ import com.talex.server.repositories.auth.AccountRepository;
 import com.talex.server.repositories.subscription.AccountSubscriptionRepository;
 import com.talex.server.services.subscription.AccountSubscriptionService;
 import com.talex.server.services.subscription.SubscriptionService;
+import com.talex.server.services.payment.impls.AccountFulfillmentLock;
 import com.talex.server.specifications.AccountSubscriptionSpec;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -37,10 +38,16 @@ public class AccountSubscriptionServiceImpl implements AccountSubscriptionServic
     private final SubscriptionService subscriptionService;
     private final AccountSubscriptionRepository accountSubscriptionRepository;
     private final AccountRepository accountRepository;
+    private final AccountFulfillmentLock accountFulfillmentLock;
 
     @Override
     @Transactional
     public AccountSubscriptionResponseDto createAccountSubscription(AccountSubscriptionRequestDto requestDto) {
+        // Serialize việc tính startTime/tạo subscription của CÙNG account — tránh race
+        // khi 2 order subscription (VD nâng cấp gói) hoàn tất gần như đồng thời: cả 2
+        // đều đọc cùng "latest valid sub" cũ, tính startTime trùng nhau thay vì nối tiếp.
+        accountFulfillmentLock.acquire(requestDto.getAccountId());
+
         Account account = fetchAccount(requestDto.getAccountId());
         Subscription subscription = subscriptionService.getSubscriptionByIdEntity(requestDto.getSubscriptionId());
         LocalDateTime startTime = calculateStartTime(account);
@@ -51,6 +58,7 @@ public class AccountSubscriptionServiceImpl implements AccountSubscriptionServic
                 .subscription(subscription)
                 .startTime(startTime)
                 .endTime(endTime)
+                .orderId(requestDto.getOrderId())
                 .build();
 
         AccountSubscription saved = accountSubscriptionRepository.save(entity);
@@ -193,6 +201,7 @@ public class AccountSubscriptionServiceImpl implements AccountSubscriptionServic
                 .subscriptionId(
                         subscription.getSubscription() != null ? subscription.getSubscription().getSubscriptionId()
                                 : null)
+                .orderId(subscription.getOrderId())
                 .startTime(subscription.getStartTime())
                 .endTime(subscription.getEndTime())
                 .updatedAt(subscription.getUpdatedAt())

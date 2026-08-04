@@ -58,7 +58,7 @@ public interface CommentAggregationRepository extends JpaRepository<Episode, Str
     @Query(value = "UPDATE campaign_series " +
             "SET comments = COALESCE(comments, 0) + :delta " +
             "WHERE series_id = :seriesId " +
-            "AND status = 'RUNNING')", nativeQuery = true)
+            "AND status = 'RUNNING'", nativeQuery = true)
     int updateCampaignSeriesCommentCount(
             @Param("seriesId") String seriesId,
             @Param("delta") int delta

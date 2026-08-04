@@ -29,6 +29,15 @@ public class GoogleOAuthConfig {
                 .filter(id -> id != null && !id.isBlank())
                 .toList();
 
+        // Audience rỗng khiến verifier reject MỌI token (fail-closed, an toàn) — nhưng lỗi
+        // cấu hình chỉ lộ ra khi user report không login được. Fail-fast ngay lúc app start
+        // để phát hiện thiếu env GOOGLE_CLIENT_ID_* sớm hơn.
+        if (audience.isEmpty()) {
+            throw new IllegalStateException(
+                    "Google OAuth misconfigured: at least one of google.client-id.web/android/ios "
+                            + "(GOOGLE_CLIENT_ID_WEB/ANDROID/IOS) must be set");
+        }
+
         return new GoogleIdTokenVerifier.Builder(
                 new NetHttpTransport(),
                 GsonFactory.getDefaultInstance())

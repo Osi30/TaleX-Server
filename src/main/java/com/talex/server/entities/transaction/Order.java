@@ -58,6 +58,10 @@ public class Order {
     @Column(name = "expires_at")
     private LocalDateTime expiresAt;
 
+    /** Số tiền chuyển thừa so với amount due, ghi lại khi webhook SePay nhận overpay để admin đối soát thủ công. Null nếu không có chênh lệch. */
+    @Column(name = "overpaid_amount")
+    private BigDecimal overpaidAmount;
+
     @Column(name = "metadata", columnDefinition = "TEXT")
     private String metadata;
 

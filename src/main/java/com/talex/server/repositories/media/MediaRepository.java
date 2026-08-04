@@ -8,6 +8,7 @@ import com.talex.server.enums.media.MediaType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -21,7 +22,30 @@ import java.util.Optional;
 public interface MediaRepository extends JpaRepository<Media, String> {
     Optional<Media> findByMediaIdAndIsDeletedFalse(String mediaId);
 
+    // Includes soft-deleted rows — used to distinguish "deleted here mid-flight" from
+    // "never existed in this environment" before re-firing fingerprint cleanup.
+    Optional<Media> findByMediaId(String mediaId);
+
     Optional<Media> findByMediaIdAndCreatorIdAndIsDeletedFalse(String mediaId, String creatorId);
+
+    // UPDATE nguyên tử thay vì read-then-write — nếu 1 kết quả pipeline hợp lệ đã commit
+    // status/approvalStatus ra khỏi predicate ĐÚNG lúc reconciler quét, điều kiện WHERE
+    // không khớp nữa, UPDATE ảnh hưởng 0 dòng, tránh ghi đè kết quả thật thành FAILED.
+    @Modifying(clearAutomatically = true)
+    @Query("""
+        UPDATE Media m SET m.status = com.talex.server.enums.media.MediaStatus.FAILED,
+               m.errorMessage = :errorMessage, m.updatedBy = :actor
+        WHERE m.mediaId = :mediaId
+          AND m.status IN :inFlightStatuses
+          AND m.approvalStatus = com.talex.server.enums.series.ContentApprovalStatus.PENDING_REVIEW
+          AND m.updatedAt < :staleBefore
+          AND m.isDeleted = false
+        """)
+    int markStalePipelineFailed(@Param("mediaId") String mediaId,
+                                 @Param("inFlightStatuses") Collection<MediaStatus> inFlightStatuses,
+                                 @Param("staleBefore") LocalDateTime staleBefore,
+                                 @Param("errorMessage") String errorMessage,
+                                 @Param("actor") String actor);
 
     List<Media> findAllByMediaIdInAndIsDeletedFalse(Collection<String> mediaIds);
 

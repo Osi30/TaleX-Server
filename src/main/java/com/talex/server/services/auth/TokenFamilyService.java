@@ -35,4 +35,12 @@ public interface TokenFamilyService {
      * Deletes ALL token families for an account (logout everywhere).
      */
     void deleteAllFamilies(UUID accountId);
+
+    /**
+     * Quét toàn bộ index `account_families:*` (Redis SCAN, không KEYS) và loại bỏ
+     * familyId nào không còn HASH tương ứng (đã tự hết hạn qua TTL riêng) — index
+     * Set không có TTL nên tích lũy rác nếu account không bao giờ logout. Gọi định
+     * kỳ bởi scheduler, không ảnh hưởng session đang sống.
+     */
+    void pruneStaleFamilyIndexes();
 }

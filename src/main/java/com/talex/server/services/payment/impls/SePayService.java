@@ -105,6 +105,13 @@ public class SePayService implements ISePayService {
             return;
         }
 
+        if (payload.getTransferAmount().compareTo(amountDue) > 0) {
+            BigDecimal overpaid = payload.getTransferAmount().subtract(amountDue);
+            order.setOverpaidAmount(overpaid);
+            log.warn("SePay webhook: overpay detected for order {} (expected={}, got={}, overpaid={}) — order vẫn được complete, cần admin đối soát hoàn tiền thừa thủ công",
+                    order.getOrderId(), amountDue, payload.getTransferAmount(), overpaid);
+        }
+
         orderCompletionService.complete(order, payload.getTransferAmount(), PaymentMethod.SEPAY);
     }
 
