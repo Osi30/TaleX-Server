@@ -1,6 +1,7 @@
 package com.talex.server.configs;
 
 import com.talex.server.annotations.CurrentAccountId;
+import com.talex.server.annotations.CurrentRole;
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Info;
@@ -20,6 +21,7 @@ public class OpenApiConfig {
 
     static {
         SpringDocUtils.getConfig().addAnnotationsToIgnore(CurrentAccountId.class);
+        SpringDocUtils.getConfig().addAnnotationsToIgnore(CurrentRole.class);
     }
 
     @Bean

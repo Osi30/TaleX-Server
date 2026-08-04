@@ -2,7 +2,7 @@ package com.talex.server.services.recommend.impls;
 
 import com.talex.server.dtos.mongo.UserDynamicFeature;
 import com.talex.server.dtos.mongo.UserStaticFeature;
-import com.talex.server.enums.ImpressionStatus;
+import com.talex.server.enums.interaction.ImpressionStatus;
 import com.talex.server.enums.engagement.CampaignStatus;
 import com.talex.server.enums.series.CategoryStatus;
 import com.talex.server.enums.series.SeriesStatus;

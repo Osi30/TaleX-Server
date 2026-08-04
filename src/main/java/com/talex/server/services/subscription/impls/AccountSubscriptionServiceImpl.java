@@ -15,7 +15,7 @@ import com.talex.server.repositories.subscription.AccountSubscriptionRepository;
 import com.talex.server.services.subscription.AccountSubscriptionService;
 import com.talex.server.services.subscription.SubscriptionService;
 import com.talex.server.services.payment.impls.AccountFulfillmentLock;
-import com.talex.server.specifications.AccountSubscriptionSpec;
+import com.talex.server.specifications.subscription.AccountSubscriptionSpec;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -58,7 +58,6 @@ public class AccountSubscriptionServiceImpl implements AccountSubscriptionServic
                 .subscription(subscription)
                 .startTime(startTime)
                 .endTime(endTime)
-                .orderId(requestDto.getOrderId())
                 .build();
 
         AccountSubscription saved = accountSubscriptionRepository.save(entity);
@@ -201,7 +200,6 @@ public class AccountSubscriptionServiceImpl implements AccountSubscriptionServic
                 .subscriptionId(
                         subscription.getSubscription() != null ? subscription.getSubscription().getSubscriptionId()
                                 : null)
-                .orderId(subscription.getOrderId())
                 .startTime(subscription.getStartTime())
                 .endTime(subscription.getEndTime())
                 .updatedAt(subscription.getUpdatedAt())

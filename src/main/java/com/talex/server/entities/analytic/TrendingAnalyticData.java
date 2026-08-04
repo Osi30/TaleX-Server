@@ -1,6 +1,6 @@
 package com.talex.server.entities.analytic;
 
-import com.talex.server.enums.ImpressionStatus;
+import com.talex.server.enums.interaction.ImpressionStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;
 import jakarta.persistence.EnumType;

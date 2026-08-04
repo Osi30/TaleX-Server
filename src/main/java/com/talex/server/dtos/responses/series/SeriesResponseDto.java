@@ -1,5 +1,6 @@
 package com.talex.server.dtos.responses.series;
 
+import com.talex.server.entities.analytic.AnalyticData;
 import com.talex.server.enums.series.ContentType;
 import com.talex.server.enums.series.SeriesStatus;
 import lombok.AllArgsConstructor;
@@ -29,8 +30,8 @@ public class SeriesResponseDto {
     private SeriesStatus status;
     private String ageRating;
     private String language;
-    private Long totalViews;
-    private Long totalSubscriptions;
+    private AnalyticData analyticData = new AnalyticData();
+    private Double averageRating = 0.0;
     private List<CategoryResponseDto> categories;
     private List<TagResponseDto> tags;
     private LocalDateTime createdAt;

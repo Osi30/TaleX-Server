@@ -1,5 +1,6 @@
 package com.talex.server.dtos.responses.series;
 
+import com.talex.server.entities.analytic.AnalyticData;
 import com.talex.server.enums.series.ContentType;
 import com.talex.server.enums.series.EpisodeStatus;
 import com.talex.server.enums.series.EpisodeUnlockType;
@@ -28,8 +29,7 @@ public class EpisodeResponseDto {
     private LocalDateTime publishedAt;
     private EpisodeUnlockType unlockType;
     private Long priceVnd;
-    private Long likes;
-    private Long views;
+    private AnalyticData analyticData = new AnalyticData();
     private Integer totalPage;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

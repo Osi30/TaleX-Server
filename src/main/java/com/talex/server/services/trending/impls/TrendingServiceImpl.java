@@ -3,7 +3,7 @@ package com.talex.server.services.trending.impls;
 import com.talex.server.dtos.recommend.TrendingSampleConfigRes;
 import com.talex.server.entities.analytic.TrendingAnalyticData;
 import com.talex.server.entities.series.Series;
-import com.talex.server.enums.ImpressionStatus;
+import com.talex.server.enums.interaction.ImpressionStatus;
 import com.talex.server.enums.series.SeriesStatus;
 import com.talex.server.repositories.series.SeriesRepository;
 import com.talex.server.services.trending.TrendingSampleConfigService;

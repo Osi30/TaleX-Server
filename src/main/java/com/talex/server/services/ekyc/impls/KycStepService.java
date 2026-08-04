@@ -24,7 +24,7 @@ import com.talex.server.repositories.kyc.KycStepRepository;
 import com.talex.server.services.ekyc.IEKycService;
 import com.talex.server.services.ekyc.IKycSessionService;
 import com.talex.server.services.ekyc.IKycStepService;
-import com.talex.server.specifications.KycStepSpec;
+import com.talex.server.specifications.kyc.KycStepSpec;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.jpa.domain.Specification;

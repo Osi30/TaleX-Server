@@ -10,7 +10,7 @@ import com.talex.server.exceptions.details.SubscriptionException;
 import com.talex.server.mappers.subscription.ISubscriptionMapper;
 import com.talex.server.repositories.subscription.SubscriptionRepository;
 import com.talex.server.services.subscription.SubscriptionService;
-import com.talex.server.specifications.SubscriptionSpec;
+import com.talex.server.specifications.subscription.SubscriptionSpec;
 import com.talex.server.utils.ValidationUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;

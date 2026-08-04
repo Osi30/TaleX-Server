@@ -13,7 +13,7 @@ import com.talex.server.exceptions.details.creator.CreatorIdentityException;
 import com.talex.server.mappers.creator.ICreatorIdentityMapper;
 import com.talex.server.repositories.creator.CreatorIdentityRepository;
 import com.talex.server.services.creator.ICreatorIdentityService;
-import com.talex.server.specifications.CreatorIdentitySpec;
+import com.talex.server.specifications.creator.CreatorIdentitySpec;
 import com.talex.server.utils.PageUtils;
 import com.talex.server.utils.ValidationUtils;
 import lombok.RequiredArgsConstructor;

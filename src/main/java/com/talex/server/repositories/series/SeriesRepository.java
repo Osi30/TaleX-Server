@@ -2,7 +2,7 @@ package com.talex.server.repositories.series;
 
 import com.talex.server.dtos.recommend.SeriesCardResponseDto;
 import com.talex.server.entities.series.Series;
-import com.talex.server.enums.ImpressionStatus;
+import com.talex.server.enums.interaction.ImpressionStatus;
 import com.talex.server.enums.series.SeriesStatus;
 import com.talex.server.repositories.series.projections.SeriesWithAvatarProjection;
 import org.springframework.data.domain.Page;

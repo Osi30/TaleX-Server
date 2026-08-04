@@ -23,7 +23,7 @@ import com.talex.server.services.creator.ICreatorIdentityService;
 import com.talex.server.services.creator.ICreatorService;
 import com.talex.server.services.terms.ITermsLogService;
 import com.talex.server.services.terms.ITermsVersionService;
-import com.talex.server.specifications.CreatorSpec;
+import com.talex.server.specifications.creator.CreatorSpec;
 import com.talex.server.utils.ValidationUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.Cacheable;

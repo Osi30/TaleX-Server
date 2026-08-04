@@ -41,9 +41,6 @@ public class AccountSubscription {
     @Builder.Default
     private Boolean isCancelled = false;
 
-    @Column(name = "order_id")
-    private String orderId;
-
     @UpdateTimestamp
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;

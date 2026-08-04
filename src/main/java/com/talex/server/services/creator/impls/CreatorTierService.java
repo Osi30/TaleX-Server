@@ -11,7 +11,7 @@ import com.talex.server.exceptions.details.creator.CreatorTierException;
 import com.talex.server.mappers.creator.ICreatorTierMapper;
 import com.talex.server.repositories.creator.CreatorTierRepository;
 import com.talex.server.services.creator.ICreatorTierService;
-import com.talex.server.specifications.CreatorTierSpec;
+import com.talex.server.specifications.creator.CreatorTierSpec;
 import com.talex.server.utils.PageUtils;
 import com.talex.server.utils.ValidationUtils;
 import lombok.RequiredArgsConstructor;

@@ -12,7 +12,7 @@ import com.talex.server.exceptions.details.kyc.KycSessionException;
 import com.talex.server.mappers.kyc.IKycSessionMapper;
 import com.talex.server.repositories.kyc.KycSessionRepository;
 import com.talex.server.services.ekyc.IKycSessionService;
-import com.talex.server.specifications.KycSessionSpec;
+import com.talex.server.specifications.kyc.KycSessionSpec;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;

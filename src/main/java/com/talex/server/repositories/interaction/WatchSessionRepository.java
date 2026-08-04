@@ -3,6 +3,8 @@ package com.talex.server.repositories.interaction;
 import com.talex.server.entities.interaction.WatchSession;
 import com.talex.server.records.WatchSessionResponseDto;
 import io.lettuce.core.dynamic.annotation.Param;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -27,6 +29,15 @@ public interface WatchSessionRepository extends JpaRepository<WatchSession, Stri
             @Param("accountId") UUID accountId,
             @Param("episodeId") String episodeId,
             @Param("timestamp") LocalDateTime timestamp
+    );
+
+    @Query("SELECT ws FROM WatchSession ws " +
+            "LEFT JOIN FETCH ws.episode " +
+            "WHERE ws.account.accountId = :accountId " +
+            "ORDER BY ws.updatedAt DESC")
+    Slice<WatchSession> findByAccountIdOrderByUpdatedAtDesc(
+            @Param("accountId") UUID accountId,
+            Pageable pageable
     );
 
     @Modifying

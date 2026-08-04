@@ -2,7 +2,7 @@ package com.talex.server.dtos.interaction.request;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.talex.server.enums.InteractionType;
+import com.talex.server.enums.interaction.InteractionType;
 import lombok.Data;
 
 import java.time.LocalDateTime;

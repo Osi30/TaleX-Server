@@ -5,6 +5,9 @@ import com.talex.server.exceptions.codes.*;
 import com.talex.server.exceptions.codes.kyc.KycSessionErrorCode;
 import com.talex.server.exceptions.codes.payment.PaymentErrorCode;
 import com.talex.server.exceptions.details.*;
+import com.talex.server.exceptions.details.campaign.CampaignException;
+import com.talex.server.exceptions.details.campaign.CampaignSeriesException;
+import com.talex.server.exceptions.details.campaign.EngagementServiceException;
 import com.talex.server.exceptions.details.creator.CreatorException;
 import com.talex.server.exceptions.details.creator.CreatorIdentityException;
 import com.talex.server.exceptions.details.creator.CreatorTermsLogException;
@@ -14,6 +17,7 @@ import com.talex.server.exceptions.details.kyc.KycSessionException;
 import com.talex.server.exceptions.details.kyc.KycStepException;
 import com.talex.server.exceptions.details.payment.PaymentException;
 import com.talex.server.exceptions.details.payment.PaymentProfileException;
+import com.talex.server.exceptions.details.report.ModerationException;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
@@ -39,6 +43,16 @@ import java.util.stream.Collectors;
 @RestControllerAdvice
 @Slf4j
 public class ExceptionGlobalHandler {
+    @ExceptionHandler(ModerationException.class)
+    public ResponseEntity<BaseResponse> handleModerationException(ModerationException ex, WebRequest request) {
+        BaseResponse exceptionResponse = BaseResponse.builder()
+                .message(ex.getMessage())
+                .code(ex.getErrorCode().getCode())
+                .data(request.getDescription(false))
+                .build();
+        return new ResponseEntity<>(exceptionResponse, ex.getErrorCode().getHttpStatus());
+    }
+
     @ExceptionHandler(AuthException.class)
     public ResponseEntity<BaseResponse> handleAuthException(AuthException ex, WebRequest request) {
         AuthErrorCode errorCode = ex.getErrorCode();

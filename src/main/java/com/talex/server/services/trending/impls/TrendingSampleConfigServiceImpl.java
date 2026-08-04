@@ -4,7 +4,7 @@ import com.talex.server.dtos.recommend.TrendingSampleConfigReq;
 import com.talex.server.dtos.recommend.TrendingSampleConfigRes;
 import com.talex.server.entities.config.TrendingSampleConfig;
 
-import com.talex.server.enums.ImpressionStatus;
+import com.talex.server.enums.interaction.ImpressionStatus;
 import com.talex.server.exceptions.details.ResourceNotFoundException;
 import com.talex.server.repositories.series.SeriesRepository;
 import com.talex.server.repositories.trending.TrendingSampleConfigRepository;
