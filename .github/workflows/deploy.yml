@@ -80,6 +80,11 @@ jobs:
             MONGO_APP_NAME=${{ secrets.MONGO_APP_NAME }}
             MONGO_DATABASE=${{ secrets.MONGO_DATABASE }}
             PYTHON_API=${{ secrets.PYTHON_API }}
+            PAYOS_CLIENT_ID=${{ secrets.PAYOS_CLIENT_ID }}
+            PAYOS_API_KEY=${{ secrets.PAYOS_API_KEY }}
+            PAYOS_CHECKSUM_KEY=${{ secrets.PAYOS_CHECKSUM_KEY }}
+            PAYOS_PAYOUT_URL=${{ secrets.PAYOS_PAYOUT_URL }}
+            PAYOUT_ACCOUNT_BALANCE_URL=${{ secrets.PAYOUT_ACCOUNT_BALANCE_URL }}
             ENVEOF
 
             sed -i 's/^[[:space:]]*//' .env
