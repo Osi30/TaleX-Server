@@ -180,7 +180,9 @@ public class MediaServiceImpl implements MediaService {
     public MediaResponseDto getById(String id, String accountId) {
         Media media = findActiveEntity(id);
         contentOwnershipService.assertCanView(media, accountId);
-        return toResponse(media);
+        // Dùng chung endpoint này cho cả "Xem nội dung gốc" (SourceMediaPreviewModal, Staff/
+        // Admin xem video source bị nghi trùng bản quyền) — xem lý do ký ở toAdminPreviewResponse().
+        return toAdminPreviewResponse(media);
     }
 
     @Transactional(readOnly = true)
@@ -638,7 +640,21 @@ public class MediaServiceImpl implements MediaService {
         return mediaRepository
                 .findByApprovalStatusAndStatusAndIsDeletedFalse(
                         ContentApprovalStatus.PENDING_REVIEW, MediaStatus.INACTIVE, pageable)
-                .map(this::toResponse);
+                .map(this::toAdminPreviewResponse);
+    }
+
+    // CloudFront distribution chứa source video (source/videos/...) bắt buộc signed URL
+    // (trusted key group) — originalUrl trong toResponse() luôn là URL trần, Staff/Admin
+    // mở "Chi tiết kiểm duyệt" bị 403 MissingKey không xem được video gốc. Chỉ ký riêng
+    // cho 2 endpoint admin duyệt nội dung (không đổi toResponse() dùng chung ở nơi khác,
+    // tránh ảnh hưởng ngoài ý muốn tới các luồng đã hoạt động đúng).
+    private MediaResponseDto toAdminPreviewResponse(Media media) {
+        MediaResponseDto dto = toResponse(media);
+        if (media.getMediaType() == MediaType.VIDEO && dto.getOriginalUrl() != null) {
+            dto.setOriginalUrl(
+                    mediaProviderService.signSingleUrl(dto.getOriginalUrl(), LocalDateTime.now().plusHours(1)));
+        }
+        return dto;
     }
 
     private static final List<MediaStatus> APPROVED_TAB_STATUSES =
@@ -654,7 +670,7 @@ public class MediaServiceImpl implements MediaService {
         return mediaRepository
                 .findByApprovalStatusAndStatusInAndIsDeletedFalse(
                         ContentApprovalStatus.APPROVED, APPROVED_TAB_STATUSES, pageable)
-                .map(this::toResponse);
+                .map(this::toAdminPreviewResponse);
     }
 
     @Override
