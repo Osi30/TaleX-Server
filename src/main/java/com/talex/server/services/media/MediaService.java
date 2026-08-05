@@ -63,6 +63,13 @@ public interface MediaService {
 
     Page<MediaResponseDto> listPendingReview(int page, int size);
 
-    /** "Đã duyệt" — nội dung approvalStatus=APPROVED, sắp theo lượt duyệt gần nhất, cho Staff/Admin xem lại và ép ẩn nếu cần. */
-    Page<MediaResponseDto> listApproved(int page, int size);
+    /**
+     * "Đã duyệt" — nội dung approvalStatus=APPROVED, sắp theo lượt duyệt gần nhất, cho
+     * Staff/Admin xem lại và ép ẩn nếu cần.
+     *
+     * @param reviewFilter "manual" = chỉ nội dung Staff/Admin tự tay duyệt (từng bị flag
+     *                     vi phạm), "clean" = chỉ nội dung pipeline tự duyệt (không vi phạm),
+     *                     giá trị khác hoặc null = không lọc, trả về tất cả.
+     */
+    Page<MediaResponseDto> listApproved(int page, int size, String reviewFilter);
 }

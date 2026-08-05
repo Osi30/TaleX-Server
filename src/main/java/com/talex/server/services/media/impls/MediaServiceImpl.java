@@ -660,17 +660,30 @@ public class MediaServiceImpl implements MediaService {
     private static final List<MediaStatus> APPROVED_TAB_STATUSES =
             List.of(MediaStatus.ACTIVE, MediaStatus.HLS_READY, MediaStatus.FORCE_HIDDEN);
 
+    // Phải khớp CHÍNH XÁC với ContentPipelineServiceImpl.PIPELINE_ACTOR — dùng để phân biệt
+    // "pipeline tự duyệt" (approvalReviewedBy = giá trị này) với "Staff/Admin tự tay duyệt"
+    // (approvalReviewedBy = accountId thật) ở filter "manual"/"clean" bên dưới.
+    private static final String PIPELINE_REVIEWER_ACTOR = "content-pipeline";
+
     @Transactional(readOnly = true)
     @Override
-    public Page<MediaResponseDto> listApproved(int page, int size) {
+    public Page<MediaResponseDto> listApproved(int page, int size, String reviewFilter) {
         // Sắp theo approvalReviewedAt (lượt duyệt gần nhất lên đầu) — mục đích tab này là
         // Staff/Admin rà lại các quyết định VỪA duyệt để phát hiện lỡ bấm nhầm, không phải
         // duyệt toàn bộ lịch sử theo thời gian tạo.
         PageRequest pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "approvalReviewedAt"));
-        return mediaRepository
-                .findByApprovalStatusAndStatusInAndIsDeletedFalse(
-                        ContentApprovalStatus.APPROVED, APPROVED_TAB_STATUSES, pageable)
-                .map(this::toAdminPreviewResponse);
+        Page<Media> mediaPage;
+        if ("manual".equals(reviewFilter)) {
+            mediaPage = mediaRepository.findManuallyApproved(
+                    ContentApprovalStatus.APPROVED, APPROVED_TAB_STATUSES, PIPELINE_REVIEWER_ACTOR, pageable);
+        } else if ("clean".equals(reviewFilter)) {
+            mediaPage = mediaRepository.findAutoApproved(
+                    ContentApprovalStatus.APPROVED, APPROVED_TAB_STATUSES, PIPELINE_REVIEWER_ACTOR, pageable);
+        } else {
+            mediaPage = mediaRepository.findByApprovalStatusAndStatusInAndIsDeletedFalse(
+                    ContentApprovalStatus.APPROVED, APPROVED_TAB_STATUSES, pageable);
+        }
+        return mediaPage.map(this::toAdminPreviewResponse);
     }
 
     @Override
