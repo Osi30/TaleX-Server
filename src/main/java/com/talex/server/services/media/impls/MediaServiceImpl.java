@@ -9,6 +9,7 @@ import com.talex.server.dtos.requests.media.MediaUpdateRequestDto;
 import com.talex.server.dtos.responses.media.ContentCensorshipResponseDto;
 import com.talex.server.dtos.responses.media.MediaCopyrightResponseDto;
 import com.talex.server.dtos.responses.media.MediaResponseDto;
+import com.talex.server.dtos.responses.media.MediaSystemConfigResponseDto;
 import com.talex.server.dtos.responses.media.MediaViolationsResponseDto;
 import com.talex.server.dtos.responses.media.ViolationDetailResponseDto;
 import com.talex.server.dtos.responses.media.CreatorViolationsSummaryDto;
@@ -32,11 +33,13 @@ import com.talex.server.repositories.media.ContentCensorshipRepository;
 import com.talex.server.repositories.series.EpisodeRepository;
 import com.talex.server.repositories.media.MediaCopyrightRepository;
 import com.talex.server.repositories.media.MediaRepository;
+import com.talex.server.services.media.impls.ContentOwnershipService;
 import com.talex.server.services.media.ContentPipelineService;
 import com.talex.server.services.media.MediaPackagingService;
 import com.talex.server.services.media.MediaPlaybackSecurityService;
 import com.talex.server.services.media.MediaProviderService;
 import com.talex.server.services.media.MediaService;
+import com.talex.server.services.media.MediaSystemConfigService;
 import com.talex.server.services.series.EpisodeEntitlementService;
 import com.talex.server.services.series.EpisodeService;
 import lombok.RequiredArgsConstructor;
@@ -81,6 +84,7 @@ public class MediaServiceImpl implements MediaService {
     private final ContentCensorshipRepository contentCensorshipRepository;
     private final ContentOwnershipService contentOwnershipService;
     private final AccountRepository accountRepository;
+    private final MediaSystemConfigService systemConfigService;
     private final EpisodeEntitlementService episodeEntitlementService;
 
     private record PreparedMediaUrl(
@@ -116,6 +120,10 @@ public class MediaServiceImpl implements MediaService {
         }
         if (request == null || request.getPages() == null || request.getPages().isEmpty()) {
             throw ContentModuleException.badRequest("At least one comic page is required");
+        }
+        MediaSystemConfigResponseDto config = systemConfigService.getConfig();
+        if (request.getPages().size() > config.getMaxComicImages()) {
+            throw ContentModuleException.badRequest("Số lượng ảnh vượt quá giới hạn " + config.getMaxComicImages() + " ảnh");
         }
 
         List<Integer> resolvedOrders = resolveComicDisplayOrders(episode.getEpisodeId(), request.getPages());

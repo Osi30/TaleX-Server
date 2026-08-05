@@ -7,6 +7,7 @@ import com.talex.server.dtos.requests.media.MediaUploadProgressRequestDto;
 import com.talex.server.dtos.requests.media.VideoUploadSessionRequestDto;
 import com.talex.server.dtos.responses.media.MediaResponseDto;
 import com.talex.server.dtos.responses.media.MediaUploadSessionResponseDto;
+import com.talex.server.dtos.responses.media.MediaSystemConfigResponseDto;
 import com.talex.server.dtos.responses.media.VideoUploadSessionResponseDto;
 import com.talex.server.entities.series.Episode;
 import com.talex.server.entities.media.Media;
@@ -62,6 +63,7 @@ public class DefaultMediaUploadSessionService implements MediaUploadSessionServi
     private final MediaService mediaService;
     private final MediaProviderService mediaProviderService;
     private final MediaProperties mediaProperties;
+    private final MediaSystemConfigService systemConfigService;
     private final CloudinaryHlsReconcileService cloudinaryHlsReconcileService;
     private final MediaUploadProgressCache uploadProgressCache;
     private final ContentOwnershipService contentOwnershipService;
@@ -456,9 +458,11 @@ public class DefaultMediaUploadSessionService implements MediaUploadSessionServi
         if (!allowed) {
             throw ContentModuleException.badRequest("Unsupported video mimeType: " + request.getMimeType());
         }
-        long maxBytes = mediaProperties.getMaxVideoSizeMb() * MB;
+        MediaSystemConfigResponseDto config = systemConfigService.getConfig();
+        double maxVideoSizeMb = config.getMaxVideoSizeMb();
+        double maxBytes = maxVideoSizeMb * MB;
         if (request.getFileSize() > maxBytes) {
-            throw ContentModuleException.badRequest("Video file exceeds max size of " + mediaProperties.getMaxVideoSizeMb() + "MB");
+            throw ContentModuleException.badRequest("Video file exceeds max size of " + maxVideoSizeMb + "MB");
         }
         resolveChunkSize(request.getChunkSize());
     }
