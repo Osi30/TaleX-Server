@@ -153,6 +153,31 @@ public interface MediaRepository extends JpaRepository<Media, String> {
     Page<Media> findByApprovalStatusAndStatusInAndIsDeletedFalse(
             ContentApprovalStatus approvalStatus, Collection<MediaStatus> statuses, Pageable pageable);
 
+    // Filter con của tab "Đã duyệt" — phân biệt nội dung Staff/Admin TỰ TAY duyệt (từng bị
+    // pipeline flag vi phạm, đưa vào PENDING_REVIEW) với nội dung pipeline TỰ ĐỘNG duyệt vì
+    // không vi phạm gì. approvalReviewedBy KHÔNG đủ để phân biệt 1 mình — pipeline cũng tự
+    // ghi giá trị actorId hệ thống (xem ContentPipelineServiceImpl.PIPELINE_ACTOR) vào field
+    // này khi tự duyệt sạch, nên phải loại trừ đúng giá trị đó mới ra được người thật.
+    // Sort lấy từ Pageable (Sort.by approvalReviewedAt DESC ở MediaServiceImpl.listApproved())
+    // — không lặp lại ORDER BY tĩnh ở đây, tránh xung đột với Sort động của Pageable.
+    @Query("SELECT m FROM Media m WHERE m.approvalStatus = :approvalStatus AND m.status IN :statuses "
+            + "AND m.isDeleted = false AND m.approvalReviewedBy IS NOT NULL "
+            + "AND m.approvalReviewedBy <> :pipelineActor")
+    Page<Media> findManuallyApproved(
+            @Param("approvalStatus") ContentApprovalStatus approvalStatus,
+            @Param("statuses") Collection<MediaStatus> statuses,
+            @Param("pipelineActor") String pipelineActor,
+            Pageable pageable);
+
+    @Query("SELECT m FROM Media m WHERE m.approvalStatus = :approvalStatus AND m.status IN :statuses "
+            + "AND m.isDeleted = false "
+            + "AND (m.approvalReviewedBy IS NULL OR m.approvalReviewedBy = :pipelineActor)")
+    Page<Media> findAutoApproved(
+            @Param("approvalStatus") ContentApprovalStatus approvalStatus,
+            @Param("statuses") Collection<MediaStatus> statuses,
+            @Param("pipelineActor") String pipelineActor,
+            Pageable pageable);
+
     // Reconcile fallback cho content pipeline (copyright/kiểm duyệt) bị "mất tích" do gửi
     // Kafka thất bại không đồng bộ — status còn PENDING/HLS_PROCESSING/HLS_READY (chưa
     // terminal) VÀ approvalStatus vẫn PENDING_REVIEW mặc định (chưa có kết luận nào) sau

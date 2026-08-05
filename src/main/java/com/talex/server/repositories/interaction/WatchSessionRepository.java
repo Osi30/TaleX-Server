@@ -32,13 +32,19 @@ public interface WatchSessionRepository extends JpaRepository<WatchSession, Stri
     );
 
     @Query("SELECT ws FROM WatchSession ws " +
-            "LEFT JOIN FETCH ws.episode " +
+            "JOIN FETCH ws.episode e " +
+            "JOIN FETCH e.season sn " +
+            "JOIN FETCH sn.series sr " +
             "WHERE ws.account.accountId = :accountId " +
+            "AND e.status = com.talex.server.enums.series.EpisodeStatus.PUBLISHED " +
             "AND ws.updatedAt = (" +
             "    SELECT MAX(ws2.updatedAt) " +
             "    FROM WatchSession ws2 " +
+            "    JOIN ws2.episode e2 " +
+            "    JOIN e2.season sn2 " +
             "    WHERE ws2.account.accountId = :accountId " +
-            "    AND ws2.episode = ws.episode" +
+            "    AND e2.status = com.talex.server.enums.series.EpisodeStatus.PUBLISHED " +
+            "    AND sn2.series = sn.series" +
             ") " +
             "ORDER BY ws.updatedAt DESC")
     Slice<WatchSession> findLatestWatchSessionsByAccountId(
