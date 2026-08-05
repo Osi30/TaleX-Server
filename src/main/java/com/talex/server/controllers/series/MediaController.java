@@ -163,11 +163,15 @@ public class MediaController {
         return ResponseEntity.ok(response(200, "OK", mediaService.getById(id, accountId.toString())));
     }
 
-    // Returns copyright + moderation violations for a specific media (creator view)
+    // Returns copyright + moderation violations for a specific media — chủ sở hữu hoặc
+    // STAFF/ADMIN (assertCanView trong service), không cho bất kỳ user đăng nhập nào xem
+    // media của người khác.
     @GetMapping("/api/v1/media/{mediaId}/violations")
      @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<BaseResponse> getMediaViolations(@PathVariable String mediaId) {
-        return ResponseEntity.ok(response(200, "OK", mediaService.getMediaViolations(mediaId)));
+    public ResponseEntity<BaseResponse> getMediaViolations(
+            @PathVariable String mediaId,
+            @CurrentAccountId UUID accountId) {
+        return ResponseEntity.ok(response(200, "OK", mediaService.getMediaViolations(mediaId, accountId.toString())));
     }
 
     // Paginated list of media pending staff review
@@ -177,6 +181,16 @@ public class MediaController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         return ResponseEntity.ok(response(200, "OK", mediaService.listPendingReview(page, size)));
+    }
+
+    // Paginated list of already-approved media — cho Staff/Admin rà lại quyết định vừa
+    // duyệt, ép ẩn (force-hide) nếu phát hiện lỡ bấm duyệt nhầm.
+    @GetMapping("/api/v1/media/approved")
+    @PreAuthorize("hasAnyRole('STAFF', 'ADMIN')")
+    public ResponseEntity<BaseResponse> listApproved(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(response(200, "OK", mediaService.listApproved(page, size)));
     }
 
     @PutMapping("/api/v1/media/{id}")

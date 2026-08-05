@@ -17,6 +17,12 @@ jobs:
           port: 22
           command_timeout: 30m
           script: |
+            set -e
+            # Trước đây thiếu set -e: nếu git pull lỗi (vd xung đột với file bị sửa tay
+            # trên VPS), script vẫn chạy tiếp và build lại đúng code CŨ đang có sẵn —
+            # health check vẫn pass (app cũ vẫn chạy được) nên CI báo "success" giả, dù
+            # code mới chưa hề lên server (đã gặp thật, mất 19 commit không deploy được
+            # nhiều ngày mà không ai biết).
             cd ~/TaleX-Server
             git pull origin main
 
@@ -121,4 +127,7 @@ jobs:
               fi
               sleep 5
             done
+            # Trước đây dừng ở dòng echo — lệnh cuối luôn thành công nên script exit 0
+            # (CI báo xanh) dù backend không healthy thật. exit 1 để CI báo đỏ đúng.
             echo "WARNING: Backend health check failed after 120s"
+            exit 1

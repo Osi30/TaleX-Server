@@ -6,6 +6,7 @@ import com.talex.server.enums.media.MediaProvider;
 import com.talex.server.enums.media.MediaStatus;
 import com.talex.server.enums.media.MediaType;
 import com.talex.server.enums.series.ContentApprovalStatus;
+import com.talex.server.enums.series.EpisodeStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -20,6 +21,10 @@ import java.time.LocalDateTime;
 public class MediaResponseDto {
     private String mediaId;
     private String episodeId;
+    // Trạng thái của EPISODE chứa media này — cần cho tab "Đã duyệt" (admin) biết Admin có
+    // đang ép ẩn cả episode hay không, vì hành động "Ẩn nội dung" giờ thao tác ở cấp
+    // Episode (xem EpisodeServiceImpl.forceHide), không phải cấp Media.
+    private EpisodeStatus episodeStatus;
     private String creatorId;
     private Boolean isLocked;
     private MediaType mediaType;

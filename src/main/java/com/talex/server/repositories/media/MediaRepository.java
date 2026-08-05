@@ -147,6 +147,12 @@ public interface MediaRepository extends JpaRepository<Media, String> {
     Page<Media> findByApprovalStatusAndStatusAndIsDeletedFalse(
             ContentApprovalStatus approvalStatus, MediaStatus status, Pageable pageable);
 
+    // "Đã duyệt" tab — cho Staff/Admin xem lại nội dung đã duyệt để phát hiện lỡ bấm nhầm,
+    // có thể ép ẩn (forceHide) nếu cần. Gồm cả FORCE_HIDDEN để admin thấy những gì mình đã
+    // ép ẩn trước đó (và có thể bỏ ép ẩn lại), không chỉ ACTIVE/HLS_READY đang hiển thị công khai.
+    Page<Media> findByApprovalStatusAndStatusInAndIsDeletedFalse(
+            ContentApprovalStatus approvalStatus, Collection<MediaStatus> statuses, Pageable pageable);
+
     // Reconcile fallback cho content pipeline (copyright/kiểm duyệt) bị "mất tích" do gửi
     // Kafka thất bại không đồng bộ — status còn PENDING/HLS_PROCESSING/HLS_READY (chưa
     // terminal) VÀ approvalStatus vẫn PENDING_REVIEW mặc định (chưa có kết luận nào) sau
