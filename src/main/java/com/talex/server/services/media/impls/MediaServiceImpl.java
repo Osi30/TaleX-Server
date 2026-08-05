@@ -13,6 +13,7 @@ import com.talex.server.dtos.responses.media.MediaViolationsResponseDto;
 import com.talex.server.dtos.responses.media.ViolationDetailResponseDto;
 import com.talex.server.dtos.responses.media.CreatorViolationsSummaryDto;
 import com.talex.server.entities.auth.Account;
+import com.talex.server.entities.creator.Creator;
 import com.talex.server.entities.media.ContentCensorship;
 import com.talex.server.entities.series.Episode;
 import com.talex.server.entities.media.Media;
@@ -28,6 +29,7 @@ import com.talex.server.enums.media.MediaStatus;
 import com.talex.server.enums.media.MediaType;
 import com.talex.server.exceptions.details.ContentModuleException;
 import com.talex.server.repositories.auth.AccountRepository;
+import com.talex.server.repositories.creator.CreatorRepository;
 import com.talex.server.repositories.media.ContentCensorshipRepository;
 import com.talex.server.repositories.series.EpisodeRepository;
 import com.talex.server.repositories.media.MediaCopyrightRepository;
@@ -81,6 +83,7 @@ public class MediaServiceImpl implements MediaService {
     private final ContentCensorshipRepository contentCensorshipRepository;
     private final ContentOwnershipService contentOwnershipService;
     private final AccountRepository accountRepository;
+    private final CreatorRepository creatorRepository;
     private final EpisodeEntitlementService episodeEntitlementService;
 
     private record PreparedMediaUrl(
@@ -776,15 +779,16 @@ public class MediaServiceImpl implements MediaService {
         if (sourceCreatorId == null || sourceCreatorId.isBlank()) {
             return;
         }
-        try {
-            builder.sourceCreatorUsername(
-                    accountRepository.findById(UUID.fromString(sourceCreatorId))
-                            .map(Account::getUsername)
-                            .orElse("Tài khoản không xác định"));
-        } catch (IllegalArgumentException e) {
-            // creatorId cũ không đúng định dạng UUID — không throw, chỉ bỏ qua field này.
-            log.warn("Invalid creatorId format on sourceMedia: {}", sourceCreatorId);
-        }
+        // sourceCreatorId là Creator entity id (media.getCreatorId()), KHÔNG phải accountId
+        // — trước đây tra thẳng vào AccountRepository bằng ID này nên luôn miss (2 bảng
+        // khác nhau), hiển thị nhầm "Tài khoản không xác định" cho mọi trường hợp. Phải đi
+        // qua Creator -> Account mới đúng, giống pattern đã áp dụng ở EpisodeServiceImpl
+        // khi resolve accountId để gửi notification.
+        builder.sourceCreatorUsername(
+                creatorRepository.findById(sourceCreatorId)
+                        .map(Creator::getAccount)
+                        .map(Account::getUsername)
+                        .orElse("Tài khoản không xác định"));
     }
 
     private ContentCensorshipResponseDto mapCensorshipToDto(ContentCensorship entity) {
