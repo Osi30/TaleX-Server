@@ -59,7 +59,10 @@ public interface MediaService {
 
     MediaResponseDto toResponse(Media media);
 
-    MediaViolationsResponseDto getMediaViolations(String mediaId);
+    MediaViolationsResponseDto getMediaViolations(String mediaId, String accountId);
 
     Page<MediaResponseDto> listPendingReview(int page, int size);
+
+    /** "Đã duyệt" — nội dung approvalStatus=APPROVED, sắp theo lượt duyệt gần nhất, cho Staff/Admin xem lại và ép ẩn nếu cần. */
+    Page<MediaResponseDto> listApproved(int page, int size);
 }
