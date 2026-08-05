@@ -41,7 +41,10 @@ public interface AccountImpressionRepository extends JpaRepository<AccountImpres
               AND ai.series.seriesId = :seriesId
               AND ai.isInteracted = false
             """)
-    int updateIsInteractedTrue(@Param("accountId") UUID accountId, @Param("seriesId") String seriesId);
+    int updateIsInteractedTrue(
+            @Param("accountId") UUID accountId,
+            @Param("seriesId") String seriesId
+    );
 
     /**
      * 3. Cập nhật nhanh isWatched = true.
@@ -55,5 +58,8 @@ public interface AccountImpressionRepository extends JpaRepository<AccountImpres
               AND ai.series.seriesId = :seriesId
               AND ai.isWatched = false
             """)
-    int updateIsWatchedTrue(@Param("accountId") UUID accountId, @Param("seriesId") String seriesId);
+    int updateIsWatchedTrue(
+            @Param("accountId") UUID accountId,
+            @Param("seriesId") String seriesId
+    );
 }

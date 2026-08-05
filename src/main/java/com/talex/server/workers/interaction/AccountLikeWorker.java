@@ -7,6 +7,7 @@ import com.talex.server.exceptions.codes.InteractionErrorCode;
 import com.talex.server.exceptions.details.InteractionException;
 import com.talex.server.repositories.auth.AccountRepository;
 import com.talex.server.repositories.interaction.aggregation.LikeAggregationRepository;
+import com.talex.server.repositories.trending.AccountImpressionRepository;
 import com.talex.server.services.series.EpisodeService;
 import io.questdb.client.Sender;
 import lombok.RequiredArgsConstructor;
@@ -31,6 +32,7 @@ public class AccountLikeWorker {
     private final EpisodeService episodeService;
     private final LikeAggregationRepository aggregationRepository;
     private final AccountRepository accountRepository;
+    private final AccountImpressionRepository accountImpressionRepository;
 
     @KafkaListener(
             topics = "talex-cdc.public.account_likes",
@@ -121,11 +123,16 @@ public class AccountLikeWorker {
 
                     EpisodeHourKey key = new EpisodeHourKey(episodeId, hourBucket);
                     logDeltaMap.put(key, logDeltaMap.getOrDefault(key, 0) + delta);
-                }
+                } else continue;
 
                 if (accountId != null) {
                     accountRepository.updateLastInteractionTime(
                             LocalDateTime.now(), UUID.fromString(accountId)
+                    );
+
+                    String seriesId = episodeService.getSeriesIdByEpisodeId(episodeId);
+                    accountImpressionRepository.updateIsInteractedTrue(
+                            UUID.fromString(accountId), seriesId
                     );
                 }
             }

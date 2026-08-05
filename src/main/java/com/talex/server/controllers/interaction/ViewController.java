@@ -44,18 +44,4 @@ public class ViewController {
                 .message("Ghi nhận lượt xem thành công.")
                 .build());
     }
-
-    @Operation(
-            summary = "Ghi nhận lượt xem Series",
-            description = "Hệ thống tự động trích xuất IP Address của client để đẩy vào hàng đợi Kafka xử lý bất đồng bộ."
-    )
-    @PostMapping("/series/{seriesId}/views")
-    public ResponseEntity<Void> recordSeriesView(
-            @CurrentAccountId UUID accountId,
-            @PathVariable String seriesId
-    ) {
-        String accountIdStr = (accountId == null) ? "anonymous" : accountId.toString();
-        viewService.trackSeriesViewAsync(accountIdStr, seriesId);
-        return ResponseEntity.ok().build();
-    }
 }

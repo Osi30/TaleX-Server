@@ -34,8 +34,14 @@ public interface WatchSessionRepository extends JpaRepository<WatchSession, Stri
     @Query("SELECT ws FROM WatchSession ws " +
             "LEFT JOIN FETCH ws.episode " +
             "WHERE ws.account.accountId = :accountId " +
+            "AND ws.updatedAt = (" +
+            "    SELECT MAX(ws2.updatedAt) " +
+            "    FROM WatchSession ws2 " +
+            "    WHERE ws2.account.accountId = :accountId " +
+            "    AND ws2.episode = ws.episode" +
+            ") " +
             "ORDER BY ws.updatedAt DESC")
-    Slice<WatchSession> findByAccountIdOrderByUpdatedAtDesc(
+    Slice<WatchSession> findLatestWatchSessionsByAccountId(
             @Param("accountId") UUID accountId,
             Pageable pageable
     );

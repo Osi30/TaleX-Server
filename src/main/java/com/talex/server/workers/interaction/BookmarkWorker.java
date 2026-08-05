@@ -7,6 +7,7 @@ import com.talex.server.exceptions.codes.InteractionErrorCode;
 import com.talex.server.exceptions.details.InteractionException;
 import com.talex.server.repositories.auth.AccountRepository;
 import com.talex.server.repositories.interaction.aggregation.BookmarkAggregationRepository;
+import com.talex.server.repositories.trending.AccountImpressionRepository;
 import com.talex.server.services.series.EpisodeService;
 import io.questdb.client.Sender;
 import lombok.RequiredArgsConstructor;
@@ -30,6 +31,7 @@ public class BookmarkWorker {
     private final EpisodeService episodeService;
     private final BookmarkAggregationRepository aggregationRepository;
     private final AccountRepository accountRepository;
+    private final AccountImpressionRepository accountImpressionRepository;
 
     @KafkaListener(
             topics = "talex-cdc.public.account_bookmarks",
@@ -117,6 +119,11 @@ public class BookmarkWorker {
                 if (accountId != null) {
                     accountRepository.updateLastInteractionTime(
                             LocalDateTime.now(), UUID.fromString(accountId)
+                    );
+
+                    String seriesId = episodeService.getSeriesIdByEpisodeId(episodeId);
+                    accountImpressionRepository.updateIsInteractedTrue(
+                            UUID.fromString(accountId), seriesId
                     );
                 }
             }

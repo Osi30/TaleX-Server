@@ -17,8 +17,6 @@ public interface RecommendationService {
             int limit
     );
 
-    List<RankResultItem> getRecommendations(String accountId, List<String> seriesIds, String viewSessionId);
-
     List<String> getRecentWatchedSeries(String accountId);
 
     List<String> getSimilarSeriesIds(String seriesId);

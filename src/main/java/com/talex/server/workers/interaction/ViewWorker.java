@@ -167,31 +167,4 @@ public class ViewWorker {
             }
         }
     }
-
-    @KafkaListener(
-            topics = "talex-interaction.series-viewed",
-            groupId = "talex-series-view-questdb-group",
-            containerFactory = "batchFactory"
-    )
-    public void processSeriesViewsForQuestDB(List<String> messages) {
-        try {
-            for (String message : messages) {
-                JsonNode eventNode = objectMapper.readTree(message);
-                if (eventNode == null) continue;
-
-                String accountId = eventNode.get("account_id").asText();
-                String seriesId = eventNode.get("series_id").asText();
-                long tsMs = eventNode.get("timestamp").asLong();
-                Instant instantTimestamp = Instant.ofEpochMilli(tsMs);
-
-                questDBSender.table("view_series_logs")
-                        .symbol("account_id", accountId)
-                        .symbol("series_id", seriesId)
-                        .at(instantTimestamp);
-            }
-            questDBSender.flush();
-        } catch (Exception e) {
-            log.error("[QUESTDB WORKER ERROR] Thất bại khi ghi dữ liệu loạt vào QuestDB: {}", e.getMessage());
-        }
-    }
 }

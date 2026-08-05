@@ -7,6 +7,7 @@ import com.talex.server.exceptions.codes.InteractionErrorCode;
 import com.talex.server.exceptions.details.InteractionException;
 import com.talex.server.repositories.auth.AccountRepository;
 import com.talex.server.repositories.interaction.aggregation.ShareAggregationRepository;
+import com.talex.server.repositories.trending.AccountImpressionRepository;
 import com.talex.server.services.series.EpisodeService;
 import com.talex.server.utils.ValidationUtils;
 import io.questdb.client.Sender;
@@ -32,6 +33,7 @@ public class AccountShareWorker {
     private final EpisodeService episodeService;
     private final ShareAggregationRepository shareAggregationRepository;
     private final AccountRepository accountRepository;
+    private final AccountImpressionRepository accountImpressionRepository;
 
     @KafkaListener(
             topics = "talex-interaction.episode-shared",
@@ -84,6 +86,8 @@ public class AccountShareWorker {
                 String episodeId = eventNode.get("episode_id").asText();
                 String accountId = eventNode.get("account_id").asText();
 
+                if (ValidationUtils.isNullOrEmpty(episodeId)) continue;
+
                 long tsMs = eventNode.get("timestamp").asLong();
 
                 long delta = 1L; // Cố định tăng tịnh tiến 1
@@ -101,6 +105,11 @@ public class AccountShareWorker {
                 if (!ValidationUtils.isNullOrEmpty(accountId)){
                     accountRepository.updateLastInteractionTime(
                             LocalDateTime.now(), UUID.fromString(accountId)
+                    );
+
+                    String seriesId = episodeService.getSeriesIdByEpisodeId(episodeId);
+                    accountImpressionRepository.updateIsInteractedTrue(
+                            UUID.fromString(accountId), seriesId
                     );
                 }
             }

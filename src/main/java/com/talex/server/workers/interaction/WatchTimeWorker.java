@@ -8,6 +8,7 @@ import com.talex.server.exceptions.details.InteractionException;
 import com.talex.server.repositories.auth.AccountRepository;
 import com.talex.server.repositories.interaction.WatchSessionRepository;
 import com.talex.server.repositories.interaction.aggregation.WatchTimeAggregationRepository;
+import com.talex.server.repositories.trending.AccountImpressionRepository;
 import com.talex.server.services.series.EpisodeService;
 import com.talex.server.utils.ValidationUtils;
 import io.questdb.client.Sender;
@@ -35,6 +36,7 @@ public class WatchTimeWorker {
     private final WatchSessionRepository watchSessionRepository;
     private final AccountRepository accountRepository;
     private final WatchTimeAggregationRepository watchTimeAggregationRepository;
+    private final AccountImpressionRepository accountImpressionRepository;
     private final StringRedisTemplate redisTemplate;
 
     private static final String REDIS_KEY_PREFIX = "watch:top5:recent_series:";
@@ -106,7 +108,7 @@ public class WatchTimeWorker {
     /// Lưu trữ trực tiếp vào PostgreSQL
     @KafkaListener(
             topics = "watch-raw",
-            groupId = "talex-watch-session-entity-group-local",
+            groupId = "talex-watch-session-entity-group",
             containerFactory = "batchFactory"
     )
     @Transactional
@@ -136,6 +138,11 @@ public class WatchTimeWorker {
                 if (!ValidationUtils.isNullOrEmpty(accountId)) {
                     accountRepository.updateLastInteractionTime(
                             LocalDateTime.now(), UUID.fromString(accountId)
+                    );
+
+                    String seriesId = episodeService.getSeriesIdByEpisodeId(episodeId);
+                    accountImpressionRepository.updateIsWatchedTrue(
+                            UUID.fromString(accountId), seriesId
                     );
                 }
 
@@ -202,7 +209,8 @@ public class WatchTimeWorker {
                 watchTimeAggregationRepository.updateSeriesWatchTime(seriesId, totalDelta, LocalDateTime.now());
                 watchTimeAggregationRepository.updateCreatorWatchTime(seriesId, totalDelta);
                 int updatedRow = watchTimeAggregationRepository.updateCampaignSeriesWatchTime(seriesId, totalDelta);
-                if (updatedRow > 0) watchTimeAggregationRepository.updateCampaignWatchTimeAndTarget(seriesId, totalDelta);
+                if (updatedRow > 0)
+                    watchTimeAggregationRepository.updateCampaignWatchTimeAndTarget(seriesId, totalDelta);
             });
 
             logWatchTimeDeltaMap.forEach((key, totalDelta) -> {
@@ -244,21 +252,11 @@ public class WatchTimeWorker {
                     continue;
                 }
                 String accountId = after.get("account_id").asText();
+                String episodeId = after.get("episode_id").asText();
+                String seriesId = episodeService.getSeriesIdByEpisodeId(episodeId);
 
-                // Trích xuất watch_duration của before và after
-                double beforeDuration = !before.isNull() && before.has("watch_duration")
-                        ? before.get("watch_duration").asDouble()
-                        : 0.0;
-                double afterDuration = after.has("watch_duration") ? after.get("watch_duration").asDouble() : 0.0;
-
-                // Sự kiện ban đầu (từ 0.0 tăng lên đúng 5.0 giây)
-                if (beforeDuration == 0.0 && afterDuration == 5.0) {
-                    String episodeId = after.get("episode_id").asText();
-                    String seriesId = episodeService.getSeriesIdByEpisodeId(episodeId);
-
-                    // Thực hiện ghi nhận top 5 series cho user này
-                    updateTop5SeriesInRedis(accountId, seriesId);
-                }
+                // Thực hiện ghi nhận top 5 series cho user này
+                updateTop5SeriesInRedis(accountId, seriesId);
 
             } catch (Exception e) {
                 log.error("Lỗi xử lý luồng ghi Redis Top 5: {}", e.getMessage(), e);

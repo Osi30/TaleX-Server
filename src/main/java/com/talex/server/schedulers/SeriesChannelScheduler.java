@@ -13,7 +13,7 @@ public class SeriesChannelScheduler {
     private final SeriesPoolService poolService;
 
     /// Tiến trình lắp series pool
-    @Scheduled(cron = "0 0 * * * *")
+//    @Scheduled(cron = "0 0 * * * *")
     public void executeSeriesChannelPool() {
         try {
             poolService.rebuildAllGlobalPools();

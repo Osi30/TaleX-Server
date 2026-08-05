@@ -4,6 +4,4 @@ import com.talex.server.dtos.interaction.request.ViewRequest;
 
 public interface IViewService {
     void viewEpisode(ViewRequest request);
-    void trackSeriesViewAsync(String accountId, String seriesId);
-    void ensureBloomFilterInitialized(String accountId);
 }

@@ -7,7 +7,6 @@ import com.talex.server.dtos.recommend.*;
 import com.talex.server.enums.series.SeriesStatus;
 import com.talex.server.repositories.mongo.SeriesRecommendationRepository;
 import com.talex.server.repositories.series.SeriesRepository;
-import com.talex.server.services.interaction.IViewService;
 import com.talex.server.services.mongo.IUserFeatureService;
 import com.talex.server.services.recommend.RecommendationService;
 import com.talex.server.services.recommend.SeriesChannelService;
@@ -15,8 +14,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.data.redis.core.script.DefaultRedisScript;
-import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -46,7 +43,6 @@ public class RecommendationServiceImpl implements RecommendationService {
     private final JdbcTemplate questDbJdbcTemplate;
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final ObjectMapper objectMapper;
-    private final IViewService viewService;
     private final IUserFeatureService userFeatureService;
 
     public RecommendationServiceImpl(
@@ -57,7 +53,7 @@ public class RecommendationServiceImpl implements RecommendationService {
             SeriesRecommendationRepository seriesRecommendationRepository,
             SeriesChannelService seriesChannelService,
             SeriesRepository seriesRepository,
-            IViewService viewService, IUserFeatureService userFeatureService
+            IUserFeatureService userFeatureService
     ) {
         this.pythonApi = pythonApi;
         this.redisTemplate = redisTemplate;
@@ -67,7 +63,6 @@ public class RecommendationServiceImpl implements RecommendationService {
         this.seriesRecommendationRepository = seriesRecommendationRepository;
         this.seriesChannelService = seriesChannelService;
         this.seriesRepository = seriesRepository;
-        this.viewService = viewService;
         this.userFeatureService = userFeatureService;
     }
 
@@ -75,19 +70,14 @@ public class RecommendationServiceImpl implements RecommendationService {
     private static final String RECOMMENDATION_PREFIX = "recommendation:series:";
     private static final String RECOMMENDATION_POOL_PREFIX = "recommendation:pool:";
     private static final String RECOMMENDATION_OFFSET_PREFIX = "recommendation:offset:";
-    private static final String SESSION_KEY_PREFIX = "recommendation:session:";
-    private static final String BLOOM_WATCHED_PREFIX = "recommendation:bloom:watched:";
     private static final String RECOMMENDATION_ALREADY_WATCHED_PREFIX = "recommendation:already_watched:";
 
     private static final Duration CACHE_TTL = Duration.ofDays(1);
     private static final Duration RECOMMENDATION_TTL = Duration.ofDays(7);
     private static final Duration RECOMMENDATION_POOL_TTL = Duration.ofHours(1);
-    private static final Duration ALREADY_WATCHED_POOL_TTL = Duration.ofHours(1);
+    private static final Duration ALREADY_WATCHED_POOL_TTL = Duration.ofDays(1);
 
     private static final String AI_SERVICE_RANK_URL = "/api/v1/recommendations/rank";
-    private static final String KAFKA_TOPIC_DISPLAY = "recommendation-display-log";
-    private static final RedisScript<Long> BF_EXISTS_SCRIPT =
-            new DefaultRedisScript<>("return redis.call('BF.EXISTS', KEYS[1], ARGV[1])", Long.class);
 
     /// Lấy danh sách series từ các pool
     @Override
@@ -279,30 +269,6 @@ public class RecommendationServiceImpl implements RecommendationService {
         return resultCards;
     }
 
-    /// Lấy danh sách gợi ý
-    @Override
-    public List<RankResultItem> getRecommendations(String accountId, List<String> seriesIds, String viewSessionId) {
-        if (seriesIds == null || seriesIds.isEmpty()) return Collections.emptyList();
-
-        // 1. Tách biệt lấy danh sách đã hiển thị trong phiên
-        Set<String> alreadyShownIds = getAlreadyShownSessionIds(accountId, viewSessionId);
-
-        // 2. Thực hiện hàm lọc phụ 1 (Theo Phiên)
-        List<String> sessionFilteredCandidates = filterBySession(seriesIds, alreadyShownIds);
-        if (sessionFilteredCandidates.isEmpty()) return Collections.emptyList();
-
-        // 3. Thực hiện hàm lọc phụ 2 (Lịch sử xem vĩnh viễn)
-        List<String> finalCandidates = this.filterByWatchedHistory(accountId, sessionFilteredCandidates);
-        if (finalCandidates.isEmpty()) return Collections.emptyList();
-
-        // 4. Bắn log hiển thị async phục vụ thống kê phiên
-        trackSessionImpressionsAsync(accountId, viewSessionId, finalCandidates);
-
-        // 5. Chuyển sang máy chấm điểm AI
-        // return rankSeries(accountId, filteredCandidates);
-        return List.of();
-    }
-
     /// Lấy danh sách series người dùng mới xem (5)
     @Override
     public List<String> getRecentWatchedSeries(String accountId) {
@@ -430,82 +396,6 @@ public class RecommendationServiceImpl implements RecommendationService {
         return List.of();
     }
 
-    @Async
-    public void trackSessionImpressionsAsync(String accountId, String viewSessionId, List<String> displayedIds) {
-        if (displayedIds == null || displayedIds.isEmpty()) return;
-        try {
-            String sessionRedisKey = SESSION_KEY_PREFIX + accountId + ":" + viewSessionId;
-
-            // 1. Đẩy vào Redis Set cấu trúc phiên
-            redisTemplate.opsForSet().add(sessionRedisKey, displayedIds.toArray(new String[0]));
-            redisTemplate.expire(sessionRedisKey, Duration.ofHours(2));
-
-            // 2. Bắn gói tin JSON sang cho cụm Kafka Broker phục vụ thống kê
-            Map<String, Object> kafkaLog = new HashMap<>();
-            kafkaLog.put("accountId", accountId);
-            kafkaLog.put("viewSessionId", viewSessionId);
-            kafkaLog.put("displayedSeriesIds", displayedIds);
-            kafkaLog.put("timestamp", System.currentTimeMillis());
-
-            String messagePayload = objectMapper.writeValueAsString(kafkaLog);
-            kafkaTemplate.send(KAFKA_TOPIC_DISPLAY, accountId, messagePayload);
-
-        } catch (Exception e) {
-            log.error("[ASYNC ERROR] Lỗi luồng phụ ghi log hiển thị: {}", e.getMessage());
-        }
-    }
-
-    /**
-     * Lấy các series đã được hiện trong phiên
-     */
-    private Set<String> getAlreadyShownSessionIds(String accountId, String viewSessionId) {
-        String sessionRedisKey = SESSION_KEY_PREFIX + accountId + ":" + viewSessionId;
-        Set<String> alreadyShownIds = redisTemplate.opsForSet().members(sessionRedisKey);
-        return alreadyShownIds != null ? alreadyShownIds : Collections.emptySet();
-    }
-
-
-    /**
-     * Lọc các series đã được hiện trong phiên
-     */
-    private List<String> filterBySession(List<String> seriesIds, Set<String> alreadyShownIds) {
-        List<String> filtered = new ArrayList<>();
-        for (String sId : seriesIds) {
-            if (!alreadyShownIds.contains(sId)) {
-                filtered.add(sId);
-            } else {
-                log.info("[LỌC PHIÊN 1] Loại bỏ series {} do đã hiển thị trong phiên này", sId);
-            }
-        }
-        return filtered;
-    }
-
-
-    /**
-     * Lọc các series đã được xem rồi
-     */
-    private List<String> filterByWatchedHistory(String accountId, List<String> candidates) {
-        if ("anonymous".equals(accountId) || "guest_user".equals(accountId) || accountId == null) {
-            return candidates;
-        }
-
-        viewService.ensureBloomFilterInitialized(accountId);
-
-        String bloomKey = BLOOM_WATCHED_PREFIX + accountId;
-        List<String> filtered = new ArrayList<>();
-
-        for (String sId : candidates) {
-            Long exists = redisTemplate.execute(BF_EXISTS_SCRIPT, Collections.singletonList(bloomKey), sId);
-
-            if (exists != null && exists == 1L) {
-                log.info("[LỌC VĨNH VIỄN] Đã chặn hiển thị bộ truyện đã xem: {}", sId);
-            } else {
-                filtered.add(sId);
-            }
-        }
-        return filtered;
-    }
-
     /**
      * Hàm helper thực thi query trực tiếp trên QuestDB qua JDBC
      */
@@ -611,6 +501,10 @@ public class RecommendationServiceImpl implements RecommendationService {
                 if (isOlderThan1Hour) {
                     // Tạo tài khoản > 1 tiếng -> Ưu tiên lấy theo dữ liệu động
                     additionalIds = seriesChannelService.getDynamicPreferencesSeriesIds(accountId, blacklist, needed);
+
+                    if (additionalIds.isEmpty()){
+                        additionalIds = seriesChannelService.getOnboardingPreferencesSeriesIds(accountId, blacklist, needed);
+                    }
                 } else {
                     // Tạo tài khoản <= 1 tiếng -> Lấy theo dữ liệu tĩnh
                     additionalIds = seriesChannelService.getOnboardingPreferencesSeriesIds(accountId, blacklist, needed);

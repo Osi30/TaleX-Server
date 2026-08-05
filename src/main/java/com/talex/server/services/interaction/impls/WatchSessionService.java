@@ -62,7 +62,7 @@ public class WatchSessionService implements IWatchSessionService {
     @Override
     @Transactional(readOnly = true)
     public Slice<WatchSessionResponseDto> getRecentWatchSessions(UUID accountId, Pageable pageable) {
-        Slice<WatchSession> sessions = watchSessionRepository.findByAccountIdOrderByUpdatedAtDesc(accountId, pageable);
+        Slice<WatchSession> sessions = watchSessionRepository.findLatestWatchSessionsByAccountId(accountId, pageable);
 
         return sessions.map(session -> WatchSessionResponseDto.builder()
                 .id(session.getId())

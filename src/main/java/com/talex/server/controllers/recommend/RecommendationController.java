@@ -133,20 +133,4 @@ public class RecommendationController {
         );
         return ResponseEntity.ok(rankedSeries);
     }
-
-    @GetMapping("/session")
-    @Operation(
-            summary = "Lấy danh sách series gợi ý",
-            description = "API nhận vào phiên xem để trả ra danh sách gợi ý series cho người xem."
-    )
-    public ResponseEntity<List<RankResultItem>> getSeries(
-            @RequestParam(value = "accountId") String accountId,
-            @RequestParam(value = "viewSessionId") String viewSessionId,
-            @RequestParam(value = "seriesIds") List<String> seriesIds
-    ) {
-        String userIdStr = accountId == null ? "guest_user" : accountId;
-        List<RankResultItem> finalRecommendations = recommendationService.getRecommendations(userIdStr, seriesIds, viewSessionId);
-        return ResponseEntity.ok(finalRecommendations);
-    }
-
 }
