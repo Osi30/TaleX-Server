@@ -525,11 +525,11 @@ public class EpisodeServiceImpl implements EpisodeService {
         Series series = season.getSeries();
         ensureParentsAreNotDeleted(episode);
 
-        if (season.getStatus() != SeasonStatus.PUBLISHED && season.getStatus() != SeasonStatus.SCHEDULED) {
+        if (season.getStatus() == SeasonStatus.DRAFT) {
             season.setStatus(SeasonStatus.SCHEDULED);
             season.setReleasedUpdateTime(LocalDateTime.now());
         }
-        if (series.getStatus() != SeriesStatus.PUBLISHED && series.getStatus() != SeriesStatus.SCHEDULED) {
+        if (series.getStatus() == SeriesStatus.DRAFT && season.getStatus() == SeasonStatus.SCHEDULED) {
             series.setStatus(SeriesStatus.SCHEDULED);
             series.setReleasedUpdateTime(LocalDateTime.now());
         }
