@@ -25,6 +25,14 @@ services:
       - DB_PASSWORD=${DB_PASSWORD:-12345}
       - DB_OPTIONS=
       - SPRING_PROFILES_ACTIVE=prod
+      # Trước đây deploy.yml tự chèn 3 dòng này vào file này BẰNG sed trên VPS mỗi lần
+      # deploy (không commit lại) — bất kỳ lúc nào docker-compose.prod.yml đổi ở git, VPS
+      # có diff cục bộ khiến git pull XUNG ĐỘT và deploy.yml (sau khi thêm set -e) fail
+      # ngay đầu, không deploy được gì cả (đã xảy ra thật 2 lần). Đưa thẳng vào git để
+      # không còn cần tự sửa file trên VPS nữa — pass qua từ export ở deploy.yml.
+      - KAFKA_ACCESS_CERTB64
+      - KAFKA_CA_CERTB64
+      - KAFKA_ACCESS_KEYB64
       - QUESTDB_HOST=questdb
       - QUESTDB_PORT=8812
       - QUESTDB_ILP_PORT=9009

@@ -101,9 +101,8 @@ jobs:
             echo '${{ secrets.KAFKA_CA_CERTB64 }}' | sed 's/\\n/\n/g' > kafka-certs/ca-cert.pem
             echo '${{ secrets.KAFKA_ACCESS_KEYB64 }}' | sed 's/\\n/\n/g' > kafka-certs/access-key.pem
 
-            # Ensure docker-compose has Kafka cert env vars
-            grep -q 'KAFKA_ACCESS_CERTB64' docker-compose.prod.yml || \
-              sed -i '/SPRING_PROFILES_ACTIVE=prod/a\      - KAFKA_ACCESS_CERTB64\n      - KAFKA_CA_CERTB64\n      - KAFKA_ACCESS_KEYB64' docker-compose.prod.yml
+            # (3 dòng KAFKA_*_CERTB64 giờ đã có sẵn trong docker-compose.prod.yml ở git —
+            # không cần tự sửa file trên VPS bằng sed nữa, tránh gây drift/conflict git pull)
 
             # Cleanup old images only (keep build cache for faster builds)
             docker image prune -af --filter "until=48h" 2>/dev/null || true
