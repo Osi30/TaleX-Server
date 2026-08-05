@@ -8,6 +8,7 @@ import com.talex.server.entities.series.Series;
 import com.talex.server.entities.creator.Creator;
 import com.talex.server.exceptions.details.ContentModuleException;
 import com.talex.server.repositories.series.*;
+import com.talex.server.repositories.NotificationRepository;
 import com.talex.server.repositories.auth.AccountRepository;
 import com.talex.server.repositories.media.MediaRepository;
 import com.talex.server.services.creator.ICreatorService;
@@ -64,6 +65,8 @@ class ContentCrudOwnershipServiceTest {
     private AccountRepository accountRepository;
     @Mock
     private ContentAuditLogger contentAuditLogger;
+    @Mock
+    private NotificationRepository notificationRepository;
 
     private SeasonServiceImpl seasonServiceImpl;
     private EpisodeServiceImpl episodeServiceImpl;
@@ -85,6 +88,7 @@ class ContentCrudOwnershipServiceTest {
                 accountRepository,
                 episodeLogRepository,
                 seasonService,
+                notificationRepository,
                 ownershipService,
                 contentAuditLogger);
     }

@@ -10,6 +10,7 @@ import com.talex.server.entities.series.Series;
 import com.talex.server.enums.media.MediaStatus;
 import com.talex.server.enums.series.*;
 import com.talex.server.exceptions.details.ContentModuleException;
+import com.talex.server.repositories.NotificationRepository;
 import com.talex.server.repositories.auth.AccountRepository;
 import com.talex.server.repositories.media.MediaRepository;
 import com.talex.server.repositories.series.CategoryRepository;
@@ -59,13 +60,15 @@ class EpisodeScheduledPublishServiceTest {
     private ContentOwnershipService contentOwnershipService;
     @Mock
     private ContentAuditLogger contentAuditLogger;
+    @Mock
+    private NotificationRepository notificationRepository;
 
     private EpisodeServiceImpl episodeService;
 
     @BeforeEach
     void setUp() {
         episodeService = new EpisodeServiceImpl(
-                episodeRepository, mediaRepository, tagRepository, categoryRepository, accountRepository, episodeLogRepository, seasonService, contentOwnershipService, contentAuditLogger);
+                episodeRepository, mediaRepository, tagRepository, categoryRepository, accountRepository, episodeLogRepository, seasonService, notificationRepository, contentOwnershipService, contentAuditLogger);
         lenient().when(contentOwnershipService.isPrivileged()).thenReturn(true);
         lenient().when(episodeRepository.save(any(Episode.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
