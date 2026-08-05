@@ -24,4 +24,6 @@ public class AccountSubscriptionResponseDto {
     private Boolean isCancelled;
     private LocalDateTime updatedAt;
     private LocalDateTime cancelledAt;
+    /** Null nếu subscription này được Admin/Staff cấp thủ công (không có Order/Invoice gốc). */
+    private String invoiceUrl;
 }
