@@ -12,6 +12,7 @@ import com.talex.server.dtos.responses.media.MediaResponseDto;
 import com.talex.server.dtos.responses.media.MediaViolationsResponseDto;
 import com.talex.server.dtos.responses.media.ViolationDetailResponseDto;
 import com.talex.server.dtos.responses.media.CreatorViolationsSummaryDto;
+import com.talex.server.entities.auth.Account;
 import com.talex.server.entities.media.ContentCensorship;
 import com.talex.server.entities.series.Episode;
 import com.talex.server.entities.media.Media;
@@ -26,6 +27,7 @@ import com.talex.server.enums.media.MediaProvider;
 import com.talex.server.enums.media.MediaStatus;
 import com.talex.server.enums.media.MediaType;
 import com.talex.server.exceptions.details.ContentModuleException;
+import com.talex.server.repositories.auth.AccountRepository;
 import com.talex.server.repositories.media.ContentCensorshipRepository;
 import com.talex.server.repositories.series.EpisodeRepository;
 import com.talex.server.repositories.media.MediaCopyrightRepository;
@@ -78,6 +80,7 @@ public class MediaServiceImpl implements MediaService {
     private final MediaCopyrightRepository mediaCopyrightRepository;
     private final ContentCensorshipRepository contentCensorshipRepository;
     private final ContentOwnershipService contentOwnershipService;
+    private final AccountRepository accountRepository;
     private final EpisodeEntitlementService episodeEntitlementService;
 
     private record PreparedMediaUrl(
@@ -422,6 +425,11 @@ public class MediaServiceImpl implements MediaService {
     public MediaResponseDto forceHide(String id, String actorId) {
         Media media = findActiveEntity(id);
         media.setStatus(MediaStatus.FORCE_HIDDEN);
+        // Thiếu dòng này trước đây khiến viewer đang có signed URL/session còn hiệu lực
+        // (SIGNED_PLAYBACK_TTL_SECONDS) vẫn xem tiếp được tới khi tự hết hạn, dù admin đã
+        // ép ẩn — mọi hàm gỡ nội dung khác (hide/reject/rejectWithReason/delete) đều gọi
+        // hàm này, chỉ forceHide() bị sót.
+        playbackSecurityService.revokeActiveSessions(media);
         Media saved = mediaRepository.save(media);
         return toResponse(saved);
     }
@@ -586,14 +594,19 @@ public class MediaServiceImpl implements MediaService {
 
     @Transactional(readOnly = true)
     @Override
-    public MediaViolationsResponseDto getMediaViolations(String mediaId) {
+    public MediaViolationsResponseDto getMediaViolations(String mediaId, String accountId) {
         Media media = findActiveEntity(mediaId);
+        // Trước đây endpoint này KHÔNG kiểm tra quyền — bất kỳ user đăng nhập nào cũng xem
+        // được violation của media người khác (IDOR). assertCanView cho phép chủ sở hữu
+        // hoặc STAFF/ADMIN, khớp đúng pattern getById() đã làm.
+        contentOwnershipService.assertCanView(media, accountId);
+        boolean privileged = contentOwnershipService.isPrivileged();
 
         List<MediaCopyright> copyrightEntities = mediaCopyrightRepository.findAllByMedia_MediaId(mediaId);
         List<ContentCensorship> censorshipEntities = contentCensorshipRepository.findAllByMedia_MediaId(mediaId);
 
         List<MediaCopyrightResponseDto> copyrightDtos = copyrightEntities.stream()
-                .map(this::mapCopyrightToDto)
+                .map(entity -> mapCopyrightToDto(entity, privileged))
                 .toList();
 
         List<ContentCensorshipResponseDto> censorshipDtos = censorshipEntities.stream()
@@ -622,6 +635,22 @@ public class MediaServiceImpl implements MediaService {
         return mediaRepository
                 .findByApprovalStatusAndStatusAndIsDeletedFalse(
                         ContentApprovalStatus.PENDING_REVIEW, MediaStatus.INACTIVE, pageable)
+                .map(this::toResponse);
+    }
+
+    private static final List<MediaStatus> APPROVED_TAB_STATUSES =
+            List.of(MediaStatus.ACTIVE, MediaStatus.HLS_READY, MediaStatus.FORCE_HIDDEN);
+
+    @Transactional(readOnly = true)
+    @Override
+    public Page<MediaResponseDto> listApproved(int page, int size) {
+        // Sắp theo approvalReviewedAt (lượt duyệt gần nhất lên đầu) — mục đích tab này là
+        // Staff/Admin rà lại các quyết định VỪA duyệt để phát hiện lỡ bấm nhầm, không phải
+        // duyệt toàn bộ lịch sử theo thời gian tạo.
+        PageRequest pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "approvalReviewedAt"));
+        return mediaRepository
+                .findByApprovalStatusAndStatusInAndIsDeletedFalse(
+                        ContentApprovalStatus.APPROVED, APPROVED_TAB_STATUSES, pageable)
                 .map(this::toResponse);
     }
 
@@ -655,6 +684,7 @@ public class MediaServiceImpl implements MediaService {
         return MediaResponseDto.builder()
                 .mediaId(media.getMediaId())
                 .episodeId(media.getEpisode().getEpisodeId())
+                .episodeStatus(media.getEpisode().getStatus())
                 .creatorId(media.getCreatorId())
                 .mediaType(media.getMediaType())
                 .mimeType(media.getMimeType())
@@ -702,8 +732,8 @@ public class MediaServiceImpl implements MediaService {
                 .contentId(media.getContentId());
     }
 
-    private MediaCopyrightResponseDto mapCopyrightToDto(MediaCopyright entity) {
-        return MediaCopyrightResponseDto.builder()
+    private MediaCopyrightResponseDto mapCopyrightToDto(MediaCopyright entity, boolean privileged) {
+        MediaCopyrightResponseDto.MediaCopyrightResponseDtoBuilder builder = MediaCopyrightResponseDto.builder()
                 .mediaCopyrightId(entity.getMediaCopyrightId())
                 .mediaId(entity.getMedia().getMediaId())
                 .sourceMediaId(entity.getSourceMedia() != null ? entity.getSourceMedia().getMediaId() : null)
@@ -715,8 +745,46 @@ public class MediaServiceImpl implements MediaService {
                 .violationType(entity.getViolationType())
                 .isValid(entity.getIsValid())
                 .note(entity.getNote())
-                .checkedAt(entity.getCheckedAt())
-                .build();
+                .checkedAt(entity.getCheckedAt());
+
+        // Thông tin nội dung gốc bị trùng (tên tập/series, creator, thumbnail) chỉ trả cho
+        // STAFF/ADMIN — Creator tự xem violation của mình KHÔNG được biết đã trùng với ai
+        // (tránh lộ danh tính creator khác, nguy cơ harassment hoặc "học lỏm" né kiểm duyệt).
+        if (privileged) {
+            enrichSourceContent(builder, entity.getSourceMedia());
+        }
+
+        return builder.build();
+    }
+
+    private void enrichSourceContent(MediaCopyrightResponseDto.MediaCopyrightResponseDtoBuilder builder, Media sourceMedia) {
+        if (sourceMedia == null) {
+            return;
+        }
+        builder.sourceMediaDeleted(Boolean.TRUE.equals(sourceMedia.getIsDeleted()));
+        builder.sourceThumbnailUrl(sourceMedia.getThumbnailUrl());
+
+        Episode sourceEpisode = sourceMedia.getEpisode();
+        if (sourceEpisode != null) {
+            builder.sourceEpisodeTitle(sourceEpisode.getTitle());
+            if (sourceEpisode.getSeason() != null && sourceEpisode.getSeason().getSeries() != null) {
+                builder.sourceSeriesTitle(sourceEpisode.getSeason().getSeries().getTitle());
+            }
+        }
+
+        String sourceCreatorId = sourceMedia.getCreatorId();
+        if (sourceCreatorId == null || sourceCreatorId.isBlank()) {
+            return;
+        }
+        try {
+            builder.sourceCreatorUsername(
+                    accountRepository.findById(UUID.fromString(sourceCreatorId))
+                            .map(Account::getUsername)
+                            .orElse("Tài khoản không xác định"));
+        } catch (IllegalArgumentException e) {
+            // creatorId cũ không đúng định dạng UUID — không throw, chỉ bỏ qua field này.
+            log.warn("Invalid creatorId format on sourceMedia: {}", sourceCreatorId);
+        }
     }
 
     private ContentCensorshipResponseDto mapCensorshipToDto(ContentCensorship entity) {

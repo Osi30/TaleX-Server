@@ -25,4 +25,13 @@ public class MediaCopyrightResponseDto {
     private Boolean isValid;
     private String note;
     private LocalDateTime checkedAt;
+
+    // Thông tin nội dung gốc bị trùng — CHỈ điền khi caller là STAFF/ADMIN (xem
+    // MediaServiceImpl.mapCopyrightToDto). Creator tự xem violation của mình sẽ luôn
+    // nhận null ở các field này, tránh lộ danh tính creator khác.
+    private String sourceEpisodeTitle;
+    private String sourceSeriesTitle;
+    private String sourceCreatorUsername;
+    private String sourceThumbnailUrl;
+    private Boolean sourceMediaDeleted;
 }

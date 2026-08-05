@@ -12,6 +12,11 @@ services:
     cpus: 1.5
     env_file: .env
     environment:
+      # JVM mặc định chạy UTC nếu không set — mọi @CreationTimestamp LocalDateTime (Media,
+      # ContentCensorship...) ghi giờ UTC nhưng serialize JSON không kèm offset, FE hiểu
+      # nhầm là giờ local trình duyệt, hiển thị lệch 7 tiếng cho admin ở VN. Local dev
+      # (docker-compose.yml) đã có sẵn dòng này — prod trước đây bị thiếu.
+      - TZ=Asia/Ho_Chi_Minh
       # Override DB to use local PostgreSQL container
       - DB_HOST=db
       - DB_PORT=5432
@@ -20,6 +25,14 @@ services:
       - DB_PASSWORD=${DB_PASSWORD:-12345}
       - DB_OPTIONS=
       - SPRING_PROFILES_ACTIVE=prod
+      # Trước đây deploy.yml tự chèn 3 dòng này vào file này BẰNG sed trên VPS mỗi lần
+      # deploy (không commit lại) — bất kỳ lúc nào docker-compose.prod.yml đổi ở git, VPS
+      # có diff cục bộ khiến git pull XUNG ĐỘT và deploy.yml (sau khi thêm set -e) fail
+      # ngay đầu, không deploy được gì cả (đã xảy ra thật 2 lần). Đưa thẳng vào git để
+      # không còn cần tự sửa file trên VPS nữa — pass qua từ export ở deploy.yml.
+      - KAFKA_ACCESS_CERTB64
+      - KAFKA_CA_CERTB64
+      - KAFKA_ACCESS_KEYB64
       - QUESTDB_HOST=questdb
       - QUESTDB_PORT=8812
       - QUESTDB_ILP_PORT=9009

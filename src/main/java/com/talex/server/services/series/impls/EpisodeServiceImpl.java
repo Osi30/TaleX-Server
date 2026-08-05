@@ -5,15 +5,18 @@ import com.talex.server.dtos.requests.series.EpisodeRequestDto;
 import com.talex.server.dtos.requests.series.EpisodeUnlockSettingsRequestDto;
 import com.talex.server.dtos.responses.series.EpisodeRefs;
 import com.talex.server.dtos.responses.series.EpisodeResponseDto;
+import com.talex.server.entities.Notification;
 import com.talex.server.entities.auth.Account;
 import com.talex.server.entities.series.Episode;
 import com.talex.server.entities.series.EpisodeLog;
 import com.talex.server.entities.series.Season;
 import com.talex.server.entities.series.Series;
+import com.talex.server.enums.NotificationType;
 import com.talex.server.enums.media.MediaStatus;
 import com.talex.server.enums.media.MediaType;
 import com.talex.server.enums.series.*;
 import com.talex.server.exceptions.details.ContentModuleException;
+import com.talex.server.repositories.NotificationRepository;
 import com.talex.server.repositories.auth.AccountRepository;
 import com.talex.server.repositories.media.MediaRepository;
 import com.talex.server.repositories.series.CategoryRepository;
@@ -47,6 +50,7 @@ public class EpisodeServiceImpl implements EpisodeService {
     private final AccountRepository accountRepository;
     private final EpisodeLogRepository episodeLogRepository;
     private final SeasonService seasonService;
+    private final NotificationRepository notificationRepository;
     private final ContentOwnershipService contentOwnershipService;
     private final ContentAuditLogger contentAuditLogger;
 
@@ -303,6 +307,9 @@ public class EpisodeServiceImpl implements EpisodeService {
         episode.setReleasedUpdateTime(LocalDateTime.now());
         Episode saved = episodeRepository.save(episode);
         contentAuditLogger.logAction("Episode", saved.getEpisodeId(), "FORCE_HIDE", actorId, episode.getCreatorId());
+        notifyCreatorOfVisibilityChange(saved, NotificationType.EPISODE_FORCE_HIDDEN,
+                "Tập nội dung tạm ngừng hiển thị công khai",
+                "Tập \"" + saved.getTitle() + "\" đã được duyệt trước đó nhưng hiện đang tạm ngừng hiển thị công khai theo quyết định của đội ngũ quản trị. Vui lòng liên hệ bộ phận hỗ trợ để được giải thích chi tiết.");
         return toResponse(saved);
     }
 
@@ -313,11 +320,33 @@ public class EpisodeServiceImpl implements EpisodeService {
         if (episode.getStatus() != EpisodeStatus.FORCE_HIDDEN) {
             throw ContentModuleException.badRequest("Episode is not force-hidden");
         }
-        episode.setStatus(EpisodeStatus.HIDDEN);
+        // Khôi phục thẳng về PUBLISHED (khác forceUnhide ở Media — quyết định nghiệp vụ:
+        // episode này đã từng công khai bình thường trước khi bị ép ẩn, Admin gỡ ép ẩn
+        // nghĩa là xác nhận cho hiển thị lại ngay, không cần Creator phải tự xuất bản lại).
+        episode.setStatus(EpisodeStatus.PUBLISHED);
         episode.setReleasedUpdateTime(LocalDateTime.now());
         Episode saved = episodeRepository.save(episode);
         contentAuditLogger.logAction("Episode", saved.getEpisodeId(), "FORCE_UNHIDE", actorId, episode.getCreatorId());
+        notifyCreatorOfVisibilityChange(saved, NotificationType.EPISODE_RESTORED,
+                "Tập nội dung đã được khôi phục hiển thị",
+                "Tập \"" + saved.getTitle() + "\" đã được khôi phục hiển thị công khai và đang ở trạng thái Đã xuất bản trở lại.");
         return toResponse(saved);
+    }
+
+    // Notification.recipientId là accountId (xem NotificationController), còn
+    // episode.getCreatorId() là Creator entity id (khác accountId) — phải đi qua chuỗi
+    // Season -> Series -> Creator -> Account để lấy đúng accountId, cùng cách
+    // ModerationServiceImpl.resolveOwnerUserId() đã làm cho case EPISODE.
+    private void notifyCreatorOfVisibilityChange(Episode episode, NotificationType type, String title, String content) {
+        String recipientAccountId = episode.getSeason().getSeries().getCreator().getAccount().getAccountId().toString();
+        notificationRepository.save(Notification.builder()
+                .recipientId(recipientAccountId)
+                .title(title)
+                .content(content)
+                .type(type)
+                .referenceType("EPISODE")
+                .referenceId(episode.getEpisodeId())
+                .build());
     }
 
     @Transactional
@@ -450,6 +479,7 @@ public class EpisodeServiceImpl implements EpisodeService {
         return EpisodeResponseDto.builder()
                 .episodeId(episode.getEpisodeId())
                 .seasonId(episode.getSeason().getSeasonId())
+                .seriesId(episode.getSeason().getSeries().getSeriesId())
                 .creatorId(episode.getCreatorId())
                 .episodeNumber(episode.getEpisodeNumber())
                 .title(episode.getTitle())
