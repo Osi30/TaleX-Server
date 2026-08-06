@@ -94,6 +94,7 @@ public class InvoiceServiceImpl implements IInvoiceService {
                     .orElseThrow(() -> new IllegalStateException("Order not found for invoice " + invoice.getInvoiceId()));
             SePayProviderAccountDetailDto providerAccount = eInvoiceClient.resolveDefaultProviderAccount();
             SePayCreateInvoiceRequestDto request = buildCreateInvoiceRequest(order, invoice.getTransaction(), providerAccount);
+            log.info("SePay eInvoice create request for invoice {}: {}", invoice.getInvoiceId(), request);
             SePayCreateInvoiceResponseDataDto response = eInvoiceClient.createInvoice(request);
 
             if (response == null || response.getTrackingCode() == null) {
