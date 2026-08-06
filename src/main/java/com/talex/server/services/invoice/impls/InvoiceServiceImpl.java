@@ -216,7 +216,12 @@ public class InvoiceServiceImpl implements IInvoiceService {
                 .build();
 
         SePayInvoiceBuyerDto buyer = SePayInvoiceBuyerDto.builder()
+                .type("personal")
                 .name(account.getFullName() != null ? account.getFullName() : account.getUsername())
+                // TaleX không thu thập tax_code/address của user — gửi rỗng thay vì bỏ hẳn
+                // field (xem giải thích ở SePayInvoiceBuyerDto).
+                .taxCode("")
+                .address("")
                 .email(account.getEmail())
                 .phone(account.getPhone())
                 .build();
