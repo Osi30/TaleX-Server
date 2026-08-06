@@ -223,8 +223,13 @@ public class AccountSubscriptionServiceImpl implements AccountSubscriptionServic
                 .collect(Collectors.toMap(invoice -> invoice.getTransaction().getTransactionId(),
                         Function.identity(), (a, b) -> a));
 
+        // Collectors.toMap() throw NullPointerException nếu value là null — Invoice có thể
+        // đã được tạo (thanh toán thành công) nhưng invoiceUrl vẫn null vì hóa đơn điện tử
+        // SePay xử lý bất đồng bộ, chưa kịp có URL ngay lúc vừa thanh toán xong. Lọc bỏ
+        // luôn những entry chưa có invoiceUrl thay vì để value null lọt vào map.
         return transactionByOrderId.entrySet().stream()
                 .filter(entry -> invoiceByTransactionId.containsKey(entry.getValue().getTransactionId()))
+                .filter(entry -> invoiceByTransactionId.get(entry.getValue().getTransactionId()).getInvoiceUrl() != null)
                 .collect(Collectors.toMap(Map.Entry::getKey,
                         entry -> invoiceByTransactionId.get(entry.getValue().getTransactionId()).getInvoiceUrl()));
     }
