@@ -19,9 +19,12 @@ public class InvoiceStatusPollingScheduler {
     private final InvoiceRepository invoiceRepository;
     private final IInvoiceService invoiceService;
 
-    @Scheduled(
-            fixedDelayString = "${payment.invoice.polling-fixed-delay-ms:60000}",
-            initialDelayString = "${payment.invoice.polling-initial-delay-ms:60000}")
+    // TẠM COMMENT: xuất hóa đơn điện tử qua SePay đang lỗi phía nhà cung cấp (matbao) — xem
+    // giải thích ở OrderCompletionServiceImpl.complete(). Tắt @Scheduled để không tiếp tục
+    // gọi API SePay vô ích trong lúc chờ xác nhận.
+    // @Scheduled(
+    //         fixedDelayString = "${payment.invoice.polling-fixed-delay-ms:60000}",
+    //         initialDelayString = "${payment.invoice.polling-initial-delay-ms:60000}")
     public void pollPendingInvoices() {
         List<Invoice> pendingInvoices = invoiceRepository.findTop50ByStatusOrderByCreatedAtAsc(InvoiceStatus.PENDING);
 
