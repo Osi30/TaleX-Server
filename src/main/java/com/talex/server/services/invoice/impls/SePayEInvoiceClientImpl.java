@@ -76,6 +76,20 @@ public class SePayEInvoiceClientImpl implements SePayEInvoiceClient {
         if (detail == null || detail.getTemplates() == null || detail.getTemplates().isEmpty()) {
             throw new IllegalStateException("SePay eInvoice: provider-account " + accountId + " has no invoice template");
         }
+        // Trước đây chỉ kiểm tra list KHÔNG RỖNG, không kiểm tra từng template bên trong có
+        // template_code/invoice_series hợp lệ hay không — nếu SePay trả về template với field
+        // rỗng do lỗi tạm thời (network/response bị cắt cụt...), dữ liệu lỗi đó vẫn lọt qua
+        // check cũ và bị cache nguyên 1 tiếng, khiến MỌI hóa đơn tạo trong giờ đó đều fail y
+        // hệt "template_code/invoice_series thiếu" dù gọi lại API trực tiếp thì dữ liệu vẫn
+        // đúng (đã xác nhận thực tế — 4 hóa đơn liên tiếp cùng fail 1 lỗi, gọi tay API lại ra
+        // dữ liệu bình thường). Validate từng template TRƯỚC khi cache, không cache nếu hỏng.
+        boolean hasInvalidTemplate = detail.getTemplates().stream()
+                .anyMatch(t -> t.getTemplateCode() == null || t.getTemplateCode().isBlank()
+                        || t.getInvoiceSeries() == null || t.getInvoiceSeries().isBlank());
+        if (hasInvalidTemplate) {
+            throw new IllegalStateException(
+                    "SePay eInvoice: provider-account " + accountId + " returned template(s) with blank template_code/invoice_series — not caching, will retry");
+        }
 
         providerAccountCache.put(PROVIDER_ACCOUNT_CACHE_KEY, detail);
         return detail;
