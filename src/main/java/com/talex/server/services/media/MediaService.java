@@ -61,7 +61,7 @@ public interface MediaService {
 
     MediaViolationsResponseDto getMediaViolations(String mediaId, String accountId);
 
-    Page<MediaResponseDto> listPendingReview(int page, int size);
+    Page<MediaResponseDto> listPendingReview(int page, int size, String mediaType);
 
     /**
      * "Đã duyệt" — nội dung approvalStatus=APPROVED, sắp theo lượt duyệt gần nhất, cho
@@ -70,6 +70,7 @@ public interface MediaService {
      * @param reviewFilter "manual" = chỉ nội dung Staff/Admin tự tay duyệt (từng bị flag
      *                     vi phạm), "clean" = chỉ nội dung pipeline tự duyệt (không vi phạm),
      *                     giá trị khác hoặc null = không lọc, trả về tất cả.
+     * @param mediaType    "IMAGE"/"VIDEO" = chỉ lọc đúng loại đó, null/giá trị khác = không lọc.
      */
-    Page<MediaResponseDto> listApproved(int page, int size, String reviewFilter);
+    Page<MediaResponseDto> listApproved(int page, int size, String reviewFilter, String mediaType);
 }

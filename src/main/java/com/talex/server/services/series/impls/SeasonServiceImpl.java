@@ -25,6 +25,7 @@ public class SeasonServiceImpl implements SeasonService {
     private final SeriesService seriesService;
     private final ContentOwnershipService contentOwnershipService;
     private final ContentAuditLogger contentAuditLogger;
+    private final ContentCascadeDeleteHelper contentCascadeDeleteHelper;
 
     @Transactional
     @Override
@@ -166,6 +167,7 @@ public class SeasonServiceImpl implements SeasonService {
         season.setReleasedUpdateTime(java.time.LocalDateTime.now());
         season.softDelete();
         seasonRepository.save(season);
+        contentCascadeDeleteHelper.cascadeDeleteSeasonEpisodes(season.getSeasonId(), actorId);
         contentAuditLogger.logAction("Season", season.getSeasonId(), "DELETE", actorId, season.getCreatorId());
     }
 

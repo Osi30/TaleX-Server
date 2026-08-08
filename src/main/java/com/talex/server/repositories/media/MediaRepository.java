@@ -144,14 +144,27 @@ public interface MediaRepository extends JpaRepository<Media, String> {
             MediaStatus status);
 
     // Paginated query for staff moderation — lists media awaiting review
+    // mediaType nullable — dùng nguyên literal null trong JPQL để 1 query xử lý được cả
+    // "khong loc theo loai" (mediaType = null) lan "loc dung 1 loai" (IMAGE/VIDEO), tranh
+    // phai viet 2 method rieng cho tung to hop filter.
+    @Query("SELECT m FROM Media m WHERE m.approvalStatus = :approvalStatus AND m.status = :status "
+            + "AND m.isDeleted = false AND (:mediaType IS NULL OR m.mediaType = :mediaType)")
     Page<Media> findByApprovalStatusAndStatusAndIsDeletedFalse(
-            ContentApprovalStatus approvalStatus, MediaStatus status, Pageable pageable);
+            @Param("approvalStatus") ContentApprovalStatus approvalStatus,
+            @Param("status") MediaStatus status,
+            @Param("mediaType") MediaType mediaType,
+            Pageable pageable);
 
     // "Đã duyệt" tab — cho Staff/Admin xem lại nội dung đã duyệt để phát hiện lỡ bấm nhầm,
     // có thể ép ẩn (forceHide) nếu cần. Gồm cả FORCE_HIDDEN để admin thấy những gì mình đã
     // ép ẩn trước đó (và có thể bỏ ép ẩn lại), không chỉ ACTIVE/HLS_READY đang hiển thị công khai.
+    @Query("SELECT m FROM Media m WHERE m.approvalStatus = :approvalStatus AND m.status IN :statuses "
+            + "AND m.isDeleted = false AND (:mediaType IS NULL OR m.mediaType = :mediaType)")
     Page<Media> findByApprovalStatusAndStatusInAndIsDeletedFalse(
-            ContentApprovalStatus approvalStatus, Collection<MediaStatus> statuses, Pageable pageable);
+            @Param("approvalStatus") ContentApprovalStatus approvalStatus,
+            @Param("statuses") Collection<MediaStatus> statuses,
+            @Param("mediaType") MediaType mediaType,
+            Pageable pageable);
 
     // Filter con của tab "Đã duyệt" — phân biệt nội dung Staff/Admin TỰ TAY duyệt (từng bị
     // pipeline flag vi phạm, đưa vào PENDING_REVIEW) với nội dung pipeline TỰ ĐỘNG duyệt vì
@@ -162,20 +175,24 @@ public interface MediaRepository extends JpaRepository<Media, String> {
     // — không lặp lại ORDER BY tĩnh ở đây, tránh xung đột với Sort động của Pageable.
     @Query("SELECT m FROM Media m WHERE m.approvalStatus = :approvalStatus AND m.status IN :statuses "
             + "AND m.isDeleted = false AND m.approvalReviewedBy IS NOT NULL "
-            + "AND m.approvalReviewedBy <> :pipelineActor")
+            + "AND m.approvalReviewedBy <> :pipelineActor "
+            + "AND (:mediaType IS NULL OR m.mediaType = :mediaType)")
     Page<Media> findManuallyApproved(
             @Param("approvalStatus") ContentApprovalStatus approvalStatus,
             @Param("statuses") Collection<MediaStatus> statuses,
             @Param("pipelineActor") String pipelineActor,
+            @Param("mediaType") MediaType mediaType,
             Pageable pageable);
 
     @Query("SELECT m FROM Media m WHERE m.approvalStatus = :approvalStatus AND m.status IN :statuses "
             + "AND m.isDeleted = false "
-            + "AND (m.approvalReviewedBy IS NULL OR m.approvalReviewedBy = :pipelineActor)")
+            + "AND (m.approvalReviewedBy IS NULL OR m.approvalReviewedBy = :pipelineActor) "
+            + "AND (:mediaType IS NULL OR m.mediaType = :mediaType)")
     Page<Media> findAutoApproved(
             @Param("approvalStatus") ContentApprovalStatus approvalStatus,
             @Param("statuses") Collection<MediaStatus> statuses,
             @Param("pipelineActor") String pipelineActor,
+            @Param("mediaType") MediaType mediaType,
             Pageable pageable);
 
     // Reconcile fallback cho content pipeline (copyright/kiểm duyệt) bị "mất tích" do gửi

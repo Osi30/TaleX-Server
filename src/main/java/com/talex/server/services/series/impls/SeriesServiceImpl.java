@@ -9,6 +9,7 @@ import com.talex.server.dtos.responses.series.TagResponseDto;
 import com.talex.server.entities.creator.Creator;
 import com.talex.server.entities.series.*;
 import com.talex.server.enums.series.CategoryStatus;
+import com.talex.server.enums.series.SeasonStatus;
 import com.talex.server.enums.series.SeriesStatus;
 import com.talex.server.enums.series.TagStatus;
 import com.talex.server.exceptions.details.ContentModuleException;
@@ -47,6 +48,7 @@ public class SeriesServiceImpl implements SeriesService {
     private final ICreatorService creatorService;
     private final SeasonRepository seasonRepository;
     private final ContentAuditLogger contentAuditLogger;
+    private final ContentCascadeDeleteHelper contentCascadeDeleteHelper;
 
     @Transactional
     @Override
@@ -226,7 +228,20 @@ public class SeriesServiceImpl implements SeriesService {
         series.setReleasedUpdateTime(java.time.LocalDateTime.now());
         series.softDelete();
         seriesRepository.save(series);
+        cascadeDeleteSeasons(series.getSeriesId(), actorId);
         contentAuditLogger.logAction("Series", series.getSeriesId(), "DELETE", actorId, series.getCreator().getCreatorId());
+    }
+
+    private void cascadeDeleteSeasons(String seriesId, String actorId) {
+        List<Season> seasons = seasonRepository
+                .findAllBySeries_SeriesIdAndIsDeletedFalseOrderBySeasonNumberAsc(seriesId);
+        for (Season season : seasons) {
+            season.setStatus(SeasonStatus.DELETED);
+            season.setReleasedUpdateTime(java.time.LocalDateTime.now());
+            season.softDelete();
+            contentCascadeDeleteHelper.cascadeDeleteSeasonEpisodes(season.getSeasonId(), actorId);
+        }
+        seasonRepository.saveAll(seasons);
     }
 
     @Override

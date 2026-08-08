@@ -53,6 +53,7 @@ public class EpisodeServiceImpl implements EpisodeService {
     private final NotificationRepository notificationRepository;
     private final ContentOwnershipService contentOwnershipService;
     private final ContentAuditLogger contentAuditLogger;
+    private final ContentCascadeDeleteHelper contentCascadeDeleteHelper;
 
     @Transactional
     @Override
@@ -378,6 +379,7 @@ public class EpisodeServiceImpl implements EpisodeService {
         episode.setReleasedUpdateTime(LocalDateTime.now());
         episode.softDelete();
         episodeRepository.save(episode);
+        contentCascadeDeleteHelper.cascadeDeleteEpisodeMedia(episode.getEpisodeId(), actorId);
         contentAuditLogger.logAction("Episode", episode.getEpisodeId(), "DELETE", actorId, episode.getCreatorId());
     }
 

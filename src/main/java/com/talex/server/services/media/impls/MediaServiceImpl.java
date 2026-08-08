@@ -638,7 +638,7 @@ public class MediaServiceImpl implements MediaService {
 
     @Transactional(readOnly = true)
     @Override
-    public Page<MediaResponseDto> listPendingReview(int page, int size) {
+    public Page<MediaResponseDto> listPendingReview(int page, int size, String mediaType) {
         PageRequest pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
         // PENDING_REVIEW cũng là giá trị MẶC ĐỊNH của approvalStatus trước khi pipeline
         // từng chạy xong (xem Media.java) — nếu chỉ lọc theo approvalStatus, hàng đợi
@@ -647,8 +647,22 @@ public class MediaServiceImpl implements MediaService {
         // (xem ContentPipelineServiceImpl) — thêm điều kiện này để lọc đúng.
         return mediaRepository
                 .findByApprovalStatusAndStatusAndIsDeletedFalse(
-                        ContentApprovalStatus.PENDING_REVIEW, MediaStatus.INACTIVE, pageable)
+                        ContentApprovalStatus.PENDING_REVIEW, MediaStatus.INACTIVE,
+                        parseMediaTypeFilter(mediaType), pageable)
                 .map(this::toAdminPreviewResponse);
+    }
+
+    // "ALL"/null/giá trị không hợp lệ đều coi là không lọc — tránh 400 lặt vặt cho FE khi
+    // filter đang ở trạng thái mặc định "Tất cả".
+    private MediaType parseMediaTypeFilter(String mediaType) {
+        if (mediaType == null) {
+            return null;
+        }
+        try {
+            return MediaType.valueOf(mediaType.trim().toUpperCase());
+        } catch (IllegalArgumentException ex) {
+            return null;
+        }
     }
 
     // CloudFront distribution chứa source video (source/videos/...) bắt buộc signed URL
@@ -675,21 +689,24 @@ public class MediaServiceImpl implements MediaService {
 
     @Transactional(readOnly = true)
     @Override
-    public Page<MediaResponseDto> listApproved(int page, int size, String reviewFilter) {
+    public Page<MediaResponseDto> listApproved(int page, int size, String reviewFilter, String mediaType) {
         // Sắp theo approvalReviewedAt (lượt duyệt gần nhất lên đầu) — mục đích tab này là
         // Staff/Admin rà lại các quyết định VỪA duyệt để phát hiện lỡ bấm nhầm, không phải
         // duyệt toàn bộ lịch sử theo thời gian tạo.
         PageRequest pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "approvalReviewedAt"));
+        MediaType typeFilter = parseMediaTypeFilter(mediaType);
         Page<Media> mediaPage;
         if ("manual".equals(reviewFilter)) {
             mediaPage = mediaRepository.findManuallyApproved(
-                    ContentApprovalStatus.APPROVED, APPROVED_TAB_STATUSES, PIPELINE_REVIEWER_ACTOR, pageable);
+                    ContentApprovalStatus.APPROVED, APPROVED_TAB_STATUSES, PIPELINE_REVIEWER_ACTOR,
+                    typeFilter, pageable);
         } else if ("clean".equals(reviewFilter)) {
             mediaPage = mediaRepository.findAutoApproved(
-                    ContentApprovalStatus.APPROVED, APPROVED_TAB_STATUSES, PIPELINE_REVIEWER_ACTOR, pageable);
+                    ContentApprovalStatus.APPROVED, APPROVED_TAB_STATUSES, PIPELINE_REVIEWER_ACTOR,
+                    typeFilter, pageable);
         } else {
             mediaPage = mediaRepository.findByApprovalStatusAndStatusInAndIsDeletedFalse(
-                    ContentApprovalStatus.APPROVED, APPROVED_TAB_STATUSES, pageable);
+                    ContentApprovalStatus.APPROVED, APPROVED_TAB_STATUSES, typeFilter, pageable);
         }
         return mediaPage.map(this::toAdminPreviewResponse);
     }
