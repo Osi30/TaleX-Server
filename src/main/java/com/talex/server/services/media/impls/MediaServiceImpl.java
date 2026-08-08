@@ -17,6 +17,7 @@ import com.talex.server.entities.auth.Account;
 import com.talex.server.entities.creator.Creator;
 import com.talex.server.entities.media.ContentCensorship;
 import com.talex.server.entities.series.Episode;
+import com.talex.server.entities.series.Season;
 import com.talex.server.entities.media.Media;
 import com.talex.server.entities.media.MediaCopyright;
 import com.talex.server.enums.media.CensorshipStatus;
@@ -705,7 +706,34 @@ public class MediaServiceImpl implements MediaService {
             dto.setOriginalUrl(
                     mediaProviderService.signSingleUrl(dto.getOriginalUrl(), LocalDateTime.now().plusHours(1)));
         }
+        enrichEpisodeContext(dto, media);
         return dto;
+    }
+
+    // Staff/Admin duyệt cần biết nội dung thuộc episode/season/series/creator nào — episodeId
+    // thô không đủ để ra quyết định nhanh. Dùng chung cho cả tab "Chờ duyệt" và "Đã duyệt"
+    // (xem toAdminPreviewResponse).
+    private void enrichEpisodeContext(MediaResponseDto dto, Media media) {
+        Episode episode = media.getEpisode();
+        if (episode == null) {
+            return;
+        }
+        dto.setEpisodeTitle(episode.getTitle());
+        Season season = episode.getSeason();
+        if (season != null) {
+            dto.setSeasonTitle(season.getTitle());
+            if (season.getSeries() != null) {
+                dto.setSeriesTitle(season.getSeries().getTitle());
+            }
+        }
+        String creatorId = media.getCreatorId();
+        if (creatorId != null && !creatorId.isBlank()) {
+            dto.setCreatorUsername(
+                    creatorRepository.findById(creatorId)
+                            .map(Creator::getAccount)
+                            .map(Account::getUsername)
+                            .orElse("Tài khoản không xác định"));
+        }
     }
 
     private static final List<MediaStatus> APPROVED_TAB_STATUSES =
