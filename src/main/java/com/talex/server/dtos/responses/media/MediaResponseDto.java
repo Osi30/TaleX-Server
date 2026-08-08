@@ -72,4 +72,8 @@ public class MediaResponseDto {
     private Boolean isDeleted;
     private String contentId;
     private String copyrightId;
+    // Chỉ set ở danh sách kiểm duyệt (listPendingReview/listApproved) — số Media khác trong
+    // CÙNG episode này khớp cùng bộ filter đang áp dụng, để FE hiện badge thay vì lặp lại
+    // từng Media của 1 episode thành nhiều card riêng (episode đã group ở tầng BE).
+    private Integer episodeMediaCount;
 }

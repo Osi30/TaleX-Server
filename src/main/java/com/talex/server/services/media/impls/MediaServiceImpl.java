@@ -47,6 +47,7 @@ import com.talex.server.services.series.EpisodeService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -639,17 +640,45 @@ public class MediaServiceImpl implements MediaService {
     @Transactional(readOnly = true)
     @Override
     public Page<MediaResponseDto> listPendingReview(int page, int size, String mediaType) {
+        // KHÔNG group theo episode ở tab này — khác với listApproved() (force-hide/unhide
+        // tác động cả episode nên group được), Duyệt/Từ chối ở tab "Chờ duyệt" tác động lên
+        // TỪNG Media riêng lẻ (xem MediaController.approve/reject dùng media id). Nếu group,
+        // Staff sẽ không thấy được các media khác cùng episode cần duyệt riêng — mất nội
+        // dung cần kiểm duyệt, không chỉ là trùng lặp hiển thị.
         PageRequest pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        MediaType typeFilter = parseMediaTypeFilter(mediaType);
         // PENDING_REVIEW cũng là giá trị MẶC ĐỊNH của approvalStatus trước khi pipeline
         // từng chạy xong (xem Media.java) — nếu chỉ lọc theo approvalStatus, hàng đợi
         // Staff sẽ lẫn cả media đang xử lý dở (chưa có kết quả gì) với media THẬT SỰ bị
         // flag cần duyệt. BE chỉ set MediaStatus.INACTIVE khi chủ động flag nội dung
         // (xem ContentPipelineServiceImpl) — thêm điều kiện này để lọc đúng.
         return mediaRepository
-                .findByApprovalStatusAndStatusAndIsDeletedFalse(
-                        ContentApprovalStatus.PENDING_REVIEW, MediaStatus.INACTIVE,
-                        parseMediaTypeFilter(mediaType), pageable)
+                .findPendingReviewMedia(ContentApprovalStatus.PENDING_REVIEW, MediaStatus.INACTIVE,
+                        typeFilter, pageable)
                 .map(this::toAdminPreviewResponse);
+    }
+
+    // Phân trang theo EPISODE (không phải theo Media riêng lẻ) — 1 episode có thể có hàng
+    // chục Media (VD comic nhiều trang), phân trang thô theo Media sẽ cắt 1 episode rải ra
+    // nhiều trang, FE thấy episode đó "xuất hiện lại" ở trang sau với số lượng khác (bug
+    // thật đã gặp). Media đại diện = displayOrder nhỏ nhất (trang đầu/thumbnail của episode).
+    private Page<MediaResponseDto> groupByEpisode(Page<String> episodeIdsPage, List<Media> media) {
+        Map<String, List<Media>> byEpisode = media.stream()
+                .collect(Collectors.groupingBy(m -> m.getEpisode().getEpisodeId()));
+        List<MediaResponseDto> content = episodeIdsPage.getContent().stream()
+                .map(byEpisode::get)
+                .filter(group -> group != null && !group.isEmpty())
+                .map(group -> {
+                    Media representative = group.stream()
+                            .min(Comparator.comparing(
+                                    Media::getDisplayOrder, Comparator.nullsLast(Comparator.naturalOrder())))
+                            .orElse(group.get(0));
+                    MediaResponseDto dto = toAdminPreviewResponse(representative);
+                    dto.setEpisodeMediaCount(group.size());
+                    return dto;
+                })
+                .toList();
+        return new PageImpl<>(content, episodeIdsPage.getPageable(), episodeIdsPage.getTotalElements());
     }
 
     // "ALL"/null/giá trị không hợp lệ đều coi là không lọc — tránh 400 lặt vặt cho FE khi
@@ -690,25 +719,34 @@ public class MediaServiceImpl implements MediaService {
     @Transactional(readOnly = true)
     @Override
     public Page<MediaResponseDto> listApproved(int page, int size, String reviewFilter, String mediaType) {
-        // Sắp theo approvalReviewedAt (lượt duyệt gần nhất lên đầu) — mục đích tab này là
-        // Staff/Admin rà lại các quyết định VỪA duyệt để phát hiện lỡ bấm nhầm, không phải
-        // duyệt toàn bộ lịch sử theo thời gian tạo.
-        PageRequest pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "approvalReviewedAt"));
+        // Sắp theo approvalReviewedAt (lượt duyệt gần nhất lên đầu, xem ORDER BY trong query
+        // ở repository) — mục đích tab này là Staff/Admin rà lại các quyết định VỪA duyệt để
+        // phát hiện lỡ bấm nhầm, không phải duyệt toàn bộ lịch sử theo thời gian tạo.
+        PageRequest pageable = PageRequest.of(page, size);
         MediaType typeFilter = parseMediaTypeFilter(mediaType);
-        Page<Media> mediaPage;
+        Page<String> episodeIdsPage;
+        List<Media> media;
         if ("manual".equals(reviewFilter)) {
-            mediaPage = mediaRepository.findManuallyApproved(
+            episodeIdsPage = mediaRepository.findDistinctManuallyApprovedEpisodeIds(
                     ContentApprovalStatus.APPROVED, APPROVED_TAB_STATUSES, PIPELINE_REVIEWER_ACTOR,
                     typeFilter, pageable);
+            media = mediaRepository.findManuallyApprovedMediaByEpisodeIds(
+                    episodeIdsPage.getContent(), ContentApprovalStatus.APPROVED, APPROVED_TAB_STATUSES,
+                    PIPELINE_REVIEWER_ACTOR, typeFilter);
         } else if ("clean".equals(reviewFilter)) {
-            mediaPage = mediaRepository.findAutoApproved(
+            episodeIdsPage = mediaRepository.findDistinctAutoApprovedEpisodeIds(
                     ContentApprovalStatus.APPROVED, APPROVED_TAB_STATUSES, PIPELINE_REVIEWER_ACTOR,
                     typeFilter, pageable);
+            media = mediaRepository.findAutoApprovedMediaByEpisodeIds(
+                    episodeIdsPage.getContent(), ContentApprovalStatus.APPROVED, APPROVED_TAB_STATUSES,
+                    PIPELINE_REVIEWER_ACTOR, typeFilter);
         } else {
-            mediaPage = mediaRepository.findByApprovalStatusAndStatusInAndIsDeletedFalse(
+            episodeIdsPage = mediaRepository.findDistinctApprovedEpisodeIds(
                     ContentApprovalStatus.APPROVED, APPROVED_TAB_STATUSES, typeFilter, pageable);
+            media = mediaRepository.findApprovedMediaByEpisodeIds(
+                    episodeIdsPage.getContent(), ContentApprovalStatus.APPROVED, APPROVED_TAB_STATUSES, typeFilter);
         }
-        return mediaPage.map(this::toAdminPreviewResponse);
+        return groupByEpisode(episodeIdsPage, media);
     }
 
     @Override
