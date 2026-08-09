@@ -11,11 +11,13 @@ import com.talex.server.dtos.responses.series.TagResponseDto;
 import com.talex.server.entities.creator.Creator;
 import com.talex.server.entities.series.*;
 import com.talex.server.enums.series.CategoryStatus;
+import com.talex.server.enums.series.ContentType;
 import com.talex.server.enums.series.SeasonStatus;
 import com.talex.server.enums.series.SeriesStatus;
 import com.talex.server.enums.series.TagStatus;
 import com.talex.server.exceptions.details.ContentModuleException;
 import com.talex.server.repositories.series.*;
+import com.talex.server.repositories.series.projections.SeriesCardProjection;
 import com.talex.server.services.audit.ContentAuditLogger;
 import com.talex.server.services.creator.ICreatorService;
 import com.talex.server.services.media.impls.ContentOwnershipService;
@@ -158,19 +160,24 @@ public class SeriesServiceImpl implements SeriesService {
     @Override
     public BasePageResponse<SeriesCardResponseDto> searchPublic(
             SeriesSearchCriteria criteria, String sortBy, Integer page, Integer pageSize) {
-        Sort sort = resolveSearchSort(sortBy);
-        Page<SeriesCardResponseDto> result = seriesRepository.searchPublicSeries(
-                List.of(SeriesStatus.PUBLISHED, SeriesStatus.SCHEDULED),
+        Page<SeriesCardProjection> result = seriesRepository.searchPublicSeries(
+                List.of(SeriesStatus.PUBLISHED.name(), SeriesStatus.SCHEDULED.name()),
                 normalizeKeyword(criteria.keyword()),
-                criteria.contentType(),
+                criteria.contentType() == null ? null : criteria.contentType().name(),
                 blankToNull(criteria.categoryId()),
                 blankToNull(criteria.tagId()),
                 criteria.yearFrom(),
                 criteria.yearTo(),
                 criteria.minViews(),
-                PageUtils.buildPageable(page, pageSize, sort));
+                resolveSortKey(sortBy),
+                // Sort nằm cứng trong SQL native (ưu tiên title-match rồi mới tới sortBy) —
+                // Pageable chỉ dùng cho page/size, không mang Sort riêng.
+                PageUtils.buildPageable(page, pageSize, Sort.unsorted()));
+        List<SeriesCardResponseDto> content = result.getContent().stream()
+                .map(this::toCardDto)
+                .toList();
         return BasePageResponse.<SeriesCardResponseDto>builder()
-                .content(result.getContent())
+                .content(content)
                 .pageNumber(result.getNumber() + 1)
                 .pageSize(result.getSize())
                 .totalElements(result.getTotalElements())
@@ -180,21 +187,57 @@ public class SeriesServiceImpl implements SeriesService {
                 .build();
     }
 
-    private Sort resolveSearchSort(String sortBy) {
-        if ("newest".equalsIgnoreCase(sortBy)) {
-            return Sort.by(Sort.Direction.DESC, "releasedUpdateTime");
+    // Whitelist — sortBy đi thẳng vào biểu thức CASE trong SQL native (searchPublicSeries),
+    // không nối chuỗi, nên chỉ cần chốt đúng 3 giá trị hợp lệ, giá trị lạ luôn rơi về mặc định
+    // "popular" thay vì truyền thẳng input người dùng vào DB.
+    private String resolveSortKey(String sortBy) {
+        if ("newest".equalsIgnoreCase(sortBy) || "name".equalsIgnoreCase(sortBy)) {
+            return sortBy.toLowerCase();
         }
-        if ("name".equalsIgnoreCase(sortBy)) {
-            return Sort.by(Sort.Direction.ASC, "title");
-        }
-        return Sort.by(Sort.Direction.DESC, "analyticData.views"); // "popular" (mặc định)
+        return "popular";
     }
 
+    private SeriesCardResponseDto toCardDto(SeriesCardProjection projection) {
+        return SeriesCardResponseDto.builder()
+                .seriesId(projection.getSeriesId())
+                .accountId(projection.getAccountId() == null ? null : UUID.fromString(projection.getAccountId()))
+                .creatorId(projection.getCreatorId())
+                .creatorName(projection.getCreatorName())
+                .creatorAvatar(projection.getCreatorAvatar())
+                .totalCreatorFollowers(projection.getTotalCreatorFollowers())
+                .title(projection.getTitle())
+                .description(projection.getDescription())
+                .coverUrl(projection.getCoverUrl())
+                .bannerUrl(projection.getBannerUrl())
+                .contentType(projection.getContentType() == null ? null : ContentType.valueOf(projection.getContentType()))
+                .ageRating(projection.getAgeRating())
+                .language(projection.getLanguage())
+                .totalViews(projection.getTotalViews())
+                .createdAt(projection.getCreatedAt() == null ? null : projection.getCreatedAt().toLocalDateTime())
+                .updatedAt(projection.getUpdatedAt() == null ? null : projection.getUpdatedAt().toLocalDateTime())
+                .averageRating(projection.getAverageRating())
+                .releasedUpdateTime(projection.getReleasedUpdateTime() == null
+                        ? null
+                        : projection.getReleasedUpdateTime().toLocalDateTime())
+                .build();
+    }
+
+    // strip-accent (Java) phải khớp với unaccent() (Postgres) ở cả 2 vế — nếu 1 bên còn dấu,
+    // LIKE sẽ không khớp. Chuẩn hóa NFD tách dấu ra khỏi ký tự gốc rồi loại bỏ, riêng "đ/Đ"
+    // xử lý thủ công vì Unicode NFD không tách được nó thành "d" + dấu (nó là 1 ký tự riêng).
     private String normalizeKeyword(String keyword) {
         if (keyword == null || keyword.isBlank()) {
             return null;
         }
-        return "%" + keyword.trim().toLowerCase() + "%";
+        String stripped = stripVietnameseAccents(keyword.trim().toLowerCase());
+        return "%" + stripped + "%";
+    }
+
+    // Chỉ cần xử lý "đ" (chữ thường) — hàm này luôn nhận input đã lowercase từ normalizeKeyword.
+    private static String stripVietnameseAccents(String text) {
+        String nfd = java.text.Normalizer.normalize(text, java.text.Normalizer.Form.NFD);
+        String noMarks = nfd.replaceAll("\\p{InCombiningDiacriticalMarks}", "");
+        return noMarks.replace('đ', 'd');
     }
 
     private String blankToNull(String value) {
