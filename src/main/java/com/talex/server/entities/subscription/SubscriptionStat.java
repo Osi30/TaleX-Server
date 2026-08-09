@@ -23,6 +23,9 @@ public class SubscriptionStat {
     @Column(name = "creator_id", nullable = false, length = 50)
     private String creatorId;
 
+    @Column(name = "episode_id", length = 50)
+    private String episodeId;
+
     @Column(name = "views")
     @Builder.Default
     private Long views = 0L;

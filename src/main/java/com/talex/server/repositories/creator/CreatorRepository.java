@@ -1,6 +1,7 @@
 package com.talex.server.repositories.creator;
 
 import com.talex.server.entities.creator.Creator;
+import com.talex.server.enums.AccountStatus;
 import com.talex.server.records.CreatorVerificationStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -8,6 +9,8 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -17,6 +20,12 @@ public interface CreatorRepository extends JpaRepository<Creator, String>, JpaSp
 
     @Query("SELECT c.creatorId FROM Creator c WHERE c.account.accountId = :accountId")
     Optional<String> findCreatorIdByAccountId(@Param("accountId") UUID accountId);
+
+    // Lấy danh sách Creator đủ điều kiện quyết toán doanh thu hàng tháng
+    List<Creator> findByCurrentBalanceGreaterThanEqualAndIsBannedFalseAndAccount_Status(
+            BigDecimal minBalance,
+            AccountStatus accountStatus
+    );
 
     @Query(value = "SELECT " +
             "  COALESCE(c.is_verified, false) AS isCreatorVerified, " +

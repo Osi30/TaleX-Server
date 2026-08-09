@@ -65,7 +65,7 @@ public class PaymentProfileService implements IPaymentProfileService {
     @Override
     @Transactional(readOnly = true)
     public PaymentProfileResponseDto getPrimaryProfile(UUID accountId) {
-        return repository.findByCreator_Account_AccountIdAndIsPrimaryTrueAndIsDeletedFalse(accountId)
+        return repository.findByCreator_Account_AccountIdAndIsPrimaryTrueAndIsDeletedFalseAndStatus(accountId, PaymentProfileStatus.VERIFIED)
                 .map(mapper::toResponseDto)
                 .orElseThrow(() -> new PaymentProfileException(
                         PaymentProfileErrorCode.NOT_FOUND,

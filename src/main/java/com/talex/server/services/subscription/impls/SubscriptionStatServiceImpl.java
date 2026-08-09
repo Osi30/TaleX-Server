@@ -4,8 +4,15 @@ import com.talex.server.dtos.revenue.request.RuleXCalculationRequestDto;
 import com.talex.server.dtos.revenue.request.UserStreamRequestDto;
 import com.talex.server.dtos.revenue.response.RuleXCalculationResponseDto;
 import com.talex.server.dtos.revenue.response.UserAllocationDto;
-import com.talex.server.entities.subscription.AccountSubscription;
-import com.talex.server.entities.subscription.SubscriptionStat;
+import com.talex.server.entities.config.SyncMetadata;
+import com.talex.server.entities.creator.Creator;
+import com.talex.server.entities.interaction.WatchSession;
+import com.talex.server.entities.subscription.*;
+import com.talex.server.enums.SyncType;
+import com.talex.server.records.WatchSessionResponseDto;
+import com.talex.server.repositories.SyncMetadataRepository;
+import com.talex.server.repositories.interaction.WatchSessionRepository;
+import com.talex.server.repositories.subscription.SubscriptionResultRepository;
 import com.talex.server.repositories.subscription.SubscriptionStatRepository;
 import com.talex.server.services.subscription.SubscriptionStatService;
 import jakarta.persistence.EntityManager;
@@ -14,7 +21,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 
@@ -22,6 +31,9 @@ import java.util.*;
 @Service
 @RequiredArgsConstructor
 public class SubscriptionStatServiceImpl implements SubscriptionStatService {
+    private final SubscriptionResultRepository subscriptionResultRepository;
+    private final SyncMetadataRepository syncMetadataRepository;
+    private final WatchSessionRepository watchSessionRepository;
     private final SubscriptionStatRepository subscriptionStatRepository;
     private final EntityManager entityManager;
 
@@ -29,34 +41,93 @@ public class SubscriptionStatServiceImpl implements SubscriptionStatService {
     private static final int MAX_BINARY_SEARCH_ITERATIONS = 100;
     private static final String KEY_SEPARATOR = "::";
 
+    @Override
     @Transactional
-    public void upsertSubscriptionStat(UUID accountId, String creatorId, LocalDateTime startTime) {
-        if (accountId == null || creatorId == null || startTime == null) {
+    public int processSubscriptionStats() {
+        // 1. Lấy mốc thời gian quét gần nhất từ SyncMetadata
+        SyncMetadata syncMetadata = syncMetadataRepository.findById(SyncType.SUBSCRIPTION_STAT)
+                .orElse(SyncMetadata.builder()
+                        .syncType(SyncType.SUBSCRIPTION_STAT)
+                        .lastSyncTime(null)
+                        .build());
+
+        LocalDateTime lastSyncLocalDateTime = null;
+        if (syncMetadata.getLastSyncTime() != null) {
+            lastSyncLocalDateTime = LocalDateTime.ofInstant(syncMetadata.getLastSyncTime(), ZoneId.systemDefault());
+        }
+
+        Instant currentSyncTime = Instant.now();
+
+        // 2. Lấy danh sách watch session thỏa mãn thời lượng và thời gian chưa quét
+        List<WatchSessionResponseDto> validSessions = watchSessionRepository
+                .findSessionsByMinWatchDurationAndStartTime(5.0, lastSyncLocalDateTime);
+
+        if (validSessions.isEmpty()) {
+            log.info("No new valid watch sessions found since last sync: {}", lastSyncLocalDateTime);
+            // Cập nhật lại thời gian sync hiện tại ngay cả khi không có record
+            syncMetadata.setLastSyncTime(currentSyncTime);
+            syncMetadataRepository.save(syncMetadata);
+            return 0;
+        }
+
+        int processedCount = 0;
+
+        // 3. Duyệt và upsert từng session
+        for (WatchSessionResponseDto session : validSessions) {
+            if (session.accountId() == null) {
+                continue;
+            }
+
+            try {
+                upsertSubscriptionStat(
+                        session.accountId(),
+                        session.creatorId(),
+                        session.episodeId(),
+                        session.startTime()
+                );
+                processedCount++;
+            } catch (Exception e) {
+                log.error("Error processing subscription stat for watchSessionId: {}", session.watchSessionId(), e);
+            }
+        }
+
+        // 4. Cập nhật thời gian quét mới vào SyncMetadata
+        syncMetadata.setLastSyncTime(currentSyncTime);
+        syncMetadataRepository.save(syncMetadata);
+
+        log.info("Completed processing subscription stats. Processed {} valid sessions.", processedCount);
+        return processedCount;
+    }
+
+    @Override
+    @Transactional
+    public void upsertSubscriptionStat(UUID accountId, String creatorId, String episodeId, LocalDateTime startTime) {
+        if (accountId == null || creatorId == null || episodeId == null || startTime == null) {
             return;
         }
 
-        // 1. Kiểm tra startTime có nằm trong khoảng start_time và end_time của AccountSub hay không
+        // 1. Kiểm tra startTime có nằm trong khoảng gia hạn hợp lệ của AccountSub
         String activeSubId = subscriptionStatRepository.findActiveAccountSubId(accountId, startTime)
                 .orElse(null);
 
         if (activeSubId == null) {
-            // Không nằm trong thời gian gia hạn subscription hợp lệ
             return;
         }
 
-        // 2. Lấy monthYear (định dạng "YYYY-MM") từ startTime
+        // 2. Lấy monthYear (YYYY-MM)
         String monthYear = startTime.format(MONTH_YEAR_FORMATTER);
 
-        // 3. Thử atomic update (+1 view)
-        int rowsUpdated = subscriptionStatRepository.incrementViews(activeSubId, creatorId, monthYear);
+        // 3. Thử atomic update (+1 view) kèm theo episodeId
+        int rowsUpdated = subscriptionStatRepository.incrementViews(activeSubId, creatorId, episodeId, monthYear);
 
-        // 4. Nếu chưa tồn tại record trong tháng đó, tiến hành INSERT
+        // 4. Nếu chưa có record thì tạo mới
         if (rowsUpdated == 0) {
             AccountSubscription subRef = entityManager.getReference(AccountSubscription.class, activeSubId);
 
             SubscriptionStat newStat = SubscriptionStat.builder()
                     .accountSubscription(subRef)
                     .creatorId(creatorId)
+                    .episodeId(episodeId)
                     .monthYear(monthYear)
                     .views(1L)
                     .build();
@@ -67,7 +138,6 @@ public class SubscriptionStatServiceImpl implements SubscriptionStatService {
 
     @Override
     public RuleXCalculationResponseDto calculateRuleX(RuleXCalculationRequestDto request) {
-        double alpha = request.getAlpha() != null ? request.getAlpha() : 1.0;
         double subscriptionFee = request.getSubscriptionFee() != null ? request.getSubscriptionFee() : 1.0;
         List<UserStreamRequestDto> users = request.getUsers();
 
@@ -79,11 +149,107 @@ public class SubscriptionStatServiceImpl implements SubscriptionStatService {
         List<Long> vList = normalizeAndCalculateUserStreams(users);
 
         // Bước 2: Giải thuật Binary Search tìm Gamma (γ)
+        double alpha = 1.0;
         double targetBudgetRatio = alpha * users.size();
         double gamma = solveGamma(vList, targetBudgetRatio);
 
         // Bước 3: Phân bổ ngân sách & Làm tròn số dư lớn nhất ở cấp độ Episode
         return processUserAllocations(users, gamma, subscriptionFee, alpha);
+    }
+
+    @Override
+    public RuleXCalculationRequestDto getRuleXRequestFromStats(String monthYear, Subscription subscription) {
+        List<Object[]> results = subscriptionStatRepository.findGroupedStatsByMonthYear(monthYear, subscription.getSubscriptionId());
+
+        // Map cấu trúc: userId -> creatorId -> episodeId -> views
+        Map<String, Map<String, Map<String, Long>>> userMap = new LinkedHashMap<>();
+
+        for (Object[] row : results) {
+            Object accountIdObj = row[0];
+            String userId = accountIdObj != null ? accountIdObj.toString() : "unknown_user";
+            String creatorId = (String) row[1];
+            String episodeId = (String) row[2];
+            Long views = (Long) row[3];
+
+            userMap.computeIfAbsent(userId, k -> new LinkedHashMap<>())
+                    .computeIfAbsent(creatorId, k -> new LinkedHashMap<>())
+                    .put(episodeId, views != null ? views : 0L);
+        }
+
+        List<UserStreamRequestDto> userDtos = new ArrayList<>();
+        for (Map.Entry<String, Map<String, Map<String, Long>>> entry : userMap.entrySet()) {
+            userDtos.add(UserStreamRequestDto.builder()
+                    .userId(entry.getKey())
+                    .artistEpisodeStreams(entry.getValue())
+                    .build());
+        }
+
+        return RuleXCalculationRequestDto.builder()
+                .subscriptionFee(subscription.getPrice().doubleValue())
+                .users(userDtos)
+                .build();
+    }
+
+    @Override
+    @Transactional
+    public SubscriptionResult calculateAndSaveRevenue(
+            String monthYear,
+            Subscription subscription,
+            boolean isDemo
+    ) {
+        // 1. Tự động chuyển đổi dữ liệu lượt xem trong DB stats thành RuleXCalculationRequestDto
+        RuleXCalculationRequestDto requestDto = getRuleXRequestFromStats(monthYear, subscription);
+
+        // 2. Thực hiện giải thuật tính toán Rule X
+        RuleXCalculationResponseDto response = calculateRuleX(requestDto);
+
+        // 3. Trích xuất mapping episodeId -> creatorId từ requestDto
+        Map<String, String> episodeToCreatorMap = new HashMap<>();
+        if (requestDto.getUsers() != null) {
+            for (UserStreamRequestDto user : requestDto.getUsers()) {
+                if (user.getArtistEpisodeStreams() != null) {
+                    user.getArtistEpisodeStreams().forEach((creatorId, epMap) -> {
+                        if (epMap != null) {
+                            epMap.keySet().forEach(episodeId -> episodeToCreatorMap.put(episodeId, creatorId));
+                        }
+                    });
+                }
+            }
+        }
+
+        // 5. Tạo Entity SubscriptionResult
+        SubscriptionResult resultEntity = SubscriptionResult.builder()
+                .subscription(subscription)
+                .gamma(response.getGamma())
+                .targetBudget(response.getTargetBudget())
+                .calculatedBudget(response.getCalculatedBudget())
+                .monthYear(monthYear)
+                .revenueLogs(new ArrayList<>())
+                .build();
+
+        // 6. Chuyển đổi episodePayouts thành danh sách SubscriptionRevenueLog
+        if (response.getEpisodePayouts() != null) {
+            response.getEpisodePayouts().forEach((episodeId, revenue) -> {
+                String creatorId = episodeToCreatorMap.getOrDefault(episodeId, "unknown");
+
+                SubscriptionRevenueLog logEntity = SubscriptionRevenueLog.builder()
+                        .subscriptionResult(resultEntity)
+                        .episodeId(episodeId)
+                        .creatorId(creatorId)
+                        .revenue(revenue)
+                        .monthYear(monthYear)
+                        .build();
+
+                resultEntity.getRevenueLogs().add(logEntity);
+            });
+        }
+
+        // 7. Lưu vào cơ sở dữ liệu (Cascade.ALL sẽ tự động lưu danh sách revenueLogs)
+        if (!isDemo) subscriptionResultRepository.save(resultEntity);
+
+        log.info("Saved subscription result and revenue logs for subscriptionId: {}, monthYear: {}", subscription.getSubscriptionId(), monthYear);
+
+        return resultEntity;
     }
 
     // =========================================================================

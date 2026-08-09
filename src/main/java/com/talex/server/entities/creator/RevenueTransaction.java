@@ -1,5 +1,6 @@
 package com.talex.server.entities.creator;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.talex.server.enums.creator.RevenueTransactionType;
 import com.talex.server.enums.transaction.ReferenceType;
 import jakarta.persistence.*;
@@ -52,6 +53,7 @@ public class RevenueTransaction {
     @Column(name = "reference_id")
     private String referenceId;
 
+    @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "creator_id", nullable = false)
     private Creator creator;

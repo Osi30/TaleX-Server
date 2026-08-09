@@ -13,11 +13,9 @@ import com.talex.server.services.recommend.SeriesChannelService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.*;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Async;
@@ -376,9 +374,9 @@ public class RecommendationServiceImpl implements RecommendationService {
 
             ResponseEntity<List<RankResultItem>> response = isolatedRestTemplate.exchange(
                     pythonApi + AI_SERVICE_RANK_URL,
-                    org.springframework.http.HttpMethod.POST,
+                    HttpMethod.POST,
                     entity,
-                    new org.springframework.core.ParameterizedTypeReference<List<RankResultItem>>() {
+                    new ParameterizedTypeReference<>() {
                     }
             );
 

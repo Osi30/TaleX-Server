@@ -1,5 +1,6 @@
 package com.talex.server.entities.creator;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.talex.server.enums.transaction.SettlementStatus;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -42,6 +43,7 @@ public class CreatorMonthlySettlement {
     @Column(name = "status")
     private SettlementStatus status;
 
+    @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "creator_id", nullable = false)
     private Creator creator;

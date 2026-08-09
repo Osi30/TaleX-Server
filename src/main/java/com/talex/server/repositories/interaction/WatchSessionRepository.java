@@ -75,13 +75,19 @@ public interface WatchSessionRepository extends JpaRepository<WatchSession, Stri
 
     @Query("SELECT new com.talex.server.records.WatchSessionResponseDto(" +
             "    ws.id, " +
-            "    a.accountId, " +
-            "    e.creatorId, " +
-            "    ws.startTime" +
+            "    ws.account.accountId, " +
+            "    ws.episode.creatorId, " +
+            "    ws.episode.episodeId, " +
+            "    ws.startTime " +
             ") " +
             "FROM WatchSession ws " +
-            "LEFT JOIN ws.account a " +
-            "JOIN ws.episode e " +
-            "WHERE ws.watchDuration >= :minDuration")
-    List<WatchSessionResponseDto> findSessionsByMinWatchDuration(@Param("minDuration") Double minDuration);
+            "WHERE ws.watchDuration >= :minDuration " +
+            "  AND ws.episode.season.series.creator.account.role.roleName = 'CREATOR' " +
+            "  AND ws.episode.season.series.creator.account.status = 'ACTIVE' " +
+            "  AND ws.episode.season.series.creator.isBanned = false " +
+            "  AND (cast(:lastSyncTime as timestamp) IS NULL OR ws.startTime >= :lastSyncTime)")
+    List<WatchSessionResponseDto> findSessionsByMinWatchDurationAndStartTime(
+            @Param("minDuration") Double minDuration,
+            @Param("lastSyncTime") LocalDateTime lastSyncTime
+    );
 }

@@ -1,6 +1,7 @@
 package com.talex.server.repositories.creator;
 
 import com.talex.server.entities.creator.PaymentProfile;
+import com.talex.server.enums.creator.PaymentProfileStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Modifying;
@@ -18,14 +19,13 @@ public interface PaymentProfileRepository
 
     Optional<PaymentProfile> findByPaymentProfileIdAndIsDeletedFalse(String id);
 
-    Optional<PaymentProfile> findByCreator_Account_AccountIdAndIsPrimaryTrueAndIsDeletedFalse(UUID accountId);
+    Optional<PaymentProfile> findByCreator_Account_AccountIdAndIsPrimaryTrueAndIsDeletedFalseAndStatus(
+            UUID accountId, PaymentProfileStatus status
+    );
 
     List<PaymentProfile> findByCreator_Account_AccountIdAndIsDeletedFalse(UUID accountId);
 
     @Modifying
     @Query("UPDATE PaymentProfile pp SET pp.isPrimary = false WHERE pp.creator.creatorId = :creatorId AND pp.paymentProfileId <> :id")
     void unsetOtherPrimary(@Param("creatorId") String creatorId, @Param("id") String id);
-
-    @Query("SELECT COUNT(pp) FROM PaymentProfile pp WHERE pp.creator.creatorId = :creatorId")
-    long countByCreatorId(@Param("creatorId") String creatorId);
 }

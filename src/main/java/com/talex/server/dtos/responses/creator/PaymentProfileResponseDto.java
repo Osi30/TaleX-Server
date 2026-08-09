@@ -1,6 +1,7 @@
 package com.talex.server.dtos.responses.creator;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.talex.server.enums.BankBin;
 import com.talex.server.enums.creator.PaymentProfileStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -15,7 +16,7 @@ import java.time.LocalDateTime;
 @Builder
 public class PaymentProfileResponseDto {
     private String paymentProfileId;
-    private String bankCode;
+    private BankBin bankCode;
     private String accountNumber;
     private String accountName;
     private Boolean isPrimary;

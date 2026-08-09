@@ -1,5 +1,6 @@
 package com.talex.server.entities.creator;
 
+import com.talex.server.enums.BankBin;
 import com.talex.server.enums.creator.PaymentProfileStatus;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -23,7 +24,8 @@ public class PaymentProfile {
     private String paymentProfileId;
 
     @Column(name = "bank_code", length = 50)
-    private String bankCode;
+    @Enumerated(EnumType.STRING)
+    private BankBin bankCode;
 
     @Column(name = "account_number", length = 50)
     private String accountNumber;
@@ -31,7 +33,7 @@ public class PaymentProfile {
     @Column(name = "account_name", length = 200)
     private String accountName;
 
-    @Column(name = "is_primary", unique = true)
+    @Column(name = "is_primary")
     private Boolean isPrimary = false;
 
     @Column(name = "is_deleted")

@@ -8,6 +8,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -32,11 +33,23 @@ public interface SubscriptionStatRepository extends JpaRepository<SubscriptionSt
     @Query("UPDATE SubscriptionStat s " +
             "SET s.views = s.views + 1 " +
             "WHERE s.accountSubscription.accountSubscriptionId = :accountSubId " +
-            "AND s.creatorId = :creatorId " +
-            "AND s.monthYear = :monthYear")
+            "  AND s.creatorId = :creatorId " +
+            "  AND s.episodeId = :episodeId " +
+            "  AND s.monthYear = :monthYear")
     int incrementViews(
             @Param("accountSubId") String accountSubId,
             @Param("creatorId") String creatorId,
+            @Param("episodeId") String episodeId,
             @Param("monthYear") String monthYear
+    );
+
+    @Query("SELECT s.accountSubscription.account.accountId, s.creatorId, s.episodeId, SUM(s.views) " +
+            "FROM SubscriptionStat s " +
+            "WHERE s.monthYear = :monthYear " +
+            "AND s.accountSubscription.subscription.subscriptionId = :subscriptionId " +
+            "GROUP BY s.accountSubscription.account.accountId, s.creatorId, s.episodeId")
+    List<Object[]> findGroupedStatsByMonthYear(
+            @Param("monthYear") String monthYear,
+            @Param("subscriptionId") String subscriptionId
     );
 }

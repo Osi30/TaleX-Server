@@ -7,5 +7,6 @@ public record WatchSessionResponseDto(
         String watchSessionId,
         UUID accountId,
         String creatorId,
+        String episodeId,
         LocalDateTime startTime
 ) {}
