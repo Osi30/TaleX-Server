@@ -72,4 +72,15 @@ public class MediaResponseDto {
     private Boolean isDeleted;
     private String contentId;
     private String copyrightId;
+    // Chỉ set ở danh sách kiểm duyệt (listPendingReview/listApproved) — số Media khác trong
+    // CÙNG episode này khớp cùng bộ filter đang áp dụng, để FE hiện badge thay vì lặp lại
+    // từng Media của 1 episode thành nhiều card riêng (episode đã group ở tầng BE).
+    private Integer episodeMediaCount;
+    // Các field dưới đây chỉ set ở danh sách kiểm duyệt (listPendingReview/listApproved) —
+    // Staff/Admin cần biết nội dung thuộc episode/season/series/creator nào để duyệt/ép ẩn
+    // đúng, tránh phải tra episodeId thủ công.
+    private String episodeTitle;
+    private String seasonTitle;
+    private String seriesTitle;
+    private String creatorUsername;
 }

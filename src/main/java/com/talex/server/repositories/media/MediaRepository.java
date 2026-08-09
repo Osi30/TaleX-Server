@@ -143,15 +143,109 @@ public interface MediaRepository extends JpaRepository<Media, String> {
             MediaType mediaType,
             MediaStatus status);
 
-    // Paginated query for staff moderation — lists media awaiting review
-    Page<Media> findByApprovalStatusAndStatusAndIsDeletedFalse(
-            ContentApprovalStatus approvalStatus, MediaStatus status, Pageable pageable);
+    // Danh sách kiểm duyệt phân trang theo EPISODE, khong theo Media rieng le - 1 episode
+    // (VD comic nhieu trang) co the co hang chuc Media cung approvalStatus, phan trang tho
+    // theo Media se lam 1 episode bi cat rai ra nhieu trang khac nhau, FE thay episode do
+    // "xuat hien lai" o trang sau voi so luong khac (da gap bug nay thuc te). Moi filter
+    // gom 2 method: 1) lay trang cac episodeId DUY NHAT (Step 1, dung de phan trang that),
+    // 2) lay toan bo Media cua dung batch episodeId do (Step 2, dung o tang service de chon
+    // media dai dien + dem so luong that trong tung episode).
+    // mediaType nullable - dung nguyen literal null trong JPQL de 1 query xu ly duoc ca
+    // "khong loc theo loai" (mediaType = null) lan "loc dung 1 loai" (IMAGE/VIDEO).
 
-    // "Đã duyệt" tab — cho Staff/Admin xem lại nội dung đã duyệt để phát hiện lỡ bấm nhầm,
-    // có thể ép ẩn (forceHide) nếu cần. Gồm cả FORCE_HIDDEN để admin thấy những gì mình đã
-    // ép ẩn trước đó (và có thể bỏ ép ẩn lại), không chỉ ACTIVE/HLS_READY đang hiển thị công khai.
-    Page<Media> findByApprovalStatusAndStatusInAndIsDeletedFalse(
-            ContentApprovalStatus approvalStatus, Collection<MediaStatus> statuses, Pageable pageable);
+    // Tab "Chờ duyệt" — KHÔNG group theo episode (khác các query "Đã duyệt" bên dưới): Duyệt/
+    // Từ chối tác động lên TỪNG Media riêng lẻ, group sẽ làm Staff không thấy được các media
+    // khác cùng episode cần duyệt riêng. Sort lấy từ Pageable (Sort.by createdAt DESC ở
+    // MediaServiceImpl.listPendingReview()).
+    @Query("SELECT m FROM Media m WHERE m.approvalStatus = :approvalStatus AND m.status = :status "
+            + "AND m.isDeleted = false AND (:mediaType IS NULL OR m.mediaType = :mediaType)")
+    Page<Media> findPendingReviewMedia(
+            @Param("approvalStatus") ContentApprovalStatus approvalStatus,
+            @Param("status") MediaStatus status,
+            @Param("mediaType") MediaType mediaType,
+            Pageable pageable);
+
+    // "Đã duyệt" tab, filter "all" — cho Staff/Admin xem lại nội dung đã duyệt để phát hiện
+    // lỡ bấm nhầm, có thể ép ẩn (forceHide) nếu cần. Gồm cả FORCE_HIDDEN để admin thấy những
+    // gì mình đã ép ẩn trước đó (và có thể bỏ ép ẩn lại), không chỉ ACTIVE/HLS_READY.
+    @Query(value = "SELECT m.episode.episodeId FROM Media m WHERE m.approvalStatus = :approvalStatus "
+            + "AND m.status IN :statuses AND m.isDeleted = false AND (:mediaType IS NULL OR m.mediaType = :mediaType) "
+            + "GROUP BY m.episode.episodeId ORDER BY MAX(m.approvalReviewedAt) DESC",
+            countQuery = "SELECT COUNT(DISTINCT m.episode.episodeId) FROM Media m "
+                    + "WHERE m.approvalStatus = :approvalStatus AND m.status IN :statuses AND m.isDeleted = false "
+                    + "AND (:mediaType IS NULL OR m.mediaType = :mediaType)")
+    Page<String> findDistinctApprovedEpisodeIds(
+            @Param("approvalStatus") ContentApprovalStatus approvalStatus,
+            @Param("statuses") Collection<MediaStatus> statuses,
+            @Param("mediaType") MediaType mediaType,
+            Pageable pageable);
+
+    @Query("SELECT m FROM Media m WHERE m.episode.episodeId IN :episodeIds "
+            + "AND m.approvalStatus = :approvalStatus AND m.status IN :statuses AND m.isDeleted = false "
+            + "AND (:mediaType IS NULL OR m.mediaType = :mediaType)")
+    List<Media> findApprovedMediaByEpisodeIds(
+            @Param("episodeIds") Collection<String> episodeIds,
+            @Param("approvalStatus") ContentApprovalStatus approvalStatus,
+            @Param("statuses") Collection<MediaStatus> statuses,
+            @Param("mediaType") MediaType mediaType);
+
+    // Filter con của tab "Đã duyệt" — phân biệt nội dung Staff/Admin TỰ TAY duyệt (từng bị
+    // pipeline flag vi phạm, đưa vào PENDING_REVIEW) với nội dung pipeline TỰ ĐỘNG duyệt vì
+    // không vi phạm gì. approvalReviewedBy KHÔNG đủ để phân biệt 1 mình — pipeline cũng tự
+    // ghi giá trị actorId hệ thống (xem ContentPipelineServiceImpl.PIPELINE_ACTOR) vào field
+    // này khi tự duyệt sạch, nên phải loại trừ đúng giá trị đó mới ra được người thật.
+    @Query(value = "SELECT m.episode.episodeId FROM Media m WHERE m.approvalStatus = :approvalStatus "
+            + "AND m.status IN :statuses AND m.isDeleted = false AND m.approvalReviewedBy IS NOT NULL "
+            + "AND m.approvalReviewedBy <> :pipelineActor AND (:mediaType IS NULL OR m.mediaType = :mediaType) "
+            + "GROUP BY m.episode.episodeId ORDER BY MAX(m.approvalReviewedAt) DESC",
+            countQuery = "SELECT COUNT(DISTINCT m.episode.episodeId) FROM Media m "
+                    + "WHERE m.approvalStatus = :approvalStatus AND m.status IN :statuses AND m.isDeleted = false "
+                    + "AND m.approvalReviewedBy IS NOT NULL AND m.approvalReviewedBy <> :pipelineActor "
+                    + "AND (:mediaType IS NULL OR m.mediaType = :mediaType)")
+    Page<String> findDistinctManuallyApprovedEpisodeIds(
+            @Param("approvalStatus") ContentApprovalStatus approvalStatus,
+            @Param("statuses") Collection<MediaStatus> statuses,
+            @Param("pipelineActor") String pipelineActor,
+            @Param("mediaType") MediaType mediaType,
+            Pageable pageable);
+
+    @Query("SELECT m FROM Media m WHERE m.episode.episodeId IN :episodeIds "
+            + "AND m.approvalStatus = :approvalStatus AND m.status IN :statuses AND m.isDeleted = false "
+            + "AND m.approvalReviewedBy IS NOT NULL AND m.approvalReviewedBy <> :pipelineActor "
+            + "AND (:mediaType IS NULL OR m.mediaType = :mediaType)")
+    List<Media> findManuallyApprovedMediaByEpisodeIds(
+            @Param("episodeIds") Collection<String> episodeIds,
+            @Param("approvalStatus") ContentApprovalStatus approvalStatus,
+            @Param("statuses") Collection<MediaStatus> statuses,
+            @Param("pipelineActor") String pipelineActor,
+            @Param("mediaType") MediaType mediaType);
+
+    @Query(value = "SELECT m.episode.episodeId FROM Media m WHERE m.approvalStatus = :approvalStatus "
+            + "AND m.status IN :statuses AND m.isDeleted = false "
+            + "AND (m.approvalReviewedBy IS NULL OR m.approvalReviewedBy = :pipelineActor) "
+            + "AND (:mediaType IS NULL OR m.mediaType = :mediaType) "
+            + "GROUP BY m.episode.episodeId ORDER BY MAX(m.approvalReviewedAt) DESC",
+            countQuery = "SELECT COUNT(DISTINCT m.episode.episodeId) FROM Media m "
+                    + "WHERE m.approvalStatus = :approvalStatus AND m.status IN :statuses AND m.isDeleted = false "
+                    + "AND (m.approvalReviewedBy IS NULL OR m.approvalReviewedBy = :pipelineActor) "
+                    + "AND (:mediaType IS NULL OR m.mediaType = :mediaType)")
+    Page<String> findDistinctAutoApprovedEpisodeIds(
+            @Param("approvalStatus") ContentApprovalStatus approvalStatus,
+            @Param("statuses") Collection<MediaStatus> statuses,
+            @Param("pipelineActor") String pipelineActor,
+            @Param("mediaType") MediaType mediaType,
+            Pageable pageable);
+
+    @Query("SELECT m FROM Media m WHERE m.episode.episodeId IN :episodeIds "
+            + "AND m.approvalStatus = :approvalStatus AND m.status IN :statuses AND m.isDeleted = false "
+            + "AND (m.approvalReviewedBy IS NULL OR m.approvalReviewedBy = :pipelineActor) "
+            + "AND (:mediaType IS NULL OR m.mediaType = :mediaType)")
+    List<Media> findAutoApprovedMediaByEpisodeIds(
+            @Param("episodeIds") Collection<String> episodeIds,
+            @Param("approvalStatus") ContentApprovalStatus approvalStatus,
+            @Param("statuses") Collection<MediaStatus> statuses,
+            @Param("pipelineActor") String pipelineActor,
+            @Param("mediaType") MediaType mediaType);
 
     // Reconcile fallback cho content pipeline (copyright/kiểm duyệt) bị "mất tích" do gửi
     // Kafka thất bại không đồng bộ — status còn PENDING/HLS_PROCESSING/HLS_READY (chưa

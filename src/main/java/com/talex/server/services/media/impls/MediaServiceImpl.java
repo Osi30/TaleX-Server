@@ -9,12 +9,15 @@ import com.talex.server.dtos.requests.media.MediaUpdateRequestDto;
 import com.talex.server.dtos.responses.media.ContentCensorshipResponseDto;
 import com.talex.server.dtos.responses.media.MediaCopyrightResponseDto;
 import com.talex.server.dtos.responses.media.MediaResponseDto;
+import com.talex.server.dtos.responses.media.MediaSystemConfigResponseDto;
 import com.talex.server.dtos.responses.media.MediaViolationsResponseDto;
 import com.talex.server.dtos.responses.media.ViolationDetailResponseDto;
 import com.talex.server.dtos.responses.media.CreatorViolationsSummaryDto;
 import com.talex.server.entities.auth.Account;
+import com.talex.server.entities.creator.Creator;
 import com.talex.server.entities.media.ContentCensorship;
 import com.talex.server.entities.series.Episode;
+import com.talex.server.entities.series.Season;
 import com.talex.server.entities.media.Media;
 import com.talex.server.entities.media.MediaCopyright;
 import com.talex.server.enums.media.CensorshipStatus;
@@ -28,20 +31,24 @@ import com.talex.server.enums.media.MediaStatus;
 import com.talex.server.enums.media.MediaType;
 import com.talex.server.exceptions.details.ContentModuleException;
 import com.talex.server.repositories.auth.AccountRepository;
+import com.talex.server.repositories.creator.CreatorRepository;
 import com.talex.server.repositories.media.ContentCensorshipRepository;
 import com.talex.server.repositories.series.EpisodeRepository;
 import com.talex.server.repositories.media.MediaCopyrightRepository;
 import com.talex.server.repositories.media.MediaRepository;
+import com.talex.server.services.media.impls.ContentOwnershipService;
 import com.talex.server.services.media.ContentPipelineService;
 import com.talex.server.services.media.MediaPackagingService;
 import com.talex.server.services.media.MediaPlaybackSecurityService;
 import com.talex.server.services.media.MediaProviderService;
 import com.talex.server.services.media.MediaService;
+import com.talex.server.services.media.MediaSystemConfigService;
 import com.talex.server.services.series.EpisodeEntitlementService;
 import com.talex.server.services.series.EpisodeService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -81,6 +88,8 @@ public class MediaServiceImpl implements MediaService {
     private final ContentCensorshipRepository contentCensorshipRepository;
     private final ContentOwnershipService contentOwnershipService;
     private final AccountRepository accountRepository;
+    private final MediaSystemConfigService systemConfigService;
+    private final CreatorRepository creatorRepository;
     private final EpisodeEntitlementService episodeEntitlementService;
 
     private record PreparedMediaUrl(
@@ -116,6 +125,10 @@ public class MediaServiceImpl implements MediaService {
         }
         if (request == null || request.getPages() == null || request.getPages().isEmpty()) {
             throw ContentModuleException.badRequest("At least one comic page is required");
+        }
+        MediaSystemConfigResponseDto config = systemConfigService.getConfig();
+        if (request.getPages().size() > config.getMaxComicImages()) {
+            throw ContentModuleException.badRequest("Số lượng ảnh vượt quá giới hạn " + config.getMaxComicImages() + " ảnh");
         }
 
         List<Integer> resolvedOrders = resolveComicDisplayOrders(episode.getEpisodeId(), request.getPages());
@@ -177,7 +190,9 @@ public class MediaServiceImpl implements MediaService {
     public MediaResponseDto getById(String id, String accountId) {
         Media media = findActiveEntity(id);
         contentOwnershipService.assertCanView(media, accountId);
-        return toResponse(media);
+        // Dùng chung endpoint này cho cả "Xem nội dung gốc" (SourceMediaPreviewModal, Staff/
+        // Admin xem video source bị nghi trùng bản quyền) — xem lý do ký ở toAdminPreviewResponse().
+        return toAdminPreviewResponse(media);
     }
 
     @Transactional(readOnly = true)
@@ -625,33 +640,141 @@ public class MediaServiceImpl implements MediaService {
 
     @Transactional(readOnly = true)
     @Override
-    public Page<MediaResponseDto> listPendingReview(int page, int size) {
+    public Page<MediaResponseDto> listPendingReview(int page, int size, String mediaType) {
+        // KHÔNG group theo episode ở tab này — khác với listApproved() (force-hide/unhide
+        // tác động cả episode nên group được), Duyệt/Từ chối ở tab "Chờ duyệt" tác động lên
+        // TỪNG Media riêng lẻ (xem MediaController.approve/reject dùng media id). Nếu group,
+        // Staff sẽ không thấy được các media khác cùng episode cần duyệt riêng — mất nội
+        // dung cần kiểm duyệt, không chỉ là trùng lặp hiển thị.
         PageRequest pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        MediaType typeFilter = parseMediaTypeFilter(mediaType);
         // PENDING_REVIEW cũng là giá trị MẶC ĐỊNH của approvalStatus trước khi pipeline
         // từng chạy xong (xem Media.java) — nếu chỉ lọc theo approvalStatus, hàng đợi
         // Staff sẽ lẫn cả media đang xử lý dở (chưa có kết quả gì) với media THẬT SỰ bị
         // flag cần duyệt. BE chỉ set MediaStatus.INACTIVE khi chủ động flag nội dung
         // (xem ContentPipelineServiceImpl) — thêm điều kiện này để lọc đúng.
         return mediaRepository
-                .findByApprovalStatusAndStatusAndIsDeletedFalse(
-                        ContentApprovalStatus.PENDING_REVIEW, MediaStatus.INACTIVE, pageable)
-                .map(this::toResponse);
+                .findPendingReviewMedia(ContentApprovalStatus.PENDING_REVIEW, MediaStatus.INACTIVE,
+                        typeFilter, pageable)
+                .map(this::toAdminPreviewResponse);
+    }
+
+    // Phân trang theo EPISODE (không phải theo Media riêng lẻ) — 1 episode có thể có hàng
+    // chục Media (VD comic nhiều trang), phân trang thô theo Media sẽ cắt 1 episode rải ra
+    // nhiều trang, FE thấy episode đó "xuất hiện lại" ở trang sau với số lượng khác (bug
+    // thật đã gặp). Media đại diện = displayOrder nhỏ nhất (trang đầu/thumbnail của episode).
+    private Page<MediaResponseDto> groupByEpisode(Page<String> episodeIdsPage, List<Media> media) {
+        Map<String, List<Media>> byEpisode = media.stream()
+                .collect(Collectors.groupingBy(m -> m.getEpisode().getEpisodeId()));
+        List<MediaResponseDto> content = episodeIdsPage.getContent().stream()
+                .map(byEpisode::get)
+                .filter(group -> group != null && !group.isEmpty())
+                .map(group -> {
+                    Media representative = group.stream()
+                            .min(Comparator.comparing(
+                                    Media::getDisplayOrder, Comparator.nullsLast(Comparator.naturalOrder())))
+                            .orElse(group.get(0));
+                    MediaResponseDto dto = toAdminPreviewResponse(representative);
+                    dto.setEpisodeMediaCount(group.size());
+                    return dto;
+                })
+                .toList();
+        return new PageImpl<>(content, episodeIdsPage.getPageable(), episodeIdsPage.getTotalElements());
+    }
+
+    // "ALL"/null/giá trị không hợp lệ đều coi là không lọc — tránh 400 lặt vặt cho FE khi
+    // filter đang ở trạng thái mặc định "Tất cả".
+    private MediaType parseMediaTypeFilter(String mediaType) {
+        if (mediaType == null) {
+            return null;
+        }
+        try {
+            return MediaType.valueOf(mediaType.trim().toUpperCase());
+        } catch (IllegalArgumentException ex) {
+            return null;
+        }
+    }
+
+    // CloudFront distribution chứa source video (source/videos/...) bắt buộc signed URL
+    // (trusted key group) — originalUrl trong toResponse() luôn là URL trần, Staff/Admin
+    // mở "Chi tiết kiểm duyệt" bị 403 MissingKey không xem được video gốc. Chỉ ký riêng
+    // cho 2 endpoint admin duyệt nội dung (không đổi toResponse() dùng chung ở nơi khác,
+    // tránh ảnh hưởng ngoài ý muốn tới các luồng đã hoạt động đúng).
+    private MediaResponseDto toAdminPreviewResponse(Media media) {
+        MediaResponseDto dto = toResponse(media);
+        if (media.getMediaType() == MediaType.VIDEO && dto.getOriginalUrl() != null) {
+            dto.setOriginalUrl(
+                    mediaProviderService.signSingleUrl(dto.getOriginalUrl(), LocalDateTime.now().plusHours(1)));
+        }
+        enrichEpisodeContext(dto, media);
+        return dto;
+    }
+
+    // Staff/Admin duyệt cần biết nội dung thuộc episode/season/series/creator nào — episodeId
+    // thô không đủ để ra quyết định nhanh. Dùng chung cho cả tab "Chờ duyệt" và "Đã duyệt"
+    // (xem toAdminPreviewResponse).
+    private void enrichEpisodeContext(MediaResponseDto dto, Media media) {
+        Episode episode = media.getEpisode();
+        if (episode == null) {
+            return;
+        }
+        dto.setEpisodeTitle(episode.getTitle());
+        Season season = episode.getSeason();
+        if (season != null) {
+            dto.setSeasonTitle(season.getTitle());
+            if (season.getSeries() != null) {
+                dto.setSeriesTitle(season.getSeries().getTitle());
+            }
+        }
+        String creatorId = media.getCreatorId();
+        if (creatorId != null && !creatorId.isBlank()) {
+            dto.setCreatorUsername(
+                    creatorRepository.findById(creatorId)
+                            .map(Creator::getAccount)
+                            .map(Account::getUsername)
+                            .orElse("Tài khoản không xác định"));
+        }
     }
 
     private static final List<MediaStatus> APPROVED_TAB_STATUSES =
             List.of(MediaStatus.ACTIVE, MediaStatus.HLS_READY, MediaStatus.FORCE_HIDDEN);
 
+    // Phải khớp CHÍNH XÁC với ContentPipelineServiceImpl.PIPELINE_ACTOR — dùng để phân biệt
+    // "pipeline tự duyệt" (approvalReviewedBy = giá trị này) với "Staff/Admin tự tay duyệt"
+    // (approvalReviewedBy = accountId thật) ở filter "manual"/"clean" bên dưới.
+    private static final String PIPELINE_REVIEWER_ACTOR = "content-pipeline";
+
     @Transactional(readOnly = true)
     @Override
-    public Page<MediaResponseDto> listApproved(int page, int size) {
-        // Sắp theo approvalReviewedAt (lượt duyệt gần nhất lên đầu) — mục đích tab này là
-        // Staff/Admin rà lại các quyết định VỪA duyệt để phát hiện lỡ bấm nhầm, không phải
-        // duyệt toàn bộ lịch sử theo thời gian tạo.
-        PageRequest pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "approvalReviewedAt"));
-        return mediaRepository
-                .findByApprovalStatusAndStatusInAndIsDeletedFalse(
-                        ContentApprovalStatus.APPROVED, APPROVED_TAB_STATUSES, pageable)
-                .map(this::toResponse);
+    public Page<MediaResponseDto> listApproved(int page, int size, String reviewFilter, String mediaType) {
+        // Sắp theo approvalReviewedAt (lượt duyệt gần nhất lên đầu, xem ORDER BY trong query
+        // ở repository) — mục đích tab này là Staff/Admin rà lại các quyết định VỪA duyệt để
+        // phát hiện lỡ bấm nhầm, không phải duyệt toàn bộ lịch sử theo thời gian tạo.
+        PageRequest pageable = PageRequest.of(page, size);
+        MediaType typeFilter = parseMediaTypeFilter(mediaType);
+        Page<String> episodeIdsPage;
+        List<Media> media;
+        if ("manual".equals(reviewFilter)) {
+            episodeIdsPage = mediaRepository.findDistinctManuallyApprovedEpisodeIds(
+                    ContentApprovalStatus.APPROVED, APPROVED_TAB_STATUSES, PIPELINE_REVIEWER_ACTOR,
+                    typeFilter, pageable);
+            media = mediaRepository.findManuallyApprovedMediaByEpisodeIds(
+                    episodeIdsPage.getContent(), ContentApprovalStatus.APPROVED, APPROVED_TAB_STATUSES,
+                    PIPELINE_REVIEWER_ACTOR, typeFilter);
+        } else if ("clean".equals(reviewFilter)) {
+            episodeIdsPage = mediaRepository.findDistinctAutoApprovedEpisodeIds(
+                    ContentApprovalStatus.APPROVED, APPROVED_TAB_STATUSES, PIPELINE_REVIEWER_ACTOR,
+                    typeFilter, pageable);
+            media = mediaRepository.findAutoApprovedMediaByEpisodeIds(
+                    episodeIdsPage.getContent(), ContentApprovalStatus.APPROVED, APPROVED_TAB_STATUSES,
+                    PIPELINE_REVIEWER_ACTOR, typeFilter);
+        } else {
+            episodeIdsPage = mediaRepository.findDistinctApprovedEpisodeIds(
+                    ContentApprovalStatus.APPROVED, APPROVED_TAB_STATUSES, typeFilter, pageable);
+            media = mediaRepository.findApprovedMediaByEpisodeIds(
+                    episodeIdsPage.getContent(), ContentApprovalStatus.APPROVED, APPROVED_TAB_STATUSES, typeFilter);
+        }
+        return groupByEpisode(episodeIdsPage, media);
     }
 
     @Override
@@ -776,15 +899,16 @@ public class MediaServiceImpl implements MediaService {
         if (sourceCreatorId == null || sourceCreatorId.isBlank()) {
             return;
         }
-        try {
-            builder.sourceCreatorUsername(
-                    accountRepository.findById(UUID.fromString(sourceCreatorId))
-                            .map(Account::getUsername)
-                            .orElse("Tài khoản không xác định"));
-        } catch (IllegalArgumentException e) {
-            // creatorId cũ không đúng định dạng UUID — không throw, chỉ bỏ qua field này.
-            log.warn("Invalid creatorId format on sourceMedia: {}", sourceCreatorId);
-        }
+        // sourceCreatorId là Creator entity id (media.getCreatorId()), KHÔNG phải accountId
+        // — trước đây tra thẳng vào AccountRepository bằng ID này nên luôn miss (2 bảng
+        // khác nhau), hiển thị nhầm "Tài khoản không xác định" cho mọi trường hợp. Phải đi
+        // qua Creator -> Account mới đúng, giống pattern đã áp dụng ở EpisodeServiceImpl
+        // khi resolve accountId để gửi notification.
+        builder.sourceCreatorUsername(
+                creatorRepository.findById(sourceCreatorId)
+                        .map(Creator::getAccount)
+                        .map(Account::getUsername)
+                        .orElse("Tài khoản không xác định"));
     }
 
     private ContentCensorshipResponseDto mapCensorshipToDto(ContentCensorship entity) {

@@ -179,8 +179,9 @@ public class MediaController {
     @PreAuthorize("hasAnyRole('STAFF', 'ADMIN')")
     public ResponseEntity<BaseResponse> listPendingReview(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(response(200, "OK", mediaService.listPendingReview(page, size)));
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String mediaType) {
+        return ResponseEntity.ok(response(200, "OK", mediaService.listPendingReview(page, size, mediaType)));
     }
 
     // Paginated list of already-approved media — cho Staff/Admin rà lại quyết định vừa
@@ -189,8 +190,10 @@ public class MediaController {
     @PreAuthorize("hasAnyRole('STAFF', 'ADMIN')")
     public ResponseEntity<BaseResponse> listApproved(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(response(200, "OK", mediaService.listApproved(page, size)));
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String filter,
+            @RequestParam(required = false) String mediaType) {
+        return ResponseEntity.ok(response(200, "OK", mediaService.listApproved(page, size, filter, mediaType)));
     }
 
     @PutMapping("/api/v1/media/{id}")

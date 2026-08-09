@@ -94,6 +94,7 @@ public class InvoiceServiceImpl implements IInvoiceService {
                     .orElseThrow(() -> new IllegalStateException("Order not found for invoice " + invoice.getInvoiceId()));
             SePayProviderAccountDetailDto providerAccount = eInvoiceClient.resolveDefaultProviderAccount();
             SePayCreateInvoiceRequestDto request = buildCreateInvoiceRequest(order, invoice.getTransaction(), providerAccount);
+            log.info("SePay eInvoice create request for invoice {}: {}", invoice.getInvoiceId(), request);
             SePayCreateInvoiceResponseDataDto response = eInvoiceClient.createInvoice(request);
 
             if (response == null || response.getTrackingCode() == null) {
@@ -215,7 +216,12 @@ public class InvoiceServiceImpl implements IInvoiceService {
                 .build();
 
         SePayInvoiceBuyerDto buyer = SePayInvoiceBuyerDto.builder()
+                .type("personal")
                 .name(account.getFullName() != null ? account.getFullName() : account.getUsername())
+                // TaleX không thu thập tax_code/address của user — gửi rỗng thay vì bỏ hẳn
+                // field (xem giải thích ở SePayInvoiceBuyerDto).
+                .taxCode("")
+                .address("")
                 .email(account.getEmail())
                 .phone(account.getPhone())
                 .build();

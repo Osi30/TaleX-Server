@@ -9,6 +9,8 @@ import com.talex.server.entities.media.MediaUploadSession;
 import com.talex.server.enums.media.MediaProvider;
 import com.talex.server.services.media.MediaPackagingService;
 import com.talex.server.services.media.MediaProviderService;
+import com.talex.server.services.media.MediaSystemConfigService;
+import com.talex.server.dtos.responses.media.MediaSystemConfigResponseDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Primary;
@@ -25,6 +27,7 @@ public class RoutingMediaProviderService implements MediaProviderService, MediaP
     private final MediaProperties mediaProperties;
     private final CloudinaryMediaProviderService cloudinaryProvider;
     private final S3MediaProviderService s3Provider;
+    private final MediaSystemConfigService systemConfigService;
 
     private MediaProviderService getActiveProvider() {
         MediaProvider active = mediaProperties.getProvider();
@@ -43,6 +46,13 @@ public class RoutingMediaProviderService implements MediaProviderService, MediaP
 
     @Override
     public ImagePresignedUploadResponseDto createImagePresignedUpload(ImagePresignedUploadRequestDto request) {
+        if ("comic-page".equals(request.getImageContext())) {
+            MediaSystemConfigResponseDto config = systemConfigService.getConfig();
+            double maxSizeBytes = config.getMaxComicImageSizeMb() * 1024 * 1024;
+            if (request.getFileSize() != null && request.getFileSize() > maxSizeBytes) {
+                throw new IllegalArgumentException("Dung lượng ảnh vượt quá giới hạn " + config.getMaxComicImageSizeMb() + "MB");
+            }
+        }
         return getActiveProvider().createImagePresignedUpload(request);
     }
 

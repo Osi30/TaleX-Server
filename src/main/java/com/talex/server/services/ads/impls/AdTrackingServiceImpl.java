@@ -44,7 +44,7 @@ public class AdTrackingServiceImpl implements IAdTrackingService {
             campaign.setCampaignBalance(campaign.getCampaignBalance() - costPerImpression);
             campaign.setCurrentImpressions(campaign.getCurrentImpressions() + 1);
 
-            if (campaign.getCampaignBalance() <= 0 || (campaign.getTargetImpressions() > 0 && campaign.getCurrentImpressions() >= campaign.getTargetImpressions())) {
+            if (campaign.getCampaignBalance() <= 0 || (campaign.getEndDate() != null && java.time.LocalDateTime.now().isAfter(campaign.getEndDate()))) {
                 campaign.setStatus(AdCampaignStatus.COMPLETED);
             }
             campaignRepository.save(campaign);
@@ -77,7 +77,7 @@ public class AdTrackingServiceImpl implements IAdTrackingService {
 
             campaign.setCurrentClicks(campaign.getCurrentClicks() + 1);
 
-            if (campaign.getTargetClicks() > 0 && campaign.getCurrentClicks() >= campaign.getTargetClicks()) {
+            if (campaign.getEndDate() != null && java.time.LocalDateTime.now().isAfter(campaign.getEndDate())) {
                 campaign.setStatus(AdCampaignStatus.COMPLETED);
             }
             campaignRepository.save(campaign);

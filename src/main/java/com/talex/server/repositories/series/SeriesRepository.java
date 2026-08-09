@@ -4,6 +4,7 @@ import com.talex.server.dtos.recommend.SeriesCardResponseDto;
 import com.talex.server.entities.series.Series;
 import com.talex.server.enums.interaction.ImpressionStatus;
 import com.talex.server.enums.series.SeriesStatus;
+import com.talex.server.repositories.series.projections.SeriesCardProjection;
 import com.talex.server.repositories.series.projections.SeriesWithAvatarProjection;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -327,4 +328,96 @@ public interface SeriesRepository extends JpaRepository<Series, String> {
             @Param("isBlacklistEmpty") boolean isBlacklistEmpty,
             Pageable pageable
     );
+
+    // Tìm kiếm nâng cao cho trang /search — mỗi filter null thì bỏ qua điều kiện tương ứng.
+    // Native SQL (không phải JPQL) vì cần gọi hàm unaccent() của Postgres để khớp từ khóa
+    // không dấu tiếng Việt (VD gõ "vua su tu" ra "Vua Sư Tử") — JPQL không gọi được hàm DB
+    // tùy biến này. Đòi hỏi extension "unaccent" đã cài trên DB (xem manual-db-setup.sql ở
+    // plan tính năng — không tự CREATE EXTENSION trong code vì cần quyền superuser).
+    //
+    // Category/tag/episode dùng EXISTS-subquery (không LEFT JOIN) — mỗi series chỉ ra đúng 1
+    // dòng dù có nhiều category/tag/episode cùng khớp, không cần DISTINCT, count query luôn
+    // khớp số dòng thật. Đồng thời tách hẳn khỏi filter categoryId/tagId (EXISTS riêng biệt)
+    // để 2 điều kiện không giẫm lên nhau — nếu dùng chung 1 JOIN alias, lọc theo categoryId=X
+    // trong khi keyword chỉ khớp category Y sẽ loại nhầm dòng lẽ ra phải khớp.
+    //
+    // Sắp xếp nằm cứng trong SQL (không qua Spring Sort) vì cần chèn thêm 1 tiêu chí ưu tiên
+    // lên trước tiêu chí user chọn: series khớp NGAY Ở TÊN được xếp lên đầu trước, rồi mới xếp
+    // theo popular/newest/name như bình thường. sortBy truyền vào dưới dạng bind param trong
+    // biểu thức CASE (không nối chuỗi vào SQL) nên không có nguy cơ SQL injection.
+    @Query(value = """
+        SELECT s.series_id AS seriesId, a.account_id AS accountId, c.creator_id AS creatorId,
+               a.full_name AS creatorName, a.avatar_url AS creatorAvatar,
+               a.total_followers_by AS totalCreatorFollowers,
+               s.title AS title, s.description AS description, s.cover_url AS coverUrl,
+               s.banner_url AS bannerUrl, s.content_type AS contentType, s.age_rating AS ageRating,
+               s.language AS language, s.views AS totalViews, s.created_at AS createdAt,
+               s.updated_at AS updatedAt, s.average_rating AS averageRating,
+               s.released_update_time AS releasedUpdateTime
+        FROM series s
+        JOIN creator c ON s.creator_id = c.creator_id
+        JOIN accounts a ON c.account_id = a.account_id
+        WHERE s.is_deleted = false
+          AND s.status IN (:statuses)
+          AND (:keyword IS NULL
+               OR unaccent(lower(s.title)) LIKE :keyword
+               OR unaccent(lower(s.description)) LIKE :keyword
+               OR unaccent(lower(a.username)) LIKE :keyword
+               OR unaccent(lower(a.full_name)) LIKE :keyword
+               OR EXISTS (SELECT 1 FROM series_categories sck JOIN categories ck ON sck.category_id = ck.category_id
+                          WHERE sck.series_id = s.series_id AND sck.is_deleted = false
+                            AND unaccent(lower(ck.category_name)) LIKE :keyword)
+               OR EXISTS (SELECT 1 FROM series_tags stk JOIN tags tk ON stk.tag_id = tk.tag_id
+                          WHERE stk.series_id = s.series_id AND stk.is_deleted = false
+                            AND unaccent(lower(tk.tag_name)) LIKE :keyword)
+               OR EXISTS (SELECT 1 FROM seasons se JOIN episodes ep ON ep.season_id = se.season_id
+                          WHERE se.series_id = s.series_id AND se.is_deleted = false AND ep.is_deleted = false
+                            AND unaccent(lower(ep.title)) LIKE :keyword))
+          AND (:contentType IS NULL OR s.content_type = :contentType)
+          AND (:categoryId IS NULL OR EXISTS (SELECT 1 FROM series_categories scf
+                          WHERE scf.series_id = s.series_id AND scf.category_id = :categoryId AND scf.is_deleted = false))
+          AND (:tagId IS NULL OR EXISTS (SELECT 1 FROM series_tags stf
+                          WHERE stf.series_id = s.series_id AND stf.tag_id = :tagId AND stf.is_deleted = false))
+          AND (:yearFrom IS NULL OR EXTRACT(YEAR FROM s.released_update_time) >= :yearFrom)
+          AND (:yearTo IS NULL OR EXTRACT(YEAR FROM s.released_update_time) <= :yearTo)
+          AND (:minViews IS NULL OR s.views >= :minViews)
+        ORDER BY (CASE WHEN :keyword IS NOT NULL AND unaccent(lower(s.title)) LIKE :keyword THEN 0 ELSE 1 END),
+                 (CASE WHEN :sortBy = 'newest' THEN s.released_update_time END) DESC NULLS LAST,
+                 (CASE WHEN :sortBy = 'name' THEN s.title END) ASC NULLS LAST,
+                 (CASE WHEN :sortBy NOT IN ('newest','name') THEN s.views END) DESC NULLS LAST
+        """,
+            countQuery = """
+        SELECT COUNT(*) FROM series s
+        JOIN creator c ON s.creator_id = c.creator_id
+        JOIN accounts a ON c.account_id = a.account_id
+        WHERE s.is_deleted = false AND s.status IN (:statuses)
+          AND (:keyword IS NULL OR unaccent(lower(s.title)) LIKE :keyword
+               OR unaccent(lower(s.description)) LIKE :keyword
+               OR unaccent(lower(a.username)) LIKE :keyword
+               OR unaccent(lower(a.full_name)) LIKE :keyword
+               OR EXISTS (SELECT 1 FROM series_categories sck JOIN categories ck ON sck.category_id = ck.category_id
+                          WHERE sck.series_id = s.series_id AND sck.is_deleted = false AND unaccent(lower(ck.category_name)) LIKE :keyword)
+               OR EXISTS (SELECT 1 FROM series_tags stk JOIN tags tk ON stk.tag_id = tk.tag_id
+                          WHERE stk.series_id = s.series_id AND stk.is_deleted = false AND unaccent(lower(tk.tag_name)) LIKE :keyword)
+               OR EXISTS (SELECT 1 FROM seasons se JOIN episodes ep ON ep.season_id = se.season_id
+                          WHERE se.series_id = s.series_id AND se.is_deleted = false AND ep.is_deleted = false AND unaccent(lower(ep.title)) LIKE :keyword))
+          AND (:contentType IS NULL OR s.content_type = :contentType)
+          AND (:categoryId IS NULL OR EXISTS (SELECT 1 FROM series_categories scf WHERE scf.series_id = s.series_id AND scf.category_id = :categoryId AND scf.is_deleted = false))
+          AND (:tagId IS NULL OR EXISTS (SELECT 1 FROM series_tags stf WHERE stf.series_id = s.series_id AND stf.tag_id = :tagId AND stf.is_deleted = false))
+          AND (:yearFrom IS NULL OR EXTRACT(YEAR FROM s.released_update_time) >= :yearFrom)
+          AND (:yearTo IS NULL OR EXTRACT(YEAR FROM s.released_update_time) <= :yearTo)
+          AND (:minViews IS NULL OR s.views >= :minViews)
+        """,
+            nativeQuery = true)
+    Page<SeriesCardProjection> searchPublicSeries(
+            @Param("statuses") Collection<String> statuses,
+            @Param("keyword") String keyword,
+            @Param("contentType") String contentType,
+            @Param("categoryId") String categoryId,
+            @Param("tagId") String tagId,
+            @Param("yearFrom") Integer yearFrom,
+            @Param("yearTo") Integer yearTo,
+            @Param("minViews") Long minViews,
+            @Param("sortBy") String sortBy,
+            Pageable pageable);
 }
