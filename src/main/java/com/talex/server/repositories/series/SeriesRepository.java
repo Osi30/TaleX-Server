@@ -3,6 +3,7 @@ package com.talex.server.repositories.series;
 import com.talex.server.dtos.recommend.SeriesCardResponseDto;
 import com.talex.server.entities.series.Series;
 import com.talex.server.enums.interaction.ImpressionStatus;
+import com.talex.server.enums.series.ContentType;
 import com.talex.server.enums.series.SeriesStatus;
 import com.talex.server.repositories.series.projections.SeriesWithAvatarProjection;
 import org.springframework.data.domain.Page;
@@ -327,4 +328,56 @@ public interface SeriesRepository extends JpaRepository<Series, String> {
             @Param("isBlacklistEmpty") boolean isBlacklistEmpty,
             Pageable pageable
     );
+
+    // Tìm kiếm nâng cao cho trang /search — mỗi filter null thì bỏ qua điều kiện tương ứng
+    // (1 query xử lý mọi tổ hợp filter, không cần nhiều method biến thể). LEFT JOIN category/tag
+    // + DISTINCT để không nhân dòng khi 1 series thuộc nhiều category/tag cùng lúc khớp filter.
+    // Sort do Pageable quyết định (xem SeriesServiceImpl.resolveSearchSort) — không nhúng ORDER BY
+    // cứng ở đây để 1 query phục vụ được cả 3 kiểu sắp xếp.
+    @Query("""
+        SELECT DISTINCT new com.talex.server.dtos.recommend.SeriesCardResponseDto(
+            s.seriesId,
+            s.creator.account.accountId,
+            s.creator.creatorId,
+            s.creator.account.fullName,
+            s.creator.account.avatarUrl,
+            s.creator.account.totalFollowersBy,
+            s.title,
+            s.description,
+            s.coverUrl,
+            s.bannerUrl,
+            s.contentType,
+            s.ageRating,
+            s.language,
+            s.analyticData.views,
+            s.createdAt,
+            s.updatedAt,
+            s.averageRating,
+            s.releasedUpdateTime
+        )
+        FROM Series s
+        LEFT JOIN s.seriesCategories sc
+        LEFT JOIN s.seriesTags st
+        WHERE s.isDeleted = false
+          AND s.status IN :statuses
+          AND (:keyword IS NULL
+               OR LOWER(s.title) LIKE :keyword
+               OR LOWER(s.description) LIKE :keyword)
+          AND (:contentType IS NULL OR s.contentType = :contentType)
+          AND (:categoryId IS NULL OR (sc.id.categoryId = :categoryId AND sc.isDeleted = false))
+          AND (:tagId IS NULL OR (st.id.tagId = :tagId AND st.isDeleted = false))
+          AND (:yearFrom IS NULL OR EXTRACT(YEAR FROM s.releasedUpdateTime) >= :yearFrom)
+          AND (:yearTo IS NULL OR EXTRACT(YEAR FROM s.releasedUpdateTime) <= :yearTo)
+          AND (:minViews IS NULL OR s.analyticData.views >= :minViews)
+        """)
+    Page<SeriesCardResponseDto> searchPublicSeries(
+            @Param("statuses") Collection<SeriesStatus> statuses,
+            @Param("keyword") String keyword,
+            @Param("contentType") ContentType contentType,
+            @Param("categoryId") String categoryId,
+            @Param("tagId") String tagId,
+            @Param("yearFrom") Integer yearFrom,
+            @Param("yearTo") Integer yearTo,
+            @Param("minViews") Long minViews,
+            Pageable pageable);
 }

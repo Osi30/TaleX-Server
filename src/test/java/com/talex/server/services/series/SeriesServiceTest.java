@@ -2,7 +2,9 @@ package com.talex.server.services.series;
 
 import com.talex.server.dtos.BasePageResponse;
 import com.talex.server.dtos.analytic.SeriesLogResponseDto;
+import com.talex.server.dtos.recommend.SeriesCardResponseDto;
 import com.talex.server.dtos.requests.series.SeriesRequestDto;
+import com.talex.server.dtos.requests.series.SeriesSearchCriteria;
 import com.talex.server.dtos.responses.series.CategoryResponseDto;
 import com.talex.server.dtos.responses.series.SeriesResponseDto;
 import com.talex.server.dtos.responses.series.TagResponseDto;
@@ -353,6 +355,43 @@ class SeriesServiceTest {
 
         BasePageResponse<SeriesResponseDto> response = seriesService.listPublic(1, 10);
         assertEquals(0, response.getContent().size());
+    }
+
+    // --- searchPublic ---
+
+    @Test
+    void searchPublic_MapsPageAndDefaultsToPopular() {
+        SeriesCardResponseDto card = SeriesCardResponseDto.builder()
+                .seriesId("s1").title("A").totalViews(100L).build();
+        Page<SeriesCardResponseDto> page = new PageImpl<>(List.of(card), PageRequest.of(0, 12), 1);
+        when(seriesRepository.searchPublicSeries(any(), any(), any(), any(), any(), any(), any(), any(), any(Pageable.class)))
+                .thenReturn(page);
+
+        SeriesSearchCriteria criteria = new SeriesSearchCriteria(null, null, null, null, null, null, null);
+        BasePageResponse<SeriesCardResponseDto> response =
+                seriesService.searchPublic(criteria, "popular", 1, 12);
+
+        assertEquals(1, response.getContent().size());
+        assertEquals(1, response.getTotalElements());
+        assertEquals(1, response.getPageNumber());
+    }
+
+    @Test
+    void searchPublic_NormalizesKeywordAndSort() {
+        Page<SeriesCardResponseDto> page = new PageImpl<>(List.of());
+        when(seriesRepository.searchPublicSeries(any(), any(), any(), any(), any(), any(), any(), any(), any(Pageable.class)))
+                .thenReturn(page);
+        SeriesSearchCriteria criteria =
+                new SeriesSearchCriteria("  Naruto ", ContentType.VIDEO, "cat", "tag", 2020, 2024, 500L);
+
+        seriesService.searchPublic(criteria, "newest", 2, 8);
+
+        org.mockito.ArgumentCaptor<String> keywordCaptor = org.mockito.ArgumentCaptor.forClass(String.class);
+        org.mockito.ArgumentCaptor<Pageable> pageableCaptor = org.mockito.ArgumentCaptor.forClass(Pageable.class);
+        verify(seriesRepository).searchPublicSeries(any(), keywordCaptor.capture(), eq(ContentType.VIDEO),
+                eq("cat"), eq("tag"), eq(2020), eq(2024), eq(500L), pageableCaptor.capture());
+        assertEquals("%naruto%", keywordCaptor.getValue());
+        assertNotNull(pageableCaptor.getValue().getSort().getOrderFor("releasedUpdateTime"));
     }
 
     // --- update ---

@@ -2,6 +2,8 @@ package com.talex.server.controllers;
 
 import com.talex.server.annotations.CurrentAccountId;
 import com.talex.server.dtos.BaseResponse;
+import com.talex.server.dtos.requests.series.SeriesSearchCriteria;
+import com.talex.server.enums.series.ContentType;
 import com.talex.server.services.media.MediaPlaybackSecurityService;
 import com.talex.server.services.media.MediaService;
 import com.talex.server.services.series.*;
@@ -50,6 +52,31 @@ public class PublicContentController {
             @RequestParam(defaultValue = "1") Integer page,
             @RequestParam(defaultValue = "20") Integer pageSize) {
         return ResponseEntity.ok(response(200, "OK", seriesService.listPublic(page, pageSize)));
+    }
+
+    // Đặt trước "/series/{seriesId}" — Spring ưu tiên khớp path literal "search" trước
+    // path-variable nên không xung đột, nhưng để gần nhau cho dễ đọc.
+    @GetMapping("/series/search")
+    @Operation(summary = "Tìm kiếm nâng cao series", description = "Lọc series công khai theo từ khóa, loại nội dung, thể loại, tag, năm phát hành, lượt xem tối thiểu, kèm sắp xếp và phân trang thật ở server.")
+    public ResponseEntity<BaseResponse> searchSeries(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String contentType,
+            @RequestParam(required = false) String categoryId,
+            @RequestParam(required = false) String tagId,
+            @RequestParam(required = false) Integer yearFrom,
+            @RequestParam(required = false) Integer yearTo,
+            @RequestParam(required = false) Long minViews,
+            @RequestParam(defaultValue = "popular") String sortBy,
+            @RequestParam(defaultValue = "1") Integer page,
+            @RequestParam(defaultValue = "12") Integer pageSize) {
+        ContentType parsedContentType =
+                (contentType == null || contentType.isBlank() || "ALL".equalsIgnoreCase(contentType))
+                        ? null
+                        : ContentType.valueOf(contentType.toUpperCase());
+        SeriesSearchCriteria criteria = new SeriesSearchCriteria(
+                keyword, parsedContentType, categoryId, tagId, yearFrom, yearTo, minViews);
+        return ResponseEntity.ok(response(200, "OK",
+                seriesService.searchPublic(criteria, sortBy, page, pageSize)));
     }
 
     @GetMapping("/series/{seriesId}")

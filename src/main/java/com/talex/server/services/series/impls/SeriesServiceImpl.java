@@ -2,7 +2,9 @@ package com.talex.server.services.series.impls;
 
 import com.talex.server.dtos.BasePageResponse;
 import com.talex.server.dtos.analytic.SeriesLogResponseDto;
+import com.talex.server.dtos.recommend.SeriesCardResponseDto;
 import com.talex.server.dtos.requests.series.SeriesRequestDto;
+import com.talex.server.dtos.requests.series.SeriesSearchCriteria;
 import com.talex.server.dtos.responses.series.CategoryResponseDto;
 import com.talex.server.dtos.responses.series.SeriesResponseDto;
 import com.talex.server.dtos.responses.series.TagResponseDto;
@@ -24,6 +26,7 @@ import com.talex.server.services.series.TagService;
 import com.talex.server.utils.PageUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -146,6 +149,56 @@ public class SeriesServiceImpl implements SeriesService {
                         List.of(SeriesStatus.PUBLISHED, SeriesStatus.SCHEDULED),
                         PageUtils.buildPageable(page, pageSize));
         return toPageResponseProjection(result, toResponsesWithAvatar(result.getContent()));
+    }
+
+    // Trang "Tìm kiếm nâng cao" — trả thẳng SeriesCardResponseDto (đã đủ field cho card kết
+    // quả tìm kiếm) thay vì map qua SeriesResponseDto như listPublic(), tránh phải load thêm
+    // category/tag chi tiết không dùng tới ở đây (N+1 không cần thiết).
+    @Transactional(readOnly = true)
+    @Override
+    public BasePageResponse<SeriesCardResponseDto> searchPublic(
+            SeriesSearchCriteria criteria, String sortBy, Integer page, Integer pageSize) {
+        Sort sort = resolveSearchSort(sortBy);
+        Page<SeriesCardResponseDto> result = seriesRepository.searchPublicSeries(
+                List.of(SeriesStatus.PUBLISHED, SeriesStatus.SCHEDULED),
+                normalizeKeyword(criteria.keyword()),
+                criteria.contentType(),
+                blankToNull(criteria.categoryId()),
+                blankToNull(criteria.tagId()),
+                criteria.yearFrom(),
+                criteria.yearTo(),
+                criteria.minViews(),
+                PageUtils.buildPageable(page, pageSize, sort));
+        return BasePageResponse.<SeriesCardResponseDto>builder()
+                .content(result.getContent())
+                .pageNumber(result.getNumber() + 1)
+                .pageSize(result.getSize())
+                .totalElements(result.getTotalElements())
+                .totalPages(result.getTotalPages())
+                .isFirst(result.isFirst())
+                .isLast(result.isLast())
+                .build();
+    }
+
+    private Sort resolveSearchSort(String sortBy) {
+        if ("newest".equalsIgnoreCase(sortBy)) {
+            return Sort.by(Sort.Direction.DESC, "releasedUpdateTime");
+        }
+        if ("name".equalsIgnoreCase(sortBy)) {
+            return Sort.by(Sort.Direction.ASC, "title");
+        }
+        return Sort.by(Sort.Direction.DESC, "analyticData.views"); // "popular" (mặc định)
+    }
+
+    private String normalizeKeyword(String keyword) {
+        if (keyword == null || keyword.isBlank()) {
+            return null;
+        }
+        return "%" + keyword.trim().toLowerCase() + "%";
+    }
+
+    private String blankToNull(String value) {
+        return (value == null || value.isBlank()) ? null : value;
     }
 
     @Transactional
