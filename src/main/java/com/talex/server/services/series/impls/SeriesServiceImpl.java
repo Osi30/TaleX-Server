@@ -213,12 +213,10 @@ public class SeriesServiceImpl implements SeriesService {
                 .ageRating(projection.getAgeRating())
                 .language(projection.getLanguage())
                 .totalViews(projection.getTotalViews())
-                .createdAt(projection.getCreatedAt() == null ? null : projection.getCreatedAt().toLocalDateTime())
-                .updatedAt(projection.getUpdatedAt() == null ? null : projection.getUpdatedAt().toLocalDateTime())
+                .createdAt(projection.getCreatedAt())
+                .updatedAt(projection.getUpdatedAt())
                 .averageRating(projection.getAverageRating())
-                .releasedUpdateTime(projection.getReleasedUpdateTime() == null
-                        ? null
-                        : projection.getReleasedUpdateTime().toLocalDateTime())
+                .releasedUpdateTime(projection.getReleasedUpdateTime())
                 .build();
     }
 

@@ -1,12 +1,14 @@
 package com.talex.server.repositories.series.projections;
 
-import java.sql.Timestamp;
+import java.time.LocalDateTime;
 
 // Interface projection cho native query searchPublicSeries — constructor-projection JPQL
 // (kiểu "new com.talex.server...SeriesCardResponseDto(...)") không dùng được với native SQL,
-// nên Spring Data map từng cột SELECT alias sang getter tương ứng ở đây. Timestamp (không
-// phải LocalDateTime) để khớp chắc chắn với kiểu JDBC trả về từ native query, convert sang
-// LocalDateTime ở tầng service (SeriesServiceImpl.toCardDto).
+// nên Spring Data map từng cột SELECT alias sang getter tương ứng ở đây. LocalDateTime (không
+// phải java.sql.Timestamp) vì Hibernate ở dự án này trả cột timestamp thẳng dưới dạng
+// LocalDateTime cho cả native query lẫn JPQL — khai Timestamp ở đây khiến Spring Data báo lỗi
+// "Cannot project java.time.LocalDateTime to java.sql.Timestamp" lúc runtime (đã verify qua
+// log lỗi thật, không phải suy đoán).
 public interface SeriesCardProjection {
     String getSeriesId();
 
@@ -36,11 +38,11 @@ public interface SeriesCardProjection {
 
     Long getTotalViews();
 
-    Timestamp getCreatedAt();
+    LocalDateTime getCreatedAt();
 
-    Timestamp getUpdatedAt();
+    LocalDateTime getUpdatedAt();
 
     Double getAverageRating();
 
-    Timestamp getReleasedUpdateTime();
+    LocalDateTime getReleasedUpdateTime();
 }
