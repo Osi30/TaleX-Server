@@ -48,7 +48,14 @@ public class PaymentProfileServiceImpl implements PaymentProfileService {
         entity.setCreator(creator);
         if (Boolean.TRUE.equals(dto.getIsPrimary())
         ) {
-            repository.unsetOtherPrimary(creator.getCreatorId(), "");
+            PaymentProfile existedPrimary = creator
+                    .getPaymentProfiles().stream().filter(p -> p.getIsPrimary()
+                            && p.getStatus().equals(PaymentProfileStatus.VERIFIED))
+                    .findFirst().orElse(null);
+            if (existedPrimary == null) {
+                entity.setIsPrimary(true);
+                repository.unsetOtherPrimary(creator.getCreatorId(), "");
+            }
         }
         entity.setStatus(PaymentProfileStatus.PENDING);
         entity.setIsPrimary(dto.getIsPrimary());
