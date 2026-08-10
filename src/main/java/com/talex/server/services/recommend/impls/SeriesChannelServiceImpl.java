@@ -9,11 +9,11 @@ import com.talex.server.enums.series.SeriesStatus;
 import com.talex.server.repositories.campaign.CampaignSeriesRepository;
 import com.talex.server.repositories.series.SeriesLogRepository;
 import com.talex.server.repositories.series.SeriesRepository;
-import com.talex.server.services.mongo.IUserFeatureService;
+import com.talex.server.services.mongo.UserFeatureService;
 import com.talex.server.services.recommend.SeriesChannelService;
+import com.talex.server.services.trending.TrendingSampleConfigService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -29,14 +29,12 @@ import java.util.*;
 @RequiredArgsConstructor
 @Slf4j
 public class SeriesChannelServiceImpl implements SeriesChannelService {
-    private final IUserFeatureService userFeatureService;
+    private final UserFeatureService userFeatureService;
+    private final TrendingSampleConfigService trendingSampleConfigService;
     private final SeriesRepository seriesRepository;
     private final SeriesLogRepository seriesLogRepository;
     private final CampaignSeriesRepository campaignSeriesRepository;
     private final StringRedisTemplate redisTemplate;
-
-    @Value("${app.recommendation.new-releases.max-impression}")
-    private Long maxImpressionThreshold;
 
     // Redis Keys - Promoted
     private static final String REDIS_KEY_PROMOTED_POOL = "pool:promoted";
@@ -129,6 +127,12 @@ public class SeriesChannelServiceImpl implements SeriesChannelService {
     // =========================================================================
 
     @Override
+    public List<String> getNewReleasesPoolElements() {
+        List<String> elements = redisTemplate.opsForList().range(REDIS_KEY_NEW_RELEASES_POOL, 0, -1);
+        return elements != null ? elements : Collections.emptyList();
+    }
+
+    @Override
     public List<String> getNewReleasesSeriesIds(String accountId, int limit) {
         if (limit <= 0) return Collections.emptyList();
 
@@ -158,6 +162,7 @@ public class SeriesChannelServiceImpl implements SeriesChannelService {
         combinedBlacklist.addAll(oldIds);
 
         boolean isBlacklistEmpty = combinedBlacklist.isEmpty();
+        Long maxImpressionThreshold = trendingSampleConfigService.getConfig().getMaxImpression();
 
         // 3. Query PostgreSQL lấy các Series mới phát hành có totalImpression <= maxImpressionThreshold
         List<String> newFetchedIds = seriesRepository.findCandidateNewReleasesSeriesIds(

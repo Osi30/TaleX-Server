@@ -10,6 +10,7 @@ public interface SeriesChannelService {
     List<String> refreshPromotedPool(int limit);
 
     // --- New Releases Channel ---
+    List<String> getNewReleasesPoolElements();
     List<String> getNewReleasesSeriesIds(String accountId, int limit);
     List<String> refreshNewReleasesPool(List<String> blacklistIds, int limit);
 

@@ -6,8 +6,6 @@ import com.talex.server.enums.interaction.ImpressionStatus;
 import com.talex.server.enums.series.SeriesStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Slice;
-import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Modifying;
@@ -98,6 +96,25 @@ public interface SeriesRepository extends JpaRepository<Series, String>, JpaSpec
         ORDER BY s.trendingAnalyticData.totalImpression ASC, s.createdAt ASC
     """)
     List<String> findCandidateNewReleasesSeriesIds(
+            @Param("status") SeriesStatus status,
+            @Param("maxImpression") Long maxImpression,
+            @Param("blacklist") Collection<String> blacklist,
+            @Param("isBlacklistEmpty") boolean isBlacklistEmpty,
+            @Param("impressionStatus") ImpressionStatus impressionStatus,
+            Pageable pageable
+    );
+
+    @Query("""
+        SELECT s
+        FROM Series s
+        WHERE s.isDeleted = false
+          AND s.status = :status
+          AND s.trendingAnalyticData.totalImpression <= :maxImpression
+          AND s.trendingAnalyticData.impressionStatus = :impressionStatus
+          AND (:isBlacklistEmpty = true OR s.seriesId NOT IN :blacklist)
+        ORDER BY s.trendingAnalyticData.totalImpression ASC, s.createdAt ASC
+    """)
+    List<Series> findNewSeriesWaitedForDistribution(
             @Param("status") SeriesStatus status,
             @Param("maxImpression") Long maxImpression,
             @Param("blacklist") Collection<String> blacklist,

@@ -10,9 +10,7 @@ import com.talex.server.entities.creator.Creator;
 import com.talex.server.entities.creator.PaymentProfile;
 import com.talex.server.enums.BankBin;
 import com.talex.server.enums.creator.PaymentProfileStatus;
-import com.talex.server.exceptions.codes.creator.CreatorErrorCode;
 import com.talex.server.exceptions.codes.payment.PaymentProfileErrorCode;
-import com.talex.server.exceptions.details.creator.CreatorException;
 import com.talex.server.exceptions.details.payment.PaymentProfileException;
 import com.talex.server.mappers.creator.PaymentProfileMapper;
 import com.talex.server.repositories.creator.PaymentProfileRepository;
@@ -45,7 +43,6 @@ public class PaymentProfileServiceImpl implements PaymentProfileService {
     public PaymentProfileResponseDto create(UUID accountId, PaymentProfileRequestDto dto) {
         // Validate creator exists
         Creator creator = creatorService.getEntityByAccountId(accountId);
-        if (!creator.getIsVerified()) throw new CreatorException(CreatorErrorCode.CREATOR_NOT_VERIFIED);
 
         PaymentProfile entity = mapper.toEntity(dto);
         entity.setCreator(creator);
@@ -59,7 +56,6 @@ public class PaymentProfileServiceImpl implements PaymentProfileService {
     @Override
     @Transactional(readOnly = true)
     public PaymentProfileResponseDto getById(String id) {
-
         return mapper.toResponseDto(findById(id));
     }
 

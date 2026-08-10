@@ -3,6 +3,7 @@ package com.talex.server.mappers.creator.impls;
 import com.talex.server.dtos.requests.creator.PaymentProfileRequestDto;
 import com.talex.server.dtos.responses.creator.PaymentProfileResponseDto;
 import com.talex.server.entities.creator.PaymentProfile;
+import com.talex.server.enums.BankBin;
 import com.talex.server.enums.creator.PaymentProfileStatus;
 import com.talex.server.mappers.creator.PaymentProfileMapper;
 import org.springframework.stereotype.Component;
@@ -38,7 +39,7 @@ public class PaymentProfileMapperImpl implements PaymentProfileMapper {
         }
 
         PaymentProfile entity = new PaymentProfile();
-        entity.setBankCode(dto.getBankCode());
+        entity.setBankCode(BankBin.valueOf(dto.getBankCode()));
         entity.setAccountNumber(dto.getAccountNumber());
         entity.setAccountName(dto.getAccountName());
 
@@ -54,7 +55,7 @@ public class PaymentProfileMapperImpl implements PaymentProfileMapper {
         boolean isChange = false;
 
         if (dto.getBankCode() != null) {
-            entity.setBankCode(dto.getBankCode());
+            entity.setBankCode(BankBin.valueOf(dto.getBankCode()));
             isChange = true;
         }
         if (dto.getAccountNumber() != null) {

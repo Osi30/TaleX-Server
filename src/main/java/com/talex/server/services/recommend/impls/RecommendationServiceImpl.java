@@ -7,7 +7,7 @@ import com.talex.server.dtos.recommend.*;
 import com.talex.server.enums.series.SeriesStatus;
 import com.talex.server.repositories.mongo.SeriesRecommendationRepository;
 import com.talex.server.repositories.series.SeriesRepository;
-import com.talex.server.services.mongo.IUserFeatureService;
+import com.talex.server.services.mongo.UserFeatureService;
 import com.talex.server.services.recommend.RecommendationService;
 import com.talex.server.services.recommend.SeriesChannelService;
 import lombok.extern.slf4j.Slf4j;
@@ -41,7 +41,7 @@ public class RecommendationServiceImpl implements RecommendationService {
     private final JdbcTemplate questDbJdbcTemplate;
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final ObjectMapper objectMapper;
-    private final IUserFeatureService userFeatureService;
+    private final UserFeatureService userFeatureService;
 
     public RecommendationServiceImpl(
             @Value("${python.api}") String pythonApi, StringRedisTemplate redisTemplate,
@@ -51,7 +51,7 @@ public class RecommendationServiceImpl implements RecommendationService {
             SeriesRecommendationRepository seriesRecommendationRepository,
             SeriesChannelService seriesChannelService,
             SeriesRepository seriesRepository,
-            IUserFeatureService userFeatureService
+            UserFeatureService userFeatureService
     ) {
         this.pythonApi = pythonApi;
         this.redisTemplate = redisTemplate;
