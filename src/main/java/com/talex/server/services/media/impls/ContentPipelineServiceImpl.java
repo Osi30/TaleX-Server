@@ -12,6 +12,7 @@ import com.talex.server.entities.media.MediaCopyright;
 import com.talex.server.entities.media.ViolationDetail;
 import com.talex.server.enums.media.CensorshipStatus;
 import com.talex.server.enums.series.ContentApprovalStatus;
+import com.talex.server.enums.media.MediaProvider;
 import com.talex.server.enums.media.MediaStatus;
 import com.talex.server.enums.media.MediaType;
 import com.talex.server.enums.media.ViolationType;
