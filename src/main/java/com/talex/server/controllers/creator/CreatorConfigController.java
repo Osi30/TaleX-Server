@@ -3,7 +3,7 @@ package com.talex.server.controllers.creator;
 import com.talex.server.dtos.BaseResponse;
 import com.talex.server.dtos.requests.creator.CreatorConfigRequestDto;
 import com.talex.server.dtos.responses.creator.CreatorConfigResponseDto;
-import com.talex.server.services.creator.ICreatorConfigService;
+import com.talex.server.services.creator.CreatorConfigService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.*;
 @Tag(name = "Creator Config", description = "Quản lý tỷ lệ chia sẻ doanh thu cơ bản (Base Ratio)")
 public class CreatorConfigController {
 
-    private final ICreatorConfigService creatorConfigService;
+    private final CreatorConfigService creatorConfigService;
 
     @PreAuthorize("hasRole('ADMIN')")
     @PostMapping

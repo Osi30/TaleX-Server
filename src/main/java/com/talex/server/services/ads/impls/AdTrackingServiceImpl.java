@@ -6,7 +6,7 @@ import com.talex.server.entities.ads.AdMetric;
 import com.talex.server.enums.ads.AdCampaignStatus;
 import com.talex.server.repositories.ads.AdCampaignRepository;
 import com.talex.server.repositories.ads.AdMetricRepository;
-import com.talex.server.services.ads.IAdTrackingService;
+import com.talex.server.services.ads.AdTrackingService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
@@ -18,7 +18,7 @@ import java.time.LocalDate;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class AdTrackingServiceImpl implements IAdTrackingService {
+public class AdTrackingServiceImpl implements AdTrackingService {
 
     private final AdCampaignRepository campaignRepository;
     private final AdMetricRepository metricRepository;

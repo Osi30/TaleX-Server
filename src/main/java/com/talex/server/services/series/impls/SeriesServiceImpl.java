@@ -19,7 +19,7 @@ import com.talex.server.exceptions.details.ContentModuleException;
 import com.talex.server.repositories.series.*;
 import com.talex.server.repositories.series.projections.SeriesCardProjection;
 import com.talex.server.services.audit.ContentAuditLogger;
-import com.talex.server.services.creator.ICreatorService;
+import com.talex.server.services.creator.CreatorService;
 import com.talex.server.services.media.impls.ContentOwnershipService;
 import com.talex.server.services.mongo.ISeriesFeatureService;
 import com.talex.server.services.series.CategoryService;
@@ -50,7 +50,7 @@ public class SeriesServiceImpl implements SeriesService {
     private final TagService tagService;
     private final ContentOwnershipService contentOwnershipService;
     private final ISeriesFeatureService seriesFeatureService;
-    private final ICreatorService creatorService;
+    private final CreatorService creatorService;
     private final SeasonRepository seasonRepository;
     private final ContentAuditLogger contentAuditLogger;
     private final ContentCascadeDeleteHelper contentCascadeDeleteHelper;

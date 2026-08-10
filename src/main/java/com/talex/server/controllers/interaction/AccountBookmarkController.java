@@ -4,7 +4,7 @@ import com.talex.server.annotations.CurrentAccountId;
 import com.talex.server.dtos.BaseResponse;
 import com.talex.server.dtos.interaction.response.AccountBookmarkResponse;
 import com.talex.server.dtos.interaction.response.EpisodeBookmarkResponse;
-import com.talex.server.services.interaction.IAccountBookmarkService;
+import com.talex.server.services.interaction.AccountBookmarkService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -24,7 +24,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @Tag(name = "Account Bookmarks", description = "API quản lý Bookmark tập phim của người dùng")
 public class AccountBookmarkController {
-    private final IAccountBookmarkService bookmarkService;
+    private final AccountBookmarkService bookmarkService;
 
     @Operation(summary = "Bookmark tập phim", description = "Lưu tập phim vào danh sách bookmark (Direct Insert).")
     @PostMapping("/episodes/{episodeId}/bookmark")

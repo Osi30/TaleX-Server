@@ -2,8 +2,9 @@ package com.talex.server.controllers.ads;
 
 import com.talex.server.dtos.BaseResponse;
 import com.talex.server.dtos.requests.ads.AdTrackRequestDto;
-import com.talex.server.services.ads.IAdCampaignService;
-import com.talex.server.services.ads.IAdTrackingService;
+import com.talex.server.services.ads.AdCampaignService;
+import com.talex.server.services.ads.AdSlotService;
+import com.talex.server.services.ads.AdTrackingService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -17,9 +18,9 @@ import org.springframework.web.bind.annotation.*;
 @Tag(name = "Ad Serving", description = "API công khai để phân phối quảng cáo và tracking")
 public class AdServingController {
 
-    private final IAdCampaignService campaignService;
-    private final IAdTrackingService trackingService;
-    private final com.talex.server.services.ads.IAdSlotService slotService;
+    private final AdCampaignService campaignService;
+    private final AdTrackingService trackingService;
+    private final AdSlotService slotService;
 
     @GetMapping("/slots")
     @Operation(summary = "Lấy danh sách Slot đang kích hoạt", description = "Dùng bởi Frontend để User chọn vị trí muốn quảng cáo.")

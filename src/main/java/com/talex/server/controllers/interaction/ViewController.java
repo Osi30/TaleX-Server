@@ -3,7 +3,7 @@ package com.talex.server.controllers.interaction;
 import com.talex.server.annotations.CurrentAccountId;
 import com.talex.server.dtos.BaseResponse;
 import com.talex.server.dtos.interaction.request.ViewRequest;
-import com.talex.server.services.interaction.IViewService;
+import com.talex.server.services.interaction.ViewService;
 import com.talex.server.utils.RequestUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -20,7 +20,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @Tag(name = "Views", description = "API ghi nhận và thống kê số lượt xem tập phim từ IP người dùng")
 public class ViewController {
-    private final IViewService viewService;
+    private final ViewService viewService;
 
     @Operation(
             summary = "Ghi nhận lượt xem Tập phim",

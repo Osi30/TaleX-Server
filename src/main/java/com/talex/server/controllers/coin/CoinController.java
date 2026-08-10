@@ -5,7 +5,7 @@ import com.talex.server.dtos.BasePageResponse;
 import com.talex.server.dtos.BaseResponse;
 import com.talex.server.dtos.responses.coin.CoinTransactionResponseDto;
 import com.talex.server.dtos.responses.coin.CoinWalletResponseDto;
-import com.talex.server.services.coin.ICoinWalletService;
+import com.talex.server.services.coin.CoinWalletService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -35,7 +35,7 @@ import java.util.UUID;
 @Tag(name = "User - Coin Wallet", description = "API quản lý ví và lịch sử giao dịch Coin")
 public class CoinController {
 
-    private final ICoinWalletService coinWalletService;
+    private final CoinWalletService coinWalletService;
 
     /**
      * Lấy thông tin ví Coin của user đang đăng nhập.

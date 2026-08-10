@@ -2,7 +2,7 @@ package com.talex.server.controllers.creator;
 
 import com.talex.server.dtos.BaseResponse;
 import com.talex.server.entities.creator.CreatorMonthlySettlement;
-import com.talex.server.services.creator.ICreatorSettlementService;
+import com.talex.server.services.creator.CreatorSettlementService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -17,7 +17,7 @@ import java.util.List;
 @Tag(name = "Creator Settlement", description = "API chạy thử & tính toán quyết toán doanh thu hàng tháng cho Creator")
 public class CreatorSettlementController {
 
-    private final ICreatorSettlementService creatorSettlementService;
+    private final CreatorSettlementService creatorSettlementService;
 
     @PostMapping("/demo-process")
     @Operation(

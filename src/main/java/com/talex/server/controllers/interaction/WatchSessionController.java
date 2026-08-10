@@ -4,7 +4,7 @@ import com.talex.server.annotations.CurrentAccountId;
 import com.talex.server.dtos.BaseResponse;
 import com.talex.server.dtos.interaction.request.WatchTimeRequest;
 import com.talex.server.dtos.interaction.response.WatchSessionResponseDto;
-import com.talex.server.services.interaction.IWatchSessionService;
+import com.talex.server.services.interaction.WatchSessionService;
 import com.talex.server.utils.RequestUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -26,7 +26,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @Tag(name = "Watch Session", description = "API ghi nhận tiến trình xem phim/đọc truyện")
 public class WatchSessionController {
-    private final IWatchSessionService watchSessionService;
+    private final WatchSessionService watchSessionService;
 
     @Operation(
             summary = "Ghi nhận Heartbeat tiến trình xem/đọc",

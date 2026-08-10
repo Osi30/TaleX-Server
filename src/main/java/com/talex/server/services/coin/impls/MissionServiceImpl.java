@@ -9,8 +9,8 @@ import com.talex.server.exceptions.codes.CoinErrorCode;
 import com.talex.server.exceptions.details.CoinException;
 import com.talex.server.repositories.coin.MissionRepository;
 import com.talex.server.repositories.coin.UserMissionProgressRepository;
-import com.talex.server.services.coin.ICoinWalletService;
-import com.talex.server.services.coin.IMissionService;
+import com.talex.server.services.coin.CoinWalletService;
+import com.talex.server.services.coin.MissionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
@@ -26,13 +26,13 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
-public class MissionServiceImpl implements IMissionService {
+public class MissionServiceImpl implements MissionService {
 
     private static final String HEARTBEAT_HASH_KEY = "mission:online_heartbeat";
 
     private final MissionRepository missionRepository;
     private final UserMissionProgressRepository userMissionProgressRepository;
-    private final ICoinWalletService coinWalletService;
+    private final CoinWalletService coinWalletService;
     private final StringRedisTemplate stringRedisTemplate;
 
     @Override

@@ -1,6 +1,6 @@
 package com.talex.server.schedulers;
 
-import com.talex.server.services.coin.IMissionService;
+import com.talex.server.services.coin.MissionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -18,7 +18,7 @@ public class MissionHeartbeatScheduler {
     private static final String HEARTBEAT_HASH_KEY = "mission:online_heartbeat";
 
     private final StringRedisTemplate stringRedisTemplate;
-    private final IMissionService missionService;
+    private final MissionService missionService;
 
     @Scheduled(fixedRate = 300000)
     public void aggregateOnlineHeartbeats() {

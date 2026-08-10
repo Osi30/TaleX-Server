@@ -3,7 +3,7 @@ package com.talex.server.controllers.ads;
 import com.talex.server.annotations.CurrentAccountId;
 import com.talex.server.dtos.BaseResponse;
 import com.talex.server.dtos.requests.ads.AdTopupRequestDto;
-import com.talex.server.services.ads.IAdWalletService;
+import com.talex.server.services.ads.AdWalletService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -21,7 +21,7 @@ import java.util.UUID;
 @Tag(name = "Ad Wallet", description = "API quản lý ví tiền quảng cáo của User")
 public class AdUserWalletController {
 
-    private final IAdWalletService walletService;
+    private final AdWalletService walletService;
 
     @GetMapping("/balance")
     @Operation(summary = "Lấy số dư ví quảng cáo", description = "Lấy thông tin profile quảng cáo và số dư ví hiện tại.")

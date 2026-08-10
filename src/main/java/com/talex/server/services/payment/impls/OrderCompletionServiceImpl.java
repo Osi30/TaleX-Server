@@ -14,9 +14,9 @@ import com.talex.server.repositories.series.ComboEpisodeRepository;
 import com.talex.server.repositories.series.EpisodeRepository;
 import com.talex.server.repositories.subscription.SubscriptionRepository;
 import com.talex.server.repositories.transaction.OrderRepository;
-import com.talex.server.services.invoice.IInvoiceService;
-import com.talex.server.services.payment.IOrderFulfillmentService;
-import com.talex.server.services.payment.ITransactionService;
+import com.talex.server.services.invoice.InvoiceService;
+import com.talex.server.services.payment.OrderFulfillmentService;
+import com.talex.server.services.payment.TransactionService;
 import com.talex.server.services.payment.OrderCompletionService;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
@@ -36,20 +36,20 @@ import java.util.stream.Collectors;
 public class OrderCompletionServiceImpl implements OrderCompletionService {
 
     private final OrderRepository orderRepository;
-    private final ITransactionService transactionService;
-    private final IInvoiceService invoiceService;
-    private final List<IOrderFulfillmentService> fulfillmentServices;
+    private final TransactionService transactionService;
+    private final InvoiceService invoiceService;
+    private final List<OrderFulfillmentService> fulfillmentServices;
     private final NotificationRepository notificationRepository;
     private final SubscriptionRepository subscriptionRepository;
     private final ComboEpisodeRepository comboEpisodeRepository;
     private final EpisodeRepository episodeRepository;
 
-    private Map<String, IOrderFulfillmentService> fulfillmentServiceByItemType;
+    private Map<String, OrderFulfillmentService> fulfillmentServiceByItemType;
 
     @PostConstruct
     void indexFulfillmentServices() {
         fulfillmentServiceByItemType = fulfillmentServices.stream()
-                .collect(Collectors.toMap(IOrderFulfillmentService::getSupportedItemType, Function.identity()));
+                .collect(Collectors.toMap(OrderFulfillmentService::getSupportedItemType, Function.identity()));
     }
 
     @Override
@@ -60,7 +60,7 @@ public class OrderCompletionServiceImpl implements OrderCompletionService {
         order.setStatus(OrderStatus.COMPLETED);
         orderRepository.save(order);
 
-        IOrderFulfillmentService fulfillmentService = fulfillmentServiceByItemType.get(order.getItemType());
+        OrderFulfillmentService fulfillmentService = fulfillmentServiceByItemType.get(order.getItemType());
         if (fulfillmentService == null) {
             throw new IllegalStateException(
                     "No IOrderFulfillmentService registered for itemType=" + order.getItemType());
@@ -92,7 +92,7 @@ public class OrderCompletionServiceImpl implements OrderCompletionService {
         String referenceType = null;
         String referenceId = null;
 
-        if (SubscriptionOrderFulfillmentService.ITEM_TYPE.equals(order.getItemType())) {
+        if (SubscriptionOrderFulfillmentServiceImpl.ITEM_TYPE.equals(order.getItemType())) {
             type = NotificationType.SUBSCRIPTION_PURCHASE_SUCCESS;
             String tierName = subscriptionRepository.findById(order.getItemId())
                     .map(Subscription::getTier)
@@ -100,7 +100,7 @@ public class OrderCompletionServiceImpl implements OrderCompletionService {
             title = "Nâng cấp Premium thành công";
             content = "Bạn đã đăng ký gói " + tierName
                     + " thành công. Cảm ơn bạn đã đồng hành cùng TaleX, chúc bạn có trải nghiệm xem truyện tuyệt vời!";
-        } else if (ComboOrderFulfillmentService.ITEM_TYPE.equals(order.getItemType())) {
+        } else if (ComboOrderFulfillmentServiceImpl.ITEM_TYPE.equals(order.getItemType())) {
             type = NotificationType.COMBO_PURCHASE_SUCCESS;
             String comboTitle = comboEpisodeRepository.findById(order.getItemId())
                     .map(ComboEpisode::getTitle)
@@ -110,7 +110,7 @@ public class OrderCompletionServiceImpl implements OrderCompletionService {
                     + "\". Chúc bạn có trải nghiệm xem truyện tuyệt vời!";
             referenceType = "COMBO";
             referenceId = order.getItemId();
-        } else if (EpisodeOrderFulfillmentService.ITEM_TYPE.equals(order.getItemType())) {
+        } else if (EpisodeOrderFulfillmentServiceImpl.ITEM_TYPE.equals(order.getItemType())) {
             type = NotificationType.EPISODE_PURCHASE_SUCCESS;
             String episodeTitle = episodeRepository.findById(order.getItemId())
                     .map(Episode::getTitle)

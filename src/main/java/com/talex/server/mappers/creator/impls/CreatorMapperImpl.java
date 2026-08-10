@@ -3,14 +3,14 @@ package com.talex.server.mappers.creator.impls;
 import com.talex.server.dtos.responses.creator.CreatorResponseDto;
 import com.talex.server.entities.creator.Creator;
 import com.talex.server.mappers.creator.ICreatorMapper;
-import com.talex.server.services.creator.ICreatorTierService;
+import com.talex.server.services.creator.CreatorTierService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 @Component
 @RequiredArgsConstructor
 public class CreatorMapperImpl implements ICreatorMapper {
-    private final ICreatorTierService creatorTierService;
+    private final CreatorTierService creatorTierService;
 
     @Override
     public CreatorResponseDto toResponseDto(Creator creator) {

@@ -3,10 +3,9 @@ package com.talex.server.schedulers;
 import com.talex.server.entities.transaction.Invoice;
 import com.talex.server.enums.transaction.InvoiceStatus;
 import com.talex.server.repositories.transaction.InvoiceRepository;
-import com.talex.server.services.invoice.IInvoiceService;
+import com.talex.server.services.invoice.InvoiceService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -17,7 +16,7 @@ import java.util.List;
 public class InvoiceStatusPollingScheduler {
 
     private final InvoiceRepository invoiceRepository;
-    private final IInvoiceService invoiceService;
+    private final InvoiceService invoiceService;
 
     // TẠM COMMENT: xuất hóa đơn điện tử qua SePay đang lỗi phía nhà cung cấp (matbao) — xem
     // giải thích ở OrderCompletionServiceImpl.complete(). Tắt @Scheduled để không tiếp tục

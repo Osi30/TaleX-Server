@@ -2,7 +2,7 @@ package com.talex.server.controllers.kyc;
 
 import com.talex.server.dtos.BaseResponse;
 import com.talex.server.dtos.responses.kyc.KycStepResponseDto;
-import com.talex.server.services.ekyc.IKycStepService;
+import com.talex.server.services.ekyc.KycStepService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -19,7 +19,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 @Tag(name = "KYC Steps", description = "API truy vấn và lọc thông tin các bước trong quy trình KYC")
 public class KycStepController {
-        private final IKycStepService kycStepService;
+        private final KycStepService kycStepService;
 
         @GetMapping("/{kycStepId}")
         @PreAuthorize("isAuthenticated()")

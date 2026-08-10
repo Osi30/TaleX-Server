@@ -4,14 +4,14 @@ import com.talex.server.dtos.requests.creator.CreatorConfigRequestDto;
 import com.talex.server.dtos.responses.creator.CreatorConfigResponseDto;
 import com.talex.server.entities.creator.CreatorConfig;
 import com.talex.server.repositories.creator.CreatorConfigRepository;
-import com.talex.server.services.creator.ICreatorConfigService;
+import com.talex.server.services.creator.CreatorConfigService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
-public class CreatorConfigServiceImpl implements ICreatorConfigService {
+public class CreatorConfigServiceImpl implements CreatorConfigService {
 
     private final CreatorConfigRepository creatorConfigRepository;
 

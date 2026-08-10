@@ -4,7 +4,7 @@ import com.talex.server.annotations.CurrentAccountId;
 import com.talex.server.dtos.BaseResponse;
 import com.talex.server.dtos.responses.coin.DailyCheckInResponseDto;
 import com.talex.server.dtos.responses.coin.DailyCheckInStatusDto;
-import com.talex.server.services.coin.IDailyCheckInService;
+import com.talex.server.services.coin.DailyCheckInService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -36,7 +36,7 @@ import java.util.UUID;
 @Tag(name = "User - Daily Check-in", description = "API điểm danh hằng ngày và nhận thưởng")
 public class DailyCheckInController {
 
-    private final IDailyCheckInService checkInService;
+    private final DailyCheckInService checkInService;
 
     /**
      * Lấy trạng thái điểm danh của user hôm nay.

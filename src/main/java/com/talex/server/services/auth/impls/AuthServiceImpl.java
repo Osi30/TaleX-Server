@@ -12,6 +12,7 @@ import com.talex.server.exceptions.codes.AuthErrorCode;
 import com.talex.server.exceptions.details.AuthException;
 import com.talex.server.repositories.auth.AccountRepository;
 import com.talex.server.services.auth.*;
+import com.talex.server.services.auth.RoleService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -30,7 +31,7 @@ import java.util.UUID;
 public class AuthServiceImpl implements AuthService {
 
     private final AccountRepository accountRepository;
-    private final IRoleService roleService;
+    private final RoleService roleService;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
     private final OtpService otpService;

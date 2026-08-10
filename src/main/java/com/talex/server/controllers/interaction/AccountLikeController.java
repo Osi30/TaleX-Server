@@ -4,7 +4,7 @@ import com.talex.server.annotations.CurrentAccountId;
 import com.talex.server.dtos.BaseResponse;
 import com.talex.server.dtos.interaction.response.AccountLikeResponse;
 import com.talex.server.dtos.interaction.response.EpisodeLikeResponse;
-import com.talex.server.services.interaction.IAccountLikeService;
+import com.talex.server.services.interaction.AccountLikeService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -26,7 +26,7 @@ import java.util.UUID;
 @Tag(name = "Account Likes", description = "API quản lý và truy vấn lượt thích (Like/Unlike) của người dùng")
 public class AccountLikeController {
 
-    private final IAccountLikeService accountLikeService;
+    private final AccountLikeService accountLikeService;
 
     @Operation(summary = "Yêu thích tập phim (Like)", description = "Ghi nhận một lượt thích từ người dùng hiện tại đối với tập phim chỉ định.")
     @PostMapping("/episodes/{episodeId}/likes")

@@ -6,7 +6,7 @@ import com.talex.server.entities.series.Season;
 import com.talex.server.entities.series.Series;
 import com.talex.server.entities.series.ComboEpisode;
 import com.talex.server.exceptions.details.ContentModuleException;
-import com.talex.server.services.creator.ICreatorService;
+import com.talex.server.services.creator.CreatorService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -20,7 +20,7 @@ import java.util.UUID;
 public class ContentOwnershipService {
     private static final Set<String> PRIVILEGED_ROLES = Set.of("ROLE_STAFF", "ROLE_ADMIN");
 
-    private final ICreatorService creatorService;
+    private final CreatorService creatorService;
 
     public void assertCanView(Media media, String accountId) {
         if (isPrivileged()) return;

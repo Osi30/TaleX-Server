@@ -7,7 +7,7 @@ import com.talex.server.dtos.requests.campaign.CampaignRequestDto;
 import com.talex.server.dtos.requests.campaign.CampaignUpdateDto;
 import com.talex.server.dtos.requests.filters.CampaignFilterRequestDto;
 import com.talex.server.dtos.responses.campaign.CampaignResponseDto;
-import com.talex.server.services.campaign.ICampaignService;
+import com.talex.server.services.campaign.CampaignService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -26,7 +26,7 @@ import java.util.UUID;
 @PreAuthorize("isAuthenticated()")
 @Tag(name = "Campaigns", description = "API quản lý chiến dịch đẩy tương tác cho phim/truyện")
 public class CampaignController {
-    private final ICampaignService campaignService;
+    private final CampaignService campaignService;
 
     @PostMapping
     @Operation(summary = "Tạo chiến dịch mới (Demo Only)", description = "Tạo một chiến dịch mới cho creator và tài khoản.")

@@ -9,7 +9,6 @@ import com.talex.server.dtos.responses.invoice.SePayInvoiceTemplateDto;
 import com.talex.server.dtos.responses.invoice.SePayProviderAccountDetailDto;
 import com.talex.server.entities.auth.Account;
 import com.talex.server.entities.series.ComboEpisode;
-import com.talex.server.entities.series.Episode;
 import com.talex.server.entities.subscription.Subscription;
 import com.talex.server.entities.transaction.Invoice;
 import com.talex.server.entities.transaction.Order;
@@ -23,12 +22,12 @@ import com.talex.server.repositories.subscription.SubscriptionRepository;
 import com.talex.server.repositories.transaction.InvoiceRepository;
 import com.talex.server.repositories.transaction.OrderRepository;
 import com.talex.server.services.auth.EmailService;
-import com.talex.server.services.invoice.IInvoiceService;
+import com.talex.server.services.invoice.InvoiceService;
 import com.talex.server.services.invoice.SePayEInvoiceClient;
-import com.talex.server.services.payment.impls.ComboOrderFulfillmentService;
-import com.talex.server.services.payment.impls.EngagementOrderFulfillmentService;
-import com.talex.server.services.payment.impls.EpisodeOrderFulfillmentService;
-import com.talex.server.services.payment.impls.SubscriptionOrderFulfillmentService;
+import com.talex.server.services.payment.impls.ComboOrderFulfillmentServiceImpl;
+import com.talex.server.services.payment.impls.EngagementOrderFulfillmentServiceImpl;
+import com.talex.server.services.payment.impls.EpisodeOrderFulfillmentServiceImpl;
+import com.talex.server.services.payment.impls.SubscriptionOrderFulfillmentServiceImpl;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -47,7 +46,7 @@ import java.util.Optional;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class InvoiceServiceImpl implements IInvoiceService {
+public class InvoiceServiceImpl implements InvoiceService {
 
     private static final DateTimeFormatter ISSUED_DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     // SePay validate issued_date theo giờ Việt Nam — container chạy giờ UTC (không set TZ)
@@ -263,10 +262,10 @@ public class InvoiceServiceImpl implements IInvoiceService {
             return FALLBACK_ITEM_NAME;
         }
         return switch (itemType) {
-            case SubscriptionOrderFulfillmentService.ITEM_TYPE -> resolveSubscriptionItemName(order.getItemId());
-            case EngagementOrderFulfillmentService.ITEM_TYPE -> "Gói tương tác TaleX";
-            case EpisodeOrderFulfillmentService.ITEM_TYPE -> resolveEpisodeItemName(order.getItemId());
-            case ComboOrderFulfillmentService.ITEM_TYPE -> resolveComboItemName(order.getItemId());
+            case SubscriptionOrderFulfillmentServiceImpl.ITEM_TYPE -> resolveSubscriptionItemName(order.getItemId());
+            case EngagementOrderFulfillmentServiceImpl.ITEM_TYPE -> "Gói tương tác TaleX";
+            case EpisodeOrderFulfillmentServiceImpl.ITEM_TYPE -> resolveEpisodeItemName(order.getItemId());
+            case ComboOrderFulfillmentServiceImpl.ITEM_TYPE -> resolveComboItemName(order.getItemId());
             default -> FALLBACK_ITEM_NAME;
         };
     }

@@ -15,7 +15,6 @@ import lombok.NoArgsConstructor;
 @Builder
 public class PaymentProfileRequestDto {
     @NotBlank(message = "Mã ngân hàng không được để trống")
-    @Size(min = 2, max = 50, message = "Mã ngân hàng phải từ 2 đến 50 ký tự")
     private BankBin bankCode;
 
     @NotBlank(message = "Số tài khoản không được để trống")

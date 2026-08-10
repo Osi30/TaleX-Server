@@ -4,7 +4,7 @@ import com.talex.server.dtos.requests.ads.AdSlotRequestDto;
 import com.talex.server.dtos.responses.ads.AdSlotResponseDto;
 import com.talex.server.entities.ads.AdSlot;
 import com.talex.server.repositories.ads.AdSlotRepository;
-import com.talex.server.services.ads.IAdSlotService;
+import com.talex.server.services.ads.AdSlotService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,7 +15,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
-public class AdSlotServiceImpl implements IAdSlotService {
+public class AdSlotServiceImpl implements AdSlotService {
 
     private final AdSlotRepository slotRepository;
 

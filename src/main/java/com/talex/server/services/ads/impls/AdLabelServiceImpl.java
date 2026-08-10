@@ -8,7 +8,7 @@ import com.talex.server.exceptions.codes.campaign.CampaignErrorCode;
 import com.talex.server.exceptions.details.campaign.CampaignException;
 import com.talex.server.repositories.ads.AdLabelRepository;
 import com.talex.server.repositories.ads.AdvertiseProfileRepository;
-import com.talex.server.services.ads.IAdLabelService;
+import com.talex.server.services.ads.AdLabelService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,7 +19,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
-public class AdLabelServiceImpl implements IAdLabelService {
+public class AdLabelServiceImpl implements AdLabelService {
 
     private final AdLabelRepository adLabelRepository;
     private final AdvertiseProfileRepository advertiseProfileRepository;

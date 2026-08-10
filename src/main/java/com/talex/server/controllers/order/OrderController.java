@@ -8,7 +8,7 @@ import com.talex.server.dtos.requests.payment.CreateEngagementOrderRequestDto;
 import com.talex.server.dtos.requests.payment.CreateOrderRequestDto;
 import com.talex.server.dtos.responses.payment.OrderHistoryItemDto;
 import com.talex.server.dtos.responses.payment.OrderResponseDto;
-import com.talex.server.services.payment.IOrderService;
+import com.talex.server.services.payment.OrderService;
 import com.talex.server.services.payment.OrderHistoryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -28,7 +28,7 @@ import java.util.UUID;
 @Tag(name = "Orders", description = "API tạo và tra cứu đơn hàng thanh toán qua SePay")
 public class OrderController {
 
-    private final IOrderService orderService;
+    private final OrderService orderService;
     private final OrderHistoryService orderHistoryService;
 
     @PostMapping

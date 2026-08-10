@@ -3,7 +3,7 @@ package com.talex.server.controllers.interaction;
 import com.talex.server.annotations.CurrentAccountId;
 import com.talex.server.dtos.BaseResponse;
 import com.talex.server.dtos.interaction.request.ShareRequest;
-import com.talex.server.services.interaction.IAccountShareService;
+import com.talex.server.services.interaction.AccountShareService;
 import com.talex.server.utils.RequestUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -20,7 +20,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @Tag(name = "Account Shares", description = "API quản lý và ghi nhận lượt chia sẻ nội dung tập phim từ người dùng")
 public class AccountShareController {
-    private final IAccountShareService accountShareService;
+    private final AccountShareService accountShareService;
 
     @Operation(
             summary = "Ghi nhận lượt chia sẻ Tập phim",

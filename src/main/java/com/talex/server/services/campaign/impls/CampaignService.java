@@ -16,9 +16,8 @@ import com.talex.server.mappers.campaign.ICampaignMapper;
 import com.talex.server.repositories.campaign.CampaignRepository;
 import com.talex.server.repositories.campaign.CampaignSeriesRepository;
 import com.talex.server.repositories.series.SeriesRepository;
-import com.talex.server.services.campaign.ICampaignService;
-import com.talex.server.services.campaign.IEngagementServiceService;
-import com.talex.server.services.creator.ICreatorService;
+import com.talex.server.services.campaign.EngagementServiceService;
+import com.talex.server.services.creator.CreatorService;
 import com.talex.server.specifications.campaign.CampaignSpec;
 import com.talex.server.utils.PageUtils;
 import com.talex.server.utils.ValidationUtils;
@@ -36,12 +35,12 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
-public class CampaignService implements ICampaignService {
+public class CampaignService implements com.talex.server.services.campaign.CampaignService {
     private final CampaignRepository campaignRepository;
     private final CampaignSeriesRepository campaignSeriesRepository;
     private final SeriesRepository seriesRepository;
-    private final ICreatorService creatorService;
-    private final IEngagementServiceService engagementService;
+    private final CreatorService creatorService;
+    private final EngagementServiceService engagementService;
     private final ICampaignMapper campaignMapper;
 
     @Override

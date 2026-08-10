@@ -1,0 +1,32 @@
+package com.talex.server.services.payment.impls;
+
+import com.talex.server.dtos.requests.subscription.AccountSubscriptionRequestDto;
+import com.talex.server.entities.transaction.Order;
+import com.talex.server.services.payment.OrderFulfillmentService;
+import com.talex.server.services.subscription.AccountSubscriptionService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+
+@Service
+@RequiredArgsConstructor
+public class SubscriptionOrderFulfillmentServiceImpl implements OrderFulfillmentService {
+
+    public static final String ITEM_TYPE = "SUBSCRIPTION";
+
+    private final AccountSubscriptionService accountSubscriptionService;
+
+    @Override
+    public String getSupportedItemType() {
+        return ITEM_TYPE;
+    }
+
+    @Override
+    public void fulfill(Order order) {
+        AccountSubscriptionRequestDto subscriptionRequest = AccountSubscriptionRequestDto.builder()
+                .accountId(order.getAccount().getAccountId())
+                .subscriptionId(order.getItemId())
+                .orderId(order.getOrderId())
+                .build();
+        accountSubscriptionService.createAccountSubscription(subscriptionRequest);
+    }
+}

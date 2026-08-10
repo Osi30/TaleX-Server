@@ -5,7 +5,7 @@ import com.talex.server.dtos.BaseResponse;
 import com.talex.server.dtos.interaction.request.RatingRequest;
 import com.talex.server.dtos.interaction.response.AccountRatingResponse;
 import com.talex.server.dtos.interaction.response.SeriesRatingResponse;
-import com.talex.server.services.interaction.IAccountRatingService;
+import com.talex.server.services.interaction.AccountRatingService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -27,7 +27,7 @@ import java.util.UUID;
 @Tag(name = "Account Ratings", description = "API quản lý đánh giá (Rating) Series của người dùng")
 public class AccountRatingController {
 
-    private final IAccountRatingService ratingService;
+    private final AccountRatingService ratingService;
 
     @Operation(summary = "Đánh giá hoặc Cập nhật điểm đánh giá cho Series")
     @PostMapping("/series/{seriesId}/rate")

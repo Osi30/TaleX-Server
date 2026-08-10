@@ -1,7 +1,7 @@
 package com.talex.server.services.ads.impls;
 
 import com.talex.server.configs.properties.MediaProperties;
-import com.talex.server.services.ads.IAdMediaUploadService;
+import com.talex.server.services.ads.AdMediaUploadService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -21,7 +21,7 @@ import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class AdMediaUploadServiceImpl implements IAdMediaUploadService {
+public class AdMediaUploadServiceImpl implements AdMediaUploadService {
 
     private final S3Client s3Client;
     private final MediaProperties mediaProperties;

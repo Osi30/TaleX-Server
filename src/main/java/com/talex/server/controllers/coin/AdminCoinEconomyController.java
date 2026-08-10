@@ -4,7 +4,7 @@ import com.talex.server.annotations.CurrentAccountId;
 import com.talex.server.dtos.BaseResponse;
 import com.talex.server.dtos.requests.coin.CoinEconomyConfigRequestDto;
 import com.talex.server.dtos.responses.coin.CoinEconomyConfigResponseDto;
-import com.talex.server.services.coin.ICoinEconomyConfigService;
+import com.talex.server.services.coin.CoinEconomyConfigService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -38,7 +38,7 @@ import java.util.UUID;
 @Tag(name = "Admin - Coin Economy", description = "API cấu hình các mốc phần thưởng nền kinh tế Coin")
 public class AdminCoinEconomyController {
 
-    private final ICoinEconomyConfigService coinEconomyConfigService;
+    private final CoinEconomyConfigService coinEconomyConfigService;
 
     /**
      * Lấy cấu hình kinh tế Coin hiện hành.

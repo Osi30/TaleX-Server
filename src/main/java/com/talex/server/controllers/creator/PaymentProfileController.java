@@ -7,7 +7,8 @@ import com.talex.server.dtos.requests.creator.PaymentProfileRequestDto;
 import com.talex.server.dtos.requests.creator.PaymentProfileVerifiedDto;
 import com.talex.server.dtos.requests.filters.PaymentProfileFilterRequestDto;
 import com.talex.server.dtos.responses.creator.PaymentProfileResponseDto;
-import com.talex.server.services.creator.IPaymentProfileService;
+import com.talex.server.enums.BankBin;
+import com.talex.server.services.creator.PaymentProfileService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -26,7 +27,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @Tag(name = "Payment Profiles", description = "API quản lý hồ sơ thanh toán của creator")
 public class PaymentProfileController {
-    private final IPaymentProfileService paymentProfileService;
+    private final PaymentProfileService paymentProfileService;
 
     @PreAuthorize("isAuthenticated()")
     @PostMapping
@@ -152,6 +153,17 @@ public class PaymentProfileController {
                 .code(200)
                 .message("Deleted")
                 .data(null)
+                .build());
+    }
+
+    @GetMapping("/bankbins")
+    @Operation(summary = "Lấy danh sách tất cả Bank BIN", description = "Trả về danh sách tất cả mã BIN ngân hàng hỗ trợ trong hệ thống")
+    public ResponseEntity<BaseResponse> getAllBankBins() {
+        List<BankBin> resp = paymentProfileService.getAllBankBins();
+        return ResponseEntity.ok(BaseResponse.builder()
+                .code(200)
+                .message("OK")
+                .data(resp)
                 .build());
     }
 }

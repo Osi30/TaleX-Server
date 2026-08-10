@@ -3,7 +3,8 @@ package com.talex.server.controllers.ads;
 import com.talex.server.annotations.CurrentAccountId;
 import com.talex.server.dtos.BaseResponse;
 import com.talex.server.dtos.requests.ads.AdCampaignCreateRequestDto;
-import com.talex.server.services.ads.IAdCampaignService;
+import com.talex.server.services.ads.AdCampaignService;
+import com.talex.server.services.ads.AdWalletService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -12,7 +13,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-import com.talex.server.services.ads.IAdMediaUploadService;
+import com.talex.server.services.ads.AdMediaUploadService;
 
 import java.util.UUID;
 
@@ -23,9 +24,9 @@ import java.util.UUID;
 @Tag(name = "Ad Campaigns", description = "API quản lý chiến dịch quảng cáo của User")
 public class AdUserController {
 
-    private final IAdCampaignService campaignService;
-    private final IAdMediaUploadService mediaUploadService;
-    private final com.talex.server.services.ads.IAdWalletService walletService;
+    private final AdCampaignService campaignService;
+    private final AdMediaUploadService mediaUploadService;
+    private final AdWalletService walletService;
 
     @PostMapping(value = "/upload", consumes = "multipart/form-data")
     @Operation(summary = "Upload file quảng cáo (Banner/Video) lên S3", description = "User tải file ảnh/video lên, trả về link URL gốc S3.")

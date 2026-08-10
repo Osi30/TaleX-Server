@@ -2,7 +2,7 @@ package com.talex.server.controllers.ads;
 
 import com.talex.server.dtos.BaseResponse;
 import com.talex.server.dtos.requests.ads.AdSlotRequestDto;
-import com.talex.server.services.ads.IAdSlotService;
+import com.talex.server.services.ads.AdSlotService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -20,7 +20,7 @@ import java.util.UUID;
 @Tag(name = "Ad Admin Slots", description = "API quản lý vị trí quảng cáo dành cho Admin")
 public class AdAdminSlotController {
 
-    private final IAdSlotService slotService;
+    private final AdSlotService slotService;
 
     @GetMapping
     @Operation(summary = "Lấy tất cả các Slots", description = "Admin xem tất cả các cấu hình vị trí.")

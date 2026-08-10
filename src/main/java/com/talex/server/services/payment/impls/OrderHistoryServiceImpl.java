@@ -32,7 +32,7 @@ public class OrderHistoryServiceImpl implements OrderHistoryService {
 
     private static final String UNKNOWN_ITEM_TITLE = "Nội dung đã gỡ";
     private static final List<String> CONTENT_ITEM_TYPES = List.of(
-            EpisodeOrderFulfillmentService.ITEM_TYPE, ComboOrderFulfillmentService.ITEM_TYPE);
+            EpisodeOrderFulfillmentServiceImpl.ITEM_TYPE, ComboOrderFulfillmentServiceImpl.ITEM_TYPE);
 
     private final OrderRepository orderRepository;
     private final EpisodeRepository episodeRepository;
@@ -48,10 +48,10 @@ public class OrderHistoryServiceImpl implements OrderHistoryService {
         List<Order> orders = orderPage.getContent();
 
         Map<String, String> titleByEpisodeId = resolveTitles(orders,
-                EpisodeOrderFulfillmentService.ITEM_TYPE, episodeRepository::findAllById,
+                EpisodeOrderFulfillmentServiceImpl.ITEM_TYPE, episodeRepository::findAllById,
                 Episode::getEpisodeId, Episode::getTitle);
         Map<String, String> titleByComboId = resolveTitles(orders,
-                ComboOrderFulfillmentService.ITEM_TYPE, comboEpisodeRepository::findAllById,
+                ComboOrderFulfillmentServiceImpl.ITEM_TYPE, comboEpisodeRepository::findAllById,
                 ComboEpisode::getComboId, ComboEpisode::getTitle);
 
         List<String> orderIds = orders.stream().map(Order::getOrderId).toList();
@@ -99,7 +99,7 @@ public class OrderHistoryServiceImpl implements OrderHistoryService {
     private OrderHistoryItemDto toHistoryItem(
             Order order, Map<String, String> titleByEpisodeId, Map<String, String> titleByComboId,
             Map<String, Transaction> transactionByOrderId, Map<String, Invoice> invoiceByTransactionId) {
-        String itemTitle = EpisodeOrderFulfillmentService.ITEM_TYPE.equals(order.getItemType())
+        String itemTitle = EpisodeOrderFulfillmentServiceImpl.ITEM_TYPE.equals(order.getItemType())
                 ? titleByEpisodeId.getOrDefault(order.getItemId(), UNKNOWN_ITEM_TITLE)
                 : titleByComboId.getOrDefault(order.getItemId(), UNKNOWN_ITEM_TITLE);
 

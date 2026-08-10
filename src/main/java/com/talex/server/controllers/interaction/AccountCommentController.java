@@ -5,7 +5,7 @@ import com.talex.server.dtos.BaseResponse;
 import com.talex.server.dtos.interaction.request.CommentRequest;
 import com.talex.server.dtos.interaction.request.CommentUpdateRequest;
 import com.talex.server.dtos.interaction.response.CommentResponse;
-import com.talex.server.services.interaction.IAccountCommentService;
+import com.talex.server.services.interaction.AccountCommentService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -26,7 +26,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @Tag(name = "Account Comments", description = "API ghi nhận bình luận nội dung của người dùng")
 public class AccountCommentController {
-    private final IAccountCommentService commentService;
+    private final AccountCommentService commentService;
 
     @Operation(summary = "Ghi nhận bình luận", description = "Viết bình luận gốc hoặc phản hồi bình luận dưới một tập phim.")
     @PostMapping("/comments")

@@ -4,7 +4,7 @@ import com.talex.server.annotations.CurrentAccountId;
 import com.talex.server.dtos.BaseResponse;
 import com.talex.server.dtos.requests.terms.CreatorTermsLogRequestDto;
 import com.talex.server.dtos.responses.creator.CreatorTermsLogResponseDto;
-import com.talex.server.services.terms.ITermsLogService;
+import com.talex.server.services.terms.TermsLogService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -22,7 +22,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @Tag(name = "Term Logs", description = "API quản lý bản ghi sự kiện người dùng chấp nhận điều khoản")
 public class TermsLogController {
-        private final ITermsLogService service;
+        private final TermsLogService service;
 
         @PostMapping
         @PreAuthorize("isAuthenticated()")

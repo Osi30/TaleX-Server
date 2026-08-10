@@ -2,7 +2,7 @@ package com.talex.server.controllers.ads;
 
 import com.talex.server.dtos.BaseResponse;
 import com.talex.server.dtos.requests.ads.AdCampaignReviewRequestDto;
-import com.talex.server.services.ads.IAdCampaignService;
+import com.talex.server.services.ads.AdCampaignService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -20,7 +20,7 @@ import java.util.UUID;
 @Tag(name = "Ad Admin Campaigns", description = "API quản lý chiến dịch quảng cáo dành cho Admin")
 public class AdAdminCampaignController {
 
-    private final IAdCampaignService campaignService;
+    private final AdCampaignService campaignService;
 
     @GetMapping("/pending")
     @Operation(summary = "Lấy danh sách chiến dịch chờ duyệt", description = "Admin xem các quảng cáo user vừa nộp.")

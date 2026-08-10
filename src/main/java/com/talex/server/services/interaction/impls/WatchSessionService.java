@@ -7,7 +7,6 @@ import com.talex.server.entities.interaction.WatchSession;
 import com.talex.server.exceptions.codes.InteractionErrorCode;
 import com.talex.server.exceptions.details.InteractionException;
 import com.talex.server.repositories.interaction.WatchSessionRepository;
-import com.talex.server.services.interaction.IWatchSessionService;
 import com.talex.server.services.series.EpisodeService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
@@ -23,7 +22,7 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
-public class WatchSessionService implements IWatchSessionService {
+public class WatchSessionService implements com.talex.server.services.interaction.WatchSessionService {
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final ObjectMapper objectMapper;
     private final WatchSessionRepository watchSessionRepository;

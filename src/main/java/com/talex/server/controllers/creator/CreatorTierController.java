@@ -5,7 +5,7 @@ import com.talex.server.dtos.BaseResponse;
 import com.talex.server.dtos.requests.creator.CreatorTierRequestDto;
 import com.talex.server.dtos.requests.filters.CreatorTierFilterRequestDto;
 import com.talex.server.dtos.responses.creator.CreatorTierResponseDto;
-import com.talex.server.services.creator.ICreatorTierService;
+import com.talex.server.services.creator.CreatorTierService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -22,7 +22,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 @Tag(name = "Creator Tiers", description = "API quản lý cấp độ của người sáng tạo nội dung")
 public class CreatorTierController {
-    private final ICreatorTierService creatorTierService;
+    private final CreatorTierService creatorTierService;
 
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")

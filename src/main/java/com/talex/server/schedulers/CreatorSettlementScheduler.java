@@ -1,6 +1,6 @@
 package com.talex.server.schedulers;
 
-import com.talex.server.services.creator.ICreatorSettlementService;
+import com.talex.server.services.creator.CreatorSettlementService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -11,7 +11,7 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class CreatorSettlementScheduler {
 
-    private final ICreatorSettlementService creatorSettlementService;
+    private final CreatorSettlementService creatorSettlementService;
 
     /**
      * Cron job chạy tự động vào 00:00:00 ngày 02 hàng tháng.

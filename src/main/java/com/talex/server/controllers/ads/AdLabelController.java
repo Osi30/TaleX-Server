@@ -2,8 +2,7 @@ package com.talex.server.controllers.ads;
 
 import com.talex.server.dtos.BaseResponse;
 import com.talex.server.dtos.requests.ads.AdLabelRequestDto;
-import com.talex.server.dtos.responses.ads.AdLabelResponseDto;
-import com.talex.server.services.ads.IAdLabelService;
+import com.talex.server.services.ads.AdLabelService;
 import com.talex.server.annotations.CurrentAccountId;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -17,7 +16,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class AdLabelController {
 
-    private final IAdLabelService adLabelService;
+    private final AdLabelService adLabelService;
 
     @GetMapping
     public ResponseEntity<BaseResponse> getAllLabels(

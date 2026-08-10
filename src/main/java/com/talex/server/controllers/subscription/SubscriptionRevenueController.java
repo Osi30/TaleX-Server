@@ -2,7 +2,7 @@ package com.talex.server.controllers.subscription;
 
 import com.talex.server.dtos.BaseResponse;
 import com.talex.server.entities.creator.RevenueTransaction;
-import com.talex.server.services.subscription.ISubscriptionRevenueService;
+import com.talex.server.services.subscription.SubscriptionRevenueService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -17,7 +17,7 @@ import java.util.List;
 @Tag(name = "Subscription Revenue Distribution", description = "API tính toán & phân bổ doanh thu Premium cho Creator")
 public class SubscriptionRevenueController {
 
-    private final ISubscriptionRevenueService subscriptionRevenueService;
+    private final SubscriptionRevenueService subscriptionRevenueService;
 
     @PostMapping("/demo-distribute")
     @Operation(

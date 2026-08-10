@@ -14,14 +14,13 @@ import com.talex.server.repositories.ads.AdCampaignRepository;
 import com.talex.server.repositories.ads.AdCreativeRepository;
 import com.talex.server.repositories.ads.AdSlotRepository;
 import com.talex.server.repositories.ads.AdvertiseProfileRepository;
-import com.talex.server.services.ads.IAdCampaignService;
-import com.talex.server.services.ads.IAdWalletService;
-import com.talex.server.services.media.MediaProviderService;
+import com.talex.server.services.ads.AdCampaignService;
+import com.talex.server.services.ads.AdMediaUploadService;
+import com.talex.server.services.ads.AdWalletService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Random;
 import java.util.UUID;
@@ -29,7 +28,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
-public class AdCampaignServiceImpl implements IAdCampaignService {
+public class AdCampaignServiceImpl implements AdCampaignService {
 
     private final AdCampaignRepository campaignRepository;
     private final AdCreativeRepository creativeRepository;
@@ -37,8 +36,8 @@ public class AdCampaignServiceImpl implements IAdCampaignService {
     private final AdvertiseProfileRepository profileRepository;
     private final com.talex.server.repositories.ads.AdMetricRepository metricRepository;
     private final com.talex.server.repositories.ads.AdTransactionRepository transactionRepository;
-    private final IAdWalletService walletService;
-    private final com.talex.server.services.ads.IAdMediaUploadService adMediaUploadService;
+    private final AdWalletService walletService;
+    private final AdMediaUploadService adMediaUploadService;
     private final Random random = new Random();
 
     @Override

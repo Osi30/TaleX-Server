@@ -8,7 +8,7 @@ import com.talex.server.dtos.requests.creator.CreatorRegisterDto;
 import com.talex.server.dtos.requests.filters.CreatorFilterRequestDto;
 import com.talex.server.dtos.responses.creator.CreatorResponseDto;
 import com.talex.server.records.CreatorVerificationStatus;
-import com.talex.server.services.creator.ICreatorService;
+import com.talex.server.services.creator.CreatorService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -28,7 +28,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @Tag(name = "Creators", description = "API quản lý creator, bao gồm đăng ký, truy vấn và cập nhật thông tin creator")
 public class CreatorController {
-    private final ICreatorService creatorService;
+    private final CreatorService creatorService;
 
     @PostMapping
     @PreAuthorize("hasRole('VIEWER')")

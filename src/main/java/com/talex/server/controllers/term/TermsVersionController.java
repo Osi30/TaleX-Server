@@ -6,7 +6,7 @@ import com.talex.server.dtos.requests.terms.TermsVersionRequestDto;
 import com.talex.server.dtos.requests.filters.TermVersionFilterRequestDto;
 import com.talex.server.dtos.responses.creator.TermsVersionResponseDto;
 import com.talex.server.enums.TermsType;
-import com.talex.server.services.terms.ITermsVersionService;
+import com.talex.server.services.terms.TermsVersionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -22,7 +22,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 @Tag(name = "Term Versions", description = "API quản lý phiên bản điều khoản và nội dung điều khoản đang hoạt động")
 public class TermsVersionController {
-        private final ITermsVersionService termsService;
+        private final TermsVersionService termsService;
 
         @PostMapping
 //        @PreAuthorize("hasRole('ADMIN')")

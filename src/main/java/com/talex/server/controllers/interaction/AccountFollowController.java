@@ -4,7 +4,7 @@ import com.talex.server.annotations.CurrentAccountId;
 import com.talex.server.dtos.BaseResponse;
 import com.talex.server.dtos.interaction.response.AccountFollowInfoDto;
 import com.talex.server.dtos.interaction.request.FollowRequestDto;
-import com.talex.server.services.interaction.IAccountFollowService;
+import com.talex.server.services.interaction.AccountFollowService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -22,7 +22,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @Tag(name = "Account Follows", description = "API quản lý mối quan hệ tương tác theo dõi giữa các người dùng")
 public class AccountFollowController {
-    private final IAccountFollowService accountFollowService;
+    private final AccountFollowService accountFollowService;
 
     @Operation(summary = "Theo dõi tài khoản", description = "Ghi nhận hành động một tài khoản bắt đầu theo dõi một tài khoản khác.")
     @PostMapping

@@ -8,7 +8,7 @@ import com.talex.server.exceptions.codes.AdminAccountErrorCode;
 import com.talex.server.exceptions.details.AdminAccountException;
 import com.talex.server.repositories.auth.AccountRepository;
 import com.talex.server.services.auth.AdminAccountService;
-import com.talex.server.services.auth.IRoleService;
+import com.talex.server.services.auth.RoleService;
 import com.talex.server.specifications.AccountSpecification;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,7 +29,7 @@ public class AdminAccountServiceImpl implements AdminAccountService {
     private static final String STAFF_ROLE = "STAFF";
 
     private final AccountRepository accountRepository;
-    private final IRoleService roleService;
+    private final RoleService roleService;
     private final PasswordEncoder passwordEncoder;
 
     @Override

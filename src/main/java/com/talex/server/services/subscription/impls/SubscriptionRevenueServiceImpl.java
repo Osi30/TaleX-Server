@@ -11,9 +11,9 @@ import com.talex.server.records.CreatorRevenueData;
 import com.talex.server.repositories.creator.CreatorRepository;
 import com.talex.server.repositories.subscription.SubscriptionRevenueLogRepository;
 import com.talex.server.repositories.transaction.RevenueTransactionRepository;
-import com.talex.server.services.creator.ICreatorConfigService;
-import com.talex.server.services.creator.ICreatorService;
-import com.talex.server.services.subscription.ISubscriptionRevenueService;
+import com.talex.server.services.creator.CreatorConfigService;
+import com.talex.server.services.creator.CreatorService;
+import com.talex.server.services.subscription.SubscriptionRevenueService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -26,11 +26,11 @@ import java.util.List;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class SubscriptionRevenueServiceImpl implements ISubscriptionRevenueService {
+public class SubscriptionRevenueServiceImpl implements SubscriptionRevenueService {
 
     private final SubscriptionRevenueLogRepository subscriptionRevenueLogRepository;
-    private final ICreatorService creatorService;
-    private final ICreatorConfigService creatorConfigService;
+    private final CreatorService creatorService;
+    private final CreatorConfigService creatorConfigService;
     private final CreatorRepository creatorRepository;
     private final RevenueTransactionRepository revenueTransactionRepository;
 

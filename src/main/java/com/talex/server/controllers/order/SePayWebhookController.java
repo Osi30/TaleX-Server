@@ -1,7 +1,7 @@
 package com.talex.server.controllers.order;
 
 import com.talex.server.dtos.requests.payment.SePayWebhookPayloadDto;
-import com.talex.server.services.payment.ISePayService;
+import com.talex.server.services.payment.SePayService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -21,7 +21,7 @@ import java.util.Map;
 @Tag(name = "Payments", description = "Webhook nhận thông báo giao dịch từ SePay")
 public class SePayWebhookController {
 
-    private final ISePayService sePayService;
+    private final SePayService sePayService;
 
     @PostMapping("/api/v1/payments/sepay-webhook")
     @Operation(summary = "SePay webhook", description = "SePay gọi vào endpoint này khi có biến động số dư tài khoản ngân hàng.")

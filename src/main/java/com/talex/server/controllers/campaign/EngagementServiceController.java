@@ -5,7 +5,7 @@ import com.talex.server.dtos.BasePageResponse;
 import com.talex.server.dtos.requests.campaign.EngagementServiceRequestDto;
 import com.talex.server.dtos.requests.filters.EngagementServiceFilterRequestDto;
 import com.talex.server.dtos.responses.campaign.EngagementServiceResponseDto;
-import com.talex.server.services.campaign.IEngagementServiceService;
+import com.talex.server.services.campaign.EngagementServiceService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -22,7 +22,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 @Tag(name = "Engagement Services", description = "API quản lý các loại dịch vụ tương tác dùng trong chiến dịch")
 public class EngagementServiceController {
-    private final IEngagementServiceService engagementServiceService;
+    private final EngagementServiceService engagementServiceService;
 
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")

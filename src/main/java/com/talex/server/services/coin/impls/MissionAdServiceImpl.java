@@ -4,8 +4,8 @@ import com.talex.server.dtos.responses.coin.AdSessionResponseDto;
 import com.talex.server.exceptions.codes.CoinErrorCode;
 import com.talex.server.exceptions.details.CoinException;
 import com.talex.server.repositories.coin.MissionRepository;
-import com.talex.server.services.coin.IMissionAdService;
-import com.talex.server.services.coin.IMissionService;
+import com.talex.server.services.coin.MissionAdService;
+import com.talex.server.services.coin.MissionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -17,14 +17,14 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class MissionAdServiceImpl implements IMissionAdService {
+public class MissionAdServiceImpl implements MissionAdService {
 
     private static final String AD_SESSION_KEY_PREFIX = "mission:ad_session:";
     private static final int AD_SESSION_TTL_SECONDS = 90;
     private static final int MINIMUM_WATCH_SECONDS = 10;
 
     private final StringRedisTemplate stringRedisTemplate;
-    private final IMissionService missionService;
+    private final MissionService missionService;
     private final MissionRepository missionRepository;
 
     @Override

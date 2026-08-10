@@ -11,7 +11,7 @@ import com.talex.server.repositories.ads.AdCampaignRepository;
 import com.talex.server.repositories.ads.AdTransactionRepository;
 import com.talex.server.repositories.ads.AdvertiseProfileRepository;
 import com.talex.server.repositories.auth.AccountRepository;
-import com.talex.server.services.ads.IAdWalletService;
+import com.talex.server.services.ads.AdWalletService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,7 +20,7 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
-public class AdWalletServiceImpl implements IAdWalletService {
+public class AdWalletServiceImpl implements AdWalletService {
 
     private final AdvertiseProfileRepository profileRepository;
     private final AdTransactionRepository transactionRepository;

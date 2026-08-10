@@ -5,7 +5,7 @@ import com.talex.server.dtos.BaseResponse;
 import com.talex.server.dtos.requests.coin.CompleteAdRequestDto;
 import com.talex.server.dtos.requests.coin.StartAdRequestDto;
 import com.talex.server.dtos.responses.coin.AdSessionResponseDto;
-import com.talex.server.services.coin.IMissionAdService;
+import com.talex.server.services.coin.MissionAdService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -27,7 +27,7 @@ import java.util.UUID;
 @Tag(name = "User - Mission Ads", description = "Endpoints for watching ads to complete missions and earn rewards")
 public class MissionAdController {
 
-    private final IMissionAdService missionAdService;
+    private final MissionAdService missionAdService;
 
     @PostMapping("/start")
     @Operation(

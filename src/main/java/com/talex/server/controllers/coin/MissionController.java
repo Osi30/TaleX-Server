@@ -3,7 +3,7 @@ package com.talex.server.controllers.coin;
 import com.talex.server.annotations.CurrentAccountId;
 import com.talex.server.dtos.BaseResponse;
 import com.talex.server.dtos.responses.coin.MissionProgressResponseDto;
-import com.talex.server.services.coin.IMissionService;
+import com.talex.server.services.coin.MissionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -25,7 +25,7 @@ import java.util.UUID;
 @Tag(name = "User - Missions", description = "API quản lý tiến độ và nhiệm vụ cho người dùng")
 public class MissionController {
 
-    private final IMissionService missionService;
+    private final MissionService missionService;
 
     @GetMapping
     @Operation(

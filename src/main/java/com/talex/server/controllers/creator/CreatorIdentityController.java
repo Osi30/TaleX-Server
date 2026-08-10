@@ -7,7 +7,7 @@ import com.talex.server.dtos.requests.creator.CreatorIdentityRequestDto;
 import com.talex.server.dtos.requests.creator.CreatorVerifiedResultDto;
 import com.talex.server.dtos.requests.filters.CreatorIdentityFilterRequestDto;
 import com.talex.server.dtos.responses.creator.CreatorIdentityResponseDto;
-import com.talex.server.services.creator.ICreatorIdentityService;
+import com.talex.server.services.creator.CreatorIdentityService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -23,7 +23,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @Tag(name = "Creator Identities", description = "API quản lý thông tin định danh của creator")
 public class CreatorIdentityController {
-    private final ICreatorIdentityService creatorIdentityService;
+    private final CreatorIdentityService creatorIdentityService;
 
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('CREATOR', 'STAFF', 'ADMIN')")

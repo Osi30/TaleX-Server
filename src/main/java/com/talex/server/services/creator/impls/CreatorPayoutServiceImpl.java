@@ -8,7 +8,7 @@ import com.talex.server.entities.creator.CreatorMonthlySettlement;
 import com.talex.server.enums.transaction.SettlementStatus;
 import com.talex.server.repositories.creator.CreatorMonthlySettlementRepository;
 import com.talex.server.services.creator.CreatorPayoutService;
-import com.talex.server.services.creator.IPaymentProfileService;
+import com.talex.server.services.creator.PaymentProfileService;
 import com.talex.server.services.payout.PayoutService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,7 +25,7 @@ import java.util.UUID;
 public class CreatorPayoutServiceImpl implements CreatorPayoutService {
 
     private final CreatorMonthlySettlementRepository settlementRepository;
-    private final IPaymentProfileService paymentProfileService;
+    private final PaymentProfileService paymentProfileService;
     private final PayoutService payoutService;
 
     @Override

@@ -6,7 +6,7 @@ import com.talex.server.entities.coin.CoinEconomyConfig;
 import com.talex.server.exceptions.codes.CoinErrorCode;
 import com.talex.server.exceptions.details.CoinException;
 import com.talex.server.repositories.coin.CoinEconomyConfigRepository;
-import com.talex.server.services.coin.ICoinEconomyConfigService;
+import com.talex.server.services.coin.CoinEconomyConfigService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
@@ -37,7 +37,7 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class CoinEconomyConfigServiceImpl implements ICoinEconomyConfigService {
+public class CoinEconomyConfigServiceImpl implements CoinEconomyConfigService {
 
     private final CoinEconomyConfigRepository configRepository;
 

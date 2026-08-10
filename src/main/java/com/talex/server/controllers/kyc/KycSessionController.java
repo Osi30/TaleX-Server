@@ -9,8 +9,8 @@ import com.talex.server.dtos.responses.kyc.KycSessionResponseDto;
 import com.talex.server.enums.kyc.StepType;
 import com.talex.server.policies.FilePolicy;
 import com.talex.server.records.EKycResult;
-import com.talex.server.services.ekyc.IKycSessionService;
-import com.talex.server.services.ekyc.IKycStepService;
+import com.talex.server.services.ekyc.KycSessionService;
+import com.talex.server.services.ekyc.KycStepService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -29,8 +29,8 @@ import java.util.Map;
 @Validated
 @Tag(name = "KYC Sessions", description = "API quản lý phiên KYC, quét CCCD và xác thực liveness")
 public class KycSessionController {
-        private final IKycSessionService kycSessionService;
-        private final IKycStepService kycStepService;
+        private final KycSessionService kycSessionService;
+        private final KycStepService kycStepService;
 
         @GetMapping("/{kycSessionId}")
         @PreAuthorize("isAuthenticated()")

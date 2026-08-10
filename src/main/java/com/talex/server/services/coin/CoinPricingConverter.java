@@ -8,7 +8,7 @@ import java.math.RoundingMode;
 
 /**
  * Quy đổi VNĐ sang Coin và ngược lại theo tỷ giá {@code vndPerCoin} hiện hành
- * (đọc từ {@link ICoinEconomyConfigService}, đã có cache).
+ * (đọc từ {@link CoinEconomyConfigService}, đã có cache).
  * <p>
  * vndToCoin luôn làm tròn LÊN (ceil) để người dùng không bao giờ trả thiếu tiền đơn hàng.
  * </p>
@@ -17,7 +17,7 @@ import java.math.RoundingMode;
 @RequiredArgsConstructor
 public class CoinPricingConverter {
 
-    private final ICoinEconomyConfigService coinEconomyConfigService;
+    private final CoinEconomyConfigService coinEconomyConfigService;
 
     public BigDecimal vndToCoin(BigDecimal vnd) {
         BigDecimal vndPerCoin = currentRate();

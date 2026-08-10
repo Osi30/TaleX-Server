@@ -8,7 +8,7 @@ import com.talex.server.enums.transaction.SettlementStatus;
 import com.talex.server.repositories.creator.CreatorMonthlySettlementRepository;
 import com.talex.server.repositories.creator.CreatorRepository;
 import com.talex.server.services.TaxConfigService;
-import com.talex.server.services.creator.ICreatorSettlementService;
+import com.talex.server.services.creator.CreatorSettlementService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -23,7 +23,7 @@ import java.util.List;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class CreatorSettlementServiceImpl implements ICreatorSettlementService {
+public class CreatorSettlementServiceImpl implements CreatorSettlementService {
 
     private final CreatorRepository creatorRepository;
     private final CreatorMonthlySettlementRepository settlementRepository;

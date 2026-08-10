@@ -8,9 +8,9 @@ import com.talex.server.enums.coin.CoinReferenceType;
 import com.talex.server.exceptions.codes.CoinErrorCode;
 import com.talex.server.exceptions.details.CoinException;
 import com.talex.server.repositories.coin.DailyCheckInRepository;
-import com.talex.server.services.coin.ICoinEconomyConfigService;
-import com.talex.server.services.coin.ICoinWalletService;
-import com.talex.server.services.coin.IDailyCheckInService;
+import com.talex.server.services.coin.CoinEconomyConfigService;
+import com.talex.server.services.coin.CoinWalletService;
+import com.talex.server.services.coin.DailyCheckInService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -54,11 +54,11 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class DailyCheckInServiceImpl implements IDailyCheckInService {
+public class DailyCheckInServiceImpl implements DailyCheckInService {
 
     private final DailyCheckInRepository checkInRepository;
-    private final ICoinWalletService coinWalletService;
-    private final ICoinEconomyConfigService configService;
+    private final CoinWalletService coinWalletService;
+    private final CoinEconomyConfigService configService;
     private final StringRedisTemplate stringRedisTemplate;
 
     /**
@@ -71,7 +71,7 @@ public class DailyCheckInServiceImpl implements IDailyCheckInService {
      */
     @Autowired
     @Lazy
-    private IDailyCheckInService self;
+    private DailyCheckInService self;
 
     private static final String LOCK_PREFIX = "lock:checkin:";
     private static final Duration LOCK_TTL  = Duration.ofSeconds(10);

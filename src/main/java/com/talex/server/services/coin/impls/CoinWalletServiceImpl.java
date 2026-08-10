@@ -8,7 +8,7 @@ import com.talex.server.exceptions.codes.CoinErrorCode;
 import com.talex.server.exceptions.details.CoinException;
 import com.talex.server.repositories.coin.CoinTransactionRepository;
 import com.talex.server.repositories.coin.CoinWalletRepository;
-import com.talex.server.services.coin.ICoinWalletService;
+import com.talex.server.services.coin.CoinWalletService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -22,7 +22,7 @@ import java.util.Collections;
 import java.util.UUID;
 
 /**
- * Core Ledger Service — triển khai {@link ICoinWalletService}.
+ * Core Ledger Service — triển khai {@link CoinWalletService}.
  *
  * <h3>Trách nhiệm của class này (Single Responsibility):</h3>
  * <ol>
@@ -48,7 +48,7 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class CoinWalletServiceImpl implements ICoinWalletService {
+public class CoinWalletServiceImpl implements CoinWalletService {
 
     private static final String LOCK_PREFIX = "lock:coin_transaction:";
     private static final Duration LOCK_TTL   = Duration.ofSeconds(5);

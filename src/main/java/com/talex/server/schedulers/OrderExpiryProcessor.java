@@ -4,7 +4,7 @@ import com.talex.server.entities.transaction.Order;
 import com.talex.server.enums.coin.CoinReferenceType;
 import com.talex.server.enums.transaction.OrderStatus;
 import com.talex.server.repositories.transaction.OrderRepository;
-import com.talex.server.services.coin.ICoinWalletService;
+import com.talex.server.services.coin.CoinWalletService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -25,7 +25,7 @@ import java.math.BigDecimal;
 public class OrderExpiryProcessor {
 
     private final OrderRepository orderRepository;
-    private final ICoinWalletService coinWalletService;
+    private final CoinWalletService coinWalletService;
 
     @Transactional
     public void expireIfStillAwaiting(String orderId) {

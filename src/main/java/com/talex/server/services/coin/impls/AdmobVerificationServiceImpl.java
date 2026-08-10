@@ -7,7 +7,7 @@ import com.talex.server.dtos.requests.coin.AdmobCustomData;
 import com.talex.server.dtos.requests.coin.AdmobSsvCallbackRequest;
 import com.talex.server.dtos.responses.coin.AdmobKey;
 import com.talex.server.dtos.responses.coin.AdmobKeyResponse;
-import com.talex.server.services.coin.IMissionService;
+import com.talex.server.services.coin.MissionService;
 import com.talex.server.services.coin.AdmobVerificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -41,7 +41,7 @@ public class AdmobVerificationServiceImpl implements AdmobVerificationService {
 
     private final RestTemplate restTemplate;
     private final StringRedisTemplate stringRedisTemplate;
-    private final IMissionService missionService;
+    private final MissionService missionService;
     private final ObjectMapper objectMapper;
 
     @Value("${admob.ssv.public-keys-url:https://www.gstatic.com/admob/reward/verifier-keys.json}")

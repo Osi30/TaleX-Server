@@ -20,11 +20,9 @@ import com.talex.server.repositories.series.*;
 import com.talex.server.repositories.series.projections.SeriesCardProjection;
 import com.talex.server.repositories.series.projections.SeriesWithAvatarProjection;
 import com.talex.server.services.audit.ContentAuditLogger;
-import com.talex.server.services.creator.ICreatorService;
+import com.talex.server.services.creator.CreatorService;
 import com.talex.server.services.media.impls.ContentOwnershipService;
 import com.talex.server.services.mongo.ISeriesFeatureService;
-import com.talex.server.services.series.CategoryService;
-import com.talex.server.services.series.TagService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -70,7 +68,7 @@ class SeriesServiceTest {
     @Mock
     private ISeriesFeatureService seriesFeatureService;
     @Mock
-    private ICreatorService creatorService;
+    private CreatorService creatorService;
     @Mock
     private SeasonRepository seasonRepository;
     @Mock

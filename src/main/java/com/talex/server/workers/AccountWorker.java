@@ -6,8 +6,8 @@ import com.talex.server.enums.creator.PaymentProfileStatus;
 import com.talex.server.exceptions.details.creator.CreatorException;
 import com.talex.server.records.CreatorVerificationStatus;
 import com.talex.server.repositories.auth.AccountRepository;
-import com.talex.server.services.auth.IRoleService;
-import com.talex.server.services.creator.ICreatorService;
+import com.talex.server.services.auth.RoleService;
+import com.talex.server.services.creator.CreatorService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -20,9 +20,9 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @Slf4j
 public class AccountWorker {
-    private final ICreatorService creatorService;
+    private final CreatorService creatorService;
     private final AccountRepository accountRepository;
-    private final IRoleService roleService;
+    private final RoleService roleService;
 
     @KafkaListener(topics = "request-to-update-account", groupId = "creator-role-updater-group")
     @Transactional

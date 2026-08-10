@@ -7,7 +7,7 @@ import java.math.BigDecimal;
 
 /**
  * Hoàn tất một Order: ghi Transaction thành công, chuyển status COMPLETED,
- * rồi cấp quyền nội dung/gói qua {@link IOrderFulfillmentService} tương ứng với itemType.
+ * rồi cấp quyền nội dung/gói qua {@link OrderFulfillmentService} tương ứng với itemType.
  * <p>
  * Dùng chung cho cả luồng webhook SePay và luồng thanh toán bằng Coin — đảm bảo
  * hai luồng không phân kỳ logic cấp quyền.
