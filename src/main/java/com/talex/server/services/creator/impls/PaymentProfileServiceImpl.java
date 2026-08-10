@@ -48,7 +48,7 @@ public class PaymentProfileServiceImpl implements PaymentProfileService {
         entity.setCreator(creator);
         if (Boolean.TRUE.equals(dto.getIsPrimary())
         ) {
-            repository.unsetOtherPrimary(creator.getCreatorId());
+            repository.unsetOtherPrimary(creator.getCreatorId(), "");
         }
         entity.setStatus(PaymentProfileStatus.PENDING);
         entity.setIsPrimary(dto.getIsPrimary());
@@ -89,11 +89,21 @@ public class PaymentProfileServiceImpl implements PaymentProfileService {
         PaymentProfile existing = findById(id);
 
         // If setting as primary, unset others
-        if (Boolean.TRUE.equals(dto.getIsPrimary())
-                && !existing.getIsPrimary()
-                && existing.getStatus().equals(PaymentProfileStatus.VERIFIED)
+        if (Boolean.TRUE.equals(dto.getIsPrimary()) && !existing.getIsPrimary()
         ) {
-            repository.unsetOtherPrimary(existing.getCreator().getCreatorId());
+            if (existing.getStatus().equals(PaymentProfileStatus.VERIFIED)) {
+                repository.unsetOtherPrimary(existing.getCreator().getCreatorId(), existing.getPaymentProfileId());
+                existing.setIsPrimary(dto.getIsPrimary());
+            } else if (existing.getStatus().equals(PaymentProfileStatus.PENDING)) {
+                PaymentProfile existedPrimary = existing.getCreator()
+                        .getPaymentProfiles().stream().filter(p -> p.getIsPrimary()
+                                && p.getStatus().equals(PaymentProfileStatus.VERIFIED))
+                        .findFirst().orElse(null);
+                if (existedPrimary == null) {
+                    existing.setIsPrimary(true);
+                    repository.unsetOtherPrimary(existing.getCreator().getCreatorId(), existing.getPaymentProfileId());
+                }
+            }
         }
 
         mapper.updateEntity(dto, existing);
@@ -108,11 +118,11 @@ public class PaymentProfileServiceImpl implements PaymentProfileService {
     public PaymentProfileResponseDto updateVerifiedStatus(String id, PaymentProfileVerifiedDto dto) {
         PaymentProfile existing = findById(id);
 
-        if (dto.getStatus().equals(existing.getStatus())){
+        if (dto.getStatus().equals(existing.getStatus())) {
             throw new PaymentProfileException(PaymentProfileErrorCode.INVALID_STATUS, "Status update bị trùng");
         }
 
-        if (!dto.getStatus().equals(PaymentProfileStatus.CANCELLED)){
+        if (!dto.getStatus().equals(PaymentProfileStatus.CANCELLED)) {
             existing.setStatus(dto.getStatus());
         }
         existing.setVerifiedNote(dto.getVerifiedNote());
@@ -120,7 +130,7 @@ public class PaymentProfileServiceImpl implements PaymentProfileService {
 
         PaymentProfile saved = repository.save(existing);
 
-        if (existing.getStatus().equals(PaymentProfileStatus.VERIFIED)){
+        if (existing.getStatus().equals(PaymentProfileStatus.VERIFIED)) {
             creatorService.sendUpdateRoleRequest(existing.getCreator().getAccount().getAccountId());
         }
 

@@ -26,6 +26,6 @@ public interface PaymentProfileRepository
     List<PaymentProfile> findByCreator_Account_AccountIdAndIsDeletedFalse(UUID accountId);
 
     @Modifying
-    @Query("UPDATE PaymentProfile pp SET pp.isPrimary = false WHERE pp.creator.creatorId = :creatorId AND pp.isPrimary = true")
-    void unsetOtherPrimary(@Param("creatorId") String creatorId);
+    @Query("UPDATE PaymentProfile pp SET pp.isPrimary = false WHERE pp.creator.creatorId = :creatorId AND pp.paymentProfileId <> :id")
+    void unsetOtherPrimary(@Param("creatorId") String creatorId, @Param("id") String id);
 }
