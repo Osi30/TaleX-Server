@@ -124,6 +124,16 @@ public class ContentPipelineServiceImpl implements ContentPipelineService {
             media.setPreviewUrl(previewUrl);
         }
 
+        if (result.getWatermarkedS3Key() != null && !result.getWatermarkedS3Key().isBlank()) {
+            String domain = mediaProperties.getAws().getCloudfrontDomain();
+            String newUrl = (domain != null && !domain.isBlank())
+                    ? "https://" + domain + "/" + result.getWatermarkedS3Key()
+                    : "https://" + mediaProperties.getAws().getBucketName() + ".s3." + mediaProperties.getAws().getRegion() + ".amazonaws.com/" + result.getWatermarkedS3Key();
+            media.setFileUrl(newUrl);
+            media.setOriginalUrl(newUrl);
+            media.setProviderPublicId(result.getWatermarkedS3Key());
+        }
+
         if (Boolean.FALSE.equals(result.getSuccess())) {
             log.error("Copyright check failed for mediaId={}: {}", result.getMediaId(), result.getErrorMessage());
             media.setStatus(MediaStatus.FAILED);
