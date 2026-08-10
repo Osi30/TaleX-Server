@@ -88,15 +88,15 @@ public interface SeriesRepository extends JpaRepository<Series, String>, JpaSpec
     void markAs7dSynced(@Param("ids") List<String> ids);
 
     @Query("""
-        SELECT s.seriesId
-        FROM Series s
-        WHERE s.isDeleted = false
-          AND s.status = :status
-          AND s.trendingAnalyticData.totalImpression <= :maxImpression
-          AND s.trendingAnalyticData.impressionStatus = :impressionStatus
-          AND (:isBlacklistEmpty = true OR s.seriesId NOT IN :blacklist)
-        ORDER BY s.trendingAnalyticData.totalImpression ASC, s.createdAt ASC
-    """)
+                SELECT s.seriesId
+                FROM Series s
+                WHERE s.isDeleted = false
+                  AND s.status = :status
+                  AND s.trendingAnalyticData.totalImpression <= :maxImpression
+                  AND s.trendingAnalyticData.impressionStatus = :impressionStatus
+                  AND (:isBlacklistEmpty = true OR s.seriesId NOT IN :blacklist)
+                ORDER BY s.trendingAnalyticData.totalImpression ASC, s.createdAt ASC
+            """)
     List<String> findCandidateNewReleasesSeriesIds(
             @Param("status") SeriesStatus status,
             @Param("maxImpression") Long maxImpression,
@@ -107,15 +107,15 @@ public interface SeriesRepository extends JpaRepository<Series, String>, JpaSpec
     );
 
     @Query("""
-        SELECT s
-        FROM Series s
-        WHERE s.isDeleted = false
-          AND s.status = :status
-          AND s.trendingAnalyticData.totalImpression <= :maxImpression
-          AND s.trendingAnalyticData.impressionStatus = :impressionStatus
-          AND (:isBlacklistEmpty = true OR s.seriesId NOT IN :blacklist)
-        ORDER BY s.trendingAnalyticData.totalImpression ASC, s.createdAt ASC
-    """)
+                SELECT s
+                FROM Series s
+                WHERE s.isDeleted = false
+                  AND s.status = :status
+                  AND s.trendingAnalyticData.totalImpression <= :maxImpression
+                  AND s.trendingAnalyticData.impressionStatus = :impressionStatus
+                  AND (:isBlacklistEmpty = true OR s.seriesId NOT IN :blacklist)
+                ORDER BY s.trendingAnalyticData.totalImpression ASC, s.createdAt ASC
+            """)
     List<Series> findNewSeriesWaitedForDistribution(
             @Param("status") SeriesStatus status,
             @Param("maxImpression") Long maxImpression,
@@ -126,13 +126,13 @@ public interface SeriesRepository extends JpaRepository<Series, String>, JpaSpec
     );
 
     @Query("""
-        SELECT s.seriesId
-        FROM Series s
-        WHERE s.isDeleted = false
-          AND s.status = :status
-          AND (:isBlacklistEmpty = true OR s.seriesId NOT IN :blacklist)
-        ORDER BY s.releasedUpdateTime DESC
-    """)
+                SELECT s.seriesId
+                FROM Series s
+                WHERE s.isDeleted = false
+                  AND s.status = :status
+                  AND (:isBlacklistEmpty = true OR s.seriesId NOT IN :blacklist)
+                ORDER BY s.releasedUpdateTime DESC
+            """)
     List<String> findCandidateRecentlyUpdatedSeriesIds(
             @Param("status") SeriesStatus status,
             @Param("blacklist") Collection<String> blacklist,
@@ -141,18 +141,18 @@ public interface SeriesRepository extends JpaRepository<Series, String>, JpaSpec
     );
 
     @Query("""
-    SELECT s.seriesId
-    FROM Series s
-    WHERE s.isDeleted = false
-      AND s.status = :status
-      AND (:isBlacklistEmpty = true OR s.seriesId NOT IN :blacklist)
-    ORDER BY s.analyticData.watchTime DESC,
-             s.analyticData.likes DESC,
-             s.analyticData.views DESC,
-             s.analyticData.comments DESC,
-             s.analyticData.shares DESC,
-             s.analyticData.bookmarks DESC
-    """)
+            SELECT s.seriesId
+            FROM Series s
+            WHERE s.isDeleted = false
+              AND s.status = :status
+              AND (:isBlacklistEmpty = true OR s.seriesId NOT IN :blacklist)
+            ORDER BY s.analyticData.watchTime DESC,
+                     s.analyticData.likes DESC,
+                     s.analyticData.views DESC,
+                     s.analyticData.comments DESC,
+                     s.analyticData.shares DESC,
+                     s.analyticData.bookmarks DESC
+            """)
     List<String> findCandidateCommunityChoiceSeriesIds(
             @Param("status") SeriesStatus status,
             @Param("blacklist") Collection<String> blacklist,
@@ -161,34 +161,34 @@ public interface SeriesRepository extends JpaRepository<Series, String>, JpaSpec
     );
 
     @Query(value = """
-    WITH RankedSeries AS (
-        SELECT 
-            sc.category_id,
-            s.series_id,
-            ROW_NUMBER() OVER (
-                PARTITION BY sc.category_id 
-                ORDER BY 
-                    s.watch_time DESC, 
-                    s.likes DESC, 
-                    s.views DESC, 
-                    s.comments DESC, 
-                    s.shares DESC, 
-                    s.bookmarks DESC
-            ) AS rn
-        FROM series s
-        JOIN series_categories sc ON s.series_id = sc.series_id
-        JOIN categories c ON sc.category_id = c.category_id
-        WHERE s.is_deleted = false
-          AND s.status = :status
-          AND sc.is_deleted = false
-          AND c.is_deleted = false
-          AND c.status = :categoryStatus
-          AND (:isBlacklistEmpty = true OR s.series_id NOT IN (:blacklist))
-    )
-    SELECT DISTINCT series_id
-    FROM RankedSeries
-    WHERE rn <= :limitPerCategory
-    """, nativeQuery = true)
+            WITH RankedSeries AS (
+                SELECT 
+                    sc.category_id,
+                    s.series_id,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY sc.category_id 
+                        ORDER BY 
+                            s.watch_time DESC, 
+                            s.likes DESC, 
+                            s.views DESC, 
+                            s.comments DESC, 
+                            s.shares DESC, 
+                            s.bookmarks DESC
+                    ) AS rn
+                FROM series s
+                JOIN series_categories sc ON s.series_id = sc.series_id
+                JOIN categories c ON sc.category_id = c.category_id
+                WHERE s.is_deleted = false
+                  AND s.status = :status
+                  AND sc.is_deleted = false
+                  AND c.is_deleted = false
+                  AND c.status = :categoryStatus
+                  AND (:isBlacklistEmpty = true OR s.series_id NOT IN (:blacklist))
+            )
+            SELECT DISTINCT series_id
+            FROM RankedSeries
+            WHERE rn <= :limitPerCategory
+            """, nativeQuery = true)
     List<String> findTopSeriesPerCategory(
             @Param("status") String status,
             @Param("categoryStatus") String categoryStatus,
@@ -198,33 +198,33 @@ public interface SeriesRepository extends JpaRepository<Series, String>, JpaSpec
     );
 
     @Query(value = """
-    WITH RankedSeries AS (
-        SELECT 
-            c.creator_id,
-            s.series_id,
-            ROW_NUMBER() OVER (
-                PARTITION BY c.creator_id 
-                ORDER BY 
-                    s.released_update_time DESC,
-                    s.watch_time DESC, 
-                    s.likes DESC, 
-                    s.views DESC, 
-                    s.comments DESC, 
-                    s.shares DESC, 
-                    s.bookmarks DESC
-            ) AS rn
-        FROM account_follow af
-        JOIN creator c ON af.followed_id = c.account_id
-        JOIN series s ON c.creator_id = s.creator_id
-        WHERE CAST(af.follower_id AS text) = :accountId
-          AND s.is_deleted = false
-          AND s.status = :status
-          AND (:isBlacklistEmpty = true OR s.series_id NOT IN (:blacklist))
-    )
-    SELECT DISTINCT series_id
-    FROM RankedSeries
-    WHERE rn <= :limitPerCreator
-    """, nativeQuery = true)
+            WITH RankedSeries AS (
+                SELECT 
+                    c.creator_id,
+                    s.series_id,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY c.creator_id 
+                        ORDER BY 
+                            s.released_update_time DESC,
+                            s.watch_time DESC, 
+                            s.likes DESC, 
+                            s.views DESC, 
+                            s.comments DESC, 
+                            s.shares DESC, 
+                            s.bookmarks DESC
+                    ) AS rn
+                FROM account_follow af
+                JOIN creator c ON af.followed_id = c.account_id
+                JOIN series s ON c.creator_id = s.creator_id
+                WHERE CAST(af.follower_id AS text) = :accountId
+                  AND s.is_deleted = false
+                  AND s.status = :status
+                  AND (:isBlacklistEmpty = true OR s.series_id NOT IN (:blacklist))
+            )
+            SELECT DISTINCT series_id
+            FROM RankedSeries
+            WHERE rn <= :limitPerCreator
+            """, nativeQuery = true)
     List<String> findTopSeriesFromFollowedCreators(
             @Param("accountId") String accountId,
             @Param("status") String status,
@@ -237,12 +237,12 @@ public interface SeriesRepository extends JpaRepository<Series, String>, JpaSpec
      * Lấy các Series đang trong Vòng 1 (ON_GOING) có số Impression đạt ngưỡng tối thiểu minImpression
      */
     @Query("""
-    SELECT s FROM Series s
-    WHERE s.isDeleted = false
-      AND s.status = :status
-      AND s.trendingAnalyticData.impressionStatus = :impressionStatus
-      AND s.trendingAnalyticData.totalImpression >= :minImpression
-    """)
+            SELECT s FROM Series s
+            WHERE s.isDeleted = false
+              AND s.status = :status
+              AND s.trendingAnalyticData.impressionStatus = :impressionStatus
+              AND s.trendingAnalyticData.totalImpression >= :minImpression
+            """)
     List<Series> findCandidateWilsonSeries(
             @Param("minImpression") Long minImpression,
             @Param("status") SeriesStatus status,
@@ -253,34 +253,36 @@ public interface SeriesRepository extends JpaRepository<Series, String>, JpaSpec
      * Lấy tất cả các Series ở trạng thái SUCCESS để chạy Cron Job cập nhật Hacker News Ranking Score mỗi giờ
      */
     @Query("""
-    SELECT s FROM Series s
-    WHERE s.isDeleted = false
-      AND s.status = :status
-      AND s.trendingAnalyticData.impressionStatus = 'SUCCESS'
-    """)
+            SELECT s FROM Series s
+            WHERE s.isDeleted = false
+              AND s.status = :status
+              AND s.trendingAnalyticData.impressionStatus = 'SUCCESS'
+            """)
     List<Series> findSuccessTrendingSeries(@Param("status") SeriesStatus status);
 
-    @Query("""
-    SELECT s.trendingAnalyticData.wilsonScore
-    FROM Series s
-    WHERE s.isDeleted = false
-      AND s.trendingAnalyticData.impressionStatus IN :statuses
-    ORDER BY s.trendingAnalyticData.wilsonScore ASC
-""")
-    List<Double> findAllEvaluatedWilsonScores(
-            @Param("statuses") List<ImpressionStatus> statuses
+    @Query(value = """
+                SELECT s.trending_wilson_score
+                FROM series s
+                WHERE s.is_deleted = false
+                  AND s.trending_impression_status IN (:statuses)
+                ORDER BY s.wilson_updated_at DESC
+                LIMIT :limit
+            """, nativeQuery = true)
+    List<Double> findTopLatestWilsonScoresSortedAsc(
+            @Param("statuses") List<String> statuses,
+            @Param("limit") int limit
     );
 
     @Query("""
-    SELECT s.seriesId
-    FROM Series s
-    WHERE s.isDeleted = false
-      AND s.status = :status
-      AND s.trendingAnalyticData.impressionStatus = :impressionStatus
-      AND s.trendingAnalyticData.rankingScore > 0
-      AND (:isBlacklistEmpty = true OR s.seriesId NOT IN :blacklist)
-    ORDER BY s.trendingAnalyticData.rankingScore DESC
-""")
+                SELECT s.seriesId
+                FROM Series s
+                WHERE s.isDeleted = false
+                  AND s.status = :status
+                  AND s.trendingAnalyticData.impressionStatus = :impressionStatus
+                  AND s.trendingAnalyticData.rankingScore > 0
+                  AND (:isBlacklistEmpty = true OR s.seriesId NOT IN :blacklist)
+                ORDER BY s.trendingAnalyticData.rankingScore DESC
+            """)
     List<String> findCandidateTrendingSeriesIds(
             @Param("status") SeriesStatus status,
             @Param("impressionStatus") ImpressionStatus impressionStatus,
@@ -290,31 +292,31 @@ public interface SeriesRepository extends JpaRepository<Series, String>, JpaSpec
     );
 
     @Query("""
-    SELECT new com.talex.server.dtos.recommend.SeriesCardResponseDto(
-        s.seriesId,
-        s.creator.account.accountId,
-        s.creator.creatorId,
-        s.creator.account.fullName,
-        s.creator.account.avatarUrl,
-        s.creator.account.totalFollowersBy,
-        s.title,
-        s.description,
-        s.coverUrl,
-        s.bannerUrl,
-        s.contentType,
-        s.ageRating,
-        s.language,
-        s.analyticData.views,
-        s.createdAt,
-        s.updatedAt,
-        s.averageRating,
-        s.releasedUpdateTime
-    )
-    FROM Series s
-    WHERE s.seriesId IN :seriesIds
-    AND s.isDeleted = false
-    AND s.status = :status
-    """)
+            SELECT new com.talex.server.dtos.recommend.SeriesCardResponseDto(
+                s.seriesId,
+                s.creator.account.accountId,
+                s.creator.creatorId,
+                s.creator.account.fullName,
+                s.creator.account.avatarUrl,
+                s.creator.account.totalFollowersBy,
+                s.title,
+                s.description,
+                s.coverUrl,
+                s.bannerUrl,
+                s.contentType,
+                s.ageRating,
+                s.language,
+                s.analyticData.views,
+                s.createdAt,
+                s.updatedAt,
+                s.averageRating,
+                s.releasedUpdateTime
+            )
+            FROM Series s
+            WHERE s.seriesId IN :seriesIds
+            AND s.isDeleted = false
+            AND s.status = :status
+            """)
     List<SeriesCardResponseDto> findSeriesCardsByIds(
             @Param("seriesIds") Collection<String> seriesIds,
             @Param("status") SeriesStatus status

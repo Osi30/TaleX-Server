@@ -21,4 +21,8 @@ public class SeriesTrendingResponseDto {
     private Double totalRating = 0D;
     private Long ratingCount = 0L;
     private Double averageRating = 0.0;
+
+    private Double wilsonScore;
+    private Double upperWilsonScore;
+    private Double rankingScore;
 }

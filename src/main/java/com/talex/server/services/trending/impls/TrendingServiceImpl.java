@@ -50,7 +50,6 @@ public class TrendingServiceImpl implements TrendingService {
         }
 
         List<Series> updatedSeriesList = new ArrayList<>();
-        List<Double> wilsonScoreList = new ArrayList<>();
         int evaluatedCount = 0;
 
         for (Series series : candidates) {
@@ -65,13 +64,13 @@ public class TrendingServiceImpl implements TrendingService {
             // Tính Wilson Score
             double wilsonScore = calculateWilsonScore(engageClick, totalImpression);
             analytic.setWilsonScore(wilsonScore);
-            wilsonScoreList.add(wilsonScore);
 
             boolean isEvaluated = false;
 
             // Đánh giá trạng thái Vòng 1
             if (wilsonScore >= config.getThreshold()) {
                 analytic.setImpressionStatus(ImpressionStatus.SUCCESS);
+                analytic.setWilsonUpdatedAt(LocalDateTime.now());
                 isEvaluated = true;
 
                 // Tính ngay Hacker News Ranking Score cho Series SUCCESS
@@ -87,6 +86,7 @@ public class TrendingServiceImpl implements TrendingService {
             } else if (totalImpression >= config.getMaxImpression()) {
                 // Nếu vượt maxImpression mà điểm vẫn < threshold -> FAILED
                 analytic.setImpressionStatus(ImpressionStatus.FAILED);
+                analytic.setWilsonUpdatedAt(LocalDateTime.now());
                 isEvaluated = true;
             }
 
@@ -102,7 +102,7 @@ public class TrendingServiceImpl implements TrendingService {
             log.info("[WilsonEvaluation] Đã đánh giá xong {} series trong Vòng 1.", evaluatedCount);
 
             // 3. Cập nhật currentBatch, totalBatch và tính lại threshold nếu đạt minBatch
-            configService.incrementBatchAndRecalculateThresholdIfNeeded(evaluatedCount, wilsonScoreList);
+            configService.incrementBatchAndRecalculateThresholdIfNeeded(evaluatedCount);
         }
     }
 
@@ -128,7 +128,7 @@ public class TrendingServiceImpl implements TrendingService {
                 isBlacklistEmpty,
                 ImpressionStatus.ON_GOING,
                 pageable
-        ).stream().map(seriesMapper::toTrendingDto).toList();
+        ).stream().map(s -> toTrendingDto(s, config.getGravity())).toList();
     }
 
     @Override
@@ -141,9 +141,10 @@ public class TrendingServiceImpl implements TrendingService {
         }
 
         List<Series> series = seriesRepository.findAllBySeriesIdIn(seriesIds);
+        TrendingSampleConfigRes config = configService.getConfig();
 
         return series.stream()
-                .map(seriesMapper::toTrendingDto)
+                .map(s -> toTrendingDto(s, config.getGravity()))
                 .toList();
     }
 
@@ -175,6 +176,34 @@ public class TrendingServiceImpl implements TrendingService {
         log.info("[RankingScore] Đã cập nhật Ranking Score cho {} series SUCCESS thành công.", successSeriesList.size());
     }
 
+    private SeriesTrendingResponseDto toTrendingDto(Series series, Double gravity) {
+        if (series == null) {
+            return null;
+        }
+
+        TrendingAnalyticData trendingAnalytic = series.getTrendingAnalyticData();
+        long engageClick = trendingAnalytic != null ? trendingAnalytic.getEngageClick() : 0L;
+        long totalImpression = trendingAnalytic != null ? trendingAnalytic.getTotalImpression() : 0L;
+        long interactionClick = trendingAnalytic != null ? trendingAnalytic.getInteractionClick() : 0L;
+
+        // Tính điểm Realtime khi Admin gọi API xem danh sách
+        double realtimeWilsonScore = calculateWilsonScore(engageClick, totalImpression);
+        double realtimeUpperWilsonScore = calculateUpperWilsonScore(engageClick, totalImpression);
+        double realtimeRankingScore = calculateHackerNewsRankingScore(
+                series.getRatingCount(),
+                interactionClick,
+                engageClick,
+                series.getReleasedUpdateTime(),
+                gravity
+        );
+
+        SeriesTrendingResponseDto dto = seriesMapper.toTrendingDto(series);
+        dto.setWilsonScore(realtimeWilsonScore);
+        dto.setUpperWilsonScore(realtimeUpperWilsonScore);
+        dto.setRankingScore(realtimeRankingScore);
+        return dto;
+    }
+
     /**
      * Công thức khoảng tin cậy Wilson (Wilson Score Lower Bound) - Độ tin cậy 95% (z = 1.96)
      */
@@ -192,6 +221,25 @@ public class TrendingServiceImpl implements TrendingService {
 
         double score = (p1 - p2) / denominator;
         return Math.max(0.0, score);
+    }
+
+    /**
+     * Công thức khoảng tin cậy Wilson (Wilson Score Upper Bound) - Cận trên (z = 1.96)
+     */
+    private double calculateUpperWilsonScore(long engageClick, long totalImpression) {
+        if (totalImpression <= 0) return 0.0;
+
+        double p = (double) engageClick / totalImpression;
+        double n = totalImpression;
+        double z = 1.96; // 95% confidence level
+
+        double z2 = z * z;
+        double denominator = 1.0 + z2 / n;
+        double p1 = p + z2 / (2.0 * n);
+        double p2 = z * Math.sqrt((p * (1.0 - p) + z2 / (4.0 * n)) / n);
+
+        double score = (p1 + p2) / denominator;
+        return Math.min(1.0, score);
     }
 
     /**

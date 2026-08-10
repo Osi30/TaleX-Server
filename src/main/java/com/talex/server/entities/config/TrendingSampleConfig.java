@@ -25,11 +25,6 @@ public class TrendingSampleConfig {
     @Builder.Default
     private Long totalBatch = 0L;
 
-    // M_total_batch: Tổng số series đã hoàn tất Vòng 1
-    @Column(name = "calculated_batch", nullable = false)
-    @Builder.Default
-    private Long calculatedBatch = 0L;
-
     // M_min_batch: Số mẫu tối thiểu để bắt đầu tính ngưỡng lịch sử (Mặc định: 50)
     @Column(name = "min_batch", nullable = false)
     @Builder.Default

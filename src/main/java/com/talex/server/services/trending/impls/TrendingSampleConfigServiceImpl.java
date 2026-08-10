@@ -3,7 +3,6 @@ package com.talex.server.services.trending.impls;
 import com.talex.server.dtos.recommend.TrendingSampleConfigReq;
 import com.talex.server.dtos.recommend.TrendingSampleConfigRes;
 import com.talex.server.entities.config.TrendingSampleConfig;
-
 import com.talex.server.enums.interaction.ImpressionStatus;
 import com.talex.server.exceptions.details.ResourceNotFoundException;
 import com.talex.server.repositories.series.SeriesRepository;
@@ -39,7 +38,6 @@ public class TrendingSampleConfigServiceImpl implements TrendingSampleConfigServ
     @Transactional(readOnly = true)
     @Cacheable(value = CACHE_NAME, key = CACHE_KEY, cacheManager = "redisCacheManager")
     public TrendingSampleConfigRes getConfig() {
-        log.info("[TrendingConfig] Fetching config from Database...");
         TrendingSampleConfig config = configRepository.findFirstBy()
                 .orElseThrow(() -> new ResourceNotFoundException("Cấu hình TrendingSampleConfig chưa được khởi tạo trong hệ thống."));
 
@@ -87,6 +85,7 @@ public class TrendingSampleConfigServiceImpl implements TrendingSampleConfigServ
         config.setPercentile(req.getPercentile());
         config.setMinImpression(req.getMinImpression());
         config.setMaxImpression(req.getMaxImpression());
+        config.setGravity(req.getGravity());
         config.setUpdatedAt(LocalDateTime.now());
 
         TrendingSampleConfig updated = configRepository.save(config);
@@ -95,10 +94,11 @@ public class TrendingSampleConfigServiceImpl implements TrendingSampleConfigServ
         return TrendingSampleConfigRes.fromEntity(updated);
     }
 
+    /// Được gọi ở hàm tăng số lượng ứng viên đã vượt qua vòng loại để tính toán lại bách phân vị khi đạt min batch
     @Override
     @Transactional
     @CacheEvict(value = "trending_sample_config", key = "'single_config'", cacheManager = "redisCacheManager")
-    public void incrementBatchAndRecalculateThresholdIfNeeded(int completedCount, List<Double> historicalWilsonScores) {
+    public void incrementBatchAndRecalculateThresholdIfNeeded(int completedCount) {
         TrendingSampleConfig config = configRepository.findFirstBy()
                 .orElseThrow(() -> new ResourceNotFoundException("TrendingSampleConfig chưa được khởi tạo."));
 
@@ -107,18 +107,16 @@ public class TrendingSampleConfigServiceImpl implements TrendingSampleConfigServ
 
         // Kiểm tra xem đã tích lũy đủ minBatch để tính lại Bách phân vị chưa
         if (newCurrentBatch >= config.getMinBatch()) {
-            List<Double> historicalScores = seriesRepository.findAllEvaluatedWilsonScores(
-                    List.of(ImpressionStatus.SUCCESS, ImpressionStatus.FAILED)
+            List<Double> historicalScores = seriesRepository.findTopLatestWilsonScoresSortedAsc(
+                    List.of(ImpressionStatus.SUCCESS.name(), ImpressionStatus.FAILED.name()), config.getMinBatch()
             );
-            historicalWilsonScores.addAll(historicalScores);
 
-            double newThreshold = calculatePercentile(historicalWilsonScores, config.getPercentile());
+            double newThreshold = calculatePercentile(historicalScores, config.getPercentile());
             config.setThreshold(newThreshold);
             log.info("[TrendingConfig] Đã cập nhật Threshold mới = {} từ Bách phân vị P{}", newThreshold, config.getPercentile());
 
             // Reset batch hiện tại
             config.setCurrentBatch(0);
-            config.setCalculatedBatch((long) historicalWilsonScores.size());
         } else {
             config.setCurrentBatch(newCurrentBatch);
         }
@@ -138,9 +136,9 @@ public class TrendingSampleConfigServiceImpl implements TrendingSampleConfigServ
         TrendingSampleConfig config = configRepository.findFirstBy()
                 .orElseThrow(() -> new ResourceNotFoundException("Cấu hình TrendingSampleConfig chưa được khởi tạo."));
 
-        // Lấy tất cả lịch sử Wilson Scores của các Series đã hoàn thành Vòng 1 (SUCCESS & FAILED)
-        List<Double> historicalScores = seriesRepository.findAllEvaluatedWilsonScores(
-                List.of(ImpressionStatus.SUCCESS, ImpressionStatus.FAILED)
+        // Lấy  lịch sử Wilson Scores của các Series đã hoàn thành Vòng 1 (SUCCESS & FAILED)
+        List<Double> historicalScores = seriesRepository.findTopLatestWilsonScoresSortedAsc(
+                List.of(ImpressionStatus.SUCCESS.name(), ImpressionStatus.FAILED.name()), config.getMinBatch()
         );
 
         // Tính toán Threshold mới theo Bách phân vị cấu hình
@@ -149,13 +147,9 @@ public class TrendingSampleConfigServiceImpl implements TrendingSampleConfigServ
         // Reset currentBatch về 0 và cập nhật calculatedBatch
         config.setThreshold(newThreshold);
         config.setCurrentBatch(0);
-        config.setCalculatedBatch((long) historicalScores.size());
         config.setUpdatedAt(LocalDateTime.now());
 
         TrendingSampleConfig updated = configRepository.save(config);
-        log.info("[TrendingConfig] Admin FORCE recalculate threshold thành công! Threshold mới: {}, CalculatedBatch: {}",
-                newThreshold, historicalScores.size());
-
         return TrendingSampleConfigRes.fromEntity(updated);
     }
 

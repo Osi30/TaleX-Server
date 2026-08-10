@@ -10,6 +10,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
+
 @Embeddable
 @Data
 @NoArgsConstructor
@@ -52,4 +54,7 @@ public class TrendingAnalyticData {
     @Column(name = "trending_impression_status", length = 30)
     @Builder.Default
     private ImpressionStatus impressionStatus = ImpressionStatus.ON_GOING;
+
+    @Column(name = "wilson_updated_at")
+    private LocalDateTime wilsonUpdatedAt;
 }
