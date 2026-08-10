@@ -26,44 +26,72 @@ public class AdminWatermarkServiceImpl implements AdminWatermarkService {
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
 
-    @Value("${python.api:http://localhost:8000}/api/v1/watermark/extract")
+    @Value("${python.api:http://localhost:8000}/watermark/extract")
     private String aiExtractUrl;
 
     @Override
     public AdminWatermarkResponseDto extractWatermark(MultipartFile file, String mediaType) {
         try {
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+            String boundary = "----WebKitFormBoundary" + System.currentTimeMillis();
+            String lineEnd = "\r\n";
+            String twoHyphens = "--";
 
-            MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
-            
-            // Wrap the file into a ByteArrayResource that preserves the original filename
-            ByteArrayResource fileResource = new ByteArrayResource(file.getBytes()) {
-                @Override
-                public String getFilename() {
-                    return file.getOriginalFilename() != null ? file.getOriginalFilename() : "file";
+            java.net.URL url = new java.net.URL(aiExtractUrl);
+            java.net.HttpURLConnection connection = (java.net.HttpURLConnection) url.openConnection();
+            connection.setDoInput(true);
+            connection.setDoOutput(true);
+            connection.setUseCaches(false);
+            connection.setRequestMethod("POST");
+            connection.setRequestProperty("Connection", "Keep-Alive");
+            connection.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + boundary);
+
+            try (java.io.DataOutputStream dos = new java.io.DataOutputStream(connection.getOutputStream())) {
+                // 1. media_type parameter
+                dos.writeBytes(twoHyphens + boundary + lineEnd);
+                dos.writeBytes("Content-Disposition: form-data; name=\"media_type\"" + lineEnd);
+                dos.writeBytes(lineEnd);
+                dos.writeBytes(mediaType + lineEnd);
+
+                // 2. file parameter
+                dos.writeBytes(twoHyphens + boundary + lineEnd);
+                String fileName = file.getOriginalFilename() != null ? file.getOriginalFilename() : "file";
+                dos.writeBytes("Content-Disposition: form-data; name=\"file\"; filename=\"" + fileName + "\"" + lineEnd);
+                dos.writeBytes("Content-Type: application/octet-stream" + lineEnd);
+                dos.writeBytes(lineEnd);
+
+                // Write file data
+                try (java.io.InputStream fileInputStream = file.getInputStream()) {
+                    byte[] buffer = new byte[8192];
+                    int bytesRead;
+                    while ((bytesRead = fileInputStream.read(buffer)) != -1) {
+                        dos.write(buffer, 0, bytesRead);
+                    }
                 }
-            };
-            
-            body.add("file", fileResource);
-            body.add("media_type", mediaType);
+                dos.writeBytes(lineEnd);
 
-            HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
+                // 3. End boundary
+                dos.writeBytes(twoHyphens + boundary + twoHyphens + lineEnd);
+                dos.flush();
+            }
 
-            ResponseEntity<String> response = restTemplate.postForEntity(aiExtractUrl, requestEntity, String.class);
-            
-            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                JsonNode root = objectMapper.readTree(response.getBody());
-                String creatorId = root.has("creator_id") ? root.get("creator_id").asText() : null;
-                String message = root.has("message") ? root.get("message").asText() : null;
-                
-                return AdminWatermarkResponseDto.builder()
-                        .creatorId(creatorId)
-                        .message(message)
-                        .build();
+            int serverResponseCode = connection.getResponseCode();
+            if (serverResponseCode >= 200 && serverResponseCode < 300) {
+                try (java.io.InputStream is = connection.getInputStream()) {
+                    JsonNode root = objectMapper.readTree(is);
+                    String creatorId = root.has("creator_id") ? root.get("creator_id").asText() : null;
+                    String message = root.has("message") ? root.get("message").asText() : null;
+
+                    return AdminWatermarkResponseDto.builder()
+                            .creatorId(creatorId)
+                            .message(message)
+                            .build();
+                }
             } else {
-                log.error("AI Watermark API returned error: {}", response.getStatusCode());
-                throw new RuntimeException("Lỗi từ AI Server khi trích xuất Watermark.");
+                try (java.io.InputStream es = connection.getErrorStream()) {
+                    String errorMsg = es != null ? new String(es.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8) : "Unknown error";
+                    log.error("AI Watermark API returned error: {} - {}", serverResponseCode, errorMsg);
+                    throw new RuntimeException("Lỗi từ AI Server khi trích xuất Watermark. HTTP " + serverResponseCode);
+                }
             }
         } catch (Exception e) {
             log.error("Error calling AI Watermark API: ", e);
