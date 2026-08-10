@@ -102,11 +102,14 @@ public class AdminWatermarkServiceImpl implements AdminWatermarkService {
                     } catch (Exception parseEx) {
                         // Bỏ qua lỗi parse, dùng message mặc định
                     }
-                    throw new RuntimeException(displayMessage);
+                    throw new IllegalArgumentException(displayMessage);
                 }
             }
         } catch (Exception e) {
             log.error("Error calling AI Watermark API: ", e);
+            if (e instanceof IllegalArgumentException) {
+                throw (IllegalArgumentException) e;
+            }
             if (e instanceof RuntimeException && !e.getMessage().startsWith("Gặp lỗi")) {
                 throw (RuntimeException) e;
             }
