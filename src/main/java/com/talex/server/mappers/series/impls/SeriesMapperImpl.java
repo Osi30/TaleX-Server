@@ -56,10 +56,14 @@ public class SeriesMapperImpl implements SeriesMapper {
                 .stream().map(s -> tagMapper.toResponse(s.getTag()))
                 .toList();
 
+        Account account = series.getCreator().getAccount();
+
         return SeriesResponseDto.builder()
                 .seriesId(series.getSeriesId())
                 .accountId(series.getCreator().getAccount().getAccountId().toString())
                 .creatorId(series.getCreator().getCreatorId())
+                .creatorName(account.getFullName())
+                .creatorAvatar(account.getAvatarUrl())
                 .totalCreatorFollowers(series.getCreator().getAccount().getTotalFollowersBy())
                 .title(series.getTitle())
                 .description(series.getDescription())

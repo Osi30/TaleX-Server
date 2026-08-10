@@ -2,25 +2,21 @@ package com.talex.server.services.series;
 
 import com.talex.server.dtos.BasePageResponse;
 import com.talex.server.dtos.analytic.SeriesLogResponseDto;
-import com.talex.server.dtos.recommend.SeriesCardResponseDto;
 import com.talex.server.dtos.requests.series.SeriesRequestDto;
-import com.talex.server.dtos.responses.series.CategoryResponseDto;
 import com.talex.server.dtos.responses.series.SeriesResponseDto;
-import com.talex.server.dtos.responses.series.TagResponseDto;
 import com.talex.server.entities.auth.Account;
 import com.talex.server.entities.creator.Creator;
 import com.talex.server.entities.series.*;
 import com.talex.server.enums.series.CategoryStatus;
 import com.talex.server.enums.series.SeriesStatus;
 import com.talex.server.enums.series.TagStatus;
-import com.talex.server.enums.series.ContentType;
 import com.talex.server.exceptions.details.ContentModuleException;
 import com.talex.server.mappers.series.SeriesMapper;
 import com.talex.server.repositories.series.*;
 import com.talex.server.services.audit.ContentAuditLogger;
 import com.talex.server.services.creator.CreatorService;
 import com.talex.server.services.media.impls.ContentOwnershipService;
-import com.talex.server.services.mongo.ISeriesFeatureService;
+import com.talex.server.services.mongo.SeriesFeatureService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -66,7 +62,7 @@ class SeriesServiceTest {
     @Mock
     private ContentOwnershipService contentOwnershipService;
     @Mock
-    private ISeriesFeatureService seriesFeatureService;
+    private SeriesFeatureService seriesFeatureService;
     @Mock
     private CreatorService creatorService;
     @Mock

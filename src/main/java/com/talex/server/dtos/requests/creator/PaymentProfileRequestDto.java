@@ -1,6 +1,5 @@
 package com.talex.server.dtos.requests.creator;
 
-import com.talex.server.enums.BankBin;
 import com.talex.server.enums.creator.PaymentProfileStatus;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -15,7 +14,7 @@ import lombok.NoArgsConstructor;
 @Builder
 public class PaymentProfileRequestDto {
     @NotBlank(message = "Mã ngân hàng không được để trống")
-    private BankBin bankCode;
+    private String bankCode;
 
     @NotBlank(message = "Số tài khoản không được để trống")
     @Size(min = 5, max = 50, message = "Số tài khoản phải từ 5 đến 50 ký tự")

@@ -8,7 +8,7 @@ import com.talex.server.entities.mongo.UserFeatureDocument;
 import java.util.List;
 import java.util.Optional;
 
-public interface IUserFeatureService {
+public interface UserFeatureService {
     /// Cập nhập dữ liệu tĩnh từ người dùng
     UserFeatureDocument saveOrUpdateFeatures(String userId, UserFeatureRequest request);
 

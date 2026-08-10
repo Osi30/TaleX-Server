@@ -13,7 +13,6 @@ import com.talex.server.repositories.mongo.UserFeatureRepository;
 import com.talex.server.repositories.series.CategoryRepository;
 import com.talex.server.repositories.series.TagRepository;
 import com.talex.server.services.QuestDbService;
-import com.talex.server.services.mongo.IUserFeatureService;
 import com.talex.server.services.series.EpisodeService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.Cacheable;
@@ -32,7 +31,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
-public class UserFeatureService implements IUserFeatureService {
+public class UserFeatureServiceImpl implements com.talex.server.services.mongo.UserFeatureService {
     private final UserFeatureRepository featureRepository;
     private final TagRepository tagRepository;
     private final CategoryRepository categoryRepository;

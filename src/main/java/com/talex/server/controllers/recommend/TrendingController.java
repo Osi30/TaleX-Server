@@ -1,15 +1,17 @@
 package com.talex.server.controllers.recommend;
 
 import com.talex.server.dtos.BaseResponse;
+import com.talex.server.dtos.recommend.SeriesCardResponseDto;
 import com.talex.server.dtos.recommend.TrendingSampleConfigRes;
 import com.talex.server.services.trending.TrendingSampleConfigService;
 import com.talex.server.services.trending.TrendingService;
+import io.swagger.v3.oas.annotations.Operation;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/trending/dashboard")
@@ -58,6 +60,23 @@ public class TrendingController {
                 .code(200)
                 .message("Ép buộc tính toán lại Threshold thành công!")
                 .data(result)
+                .build());
+    }
+
+    @Operation(
+            summary = "Danh sách ứng viên chờ phân phối",
+            description = "Lấy danh sách ứng viên đang chờ phân phối Trending"
+    )
+    @GetMapping("/candidate-new-releases")
+    public ResponseEntity<BaseResponse> getCandidateNewReleasesSeries(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
+    ) {
+        List<SeriesCardResponseDto> candidateIds = trendingService.getCandidateNewReleasesSeriesIds(page, size);
+        return ResponseEntity.ok(BaseResponse.builder()
+                .code(200)
+                .message("Lấy danh sách ứng viên New Releases thành công!")
+                .data(candidateIds)
                 .build());
     }
 }

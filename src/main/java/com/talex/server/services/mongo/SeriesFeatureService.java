@@ -7,7 +7,7 @@ import com.talex.server.entities.series.Tag;
 import java.util.List;
 import java.util.Map;
 
-public interface ISeriesFeatureService {
+public interface SeriesFeatureService {
     void saveSeriesMetadata(Series series, Map<String, Category> categories, Map<String, Tag> tags);
 
     void syncAllSeriesFeatures();

@@ -2,8 +2,8 @@ package com.talex.server.schedulers;
 
 import com.talex.server.repositories.auth.AccountRepository;
 import com.talex.server.repositories.series.SeriesRepository;
-import com.talex.server.services.mongo.ISeriesFeatureService;
-import com.talex.server.services.mongo.IUserFeatureService;
+import com.talex.server.services.mongo.SeriesFeatureService;
+import com.talex.server.services.mongo.UserFeatureService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -18,8 +18,8 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @Slf4j
 public class MongoFeatureSyncScheduler {
-    private final IUserFeatureService userFeatureService;
-    private final ISeriesFeatureService seriesFeatureService;
+    private final UserFeatureService userFeatureService;
+    private final SeriesFeatureService seriesFeatureService;
     private final SeriesRepository seriesRepository;
     private final AccountRepository accountRepository;
 

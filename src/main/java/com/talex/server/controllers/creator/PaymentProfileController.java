@@ -45,7 +45,7 @@ public class PaymentProfileController {
                         .build());
     }
 
-//    @PreAuthorize("hasAnyRole('STAFF', 'ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/{id}")
     @Operation(summary = "Lấy hồ sơ thanh toán theo ID", description = "Trả về thông tin hồ sơ thanh toán theo ID")
     public ResponseEntity<BaseResponse> getById(@PathVariable String id) {

@@ -1,7 +1,7 @@
 package com.talex.server.controllers.mongo;
 
-import com.talex.server.services.mongo.ISeriesFeatureService;
-import com.talex.server.services.mongo.IUserFeatureService;
+import com.talex.server.services.mongo.SeriesFeatureService;
+import com.talex.server.services.mongo.UserFeatureService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -15,8 +15,8 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 @Tag(name = "Feature Test", description = "Các API demo lưu trữ dữ liệu document cho mongoDB")
 public class FeatureTestController {
-    private final IUserFeatureService userFeatureService;
-    private final ISeriesFeatureService seriesFeatureService;
+    private final UserFeatureService userFeatureService;
+    private final SeriesFeatureService seriesFeatureService;
 
     @PostMapping("/user/sync-dynamic")
     @Operation(summary = "Lưu trữ dữ liệu động của người dùng", description = "Kích hoạt lưu trữ dữ liệu động của người dùng")

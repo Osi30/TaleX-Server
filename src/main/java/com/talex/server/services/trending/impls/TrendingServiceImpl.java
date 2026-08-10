@@ -1,15 +1,20 @@
 package com.talex.server.services.trending.impls;
 
+import com.talex.server.dtos.recommend.SeriesCardResponseDto;
 import com.talex.server.dtos.recommend.TrendingSampleConfigRes;
 import com.talex.server.entities.analytic.TrendingAnalyticData;
 import com.talex.server.entities.series.Series;
 import com.talex.server.enums.interaction.ImpressionStatus;
 import com.talex.server.enums.series.SeriesStatus;
+import com.talex.server.mappers.series.SeriesMapper;
 import com.talex.server.repositories.series.SeriesRepository;
+import com.talex.server.services.recommend.SeriesChannelService;
 import com.talex.server.services.trending.TrendingSampleConfigService;
 import com.talex.server.services.trending.TrendingService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,7 +28,9 @@ import java.util.List;
 @Slf4j
 public class TrendingServiceImpl implements TrendingService {
     private final SeriesRepository seriesRepository;
+    private final SeriesMapper seriesMapper;
     private final TrendingSampleConfigService configService;
+    private final SeriesChannelService seriesChannelService;
 
     @Override
     @Transactional
@@ -96,6 +103,31 @@ public class TrendingServiceImpl implements TrendingService {
             // 3. Cập nhật currentBatch, totalBatch và tính lại threshold nếu đạt minBatch
             configService.incrementBatchAndRecalculateThresholdIfNeeded(evaluatedCount, wilsonScoreList);
         }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<SeriesCardResponseDto> getCandidateNewReleasesSeriesIds(int page, int size) {
+        // 1. Lấy Max Impression từ TrendingSampleConfigService
+        TrendingSampleConfigRes config = configService.getConfig();
+        Long maxImpression = config.getMaxImpression();
+
+        // 2. Lấy toàn bộ phần tử trong Redis pool:new_releases để làm Blacklist
+        List<String> blacklist = seriesChannelService.getNewReleasesPoolElements();
+        boolean isBlacklistEmpty = blacklist.isEmpty();
+
+        // 3. Phân trang
+        Pageable pageable = PageRequest.of(page, size);
+
+        // 4. Gọi Repository lấy danh sách Candidate Series IDs
+        return seriesRepository.findNewSeriesWaitedForDistribution(
+                SeriesStatus.PUBLISHED,
+                maxImpression,
+                blacklist,
+                isBlacklistEmpty,
+                ImpressionStatus.ON_GOING,
+                pageable
+        ).stream().map(seriesMapper::toCardDto).toList();
     }
 
     @Override

@@ -5,7 +5,7 @@ import com.talex.server.dtos.mongo.UserDynamicFeature;
 import com.talex.server.dtos.mongo.UserFeatureRequest;
 import com.talex.server.entities.mongo.UserFeatureDocument;
 import com.talex.server.repositories.auth.AccountRepository;
-import com.talex.server.services.mongo.IUserFeatureService;
+import com.talex.server.services.mongo.UserFeatureService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
@@ -23,7 +23,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @Tag(name = "User Feature Controller", description = "APIs quản lý đặc điểm và thói quen của người dùng")
 public class UserFeatureController {
-    private final IUserFeatureService featureService;
+    private final UserFeatureService featureService;
     private final AccountRepository accountRepository;
 
     @PreAuthorize("isAuthenticated()")
