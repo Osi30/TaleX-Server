@@ -46,8 +46,12 @@ public class PaymentProfileServiceImpl implements PaymentProfileService {
 
         PaymentProfile entity = mapper.toEntity(dto);
         entity.setCreator(creator);
-        entity.setIsPrimary(creator.getPaymentProfiles().isEmpty());
+        if (Boolean.TRUE.equals(dto.getIsPrimary())
+        ) {
+            repository.unsetOtherPrimary(creator.getCreatorId());
+        }
         entity.setStatus(PaymentProfileStatus.PENDING);
+        entity.setIsPrimary(dto.getIsPrimary());
 
         PaymentProfile saved = repository.save(entity);
         return mapper.toResponseDto(saved);
@@ -89,7 +93,7 @@ public class PaymentProfileServiceImpl implements PaymentProfileService {
                 && !existing.getIsPrimary()
                 && existing.getStatus().equals(PaymentProfileStatus.VERIFIED)
         ) {
-            repository.unsetOtherPrimary(existing.getCreator().getCreatorId(), id);
+            repository.unsetOtherPrimary(existing.getCreator().getCreatorId());
         }
 
         mapper.updateEntity(dto, existing);
