@@ -26,7 +26,7 @@ public class AdminWatermarkServiceImpl implements AdminWatermarkService {
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
 
-    @Value("${ai.watermark.extract-url:http://localhost:8000/api/v1/watermark/extract}")
+    @Value("${python.api:http://localhost:8000}/api/v1/watermark/extract")
     private String aiExtractUrl;
 
     @Override
