@@ -3,6 +3,7 @@ package com.talex.server.mappers.series.impls;
 import com.talex.server.dtos.recommend.SeriesCardResponseDto;
 import com.talex.server.dtos.responses.series.CategoryResponseDto;
 import com.talex.server.dtos.responses.series.SeriesResponseDto;
+import com.talex.server.dtos.responses.series.SeriesTrendingResponseDto;
 import com.talex.server.dtos.responses.series.TagResponseDto;
 import com.talex.server.entities.auth.Account;
 import com.talex.server.entities.series.Series;
@@ -43,6 +44,21 @@ public class SeriesMapperImpl implements SeriesMapper {
                 .updatedAt(series.getUpdatedAt())
                 .averageRating(series.getAverageRating())
                 .releasedUpdateTime(series.getReleasedUpdateTime())
+                .build();
+    }
+
+    @Override
+    public SeriesTrendingResponseDto toTrendingDto(Series series) {
+        return SeriesTrendingResponseDto.builder()
+                .seriesId(series.getSeriesId())
+                .analyticData(series.getAnalyticData())
+                .title(series.getTitle())
+                .coverUrl(series.getCoverUrl())
+                .bannerUrl(series.getBannerUrl())
+                .trendingAnalyticData(series.getTrendingAnalyticData())
+                .ratingCount(series.getRatingCount())
+                .totalRating(series.getTotalRating())
+                .averageRating(series.getAverageRating())
                 .build();
     }
 

@@ -1,7 +1,7 @@
 package com.talex.server.services.trending.impls;
 
-import com.talex.server.dtos.recommend.SeriesCardResponseDto;
 import com.talex.server.dtos.recommend.TrendingSampleConfigRes;
+import com.talex.server.dtos.responses.series.SeriesTrendingResponseDto;
 import com.talex.server.entities.analytic.TrendingAnalyticData;
 import com.talex.server.entities.series.Series;
 import com.talex.server.enums.interaction.ImpressionStatus;
@@ -21,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 @Service
@@ -107,7 +108,7 @@ public class TrendingServiceImpl implements TrendingService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<SeriesCardResponseDto> getCandidateNewReleasesSeriesIds(int page, int size) {
+    public List<SeriesTrendingResponseDto> getCandidateNewReleasesSeriesIds(int page, int size) {
         // 1. Lấy Max Impression từ TrendingSampleConfigService
         TrendingSampleConfigRes config = configService.getConfig();
         Long maxImpression = config.getMaxImpression();
@@ -127,7 +128,23 @@ public class TrendingServiceImpl implements TrendingService {
                 isBlacklistEmpty,
                 ImpressionStatus.ON_GOING,
                 pageable
-        ).stream().map(seriesMapper::toCardDto).toList();
+        ).stream().map(seriesMapper::toTrendingDto).toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<SeriesTrendingResponseDto> getNewReleasesPoolSeries() {
+        // Lấy danh sách Series IDs đang có trong Redis pool:new_releases
+        List<String> seriesIds = seriesChannelService.getNewReleasesPoolElements();
+        if (seriesIds.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<Series> series = seriesRepository.findAllBySeriesIdIn(seriesIds);
+
+        return series.stream()
+                .map(seriesMapper::toTrendingDto)
+                .toList();
     }
 
     @Override
