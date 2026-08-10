@@ -4,8 +4,6 @@ import com.talex.server.dtos.recommend.TrendingSampleConfigReq;
 import com.talex.server.dtos.recommend.TrendingSampleConfigRes;
 import org.apache.coyote.BadRequestException;
 
-import java.util.List;
-
 public interface TrendingSampleConfigService {
 
     TrendingSampleConfigRes getConfig();
@@ -14,7 +12,7 @@ public interface TrendingSampleConfigService {
 
     TrendingSampleConfigRes updateConfig(TrendingSampleConfigReq req) throws BadRequestException;
 
-    void incrementBatchAndRecalculateThresholdIfNeeded(int completedCount, List<Double> historicalWilsonScores);
+    void incrementBatchAndRecalculateThresholdIfNeeded(int completedCount);
 
     TrendingSampleConfigRes forceRecalculateThreshold();
 }

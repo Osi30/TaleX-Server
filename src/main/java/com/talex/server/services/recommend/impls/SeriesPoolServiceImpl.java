@@ -37,7 +37,14 @@ public class SeriesPoolServiceImpl implements SeriesPoolService {
             cumulativeBlacklist.addAll(promotedIds);
             log.info("1. [Promoted] Lấy được {} series.", promotedIds.size());
 
-            // 2. Trending Channel (Kênh Xu Hướng - Ưu tiên số 2)
+            // 2. New Releases Channel (Mới phát hành)
+            List<String> newReleasesIds = seriesChannelService.refreshNewReleasesPool(
+                    new ArrayList<>(cumulativeBlacklist), 20
+            );
+            cumulativeBlacklist.addAll(newReleasesIds);
+            log.info("4. [New Releases] Lấy được {} series.", newReleasesIds.size());
+
+            // 2. Trending Channel (Kênh Xu Hướng)
             List<String> trendingIds = seriesChannelService.refreshTrendingPool(
                     new ArrayList<>(cumulativeBlacklist), 20
             );
@@ -57,13 +64,6 @@ public class SeriesPoolServiceImpl implements SeriesPoolService {
             );
             cumulativeBlacklist.addAll(communityChoiceIds);
             log.info("3. [Community Choice] Lấy được {} series.", communityChoiceIds.size());
-
-            // 5. New Releases Channel (Mới phát hành)
-            List<String> newReleasesIds = seriesChannelService.refreshNewReleasesPool(
-                    new ArrayList<>(cumulativeBlacklist), 20
-            );
-            cumulativeBlacklist.addAll(newReleasesIds);
-            log.info("4. [New Releases] Lấy được {} series.", newReleasesIds.size());
 
             // 6. Recently Updated Channel (Mới cập nhật tập mới)
             List<String> recentlyUpdatedIds = seriesChannelService.refreshRecentlyUpdatedPool(

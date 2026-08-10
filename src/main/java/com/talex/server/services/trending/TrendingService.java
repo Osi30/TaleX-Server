@@ -1,6 +1,6 @@
 package com.talex.server.services.trending;
 
-import com.talex.server.dtos.recommend.SeriesCardResponseDto;
+import com.talex.server.dtos.responses.series.SeriesTrendingResponseDto;
 
 import java.util.List;
 
@@ -13,7 +13,12 @@ public interface TrendingService {
     /**
      * Vòng 1: Lấy các ứng viên đang chờ thực hiện vòng 1
      */
-    List<SeriesCardResponseDto> getCandidateNewReleasesSeriesIds(int page, int size);
+    List<SeriesTrendingResponseDto> getCandidateNewReleasesSeriesIds(int page, int size);
+
+    /**
+     * Vòng 1: Lấy các ứng viên đang thực hiện vòng 1
+     */
+    List<SeriesTrendingResponseDto> getNewReleasesPoolSeries();
 
     /**
      * Cập nhật Ranking Score theo Hacker News Ranking công thức phân rã hàng giờ

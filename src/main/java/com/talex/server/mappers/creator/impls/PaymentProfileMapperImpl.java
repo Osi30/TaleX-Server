@@ -54,15 +54,15 @@ public class PaymentProfileMapperImpl implements PaymentProfileMapper {
 
         boolean isChange = false;
 
-        if (dto.getBankCode() != null) {
+        if (dto.getBankCode() != null && !dto.getBankCode().equals(entity.getBankCode().name())) {
             entity.setBankCode(BankBin.valueOf(dto.getBankCode()));
             isChange = true;
         }
-        if (dto.getAccountNumber() != null) {
+        if (dto.getAccountNumber() != null && !dto.getAccountNumber().equals(entity.getAccountNumber())) {
             entity.setAccountNumber(dto.getAccountNumber());
             isChange = true;
         }
-        if (dto.getAccountName() != null) {
+        if (dto.getAccountName() != null && !dto.getAccountName().equals(entity.getAccountName())) {
             entity.setAccountName(dto.getAccountName());
             isChange = true;
         }

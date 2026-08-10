@@ -1,8 +1,8 @@
 package com.talex.server.controllers.recommend;
 
 import com.talex.server.dtos.BaseResponse;
-import com.talex.server.dtos.recommend.SeriesCardResponseDto;
 import com.talex.server.dtos.recommend.TrendingSampleConfigRes;
+import com.talex.server.dtos.responses.series.SeriesTrendingResponseDto;
 import com.talex.server.services.trending.TrendingSampleConfigService;
 import com.talex.server.services.trending.TrendingService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -72,11 +72,25 @@ public class TrendingController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size
     ) {
-        List<SeriesCardResponseDto> candidateIds = trendingService.getCandidateNewReleasesSeriesIds(page, size);
+        List<SeriesTrendingResponseDto> candidateIds = trendingService.getCandidateNewReleasesSeriesIds(page, size);
         return ResponseEntity.ok(BaseResponse.builder()
                 .code(200)
                 .message("Lấy danh sách ứng viên New Releases thành công!")
                 .data(candidateIds)
+                .build());
+    }
+
+    @Operation(
+            summary = "Danh sách Series trong Pool New Releases",
+            description = "Lấy danh sách chi tiết các Series hiện đang phân phối"
+    )
+    @GetMapping("/new-releases-pool")
+    public ResponseEntity<BaseResponse> getNewReleasesPoolSeries() {
+        List<SeriesTrendingResponseDto> result = trendingService.getNewReleasesPoolSeries();
+        return ResponseEntity.ok(BaseResponse.builder()
+                .code(200)
+                .message("Lấy danh sách Series trong Pool New Releases thành công!")
+                .data(result)
                 .build());
     }
 }
