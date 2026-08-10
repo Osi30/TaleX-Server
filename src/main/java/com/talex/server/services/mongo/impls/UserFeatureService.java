@@ -547,7 +547,7 @@ public class UserFeatureService implements IUserFeatureService {
         Map<String, Double> tempTagWatchTime = new HashMap<>();
 
         for (QuestDbPreferenceResult res : results) {
-            EpisodeRefs refs = cache.computeIfAbsent(res.getEpisodeId(), id -> episodeService.getEpisodeRefsByEpisodeId(id));
+            EpisodeRefs refs = cache.computeIfAbsent(res.getEpisodeId(), episodeService::getEpisodeRefsByEpisodeId);
             if (refs == null) continue;
 
             long clicks = res.getTotalClicks();

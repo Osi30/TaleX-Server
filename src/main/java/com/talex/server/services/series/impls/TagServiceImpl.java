@@ -6,6 +6,7 @@ import com.talex.server.dtos.responses.series.TagResponseDto;
 import com.talex.server.entities.series.Tag;
 import com.talex.server.enums.series.TagStatus;
 import com.talex.server.exceptions.details.ContentModuleException;
+import com.talex.server.mappers.series.TagMapper;
 import com.talex.server.repositories.series.TagRepository;
 import com.talex.server.services.series.TagService;
 import com.talex.server.utils.PageUtils;
@@ -21,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class TagServiceImpl implements TagService {
     private final TagRepository tagRepository;
+    private final TagMapper tagMapper;
     private final ContentAuditLogger contentAuditLogger;
 
     @Transactional
@@ -37,13 +39,13 @@ public class TagServiceImpl implements TagService {
 
         Tag saved = tagRepository.save(tag);
         contentAuditLogger.logAction("Tag", saved.getTagId(), "CREATE", request.getActorId(), "");
-        return toResponse(saved);
+        return tagMapper.toResponse(saved);
     }
 
     @Transactional(readOnly = true)
     @Override
     public TagResponseDto getById(String id) {
-        return toResponse(findActiveEntity(id));
+        return tagMapper.toResponse(findActiveEntity(id));
     }
 
     @Transactional(readOnly = true)
@@ -51,7 +53,7 @@ public class TagServiceImpl implements TagService {
     public BasePageResponse<TagResponseDto> list(Integer page, Integer pageSize) {
         Pageable pageable = PageUtils.buildPageable(page, pageSize);
         Page<TagResponseDto> result = tagRepository.findAllByIsDeletedFalse(pageable)
-                .map(this::toResponse);
+                .map(tagMapper::toResponse);
         return toPageResponse(result);
     }
 
@@ -61,7 +63,7 @@ public class TagServiceImpl implements TagService {
         Pageable pageable = PageUtils.buildPageable(page, pageSize);
         Page<TagResponseDto> result = tagRepository
                 .findAllByStatusAndIsDeletedFalse(TagStatus.ACTIVE, pageable)
-                .map(this::toResponse);
+                .map(tagMapper::toResponse);
         return toPageResponse(result);
     }
 
@@ -81,7 +83,7 @@ public class TagServiceImpl implements TagService {
 
         Tag saved = tagRepository.save(tag);
         contentAuditLogger.logAction("Tag", saved.getTagId(), "UPDATE", request.getActorId(), "");
-        return toResponse(saved);
+        return tagMapper.toResponse(saved);
     }
 
     @Transactional
@@ -91,7 +93,7 @@ public class TagServiceImpl implements TagService {
         tag.setStatus(TagStatus.INACTIVE);
         Tag saved = tagRepository.save(tag);
         contentAuditLogger.logAction("Tag", saved.getTagId(), "HIDE", actorId, "");
-        return toResponse(saved);
+        return tagMapper.toResponse(saved);
     }
 
     @Transactional
@@ -101,7 +103,7 @@ public class TagServiceImpl implements TagService {
         tag.setStatus(TagStatus.ACTIVE);
         Tag saved = tagRepository.save(tag);
         contentAuditLogger.logAction("Tag", saved.getTagId(), "UNHIDE", actorId, "");
-        return toResponse(saved);
+        return tagMapper.toResponse(saved);
     }
 
     @Transactional
@@ -127,21 +129,6 @@ public class TagServiceImpl implements TagService {
             throw ContentModuleException.badRequest("Tag is not active: " + id);
         }
         return tag;
-    }
-
-    @Override
-    public TagResponseDto toResponse(Tag tag) {
-        return TagResponseDto.builder()
-                .tagId(tag.getTagId())
-                .tagName(tag.getTagName())
-                .description(tag.getDescription())
-                .slug(tag.getSlug())
-                .status(tag.getStatus())
-                .createdAt(tag.getCreatedAt())
-                .updatedAt(tag.getUpdatedAt())
-                .deletedAt(tag.getDeletedAt())
-                .isDeleted(tag.getIsDeleted())
-                .build();
     }
 
     private void ensureSlugAvailable(String slug, String currentId) {

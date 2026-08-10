@@ -3,12 +3,11 @@ package com.talex.server.mappers.kyc.impls;
 import com.talex.server.dtos.responses.kyc.KycSessionPageResponseDto;
 import com.talex.server.dtos.responses.kyc.KycSessionResponseDto;
 import com.talex.server.entities.kyc.KycSession;
-import com.talex.server.mappers.kyc.IKycSessionMapper;
 import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Component;
 
 @Component
-public class KycSessionMapper implements IKycSessionMapper {
+public class KycSessionMapper implements com.talex.server.mappers.kyc.KycSessionMapper {
 
     @Override
     public KycSessionResponseDto toResponseDto(KycSession kycSession) {

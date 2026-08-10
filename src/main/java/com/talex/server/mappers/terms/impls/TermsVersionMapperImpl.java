@@ -3,11 +3,11 @@ package com.talex.server.mappers.terms.impls;
 import com.talex.server.dtos.requests.terms.TermsVersionRequestDto;
 import com.talex.server.dtos.responses.creator.TermsVersionResponseDto;
 import com.talex.server.entities.term.TermsVersion;
-import com.talex.server.mappers.terms.ITermsVersionMapper;
+import com.talex.server.mappers.terms.TermsVersionMapper;
 import org.springframework.stereotype.Component;
 
 @Component
-public class TermsVersionMapperImpl implements ITermsVersionMapper {
+public class TermsVersionMapperImpl implements TermsVersionMapper {
 
     @Override
     public TermsVersionResponseDto toResponseDto(TermsVersion entity) {

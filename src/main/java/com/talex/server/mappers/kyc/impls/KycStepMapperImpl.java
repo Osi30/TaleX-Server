@@ -3,13 +3,13 @@ package com.talex.server.mappers.kyc.impls;
 import com.talex.server.dtos.requests.kyc.KycStepRequestDto;
 import com.talex.server.dtos.responses.kyc.KycStepResponseDto;
 import com.talex.server.entities.kyc.KycStep;
-import com.talex.server.mappers.kyc.IKycStepMapper;
+import com.talex.server.mappers.kyc.KycStepMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 @Component
 @RequiredArgsConstructor
-public class KycStepMapperImpl implements IKycStepMapper {
+public class KycStepMapperImpl implements KycStepMapper {
 
     @Override
     public KycStepResponseDto toResponseDto(KycStep kycStep) {

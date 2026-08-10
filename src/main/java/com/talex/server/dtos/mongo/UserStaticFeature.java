@@ -18,7 +18,7 @@ public class UserStaticFeature implements Serializable {
     private String accountId;
     private String language;
     private String gender;
-    private Integer age;
+    private String age;
     private LocalDateTime createdAt;
 
     @Builder.Default

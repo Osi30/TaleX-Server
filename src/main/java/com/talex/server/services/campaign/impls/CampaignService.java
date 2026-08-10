@@ -12,7 +12,7 @@ import com.talex.server.enums.engagement.CampaignStatus;
 import com.talex.server.enums.series.SeriesStatus;
 import com.talex.server.exceptions.codes.campaign.CampaignErrorCode;
 import com.talex.server.exceptions.details.campaign.CampaignException;
-import com.talex.server.mappers.campaign.ICampaignMapper;
+import com.talex.server.mappers.campaign.CampaignMapper;
 import com.talex.server.repositories.campaign.CampaignRepository;
 import com.talex.server.repositories.campaign.CampaignSeriesRepository;
 import com.talex.server.repositories.series.SeriesRepository;
@@ -41,7 +41,7 @@ public class CampaignService implements com.talex.server.services.campaign.Campa
     private final SeriesRepository seriesRepository;
     private final CreatorService creatorService;
     private final EngagementServiceService engagementService;
-    private final ICampaignMapper campaignMapper;
+    private final CampaignMapper campaignMapper;
 
     @Override
     @Transactional

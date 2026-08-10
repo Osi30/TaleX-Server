@@ -4,7 +4,7 @@ import com.talex.server.dtos.requests.creator.CreatorTierRequestDto;
 import com.talex.server.dtos.responses.creator.CreatorTierResponseDto;
 import com.talex.server.entities.creator.CreatorTier;
 
-public interface ICreatorTierMapper {
+public interface CreatorTierMapper {
     CreatorTierResponseDto toResponseDto(CreatorTier entity);
 
     CreatorTier toEntity(CreatorTierRequestDto dto);

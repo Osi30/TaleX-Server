@@ -3,13 +3,12 @@ package com.talex.server.mappers.subscription.impls;
 import com.talex.server.dtos.requests.subscription.SubscriptionRequestDto;
 import com.talex.server.dtos.responses.subscription.SubscriptionResponseDto;
 import com.talex.server.entities.subscription.Subscription;
-import com.talex.server.mappers.subscription.ISubscriptionMapper;
 import org.springframework.stereotype.Component;
 
 import java.util.Optional;
 
 @Component
-public class SubscriptionMapper implements ISubscriptionMapper {
+public class SubscriptionMapperImpl implements com.talex.server.mappers.subscription.SubscriptionMapper {
 
     @Override
     public Subscription toEntity(SubscriptionRequestDto requestDto) {

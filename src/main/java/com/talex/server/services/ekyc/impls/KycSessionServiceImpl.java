@@ -9,7 +9,7 @@ import com.talex.server.entities.kyc.KycSession;
 import com.talex.server.enums.kyc.KycStatus;
 import com.talex.server.exceptions.codes.kyc.KycSessionErrorCode;
 import com.talex.server.exceptions.details.kyc.KycSessionException;
-import com.talex.server.mappers.kyc.IKycSessionMapper;
+import com.talex.server.mappers.kyc.KycSessionMapper;
 import com.talex.server.repositories.kyc.KycSessionRepository;
 import com.talex.server.services.ekyc.KycSessionService;
 import com.talex.server.specifications.kyc.KycSessionSpec;
@@ -30,7 +30,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class KycSessionServiceImpl implements KycSessionService {
     private final KycSessionRepository kycSessionRepository;
-    private final IKycSessionMapper kycSessionMapper;
+    private final KycSessionMapper kycSessionMapper;
 
     @Override
     @Transactional

@@ -12,7 +12,7 @@ import com.talex.server.enums.report.ReportStatus;
 import com.talex.server.enums.report.TicketStatus;
 import com.talex.server.exceptions.codes.report.ModerationErrorCode;
 import com.talex.server.exceptions.details.report.ModerationException;
-import com.talex.server.mappers.report.IReportMapper;
+import com.talex.server.mappers.report.ReportMapper;
 import com.talex.server.repositories.report.ModerationTicketRepository;
 import com.talex.server.repositories.report.ReportRepository;
 import com.talex.server.services.report.ReportService;
@@ -34,7 +34,7 @@ public class ReportServiceImpl implements ReportService {
 
     private final ReportRepository reportRepository;
     private final ModerationTicketRepository ticketRepository;
-    private final IReportMapper reportMapper;
+    private final ReportMapper reportMapper;
     private final Sender questDBSender;
 
     @Override

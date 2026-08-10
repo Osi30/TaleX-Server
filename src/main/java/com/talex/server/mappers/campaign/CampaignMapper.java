@@ -3,6 +3,6 @@ package com.talex.server.mappers.campaign;
 import com.talex.server.dtos.responses.campaign.CampaignResponseDto;
 import com.talex.server.entities.campaign.Campaign;
 
-public interface ICampaignMapper {
+public interface CampaignMapper {
     CampaignResponseDto toResponseDto(Campaign entity);
 }

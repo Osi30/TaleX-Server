@@ -2,11 +2,11 @@ package com.talex.server.mappers.report.impls;
 
 import com.talex.server.dtos.report.response.PenaltyResponseDto;
 import com.talex.server.entities.report.Penalty;
-import com.talex.server.mappers.report.IPenaltyMapper;
+import com.talex.server.mappers.report.PenaltyMapper;
 import org.springframework.stereotype.Component;
 
 @Component
-public class PenaltyMapperImpl implements IPenaltyMapper {
+public class PenaltyMapperImpl implements PenaltyMapper {
 
     @Override
     public PenaltyResponseDto toResponseDto(Penalty entity) {

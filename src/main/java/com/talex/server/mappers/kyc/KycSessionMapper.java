@@ -5,7 +5,7 @@ import com.talex.server.dtos.responses.kyc.KycSessionResponseDto;
 import com.talex.server.entities.kyc.KycSession;
 import org.springframework.data.domain.Page;
 
-public interface IKycSessionMapper {
+public interface KycSessionMapper {
     KycSessionResponseDto toResponseDto(KycSession kycSession);
 
     KycSessionPageResponseDto toPageResponseDto(Page<KycSessionResponseDto> page);

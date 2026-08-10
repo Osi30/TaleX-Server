@@ -8,6 +8,8 @@ import com.talex.server.dtos.requests.series.SeriesSearchCriteria;
 import com.talex.server.dtos.responses.series.SeriesResponseDto;
 import com.talex.server.entities.series.Series;
 import com.talex.server.enums.series.SeriesStatus;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -22,12 +24,11 @@ public interface SeriesService {
 
     BasePageResponse<SeriesResponseDto> list(Integer page, Integer pageSize);
 
-    BasePageResponse<SeriesResponseDto> listByCreator(UUID accountId, List<SeriesStatus> statuses, Integer page, Integer pageSize);
-
     BasePageResponse<SeriesResponseDto> listPublic(Integer page, Integer pageSize);
 
-    BasePageResponse<SeriesCardResponseDto> searchPublic(
-            SeriesSearchCriteria criteria, String sortBy, Integer page, Integer pageSize);
+    BasePageResponse<SeriesResponseDto> listByCreator(UUID accountId, List<SeriesStatus> statuses, Integer page, Integer pageSize);
+
+    Slice<SeriesCardResponseDto> searchPublicSeries(SeriesSearchCriteria criteria, Pageable pageable);
 
     SeriesResponseDto update(String id, SeriesRequestDto request, String accountId);
 
@@ -46,6 +47,4 @@ public interface SeriesService {
     Series findPublicEntity(String id);
 
     List<SeriesLogResponseDto> getSeriesLogs(String id, LocalDateTime start, LocalDateTime end, String accountId);
-
-    SeriesResponseDto toResponse(Series series);
 }

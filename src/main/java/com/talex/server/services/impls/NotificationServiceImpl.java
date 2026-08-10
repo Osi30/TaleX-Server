@@ -4,7 +4,7 @@ import com.talex.server.dtos.BaseFilterRequestDto;
 import com.talex.server.dtos.BasePageResponse;
 import com.talex.server.dtos.notification.NotificationResponseDto;
 import com.talex.server.entities.Notification;
-import com.talex.server.mappers.notification.INotificationMapper;
+import com.talex.server.mappers.notification.NotificationMapper;
 import com.talex.server.repositories.NotificationRepository;
 import com.talex.server.services.NotificationService;
 import com.talex.server.specifications.NotificationSpec;
@@ -23,7 +23,7 @@ import java.util.List;
 public class NotificationServiceImpl implements NotificationService {
 
     private final NotificationRepository notificationRepository;
-    private final INotificationMapper notificationMapper;
+    private final NotificationMapper notificationMapper;
 
     @Override
     @Transactional(readOnly = true)

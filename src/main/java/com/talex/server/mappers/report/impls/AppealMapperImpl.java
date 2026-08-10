@@ -2,15 +2,15 @@ package com.talex.server.mappers.report.impls;
 
 import com.talex.server.dtos.report.response.AppealResponseDto;
 import com.talex.server.entities.report.Appeal;
-import com.talex.server.mappers.report.IAppealMapper;
-import com.talex.server.mappers.report.IPenaltyMapper;
+import com.talex.server.mappers.report.AppealMapper;
+import com.talex.server.mappers.report.PenaltyMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 @Component
 @RequiredArgsConstructor
-public class AppealMapperImpl implements IAppealMapper {
-    private final IPenaltyMapper penaltyMapper;
+public class AppealMapperImpl implements AppealMapper {
+    private final PenaltyMapper penaltyMapper;
 
     @Override
     public AppealResponseDto toResponseDto(Appeal entity) {

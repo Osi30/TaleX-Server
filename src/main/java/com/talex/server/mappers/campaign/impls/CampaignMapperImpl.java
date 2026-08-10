@@ -2,11 +2,11 @@ package com.talex.server.mappers.campaign.impls;
 
 import com.talex.server.dtos.responses.campaign.CampaignResponseDto;
 import com.talex.server.entities.campaign.Campaign;
-import com.talex.server.mappers.campaign.ICampaignMapper;
+import com.talex.server.mappers.campaign.CampaignMapper;
 import org.springframework.stereotype.Component;
 
 @Component
-public class CampaignMapperImpl implements ICampaignMapper {
+public class CampaignMapperImpl implements CampaignMapper {
 
     @Override
     public CampaignResponseDto toResponseDto(Campaign entity) {

@@ -7,7 +7,7 @@ import com.talex.server.dtos.responses.campaign.EngagementServiceResponseDto;
 import com.talex.server.entities.campaign.EngagementService;
 import com.talex.server.exceptions.codes.campaign.EngagementErrorCode;
 import com.talex.server.exceptions.details.campaign.EngagementServiceException;
-import com.talex.server.mappers.campaign.IEngagementServiceMapper;
+import com.talex.server.mappers.campaign.EngagementServiceMapper;
 import com.talex.server.repositories.campaign.EngagementServiceRepository;
 import com.talex.server.services.campaign.impls.EngagementServiceService;
 import org.junit.jupiter.api.BeforeEach;
@@ -42,7 +42,7 @@ class EngagementServiceServiceTest {
     private EngagementServiceRepository engagementServiceRepository;
 
     @Mock
-    private IEngagementServiceMapper engagementServiceMapper;
+    private EngagementServiceMapper engagementServiceMapper;
 
     @InjectMocks
     private EngagementServiceService engagementServiceService;

@@ -3,11 +3,11 @@ package com.talex.server.mappers.terms.impls;
 import com.talex.server.dtos.requests.terms.CreatorTermsLogRequestDto;
 import com.talex.server.dtos.responses.creator.CreatorTermsLogResponseDto;
 import com.talex.server.entities.term.TermsLog;
-import com.talex.server.mappers.terms.ITermsLogMapper;
+import com.talex.server.mappers.terms.TermsLogMapper;
 import org.springframework.stereotype.Component;
 
 @Component
-public class TermsLogMapperImpl implements ITermsLogMapper {
+public class TermsLogMapperImpl implements TermsLogMapper {
 
     @Override
     public CreatorTermsLogResponseDto toResponseDto(TermsLog entity) {

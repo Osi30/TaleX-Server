@@ -3,11 +3,11 @@ package com.talex.server.mappers.report.impls;
 import com.talex.server.dtos.report.request.ReportRequestDto;
 import com.talex.server.dtos.report.response.ReportResponseDto;
 import com.talex.server.entities.report.Report;
-import com.talex.server.mappers.report.IReportMapper;
+import com.talex.server.mappers.report.ReportMapper;
 import org.springframework.stereotype.Component;
 
 @Component
-public class ReportMapperImpl implements IReportMapper {
+public class ReportMapperImpl implements ReportMapper {
 
     @Override
     public Report toEntity(ReportRequestDto requestDto) {

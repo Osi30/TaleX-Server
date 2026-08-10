@@ -4,11 +4,11 @@ import com.talex.server.dtos.requests.creator.PaymentProfileRequestDto;
 import com.talex.server.dtos.responses.creator.PaymentProfileResponseDto;
 import com.talex.server.entities.creator.PaymentProfile;
 import com.talex.server.enums.creator.PaymentProfileStatus;
-import com.talex.server.mappers.creator.IPaymentProfileMapper;
+import com.talex.server.mappers.creator.PaymentProfileMapper;
 import org.springframework.stereotype.Component;
 
 @Component
-public class PaymentProfileMapperImpl implements IPaymentProfileMapper {
+public class PaymentProfileMapperImpl implements PaymentProfileMapper {
 
     @Override
     public PaymentProfileResponseDto toResponseDto(PaymentProfile entity) {

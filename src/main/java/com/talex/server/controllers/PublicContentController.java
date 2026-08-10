@@ -2,8 +2,11 @@ package com.talex.server.controllers;
 
 import com.talex.server.annotations.CurrentAccountId;
 import com.talex.server.dtos.BaseResponse;
+import com.talex.server.dtos.recommend.SeriesCardResponseDto;
 import com.talex.server.dtos.requests.series.SeriesSearchCriteria;
+import com.talex.server.dtos.responses.series.SeriesResponseDto;
 import com.talex.server.enums.series.ContentType;
+import com.talex.server.enums.series.SeriesStatus;
 import com.talex.server.services.media.MediaPlaybackSecurityService;
 import com.talex.server.services.media.MediaService;
 import com.talex.server.services.series.*;
@@ -11,6 +14,10 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
+import org.springdoc.core.annotations.ParameterObject;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -18,6 +25,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -54,30 +62,38 @@ public class PublicContentController {
         return ResponseEntity.ok(response(200, "OK", seriesService.listPublic(page, pageSize)));
     }
 
-    // Đặt trước "/series/{seriesId}" — Spring ưu tiên khớp path literal "search" trước
-    // path-variable nên không xung đột, nhưng để gần nhau cho dễ đọc.
     @GetMapping("/series/search")
-    @Operation(summary = "Tìm kiếm nâng cao series", description = "Lọc series công khai theo từ khóa, loại nội dung, thể loại, tag, năm phát hành, lượt xem tối thiểu, kèm sắp xếp và phân trang thật ở server.")
+    @Operation(summary = "Tìm kiếm nâng cao series", description = "Lọc series công khai theo từ khóa (hỗ trợ tìm không dấu), loại nội dung, thể loại, tag, độ tuổi, status kèm sắp xếp và phân trang Slice (lướt vô tận).")
     public ResponseEntity<BaseResponse> searchSeries(
-            @RequestParam(required = false) String keyword,
-            @RequestParam(required = false) String contentType,
-            @RequestParam(required = false) String categoryId,
-            @RequestParam(required = false) String tagId,
-            @RequestParam(required = false) Integer yearFrom,
-            @RequestParam(required = false) Integer yearTo,
-            @RequestParam(required = false) Long minViews,
-            @RequestParam(defaultValue = "popular") String sortBy,
-            @RequestParam(defaultValue = "1") Integer page,
-            @RequestParam(defaultValue = "12") Integer pageSize) {
-        ContentType parsedContentType =
-                (contentType == null || contentType.isBlank() || "ALL".equalsIgnoreCase(contentType))
-                        ? null
-                        : ContentType.valueOf(contentType.toUpperCase());
-        SeriesSearchCriteria criteria = new SeriesSearchCriteria(
-                keyword, parsedContentType, categoryId, tagId, yearFrom, yearTo, minViews);
-        return ResponseEntity.ok(response(200, "OK",
-                seriesService.searchPublic(criteria, sortBy, page, pageSize)));
+            @RequestParam(required = false) String seriesId,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) ContentType contentType,
+            @RequestParam(required = false) List<String> ageRatings,
+            @RequestParam(required = false) SeriesStatus status,
+            @RequestParam(required = false) List<String> categoryIds,
+            @RequestParam(required = false) List<String> tagIds,
+            @RequestParam(required = false) String sortBy,
+            @RequestParam(required = false) String sortDirection,
+            @ParameterObject @PageableDefault(size = 20) Pageable pageable
+    ) {
+
+        SeriesSearchCriteria criteria = SeriesSearchCriteria.builder()
+                .seriesId(seriesId)
+                .search(search)
+                .contentType(contentType)
+                .ageRatings(ageRatings)
+                .status(status)
+                .categoryIds(categoryIds)
+                .tagIds(tagIds)
+                .sortBy(sortBy)
+                .sortDirection(sortDirection)
+                .build();
+
+        Slice<SeriesCardResponseDto> response = seriesService.searchPublicSeries(criteria, pageable);
+
+        return ResponseEntity.ok(response(200, "OK", response));
     }
+
 
     @GetMapping("/series/{seriesId}")
     public ResponseEntity<BaseResponse> getSeries(@PathVariable String seriesId) {

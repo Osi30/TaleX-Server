@@ -3,13 +3,13 @@ package com.talex.server.mappers.creator.impls;
 import com.talex.server.dtos.requests.creator.CreatorTierRequestDto;
 import com.talex.server.dtos.responses.creator.CreatorTierResponseDto;
 import com.talex.server.entities.creator.CreatorTier;
-import com.talex.server.mappers.creator.ICreatorTierMapper;
+import com.talex.server.mappers.creator.CreatorTierMapper;
 import org.springframework.stereotype.Component;
 
 import java.util.Optional;
 
 @Component
-public class CreatorTierMapperImpl implements ICreatorTierMapper {
+public class CreatorTierMapperImpl implements CreatorTierMapper {
 
     @Override
     public CreatorTierResponseDto toResponseDto(CreatorTier entity) {

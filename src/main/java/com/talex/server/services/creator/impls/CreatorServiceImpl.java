@@ -14,7 +14,7 @@ import com.talex.server.enums.AccountStatus;
 import com.talex.server.enums.TermsType;
 import com.talex.server.exceptions.codes.creator.CreatorErrorCode;
 import com.talex.server.exceptions.details.creator.CreatorException;
-import com.talex.server.mappers.creator.ICreatorMapper;
+import com.talex.server.mappers.creator.CreatorMapper;
 import com.talex.server.records.CreatorVerificationStatus;
 import com.talex.server.repositories.auth.AccountRepository;
 import com.talex.server.repositories.creator.CreatorLogRepository;
@@ -51,7 +51,7 @@ public class CreatorServiceImpl implements CreatorService {
     private final CreatorRepository creatorRepository;
     private final AccountRepository accountRepository;
     private final CreatorLogRepository creatorLogRepository;
-    private final ICreatorMapper creatorMapper;
+    private final CreatorMapper creatorMapper;
 
     private final KafkaTemplate<String, String> kafkaTemplate;
 

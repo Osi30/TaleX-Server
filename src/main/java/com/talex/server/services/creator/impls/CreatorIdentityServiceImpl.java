@@ -10,7 +10,7 @@ import com.talex.server.entities.creator.CreatorIdentity;
 import com.talex.server.enums.creator.CreatorIdentityStatus;
 import com.talex.server.exceptions.codes.creator.CreatorIdentityErrorCode;
 import com.talex.server.exceptions.details.creator.CreatorIdentityException;
-import com.talex.server.mappers.creator.ICreatorIdentityMapper;
+import com.talex.server.mappers.creator.CreatorIdentityMapper;
 import com.talex.server.repositories.creator.CreatorIdentityRepository;
 import com.talex.server.services.creator.CreatorIdentityService;
 import com.talex.server.specifications.creator.CreatorIdentitySpec;
@@ -33,7 +33,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class CreatorIdentityServiceImpl implements CreatorIdentityService {
     private final CreatorIdentityRepository repository;
-    private final ICreatorIdentityMapper mapper;
+    private final CreatorIdentityMapper mapper;
     private final KafkaTemplate<String, String> kafkaTemplate;
 
     @Override

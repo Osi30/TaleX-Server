@@ -25,6 +25,4 @@ public interface CategoryService {
     Category findActiveEntity(String id);
 
     Category findAssignableEntity(String id);
-
-    CategoryResponseDto toResponse(Category category);
 }

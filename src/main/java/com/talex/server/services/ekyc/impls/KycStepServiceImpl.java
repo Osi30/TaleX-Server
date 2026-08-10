@@ -15,7 +15,7 @@ import com.talex.server.enums.kyc.KycStatus;
 import com.talex.server.enums.kyc.StepType;
 import com.talex.server.exceptions.codes.kyc.KycStepErrorCode;
 import com.talex.server.exceptions.details.kyc.KycStepException;
-import com.talex.server.mappers.kyc.IKycStepMapper;
+import com.talex.server.mappers.kyc.KycStepMapper;
 import com.talex.server.records.EKycResult;
 import com.talex.server.repositories.creator.CreatorIdentityRepository;
 import com.talex.server.repositories.creator.CreatorRepository;
@@ -50,7 +50,7 @@ public class KycStepServiceImpl implements KycStepService {
     private final CreatorRepository creatorRepository;
     private final KycSessionService kycSessionService;
     private final EKycService eKycService;
-    private final IKycStepMapper kycStepMapper;
+    private final KycStepMapper kycStepMapper;
     private final ObjectMapper objectMapper;
 
 

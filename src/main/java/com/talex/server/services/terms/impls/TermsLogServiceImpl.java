@@ -9,7 +9,7 @@ import com.talex.server.exceptions.codes.AuthErrorCode;
 import com.talex.server.exceptions.codes.creator.CreatorTermsLogErrorCode;
 import com.talex.server.exceptions.details.AuthException;
 import com.talex.server.exceptions.details.creator.CreatorTermsLogException;
-import com.talex.server.mappers.terms.ITermsLogMapper;
+import com.talex.server.mappers.terms.TermsLogMapper;
 import com.talex.server.repositories.auth.AccountRepository;
 import com.talex.server.repositories.term.TermsLogRepository;
 import com.talex.server.services.terms.TermsVersionService;
@@ -27,7 +27,7 @@ public class TermsLogServiceImpl implements com.talex.server.services.terms.Term
     private final TermsVersionService termsVersionService;
     private final TermsLogRepository logRepository;
     private final AccountRepository accountRepository;
-    private final ITermsLogMapper mapper;
+    private final TermsLogMapper mapper;
 
     @Override
     @Transactional

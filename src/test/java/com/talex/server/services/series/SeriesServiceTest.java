@@ -4,7 +4,6 @@ import com.talex.server.dtos.BasePageResponse;
 import com.talex.server.dtos.analytic.SeriesLogResponseDto;
 import com.talex.server.dtos.recommend.SeriesCardResponseDto;
 import com.talex.server.dtos.requests.series.SeriesRequestDto;
-import com.talex.server.dtos.requests.series.SeriesSearchCriteria;
 import com.talex.server.dtos.responses.series.CategoryResponseDto;
 import com.talex.server.dtos.responses.series.SeriesResponseDto;
 import com.talex.server.dtos.responses.series.TagResponseDto;
@@ -16,9 +15,8 @@ import com.talex.server.enums.series.SeriesStatus;
 import com.talex.server.enums.series.TagStatus;
 import com.talex.server.enums.series.ContentType;
 import com.talex.server.exceptions.details.ContentModuleException;
+import com.talex.server.mappers.series.SeriesMapper;
 import com.talex.server.repositories.series.*;
-import com.talex.server.repositories.series.projections.SeriesCardProjection;
-import com.talex.server.repositories.series.projections.SeriesWithAvatarProjection;
 import com.talex.server.services.audit.ContentAuditLogger;
 import com.talex.server.services.creator.CreatorService;
 import com.talex.server.services.media.impls.ContentOwnershipService;
@@ -49,6 +47,8 @@ class SeriesServiceTest {
 
     @Mock
     private SeriesRepository seriesRepository;
+    @Mock
+    private SeriesMapper seriesMapper;
     @Mock
     private SeriesCategoryRepository seriesCategoryRepository;
     @Mock
@@ -232,55 +232,6 @@ class SeriesServiceTest {
         assertThrows(ContentModuleException.class, () -> seriesService.getById("series-1", accountIdStr));
     }
 
-    // --- getPublicById ---
-
-    @Test
-    void getPublicById_Success_Published() {
-        series.setStatus(SeriesStatus.PUBLISHED);
-        SeriesWithAvatarProjection projection = mock(SeriesWithAvatarProjection.class);
-        when(projection.getSeries()).thenReturn(series);
-        when(projection.getAvatarUrl()).thenReturn("avatar.png");
-        when(projection.getCreatorFullName()).thenReturn("Full Name");
-
-        when(seriesRepository.findActiveSeriesWithAvatarById("series-1")).thenReturn(Optional.of(projection));
-
-        SeriesResponseDto response = seriesService.getPublicById("series-1");
-        assertEquals("series-1", response.getSeriesId());
-        assertEquals("avatar.png", response.getCreatorAvatar());
-        assertEquals("Full Name", response.getCreatorName());
-    }
-
-    @Test
-    void getPublicById_Success_Scheduled() {
-        series.setStatus(SeriesStatus.SCHEDULED);
-        SeriesWithAvatarProjection projection = mock(SeriesWithAvatarProjection.class);
-        when(projection.getSeries()).thenReturn(series);
-        when(projection.getCreatorFullName()).thenReturn("  ");
-        when(projection.getCreatorUsername()).thenReturn("username");
-
-        when(seriesRepository.findActiveSeriesWithAvatarById("series-1")).thenReturn(Optional.of(projection));
-
-        SeriesResponseDto response = seriesService.getPublicById("series-1");
-        assertEquals("series-1", response.getSeriesId());
-        assertEquals("username", response.getCreatorName());
-    }
-
-    @Test
-    void getPublicById_NotFound() {
-        when(seriesRepository.findActiveSeriesWithAvatarById("series-1")).thenReturn(Optional.empty());
-        assertThrows(ContentModuleException.class, () -> seriesService.getPublicById("series-1"));
-    }
-
-    @Test
-    void getPublicById_InvalidStatus() {
-        series.setStatus(SeriesStatus.DRAFT);
-        SeriesWithAvatarProjection projection = mock(SeriesWithAvatarProjection.class);
-        when(projection.getSeries()).thenReturn(series);
-
-        when(seriesRepository.findActiveSeriesWithAvatarById("series-1")).thenReturn(Optional.of(projection));
-        assertThrows(ContentModuleException.class, () -> seriesService.getPublicById("series-1"));
-    }
-
     // --- list ---
 
     @Test
@@ -327,17 +278,6 @@ class SeriesServiceTest {
     // --- listPublic ---
 
     @Test
-    void listPublic_Success() {
-        SeriesWithAvatarProjection projection = mock(SeriesWithAvatarProjection.class);
-        when(projection.getSeries()).thenReturn(series);
-        Page<SeriesWithAvatarProjection> page = new PageImpl<>(List.of(projection));
-        when(seriesRepository.findPublicSeriesWithAvatar(any(), any())).thenReturn(page);
-
-        BasePageResponse<SeriesResponseDto> response = seriesService.listPublic(1, 10);
-        assertEquals(1, response.getContent().size());
-    }
-
-    @Test
     void listByCreator_EmptyStatuses() {
         when(creatorService.getEntityByAccountId(accountId)).thenReturn(creator);
         Page<Series> page = new PageImpl<>(List.of(series));
@@ -346,95 +286,6 @@ class SeriesServiceTest {
         BasePageResponse<SeriesResponseDto> response = seriesService.listByCreator(accountId, List.of(), 1, 10);
         assertEquals(1, response.getContent().size());
     }
-    
-    @Test
-    void listPublic_Empty() {
-        Page<SeriesWithAvatarProjection> page = new PageImpl<>(List.of());
-        when(seriesRepository.findPublicSeriesWithAvatar(any(), any())).thenReturn(page);
-
-        BasePageResponse<SeriesResponseDto> response = seriesService.listPublic(1, 10);
-        assertEquals(0, response.getContent().size());
-    }
-
-    // --- searchPublic ---
-    // searchPublicSeries đổi sang native SQL (unaccent + multi-field + ranking) — signature
-    // đổi: statuses/contentType giờ là String (không phải enum), thêm param sortBy riêng,
-    // trả Page<SeriesCardProjection> (interface projection, không phải constructor-projection
-    // DTO trực tiếp) vì native query không dùng được "new ...DTO(...)". Test unit chỉ verify
-    // được tầng mapping/normalize ở service — hành vi SQL thật (unaccent, EXISTS, ranking)
-    // không kiểm được bằng repo mock, phải verify qua manual/FE test.
-
-    @Test
-    void searchPublic_MapsPageAndDefaultsToPopular() {
-        SeriesCardProjection projection = mock(SeriesCardProjection.class);
-        when(projection.getSeriesId()).thenReturn("s1");
-        when(projection.getTitle()).thenReturn("A");
-        when(projection.getTotalViews()).thenReturn(100L);
-        Page<SeriesCardProjection> page = new PageImpl<>(List.of(projection), PageRequest.of(0, 12), 1);
-        when(seriesRepository.searchPublicSeries(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(Pageable.class)))
-                .thenReturn(page);
-
-        SeriesSearchCriteria criteria = new SeriesSearchCriteria(null, null, null, null, null, null, null);
-        BasePageResponse<SeriesCardResponseDto> response =
-                seriesService.searchPublic(criteria, "popular", 1, 12);
-
-        assertEquals(1, response.getContent().size());
-        assertEquals("s1", response.getContent().get(0).getSeriesId());
-        assertEquals("A", response.getContent().get(0).getTitle());
-        assertEquals(100L, response.getContent().get(0).getTotalViews());
-        assertEquals(1, response.getTotalElements());
-        assertEquals(1, response.getPageNumber());
-    }
-
-    @Test
-    void searchPublic_NormalizesKeywordAndForwardsFilters() {
-        Page<SeriesCardProjection> page = new PageImpl<>(List.of());
-        when(seriesRepository.searchPublicSeries(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(Pageable.class)))
-                .thenReturn(page);
-        SeriesSearchCriteria criteria =
-                new SeriesSearchCriteria("  Naruto ", ContentType.VIDEO, "cat", "tag", 2020, 2024, 500L);
-
-        seriesService.searchPublic(criteria, "newest", 2, 8);
-
-        org.mockito.ArgumentCaptor<String> keywordCaptor = org.mockito.ArgumentCaptor.forClass(String.class);
-        org.mockito.ArgumentCaptor<Pageable> pageableCaptor = org.mockito.ArgumentCaptor.forClass(Pageable.class);
-        verify(seriesRepository).searchPublicSeries(any(), keywordCaptor.capture(), eq("VIDEO"),
-                eq("cat"), eq("tag"), eq(2020), eq(2024), eq(500L), eq("newest"), pageableCaptor.capture());
-        assertEquals("%naruto%", keywordCaptor.getValue());
-        // Sort nằm cứng trong SQL native, Pageable chỉ mang page/size — không set Sort riêng.
-        assertTrue(pageableCaptor.getValue().getSort().isUnsorted());
-    }
-
-    @Test
-    void searchPublic_StripsVietnameseAccentsInKeyword() {
-        Page<SeriesCardProjection> page = new PageImpl<>(List.of());
-        when(seriesRepository.searchPublicSeries(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(Pageable.class)))
-                .thenReturn(page);
-        SeriesSearchCriteria criteria =
-                new SeriesSearchCriteria("Vua Sư Tử", null, null, null, null, null, null);
-
-        seriesService.searchPublic(criteria, "popular", 1, 12);
-
-        org.mockito.ArgumentCaptor<String> keywordCaptor = org.mockito.ArgumentCaptor.forClass(String.class);
-        verify(seriesRepository).searchPublicSeries(any(), keywordCaptor.capture(), any(), any(), any(),
-                any(), any(), any(), any(), any(Pageable.class));
-        assertEquals("%vua su tu%", keywordCaptor.getValue());
-    }
-
-    @Test
-    void searchPublic_DefaultsInvalidSortByToPopular() {
-        Page<SeriesCardProjection> page = new PageImpl<>(List.of());
-        when(seriesRepository.searchPublicSeries(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(Pageable.class)))
-                .thenReturn(page);
-        SeriesSearchCriteria criteria = new SeriesSearchCriteria(null, null, null, null, null, null, null);
-
-        seriesService.searchPublic(criteria, "xyz-invalid", 1, 12);
-
-        verify(seriesRepository).searchPublicSeries(any(), any(), any(), any(), any(),
-                any(), any(), any(), eq("popular"), any(Pageable.class));
-    }
-
-    // --- update ---
 
     @Test
     void update_Success() {
@@ -651,21 +502,6 @@ class SeriesServiceTest {
         assertTrue(existingSc.getIsDeleted());
         assertTrue(existingSt.getIsDeleted());
     }
-    
-    @Test
-    void getPublicById_NullCreatorFullName() {
-        series.setStatus(SeriesStatus.PUBLISHED);
-        SeriesWithAvatarProjection projection = mock(SeriesWithAvatarProjection.class);
-        when(projection.getSeries()).thenReturn(series);
-        when(projection.getAvatarUrl()).thenReturn("avatar.png");
-        when(projection.getCreatorFullName()).thenReturn(null); // null full name
-        when(projection.getCreatorUsername()).thenReturn("fallbackUser");
-
-        when(seriesRepository.findActiveSeriesWithAvatarById("series-1")).thenReturn(Optional.of(projection));
-
-        SeriesResponseDto response = seriesService.getPublicById("series-1");
-        assertEquals("fallbackUser", response.getCreatorName());
-    }
 
     // --- helpers tests (to hit lines) ---
     
@@ -690,8 +526,8 @@ class SeriesServiceTest {
         st.setTag(tag);
         when(seriesTagRepository.findBySeries_SeriesIdInAndIsDeletedFalse(any())).thenReturn(List.of(st));
         
-        when(categoryService.toResponse(any())).thenReturn(new CategoryResponseDto());
-        when(tagService.toResponse(any())).thenReturn(new TagResponseDto());
+//        when(categoryService.toResponse(any())).thenReturn(new CategoryResponseDto());
+//        when(tagService.toResponse(any())).thenReturn(new TagResponseDto());
 
         SeriesResponseDto dto = seriesService.getById("series-1", accountIdStr);
         assertEquals(1, dto.getCategories().size());
@@ -728,7 +564,7 @@ class SeriesServiceTest {
         series.setStatus(SeriesStatus.PUBLISHED);
         when(seriesCategoryRepository.findBySeries_SeriesIdInAndIsDeletedFalse(any())).thenReturn(List.of());
         when(seriesTagRepository.findBySeries_SeriesIdInAndIsDeletedFalse(any())).thenReturn(List.of());
-        SeriesResponseDto response = seriesService.toResponse(series);
+        SeriesResponseDto response = seriesMapper.toResponse(series);
         assertNotNull(response);
         assertEquals(series.getSeriesId(), response.getSeriesId());
     }

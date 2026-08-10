@@ -3,13 +3,13 @@ package com.talex.server.mappers.campaign.impls;
 import com.talex.server.dtos.requests.campaign.EngagementServiceRequestDto;
 import com.talex.server.dtos.responses.campaign.EngagementServiceResponseDto;
 import com.talex.server.entities.campaign.EngagementService;
-import com.talex.server.mappers.campaign.IEngagementServiceMapper;
+import com.talex.server.mappers.campaign.EngagementServiceMapper;
 import org.springframework.stereotype.Component;
 
 import java.util.Optional;
 
 @Component
-public class EngagementServiceMapperImpl implements IEngagementServiceMapper {
+public class EngagementServiceMapperImpl implements EngagementServiceMapper {
 
     @Override
     public EngagementService toEntity(EngagementServiceRequestDto requestDto) {

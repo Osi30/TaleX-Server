@@ -6,6 +6,7 @@ import com.talex.server.dtos.responses.series.CategoryResponseDto;
 import com.talex.server.entities.series.Category;
 import com.talex.server.enums.series.CategoryStatus;
 import com.talex.server.exceptions.details.ContentModuleException;
+import com.talex.server.mappers.series.CategoryMapper;
 import com.talex.server.repositories.series.CategoryRepository;
 import com.talex.server.services.series.CategoryService;
 import com.talex.server.utils.PageUtils;
@@ -21,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class CategoryServiceImpl implements CategoryService {
     private final CategoryRepository categoryRepository;
+    private final CategoryMapper categoryMapper;
     private final ContentAuditLogger contentAuditLogger;
 
     @Transactional
@@ -37,13 +39,13 @@ public class CategoryServiceImpl implements CategoryService {
 
         Category saved = categoryRepository.save(category);
         contentAuditLogger.logAction("Category", saved.getCategoryId(), "CREATE", request.getActorId(), "");
-        return toResponse(saved);
+        return categoryMapper.toResponse(saved);
     }
 
     @Transactional(readOnly = true)
     @Override
     public CategoryResponseDto getById(String id) {
-        return toResponse(findActiveEntity(id));
+        return categoryMapper.toResponse(findActiveEntity(id));
     }
 
     @Transactional(readOnly = true)
@@ -51,7 +53,7 @@ public class CategoryServiceImpl implements CategoryService {
     public BasePageResponse<CategoryResponseDto> list(Integer page, Integer pageSize) {
         Pageable pageable = PageUtils.buildPageable(page, pageSize);
         Page<CategoryResponseDto> result = categoryRepository.findAllByIsDeletedFalse(pageable)
-                .map(this::toResponse);
+                .map(categoryMapper::toResponse);
         return toPageResponse(result);
     }
 
@@ -61,7 +63,7 @@ public class CategoryServiceImpl implements CategoryService {
         Pageable pageable = PageUtils.buildPageable(page, pageSize);
         Page<CategoryResponseDto> result = categoryRepository
                 .findAllByStatusAndIsDeletedFalse(CategoryStatus.ACTIVE, pageable)
-                .map(this::toResponse);
+                .map(categoryMapper::toResponse);
         return toPageResponse(result);
     }
 
@@ -81,7 +83,7 @@ public class CategoryServiceImpl implements CategoryService {
 
         Category saved = categoryRepository.save(category);
         contentAuditLogger.logAction("Category", saved.getCategoryId(), "UPDATE", request.getActorId(), "");
-        return toResponse(saved);
+        return categoryMapper.toResponse(saved);
     }
 
     @Transactional
@@ -91,7 +93,7 @@ public class CategoryServiceImpl implements CategoryService {
         category.setStatus(CategoryStatus.INACTIVE);
         Category saved = categoryRepository.save(category);
         contentAuditLogger.logAction("Category", saved.getCategoryId(), "HIDE", actorId, "");
-        return toResponse(saved);
+        return categoryMapper.toResponse(saved);
     }
 
     @Transactional
@@ -101,7 +103,7 @@ public class CategoryServiceImpl implements CategoryService {
         category.setStatus(CategoryStatus.ACTIVE);
         Category saved = categoryRepository.save(category);
         contentAuditLogger.logAction("Category", saved.getCategoryId(), "UNHIDE", actorId, "");
-        return toResponse(saved);
+        return categoryMapper.toResponse(saved);
     }
 
     @Transactional
@@ -127,21 +129,6 @@ public class CategoryServiceImpl implements CategoryService {
             throw ContentModuleException.badRequest("Category is not active: " + id);
         }
         return category;
-    }
-
-    @Override
-    public CategoryResponseDto toResponse(Category category) {
-        return CategoryResponseDto.builder()
-                .categoryId(category.getCategoryId())
-                .categoryName(category.getCategoryName())
-                .description(category.getDescription())
-                .slug(category.getSlug())
-                .status(category.getStatus())
-                .createdAt(category.getCreatedAt())
-                .updatedAt(category.getUpdatedAt())
-                .deletedAt(category.getDeletedAt())
-                .isDeleted(category.getIsDeleted())
-                .build();
     }
 
     private void ensureSlugAvailable(String slug, String currentId) {

@@ -4,7 +4,7 @@ import com.talex.server.dtos.requests.subscription.SubscriptionRequestDto;
 import com.talex.server.dtos.responses.subscription.SubscriptionResponseDto;
 import com.talex.server.entities.subscription.Subscription;
 
-public interface ISubscriptionMapper {
+public interface SubscriptionMapper {
     Subscription toEntity(SubscriptionRequestDto requestDto);
 
     SubscriptionResponseDto toResponseDto(Subscription subscription);

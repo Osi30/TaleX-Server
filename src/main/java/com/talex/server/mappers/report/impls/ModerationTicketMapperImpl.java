@@ -2,15 +2,15 @@ package com.talex.server.mappers.report.impls;
 
 import com.talex.server.dtos.report.response.TicketResponseDto;
 import com.talex.server.entities.report.ModerationTicket;
-import com.talex.server.mappers.report.IModerationTicketMapper;
-import com.talex.server.mappers.report.IReportMapper;
+import com.talex.server.mappers.report.ModerationTicketMapper;
+import com.talex.server.mappers.report.ReportMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 @Component
 @RequiredArgsConstructor
-public class ModerationTicketMapperImpl implements IModerationTicketMapper {
-    private final IReportMapper reportMapper;
+public class ModerationTicketMapperImpl implements ModerationTicketMapper {
+    private final ReportMapper reportMapper;
 
     @Override
     public TicketResponseDto toResponseDto(ModerationTicket entity) {

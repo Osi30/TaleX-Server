@@ -8,7 +8,7 @@ import com.talex.server.dtos.responses.campaign.EngagementServiceResponseDto;
 import com.talex.server.entities.campaign.EngagementService;
 import com.talex.server.exceptions.codes.campaign.EngagementErrorCode;
 import com.talex.server.exceptions.details.campaign.EngagementServiceException;
-import com.talex.server.mappers.campaign.IEngagementServiceMapper;
+import com.talex.server.mappers.campaign.EngagementServiceMapper;
 import com.talex.server.repositories.campaign.EngagementServiceRepository;
 import com.talex.server.specifications.campaign.EngagementServiceSpec;
 import com.talex.server.utils.PageUtils;
@@ -27,7 +27,7 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class EngagementServiceService implements com.talex.server.services.campaign.EngagementServiceService {
     private final EngagementServiceRepository engagementServiceRepository;
-    private final IEngagementServiceMapper engagementServiceMapper;
+    private final EngagementServiceMapper engagementServiceMapper;
 
     @Override
     @Transactional

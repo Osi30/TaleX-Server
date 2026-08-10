@@ -2,11 +2,11 @@ package com.talex.server.mappers.notification.impls;
 
 import com.talex.server.dtos.notification.NotificationResponseDto;
 import com.talex.server.entities.Notification;
-import com.talex.server.mappers.notification.INotificationMapper;
+import com.talex.server.mappers.notification.NotificationMapper;
 import org.springframework.stereotype.Component;
 
 @Component
-public class NotificationMapperImpl implements INotificationMapper {
+public class NotificationMapperImpl implements NotificationMapper {
 
     @Override
     public NotificationResponseDto toResponseDto(Notification entity) {

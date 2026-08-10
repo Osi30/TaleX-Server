@@ -28,7 +28,7 @@ public class UserFeatureDocument {
 
     private String language;
     private String gender;
-    private Integer age;
+    private String age;
     private LocalDateTime createdAt;
 
     @Field("onboarding_movie_genres")

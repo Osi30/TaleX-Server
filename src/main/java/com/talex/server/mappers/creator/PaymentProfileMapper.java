@@ -4,7 +4,7 @@ import com.talex.server.dtos.requests.creator.PaymentProfileRequestDto;
 import com.talex.server.dtos.responses.creator.PaymentProfileResponseDto;
 import com.talex.server.entities.creator.PaymentProfile;
 
-public interface IPaymentProfileMapper {
+public interface PaymentProfileMapper {
     PaymentProfileResponseDto toResponseDto(PaymentProfile entity);
 
     PaymentProfile toEntity(PaymentProfileRequestDto dto);

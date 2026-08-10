@@ -7,7 +7,7 @@ import com.talex.server.dtos.responses.subscription.SubscriptionResponseDto;
 import com.talex.server.entities.subscription.Subscription;
 import com.talex.server.exceptions.codes.SubscriptionErrorCode;
 import com.talex.server.exceptions.details.SubscriptionException;
-import com.talex.server.mappers.subscription.ISubscriptionMapper;
+import com.talex.server.mappers.subscription.SubscriptionMapper;
 import com.talex.server.repositories.subscription.SubscriptionRepository;
 import com.talex.server.services.subscription.SubscriptionService;
 import com.talex.server.specifications.subscription.SubscriptionSpec;
@@ -28,7 +28,7 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class SubscriptionServiceImpl implements SubscriptionService {
     private final SubscriptionRepository subscriptionRepository;
-    private final ISubscriptionMapper subscriptionMapper;
+    private final SubscriptionMapper subscriptionMapper;
 
     @Override
     @Transactional

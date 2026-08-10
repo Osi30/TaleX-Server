@@ -3,11 +3,11 @@ package com.talex.server.mappers.creator.impls;
 import com.talex.server.dtos.requests.creator.CreatorIdentityRequestDto;
 import com.talex.server.dtos.responses.creator.CreatorIdentityResponseDto;
 import com.talex.server.entities.creator.CreatorIdentity;
-import com.talex.server.mappers.creator.ICreatorIdentityMapper;
+import com.talex.server.mappers.creator.CreatorIdentityMapper;
 import org.springframework.stereotype.Component;
 
 @Component
-public class CreatorIdentityMapperImpl implements ICreatorIdentityMapper {
+public class CreatorIdentityMapperImpl implements CreatorIdentityMapper {
 
     @Override
     public CreatorIdentityResponseDto toResponseDto(CreatorIdentity entity) {

@@ -8,7 +8,7 @@ import com.talex.server.dtos.responses.creator.CreatorTierResponseDto;
 import com.talex.server.entities.creator.CreatorTier;
 import com.talex.server.exceptions.codes.creator.CreatorTierErrorCode;
 import com.talex.server.exceptions.details.creator.CreatorTierException;
-import com.talex.server.mappers.creator.ICreatorTierMapper;
+import com.talex.server.mappers.creator.CreatorTierMapper;
 import com.talex.server.repositories.creator.CreatorTierRepository;
 import com.talex.server.services.creator.CreatorTierService;
 import com.talex.server.specifications.creator.CreatorTierSpec;
@@ -32,7 +32,7 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class CreatorTierServiceImpl implements CreatorTierService {
     private final CreatorTierRepository repository;
-    private final ICreatorTierMapper mapper;
+    private final CreatorTierMapper mapper;
 
     @Override
     @Transactional

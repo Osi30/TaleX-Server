@@ -9,7 +9,7 @@ import com.talex.server.entities.term.TermsVersion;
 import com.talex.server.enums.TermsType;
 import com.talex.server.exceptions.codes.TermsVersionErrorCode;
 import com.talex.server.exceptions.details.TermVersionException;
-import com.talex.server.mappers.terms.ITermsVersionMapper;
+import com.talex.server.mappers.terms.TermsVersionMapper;
 import com.talex.server.repositories.term.TermsVersionRepository;
 import com.talex.server.specifications.TermsVersionSpec;
 import com.talex.server.utils.ValidationUtils;
@@ -29,7 +29,7 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class TermsVersionServiceImpl implements com.talex.server.services.terms.TermsVersionService {
     private final TermsVersionRepository repository;
-    private final ITermsVersionMapper mapper;
+    private final TermsVersionMapper mapper;
 
     @Override
     @Transactional

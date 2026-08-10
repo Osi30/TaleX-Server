@@ -11,24 +11,24 @@ import com.talex.server.dtos.responses.series.TagResponseDto;
 import com.talex.server.entities.creator.Creator;
 import com.talex.server.entities.series.*;
 import com.talex.server.enums.series.CategoryStatus;
-import com.talex.server.enums.series.ContentType;
 import com.talex.server.enums.series.SeasonStatus;
 import com.talex.server.enums.series.SeriesStatus;
 import com.talex.server.enums.series.TagStatus;
 import com.talex.server.exceptions.details.ContentModuleException;
+import com.talex.server.mappers.series.CategoryMapper;
+import com.talex.server.mappers.series.SeriesMapper;
+import com.talex.server.mappers.series.TagMapper;
 import com.talex.server.repositories.series.*;
-import com.talex.server.repositories.series.projections.SeriesCardProjection;
 import com.talex.server.services.audit.ContentAuditLogger;
 import com.talex.server.services.creator.CreatorService;
 import com.talex.server.services.media.impls.ContentOwnershipService;
 import com.talex.server.services.mongo.ISeriesFeatureService;
-import com.talex.server.services.series.CategoryService;
 import com.talex.server.services.series.SeriesService;
-import com.talex.server.services.series.TagService;
+import com.talex.server.specifications.SeriesSpec;
 import com.talex.server.utils.PageUtils;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Sort;
+import org.springframework.data.domain.*;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -46,14 +46,15 @@ public class SeriesServiceImpl implements SeriesService {
     private final CategoryRepository categoryRepository;
     private final TagRepository tagRepository;
     private final SeriesLogRepository seriesLogRepository;
-    private final CategoryService categoryService;
-    private final TagService tagService;
+    private final CategoryMapper categoryMapper;
+    private final TagMapper tagMapper;
     private final ContentOwnershipService contentOwnershipService;
     private final ISeriesFeatureService seriesFeatureService;
     private final CreatorService creatorService;
     private final SeasonRepository seasonRepository;
     private final ContentAuditLogger contentAuditLogger;
     private final ContentCascadeDeleteHelper contentCascadeDeleteHelper;
+    private final SeriesMapper seriesMapper;
 
     @Transactional
     @Override
@@ -64,7 +65,7 @@ public class SeriesServiceImpl implements SeriesService {
         Series series = new Series();
         applyMutableFields(series, request);
         series.setStatus(SeriesStatus.DRAFT);
-        series.setReleasedUpdateTime(java.time.LocalDateTime.now());
+        series.setReleasedUpdateTime(LocalDateTime.now());
         series.setCreator(creator);
 
         Series saved = seriesRepository.save(series);
@@ -76,7 +77,7 @@ public class SeriesServiceImpl implements SeriesService {
         
         contentAuditLogger.logAction("Series", saved.getSeriesId(), "CREATE", accountIdStr, creator.getCreatorId());
 
-        return toResponse(saved);
+        return seriesMapper.toResponse(saved);
     }
 
     private void createDefaultSeason(Series series, Creator creator, String accountIdStr) {
@@ -97,25 +98,25 @@ public class SeriesServiceImpl implements SeriesService {
     public SeriesResponseDto getById(String id, String accountId) {
         Series series = findActiveEntity(id);
         contentOwnershipService.assertCanView(series, accountId);
-        return toResponse(series);
+        return seriesMapper.toResponse(series);
     }
 
     @Transactional(readOnly = true)
     @Override
     public SeriesResponseDto getPublicById(String id) {
-        com.talex.server.repositories.series.projections.SeriesWithAvatarProjection projection = seriesRepository.findActiveSeriesWithAvatarById(id)
+        Series series = seriesRepository.findActiveSeriesWithAvatarById(id)
                 .orElseThrow(() -> ContentModuleException.notFound("Public series not found: " + id));
-        if (projection.getSeries().getStatus() != SeriesStatus.PUBLISHED && projection.getSeries().getStatus() != SeriesStatus.SCHEDULED) {
+        if (series.getStatus() != SeriesStatus.PUBLISHED && series.getStatus() != SeriesStatus.SCHEDULED) {
             throw ContentModuleException.notFound("Public series not found: " + id);
         }
-        return toResponsesWithAvatar(List.of(projection)).getFirst();
+        return seriesMapper.toResponse(series);
     }
 
     @Transactional(readOnly = true)
     @Override
     public BasePageResponse<SeriesResponseDto> list(Integer page, Integer pageSize) {
         Page<Series> result = seriesRepository.findAllByIsDeletedFalse(PageUtils.buildPageable(page, pageSize));
-        return toPageResponse(result, toResponses(result.getContent()));
+        return toPageResponse(result);
     }
 
     @Transactional(readOnly = true)
@@ -140,106 +141,53 @@ public class SeriesServiceImpl implements SeriesService {
                     PageUtils.buildPageable(page, pageSize)
             );
         }
-        return toPageResponse(result, toResponses(result.getContent()));
+        return toPageResponse(result);
     }
 
     @Transactional(readOnly = true)
     @Override
     public BasePageResponse<SeriesResponseDto> listPublic(Integer page, Integer pageSize) {
-        Page<com.talex.server.repositories.series.projections.SeriesWithAvatarProjection> result = seriesRepository
+        Page<Series> result = seriesRepository
                 .findPublicSeriesWithAvatar(
                         List.of(SeriesStatus.PUBLISHED, SeriesStatus.SCHEDULED),
                         PageUtils.buildPageable(page, pageSize));
-        return toPageResponseProjection(result, toResponsesWithAvatar(result.getContent()));
+        return toPageResponse(result);
     }
 
-    // Trang "Tìm kiếm nâng cao" — trả thẳng SeriesCardResponseDto (đã đủ field cho card kết
-    // quả tìm kiếm) thay vì map qua SeriesResponseDto như listPublic(), tránh phải load thêm
-    // category/tag chi tiết không dùng tới ở đây (N+1 không cần thiết).
     @Transactional(readOnly = true)
     @Override
-    public BasePageResponse<SeriesCardResponseDto> searchPublic(
-            SeriesSearchCriteria criteria, String sortBy, Integer page, Integer pageSize) {
-        Page<SeriesCardProjection> result = seriesRepository.searchPublicSeries(
-                List.of(SeriesStatus.PUBLISHED.name(), SeriesStatus.SCHEDULED.name()),
-                normalizeKeyword(criteria.keyword()),
-                criteria.contentType() == null ? null : criteria.contentType().name(),
-                blankToNull(criteria.categoryId()),
-                blankToNull(criteria.tagId()),
-                criteria.yearFrom(),
-                criteria.yearTo(),
-                criteria.minViews(),
-                resolveSortKey(sortBy),
-                // Sort nằm cứng trong SQL native (ưu tiên title-match rồi mới tới sortBy) —
-                // Pageable chỉ dùng cho page/size, không mang Sort riêng.
-                PageUtils.buildPageable(page, pageSize, Sort.unsorted()));
-        List<SeriesCardResponseDto> content = result.getContent().stream()
-                .map(this::toCardDto)
-                .toList();
-        return BasePageResponse.<SeriesCardResponseDto>builder()
-                .content(content)
-                .pageNumber(result.getNumber() + 1)
-                .pageSize(result.getSize())
-                .totalElements(result.getTotalElements())
-                .totalPages(result.getTotalPages())
-                .isFirst(result.isFirst())
-                .isLast(result.isLast())
-                .build();
+    public Slice<SeriesCardResponseDto> searchPublicSeries(SeriesSearchCriteria criteria, Pageable pageable) {
+        // 1. Tạo Specification từ criteria
+        Specification<Series> spec = SeriesSpec.filterByCriteria(criteria);
+
+        // 2. Tự động xử lý Sort theo thuộc tính entity (chuyển đổi alias nếu cần)
+        Pageable sortedPageable = buildSortedPageable(criteria, pageable);
+
+        // 3. Gọi repository - Spring Data JPA tự phân trang Slice
+        Slice<Series> seriesSlice = seriesRepository.findBy(spec, q -> q
+                .slice(sortedPageable)
+        );
+
+        // 4. Biến đổi Entity -> DTO bằng hàm .map() có sẵn của Slice
+        assert seriesSlice != null;
+        return seriesSlice.map(seriesMapper::toCardDto);
     }
 
-    // Whitelist — sortBy đi thẳng vào biểu thức CASE trong SQL native (searchPublicSeries),
-    // không nối chuỗi, nên chỉ cần chốt đúng 3 giá trị hợp lệ, giá trị lạ luôn rơi về mặc định
-    // "popular" thay vì truyền thẳng input người dùng vào DB.
-    private String resolveSortKey(String sortBy) {
-        if ("newest".equalsIgnoreCase(sortBy) || "name".equalsIgnoreCase(sortBy)) {
-            return sortBy.toLowerCase();
-        }
-        return "popular";
-    }
+    private Pageable buildSortedPageable(SeriesSearchCriteria criteria, Pageable pageable) {
+        String property = switch (Optional.ofNullable(criteria.getSortBy()).orElse("").toLowerCase()) {
+            case "averagerating" -> "averageRating";
+            case "releasedupdatetime" -> "releasedUpdateTime";
+            case "likes" -> "analyticData.likes";
+            case "views" -> "analyticData.views";
+            case "watchtime" -> "analyticData.watchTime";
+            default -> "releasedUpdateTime";
+        };
 
-    private SeriesCardResponseDto toCardDto(SeriesCardProjection projection) {
-        return SeriesCardResponseDto.builder()
-                .seriesId(projection.getSeriesId())
-                .accountId(projection.getAccountId() == null ? null : UUID.fromString(projection.getAccountId()))
-                .creatorId(projection.getCreatorId())
-                .creatorName(projection.getCreatorName())
-                .creatorAvatar(projection.getCreatorAvatar())
-                .totalCreatorFollowers(projection.getTotalCreatorFollowers())
-                .title(projection.getTitle())
-                .description(projection.getDescription())
-                .coverUrl(projection.getCoverUrl())
-                .bannerUrl(projection.getBannerUrl())
-                .contentType(projection.getContentType() == null ? null : ContentType.valueOf(projection.getContentType()))
-                .ageRating(projection.getAgeRating())
-                .language(projection.getLanguage())
-                .totalViews(projection.getTotalViews())
-                .createdAt(projection.getCreatedAt())
-                .updatedAt(projection.getUpdatedAt())
-                .averageRating(projection.getAverageRating())
-                .releasedUpdateTime(projection.getReleasedUpdateTime())
-                .build();
-    }
+        Sort.Direction direction = "ASC".equalsIgnoreCase(criteria.getSortDirection())
+                ? Sort.Direction.ASC
+                : Sort.Direction.DESC;
 
-    // strip-accent (Java) phải khớp với unaccent() (Postgres) ở cả 2 vế — nếu 1 bên còn dấu,
-    // LIKE sẽ không khớp. Chuẩn hóa NFD tách dấu ra khỏi ký tự gốc rồi loại bỏ, riêng "đ/Đ"
-    // xử lý thủ công vì Unicode NFD không tách được nó thành "d" + dấu (nó là 1 ký tự riêng).
-    private String normalizeKeyword(String keyword) {
-        if (keyword == null || keyword.isBlank()) {
-            return null;
-        }
-        String stripped = stripVietnameseAccents(keyword.trim().toLowerCase());
-        return "%" + stripped + "%";
-    }
-
-    // Chỉ cần xử lý "đ" (chữ thường) — hàm này luôn nhận input đã lowercase từ normalizeKeyword.
-    private static String stripVietnameseAccents(String text) {
-        String nfd = java.text.Normalizer.normalize(text, java.text.Normalizer.Form.NFD);
-        String noMarks = nfd.replaceAll("\\p{InCombiningDiacriticalMarks}", "");
-        return noMarks.replace('đ', 'd');
-    }
-
-    private String blankToNull(String value) {
-        return (value == null || value.isBlank()) ? null : value;
+        return PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), Sort.by(direction, property));
     }
 
     @Transactional
@@ -261,7 +209,7 @@ public class SeriesServiceImpl implements SeriesService {
 
         contentAuditLogger.logAction("Series", saved.getSeriesId(), "UPDATE", accountId, series.getCreator().getCreatorId());
 
-        return toResponse(saved);
+        return seriesMapper.toResponse(saved);
     }
 
     @Transactional
@@ -273,7 +221,7 @@ public class SeriesServiceImpl implements SeriesService {
         series.setReleasedUpdateTime(java.time.LocalDateTime.now());
         Series saved = seriesRepository.save(series);
         contentAuditLogger.logAction("Series", saved.getSeriesId(), "HIDE", actorId, series.getCreator().getCreatorId());
-        return toResponse(saved);
+        return seriesMapper.toResponse(saved);
     }
 
     @Transactional
@@ -285,7 +233,7 @@ public class SeriesServiceImpl implements SeriesService {
         series.setReleasedUpdateTime(java.time.LocalDateTime.now());
         Series saved = seriesRepository.save(series);
         contentAuditLogger.logAction("Series", saved.getSeriesId(), "UNHIDE", actorId, series.getCreator().getCreatorId());
-        return toResponse(saved);
+        return seriesMapper.toResponse(saved);
     }
 
     @Transactional
@@ -296,7 +244,7 @@ public class SeriesServiceImpl implements SeriesService {
         series.setReleasedUpdateTime(java.time.LocalDateTime.now());
         Series saved = seriesRepository.save(series);
         contentAuditLogger.logAction("Series", saved.getSeriesId(), "FORCE_HIDE", actorId, series.getCreator().getCreatorId());
-        return toResponse(saved);
+        return seriesMapper.toResponse(saved);
     }
 
     @Transactional
@@ -310,7 +258,7 @@ public class SeriesServiceImpl implements SeriesService {
         series.setReleasedUpdateTime(java.time.LocalDateTime.now());
         Series saved = seriesRepository.save(series);
         contentAuditLogger.logAction("Series", saved.getSeriesId(), "FORCE_UNHIDE", actorId, series.getCreator().getCreatorId());
-        return toResponse(saved);
+        return seriesMapper.toResponse(saved);
     }
 
     @Transactional
@@ -354,32 +302,6 @@ public class SeriesServiceImpl implements SeriesService {
     }
 
     @Override
-    public SeriesResponseDto toResponse(Series series) {
-        return toResponses(List.of(series)).getFirst();
-    }
-
-    private List<SeriesResponseDto> toResponses(List<Series> seriesList) {
-        if (seriesList.isEmpty()) {
-            return List.of();
-        }
-
-        List<String> seriesIds = seriesList.stream()
-                .map(Series::getSeriesId)
-                .toList();
-        Map<String, List<CategoryResponseDto>> categoriesBySeriesId =
-                loadCategoryResponses(seriesIds);
-        Map<String, List<TagResponseDto>> tagsBySeriesId =
-                loadTagResponses(seriesIds);
-
-        return seriesList.stream()
-                .map(series -> toResponse(
-                        series,
-                        categoriesBySeriesId.getOrDefault(series.getSeriesId(), List.of()),
-                        tagsBySeriesId.getOrDefault(series.getSeriesId(), List.of())))
-                .toList();
-    }
-
-    @Override
     public List<SeriesLogResponseDto> getSeriesLogs(String id, LocalDateTime start, LocalDateTime end, String accountId) {
         // 2. Query log từ database
         List<SeriesLog> logs = seriesLogRepository.findBySeriesSeriesIdAndHourBucketBetweenOrderByHourBucketAsc(id, start, end);
@@ -393,58 +315,6 @@ public class SeriesServiceImpl implements SeriesService {
                         .analyticData(log.getAnalyticData())
                         .build())
                 .toList();
-    }
-
-    private SeriesResponseDto toResponse(
-            Series series,
-            List<CategoryResponseDto> categories,
-            List<TagResponseDto> tags) {
-        return SeriesResponseDto.builder()
-                .seriesId(series.getSeriesId())
-                .accountId(series.getCreator().getAccount().getAccountId().toString())
-                .creatorId(series.getCreator().getCreatorId())
-                .totalCreatorFollowers(series.getCreator().getAccount().getTotalFollowersBy())
-                .title(series.getTitle())
-                .description(series.getDescription())
-                .coverUrl(series.getCoverUrl())
-                .bannerUrl(series.getBannerUrl())
-                .contentType(series.getContentType())
-                .status(series.getStatus())
-                .ageRating(series.getAgeRating())
-                .language(series.getLanguage())
-                .analyticData(series.getAnalyticData())
-                .averageRating(series.getAverageRating())
-                .categories(categories)
-                .tags(tags)
-                .createdAt(series.getCreatedAt())
-                .updatedAt(series.getUpdatedAt())
-                .deletedAt(series.getDeletedAt())
-                .isDeleted(series.getIsDeleted())
-                .build();
-    }
-
-    private Map<String, List<CategoryResponseDto>> loadCategoryResponses(
-            Collection<String> seriesIds) {
-        return seriesCategoryRepository.findBySeries_SeriesIdInAndIsDeletedFalse(seriesIds)
-                .stream()
-                .collect(Collectors.groupingBy(
-                        relation -> relation.getId().getSeriesId(),
-                        LinkedHashMap::new,
-                        Collectors.mapping(
-                                relation -> categoryService.toResponse(relation.getCategory()),
-                                Collectors.toList())));
-    }
-
-    private Map<String, List<TagResponseDto>> loadTagResponses(
-            Collection<String> seriesIds) {
-        return seriesTagRepository.findBySeries_SeriesIdInAndIsDeletedFalse(seriesIds)
-                .stream()
-                .collect(Collectors.groupingBy(
-                        relation -> relation.getId().getSeriesId(),
-                        LinkedHashMap::new,
-                        Collectors.mapping(
-                                relation -> tagService.toResponse(relation.getTag()),
-                                Collectors.toList())));
     }
 
     private void applyMutableFields(Series series, SeriesRequestDto request) {
@@ -596,7 +466,11 @@ public class SeriesServiceImpl implements SeriesService {
         return tagsById;
     }
 
-    private BasePageResponse<SeriesResponseDto> toPageResponse(Page<Series> page, List<SeriesResponseDto> content) {
+    private BasePageResponse<SeriesResponseDto> toPageResponse(Page<Series> page) {
+        List<SeriesResponseDto> content = page.getContent()
+                .stream().map(seriesMapper::toResponse)
+                .toList();
+
         return BasePageResponse.<SeriesResponseDto>builder()
                 .content(content)
                 .pageNumber(page.getNumber() + 1)
@@ -606,46 +480,5 @@ public class SeriesServiceImpl implements SeriesService {
                 .isFirst(page.isFirst())
                 .isLast(page.isLast())
                 .build();
-    }
-
-    private BasePageResponse<SeriesResponseDto> toPageResponseProjection(Page<com.talex.server.repositories.series.projections.SeriesWithAvatarProjection> page, List<SeriesResponseDto> content) {
-        return BasePageResponse.<SeriesResponseDto>builder()
-                .content(content)
-                .pageNumber(page.getNumber() + 1)
-                .pageSize(page.getSize())
-                .totalElements(page.getTotalElements())
-                .totalPages(page.getTotalPages())
-                .isFirst(page.isFirst())
-                .isLast(page.isLast())
-                .build();
-    }
-
-    private List<SeriesResponseDto> toResponsesWithAvatar(List<com.talex.server.repositories.series.projections.SeriesWithAvatarProjection> projections) {
-        if (projections.isEmpty()) {
-            return List.of();
-        }
-
-        List<String> seriesIds = projections.stream()
-                .map(p -> p.getSeries().getSeriesId())
-                .toList();
-        Map<String, List<CategoryResponseDto>> categoriesBySeriesId =
-                loadCategoryResponses(seriesIds);
-        Map<String, List<TagResponseDto>> tagsBySeriesId =
-                loadTagResponses(seriesIds);
-
-        return projections.stream()
-                .map(p -> {
-                    SeriesResponseDto dto = toResponse(
-                            p.getSeries(),
-                            categoriesBySeriesId.getOrDefault(p.getSeries().getSeriesId(), List.of()),
-                            tagsBySeriesId.getOrDefault(p.getSeries().getSeriesId(), List.of()));
-                    dto.setCreatorAvatar(p.getAvatarUrl());
-                    String creatorName = p.getCreatorFullName() != null && !p.getCreatorFullName().trim().isEmpty() 
-                            ? p.getCreatorFullName() 
-                            : p.getCreatorUsername();
-                    dto.setCreatorName(creatorName);
-                    return dto;
-                })
-                .toList();
     }
 }

@@ -25,6 +25,4 @@ public interface TagService {
     Tag findActiveEntity(String id);
 
     Tag findAssignableEntity(String id);
-
-    TagResponseDto toResponse(Tag tag);
 }

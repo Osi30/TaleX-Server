@@ -15,7 +15,7 @@ import com.talex.server.enums.report.AuditActionType;
 import com.talex.server.enums.report.PenaltyStatus;
 import com.talex.server.exceptions.codes.report.ModerationErrorCode;
 import com.talex.server.exceptions.details.report.ModerationException;
-import com.talex.server.mappers.report.IAppealMapper;
+import com.talex.server.mappers.report.AppealMapper;
 import com.talex.server.repositories.report.AppealRepository;
 import com.talex.server.repositories.NotificationRepository;
 import com.talex.server.repositories.report.PenaltyRepository;
@@ -44,7 +44,7 @@ public class AppealServiceImpl implements AppealService {
     private final AppealRepository appealRepository;
     private final PenaltyRepository penaltyRepository;
     private final NotificationRepository notificationRepository;
-    private final IAppealMapper appealMapper;
+    private final AppealMapper appealMapper;
     private final Sender questDBSender;
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final ObjectMapper objectMapper;

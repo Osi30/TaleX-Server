@@ -9,7 +9,7 @@ import com.talex.server.enums.report.AuditActionType;
 import com.talex.server.enums.report.PenaltyStatus;
 import com.talex.server.exceptions.codes.report.ModerationErrorCode;
 import com.talex.server.exceptions.details.report.ModerationException;
-import com.talex.server.mappers.report.IPenaltyMapper;
+import com.talex.server.mappers.report.PenaltyMapper;
 import com.talex.server.repositories.report.PenaltyRepository;
 import com.talex.server.services.report.PenaltyService;
 import com.talex.server.specifications.report.PenaltySpec;
@@ -33,7 +33,7 @@ import java.util.List;
 public class PenaltyServiceImpl implements PenaltyService {
 
     private final PenaltyRepository penaltyRepository;
-    private final IPenaltyMapper penaltyMapper;
+    private final PenaltyMapper penaltyMapper;
     private final Sender questDBSender;
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final ObjectMapper objectMapper;

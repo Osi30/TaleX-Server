@@ -1,8 +1,6 @@
 package com.talex.server.dtos.mongo;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import jakarta.validation.constraints.Max;
-import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -23,9 +21,7 @@ public class UserFeatureRequest {
     private String gender;
 
     @NotNull
-    @Min(value = 10, message = "Tuổi được phép thì phải lớn hơn 10")
-    @Max(value = 100)
-    private Integer age;
+    private String age;
 
     @NotNull
     private List<String> onboardingGenres;

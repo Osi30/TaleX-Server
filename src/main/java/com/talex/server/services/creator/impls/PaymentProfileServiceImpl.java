@@ -14,7 +14,7 @@ import com.talex.server.exceptions.codes.creator.CreatorErrorCode;
 import com.talex.server.exceptions.codes.payment.PaymentProfileErrorCode;
 import com.talex.server.exceptions.details.creator.CreatorException;
 import com.talex.server.exceptions.details.payment.PaymentProfileException;
-import com.talex.server.mappers.creator.IPaymentProfileMapper;
+import com.talex.server.mappers.creator.PaymentProfileMapper;
 import com.talex.server.repositories.creator.PaymentProfileRepository;
 import com.talex.server.services.creator.CreatorService;
 import com.talex.server.services.creator.PaymentProfileService;
@@ -38,7 +38,7 @@ import java.util.UUID;
 public class PaymentProfileServiceImpl implements PaymentProfileService {
     private final PaymentProfileRepository repository;
     private final CreatorService creatorService;
-    private final IPaymentProfileMapper mapper;
+    private final PaymentProfileMapper mapper;
 
     @Override
     @Transactional
