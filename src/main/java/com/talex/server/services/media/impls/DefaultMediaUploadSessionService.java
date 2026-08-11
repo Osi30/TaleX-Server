@@ -288,16 +288,15 @@ public class DefaultMediaUploadSessionService implements MediaUploadSessionServi
                 : MediaPlaybackPolicy.SIGNED);
         media.markUpdatedBy(request.getActorId());
         media = mediaRepository.save(media);
-        log.info("Upload completed, HLS processing started. provider={} mediaId={} providerPublicId={}",
+        log.info("Upload completed, Media routed to Content Pipeline (AI) before HLS transcoding. provider={} mediaId={} providerPublicId={}",
                 media.getProvider(), media.getMediaId(), media.getProviderPublicId());
         if (media.getProvider() == MediaProvider.CLOUDINARY) {
             cloudinaryHlsReconcileService.notifyProcessingMedia();
         }
 
-        // AWS only (xem plan) — dispatch Content ID NGAY, chạy song song với MediaConvert
-        // transcode đang xử lý, thay vì đợi tới khi HLS xong mới bắt đầu (giảm tổng thời
-        // gian pipeline gần bằng đúng thời gian transcode, vì Content ID chỉ dùng file
-        // gốc trên S3, không phụ thuộc kết quả transcode).
+        // AWS only (xem plan) — dispatch Content ID NGAY. Trái với trước đây chạy song song,
+        // giờ ta chạy nối tiếp: AI kiểm duyệt/watermark xong thì mới gọi MediaConvert để HLS
+        // có chứa Watermark. (Xem ContentPipelineServiceImpl).
         if (media.getMediaType() == MediaType.VIDEO && media.getProvider() == MediaProvider.AWS) {
             contentPipelineService.dispatchPipelineJob(media);
         }

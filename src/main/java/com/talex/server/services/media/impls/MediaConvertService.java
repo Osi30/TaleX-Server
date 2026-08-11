@@ -246,7 +246,10 @@ public class MediaConvertService {
                         .codecSettings(AudioCodecSettings.builder()
                                 .codec(AudioCodec.AAC)
                                 .aacSettings(AacSettings.builder()
-                                        .bitrate(128_000)
+                                        // Tăng bitrate lên 256kbps để AAC encoder của MediaConvert không
+                                        // áp dụng Low-Pass Filter cắt bỏ dải tần số cao (18kHz)
+                                        // của thuật toán Watermark âm thanh siêu âm.
+                                        .bitrate(256_000)
                                         .codingMode(AacCodingMode.CODING_MODE_2_0)
                                         .sampleRate(48000)
                                         .codecProfile(AacCodecProfile.LC)

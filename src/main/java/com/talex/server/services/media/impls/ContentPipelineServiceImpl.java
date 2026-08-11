@@ -12,6 +12,7 @@ import com.talex.server.entities.media.MediaCopyright;
 import com.talex.server.entities.media.ViolationDetail;
 import com.talex.server.enums.media.CensorshipStatus;
 import com.talex.server.enums.series.ContentApprovalStatus;
+import com.talex.server.enums.media.MediaProvider;
 import com.talex.server.enums.media.MediaStatus;
 import com.talex.server.enums.media.MediaType;
 import com.talex.server.enums.media.ViolationType;
@@ -49,13 +50,14 @@ public class ContentPipelineServiceImpl implements ContentPipelineService {
     private final ContentPipelineProducer pipelineProducer;
     private final MediaProperties mediaProperties;
     private final SseNotificationService sseNotificationService;
+    private final com.talex.server.services.media.MediaPackagingService mediaPackagingService;
 
     @Override
     public void dispatchPipelineJob(Media media) {
         try {
-            // VIDEO: job này giờ dispatch SONG SONG lúc MediaConvert đang transcode (xem
-            // DefaultMediaUploadSessionService.complete()) — không được ghi đè HLS_PROCESSING,
-            // nếu không SqsMediaEventPoller sẽ không biết transcode đang chạy dở.
+            // Đã chuyển thành nối tiếp: upload xong -> AI -> HLS, nên status ở đây 
+            // chắc chắn chưa phải là HLS_PROCESSING, ta gán thành PENDING để
+            // báo hiệu AI đang xử lý.
             if (media.getStatus() != MediaStatus.HLS_PROCESSING) {
                 media.setStatus(MediaStatus.PENDING);
             }
@@ -124,6 +126,16 @@ public class ContentPipelineServiceImpl implements ContentPipelineService {
             media.setPreviewUrl(previewUrl);
         }
 
+        if (result.getWatermarkedS3Key() != null && !result.getWatermarkedS3Key().isBlank()) {
+            String domain = mediaProperties.getAws().getCloudfrontDomain();
+            String newUrl = (domain != null && !domain.isBlank())
+                    ? "https://" + domain + "/" + result.getWatermarkedS3Key()
+                    : "https://" + mediaProperties.getAws().getBucketName() + ".s3." + mediaProperties.getAws().getRegion() + ".amazonaws.com/" + result.getWatermarkedS3Key();
+            media.setFileUrl(newUrl);
+            media.setOriginalUrl(newUrl);
+            media.setProviderPublicId(result.getWatermarkedS3Key());
+        }
+
         if (Boolean.FALSE.equals(result.getSuccess())) {
             log.error("Copyright check failed for mediaId={}: {}", result.getMediaId(), result.getErrorMessage());
             media.setStatus(MediaStatus.FAILED);
@@ -137,6 +149,12 @@ public class ContentPipelineServiceImpl implements ContentPipelineService {
                     .mediaId(media.getMediaId()).status("FAILED")
                     .errorMessage(result.getErrorMessage()).failedStep("COPYRIGHT").build());
             return;
+        }
+
+        // Bắt đầu HLS Packaging (Transcode) TẠI ĐÂY thay vì lúc upload xong.
+        // Điều này đảm bảo MediaConvert sử dụng S3 url MỚI (đã có watermark).
+        if (media.getMediaType() == MediaType.VIDEO && media.getProvider() == MediaProvider.AWS) {
+            mediaPackagingService.createHlsPackaging(media);
         }
 
         if (Boolean.TRUE.equals(result.getIsDuplicate()) && result.getViolations() != null) {

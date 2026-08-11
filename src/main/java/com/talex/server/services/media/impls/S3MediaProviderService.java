@@ -193,23 +193,11 @@ public class S3MediaProviderService implements MediaProviderService, MediaPackag
                 : null);
         media.setChecksum(sha256(key + ":" + request.getBytes()));
         media.setMediaType(MediaType.VIDEO);
-        media.setStatus(MediaStatus.HLS_PROCESSING);
+        // Thay vì HLS_PROCESSING và submit job HLS ngay lập tức,
+        // chúng ta sẽ đổi trạng thái thành PENDING để AI Watermark xử lý trước.
+        media.setStatus(MediaStatus.PENDING);
         media.setErrorMessage(null);
         media.setPendingDelete(false);
-
-        // Submit MediaConvert HLS transcode job (also generates thumbnail via FRAME_CAPTURE)
-        try {
-            String jobId = mediaConvertService.submitHlsJob(media);
-            media.setProviderAssetId(jobId); // Store jobId so reconcile fallback can poll job status
-            log.info("MediaConvert HLS job submitted. mediaId={} jobId={}", media.getMediaId(), jobId);
-        } catch (Exception e) {
-            log.error("Failed to submit MediaConvert job, falling back to direct MP4. mediaId={}",
-                    media.getMediaId(), e);
-            media.setStatus(MediaStatus.ACTIVE);
-            media.setPlaybackUrl(baseUrl);
-            media.setHlsUrl(null);
-            media.setProviderAssetId(null);
-        }
     }
 
     @Override

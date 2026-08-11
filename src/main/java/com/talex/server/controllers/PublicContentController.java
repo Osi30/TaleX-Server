@@ -149,6 +149,15 @@ public class PublicContentController {
         return ResponseEntity.ok(response(200, "OK", mediaService.getPublicById(mediaId, viewerId)));
     }
 
+    @GetMapping("/media/{mediaId}/watermarked-image")
+    @Operation(summary = "Lấy ảnh có đính kèm watermark", description = "Lấy ảnh gốc và tự động đính kèm Creator ID và Viewer ID thông qua AI Backend.")
+    public ResponseEntity<byte[]> getWatermarkedImage(
+            @PathVariable String mediaId,
+            @Parameter(hidden = true) @CurrentAccountId UUID accountId) {
+        String viewerId = accountId == null ? null : accountId.toString();
+        return mediaService.getWatermarkedImage(mediaId, viewerId);
+    }
+
     @GetMapping("/combos")
     @Operation(summary = "Lấy danh sách Combo", description = "Lấy danh sách các combo.")
     public ResponseEntity<BaseResponse> list() {

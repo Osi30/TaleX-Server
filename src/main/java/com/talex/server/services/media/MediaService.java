@@ -22,6 +22,8 @@ public interface MediaService {
 
     MediaResponseDto getPublicById(String id, String viewerId);
 
+    org.springframework.http.ResponseEntity<byte[]> getWatermarkedImage(String mediaId, String viewerId);
+
     List<MediaResponseDto> listByEpisode(String episodeId, String accountId);
 
     List<MediaResponseDto> listPublicByEpisode(String episodeId, String viewerId);

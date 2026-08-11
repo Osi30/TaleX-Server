@@ -28,4 +28,5 @@ public class CopyrightResultMessage {
     private Boolean success;
     private String errorMessage;
     private String previewS3Key;
+    private String watermarkedS3Key;
 }

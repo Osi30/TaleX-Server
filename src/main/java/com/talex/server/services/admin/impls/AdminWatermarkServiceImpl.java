@@ -78,11 +78,13 @@ public class AdminWatermarkServiceImpl implements AdminWatermarkService {
             if (serverResponseCode >= 200 && serverResponseCode < 300) {
                 try (java.io.InputStream is = connection.getInputStream()) {
                     JsonNode root = objectMapper.readTree(is);
-                    String creatorId = root.has("creator_id") ? root.get("creator_id").asText() : null;
-                    String message = root.has("message") ? root.get("message").asText() : null;
+                    String creatorId = root.hasNonNull("creator_id") ? root.get("creator_id").asText() : null;
+                    String viewerId = root.hasNonNull("viewer_id") ? root.get("viewer_id").asText() : null;
+                    String message = root.hasNonNull("message") ? root.get("message").asText() : null;
 
                     return AdminWatermarkResponseDto.builder()
                             .creatorId(creatorId)
+                            .viewerId(viewerId)
                             .message(message)
                             .build();
                 }
@@ -90,11 +92,29 @@ public class AdminWatermarkServiceImpl implements AdminWatermarkService {
                 try (java.io.InputStream es = connection.getErrorStream()) {
                     String errorMsg = es != null ? new String(es.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8) : "Unknown error";
                     log.error("AI Watermark API returned error: {} - {}", serverResponseCode, errorMsg);
-                    throw new RuntimeException("Lỗi từ AI Server khi trích xuất Watermark. HTTP " + serverResponseCode);
+                    
+                    String displayMessage = "Lỗi từ AI Server khi trích xuất Watermark.";
+                    try {
+                        JsonNode errorNode = objectMapper.readTree(errorMsg);
+                        if (errorNode.has("detail")) {
+                            displayMessage = errorNode.get("detail").asText();
+                        } else if (errorNode.has("message")) {
+                            displayMessage = errorNode.get("message").asText();
+                        }
+                    } catch (Exception parseEx) {
+                        // Bỏ qua lỗi parse, dùng message mặc định
+                    }
+                    throw new IllegalArgumentException(displayMessage);
                 }
             }
         } catch (Exception e) {
             log.error("Error calling AI Watermark API: ", e);
+            if (e instanceof IllegalArgumentException) {
+                throw (IllegalArgumentException) e;
+            }
+            if (e instanceof RuntimeException && !e.getMessage().startsWith("Gặp lỗi")) {
+                throw (RuntimeException) e;
+            }
             throw new RuntimeException("Gặp lỗi khi liên kết tới máy chủ AI để quét bản quyền: " + e.getMessage());
         }
     }
