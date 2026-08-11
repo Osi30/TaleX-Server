@@ -1,4 +1,4 @@
-package com.talex.server.dtos.responses.subscription;
+package com.talex.server.dtos.subscription.response;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -18,9 +18,6 @@ public class AccountSubscriptionResponseDto {
     private String orderId;
     private LocalDateTime startTime;
     private LocalDateTime endTime;
-    private Boolean isAdBlocked;
-    private Boolean isMovieUnlocked;
-    private Boolean isStoryUnlocked;
     private Boolean isCancelled;
     private LocalDateTime updatedAt;
     private LocalDateTime cancelledAt;

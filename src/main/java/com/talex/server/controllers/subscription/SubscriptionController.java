@@ -2,9 +2,10 @@ package com.talex.server.controllers.subscription;
 
 import com.talex.server.dtos.BasePageResponse;
 import com.talex.server.dtos.BaseResponse;
-import com.talex.server.dtos.requests.subscription.SubscriptionRequestDto;
+import com.talex.server.dtos.subscription.request.SubscriptionRequestDto;
 import com.talex.server.dtos.requests.filters.SubscriptionFilterRequestDto;
-import com.talex.server.dtos.responses.subscription.SubscriptionResponseDto;
+import com.talex.server.dtos.subscription.response.CreatorPoolSummaryResponseDto;
+import com.talex.server.dtos.subscription.response.SubscriptionResponseDto;
 import com.talex.server.services.subscription.SubscriptionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -46,7 +47,7 @@ public class SubscriptionController {
             @RequestParam(required = false) String sortDirection,
             @RequestParam(defaultValue = "1") Integer page,
             @RequestParam(defaultValue = "20") Integer pageSize
-            ) {
+    ) {
         BasePageResponse<SubscriptionResponseDto> pageResponse = subscriptionService
                 .filterSubscriptions(SubscriptionFilterRequestDto.builder()
                         .criteria(criteria)
@@ -98,6 +99,24 @@ public class SubscriptionController {
                 .code(200)
                 .message("Subscription deleted")
                 .data(null)
+                .build());
+    }
+
+    @GetMapping("/pool-summary")
+    @Operation(
+            summary = "Tính tổng tiền pool chia cho nhà sáng tạo",
+            description = "Lấy tổng tiền gốc, tiền thuế và tiền thực nhận (fiat_amount) của các gói đăng ký có endTime trong tháng/năm yêu cầu."
+    )
+    public ResponseEntity<BaseResponse> getCreatorPoolSummary(
+            @RequestParam(defaultValue = "2026") int year,
+            @RequestParam int month,
+            @RequestParam String subscriptionId
+    ) {
+        CreatorPoolSummaryResponseDto summary = subscriptionService.getCreatorPoolSummary(year, month, subscriptionId);
+        return ResponseEntity.ok(BaseResponse.builder()
+                .code(200)
+                .message("OK")
+                .data(summary)
                 .build());
     }
 }

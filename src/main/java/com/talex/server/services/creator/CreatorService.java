@@ -8,6 +8,7 @@ import com.talex.server.dtos.responses.creator.CreatorResponseDto;
 import com.talex.server.entities.creator.Creator;
 import com.talex.server.records.CreatorVerificationStatus;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -20,6 +21,8 @@ public interface CreatorService {
     CreatorVerificationStatus checkAndGetVerificationStatus(UUID accountId);
 
     void sendUpdateRoleRequest(UUID accountId);
+
+    void updateBalance(String creatorId, BigDecimal amount);
 
     CreatorResponseDto getById(String id);
 

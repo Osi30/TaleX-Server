@@ -22,6 +22,7 @@ public class CreatorMapperImpl implements CreatorMapper {
                 .analyticData(creator.getAnalyticData())
                 .followToCount(creator.getAccount().getTotalFollowersTo())
                 .followerCount(creator.getAccount().getTotalFollowersBy())
+                .currentBalance(creator.getCurrentBalance())
                 .creatorTier(creatorTierService.getCurrentEligibleTier(
                         creator.getAccount().getTotalFollowersBy(),
                         creator.getAnalyticData().getViews(),

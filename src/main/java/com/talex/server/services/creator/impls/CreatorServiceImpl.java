@@ -36,6 +36,7 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -127,6 +128,20 @@ public class CreatorServiceImpl implements CreatorService {
     public void sendUpdateRoleRequest(UUID accountId) {
         if (accountId == null) return;
         kafkaTemplate.send("request-to-update-account", accountId.toString());
+    }
+
+    @Transactional
+    @Override
+    public void updateBalance(String creatorId, BigDecimal amount) {
+        Creator creator = getEntityById(creatorId);
+
+        BigDecimal currentBalance = creator.getCurrentBalance() != null ? creator.getCurrentBalance() : BigDecimal.ZERO;
+        BigDecimal totalBalance = creator.getTotalBalance() != null ? creator.getTotalBalance() : BigDecimal.ZERO;
+
+        creator.setCurrentBalance(currentBalance.add(amount));
+        creator.setTotalBalance(totalBalance.add(amount));
+
+        creatorRepository.save(creator);
     }
 
     @Override

@@ -1,13 +1,16 @@
 package com.talex.server.services.subscription.impls;
 
 import com.talex.server.dtos.BasePageResponse;
-import com.talex.server.dtos.requests.subscription.SubscriptionRequestDto;
+import com.talex.server.dtos.subscription.request.SubscriptionRequestDto;
 import com.talex.server.dtos.requests.filters.SubscriptionFilterRequestDto;
-import com.talex.server.dtos.responses.subscription.SubscriptionResponseDto;
+import com.talex.server.dtos.subscription.response.CreatorPoolSummaryResponseDto;
+import com.talex.server.dtos.subscription.response.SubscriptionResponseDto;
 import com.talex.server.entities.subscription.Subscription;
 import com.talex.server.exceptions.codes.SubscriptionErrorCode;
 import com.talex.server.exceptions.details.SubscriptionException;
 import com.talex.server.mappers.subscription.SubscriptionMapper;
+import com.talex.server.records.CreatorPoolData;
+import com.talex.server.repositories.subscription.AccountSubscriptionRepository;
 import com.talex.server.repositories.subscription.SubscriptionRepository;
 import com.talex.server.services.subscription.SubscriptionService;
 import com.talex.server.specifications.subscription.SubscriptionSpec;
@@ -21,6 +24,9 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.time.YearMonth;
 import java.util.List;
 import java.util.Optional;
 
@@ -28,6 +34,7 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class SubscriptionServiceImpl implements SubscriptionService {
     private final SubscriptionRepository subscriptionRepository;
+    private final AccountSubscriptionRepository accountSubscriptionRepository;
     private final SubscriptionMapper subscriptionMapper;
 
     @Override
@@ -81,6 +88,14 @@ public class SubscriptionServiceImpl implements SubscriptionService {
         Subscription subscription = getSubscriptionByIdEntity(subscriptionId);
         subscriptionMapper.updateEntity(requestDto, subscription);
 
+        if (subscription.getAccountSubscriptions().isEmpty()){
+            Optional.ofNullable(requestDto.getPrice()).ifPresent(subscription::setPrice);
+            Optional.ofNullable(requestDto.getDuration()).ifPresent(subscription::setDuration);
+            Optional.ofNullable(requestDto.getDurationUnit())
+                    .map(Enum::toString)
+                    .ifPresent(subscription::setDurationUnit);
+        }
+
         Subscription updated = subscriptionRepository.save(subscription);
         return subscriptionMapper.toResponseDto(updated);
     }
@@ -94,12 +109,36 @@ public class SubscriptionServiceImpl implements SubscriptionService {
     }
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional
     public Subscription getSubscriptionByIdEntity(String subscriptionId) {
         return subscriptionRepository.findBySubscriptionIdAndIsDeletedFalse(subscriptionId)
                 .orElseThrow(() -> new SubscriptionException(
                         SubscriptionErrorCode.SUBSCRIPTION_NOT_FOUND,
                         "Subscription not found with id: " + subscriptionId));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public CreatorPoolSummaryResponseDto getCreatorPoolSummary(int year, int month, String subscriptionId) {
+        YearMonth yearMonth = YearMonth.of(year, month);
+        LocalDateTime startOfMonth = yearMonth.atDay(1).atStartOfDay();
+        LocalDateTime endOfMonth = yearMonth.atEndOfMonth().atTime(23, 59, 59, 999999999);
+
+        CreatorPoolData projection = accountSubscriptionRepository
+                .calculateCreatorPoolSummary(startOfMonth, endOfMonth, subscriptionId);
+
+        BigDecimal totalAmount = projection.totalAmount() != null ? projection.totalAmount() : BigDecimal.ZERO;
+        BigDecimal taxAmount = projection.taxAmount() != null ? projection.taxAmount() : BigDecimal.ZERO;
+        BigDecimal fiatAmount = projection.fiatAmount() != null ? projection.fiatAmount() : BigDecimal.ZERO;
+
+        return CreatorPoolSummaryResponseDto.builder()
+                .year(year)
+                .month(month)
+                .totalAmount(totalAmount)
+                .taxAmount(taxAmount)
+                .fiatAmount(fiatAmount)
+                .totalSubscriptions(projection.totalSubscriptions() != null ? projection.totalSubscriptions() : 0L)
+                .build();
     }
 
     private Sort getSort(SubscriptionFilterRequestDto filterRequest) {

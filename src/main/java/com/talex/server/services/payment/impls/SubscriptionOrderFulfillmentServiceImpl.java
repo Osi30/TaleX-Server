@@ -1,6 +1,6 @@
 package com.talex.server.services.payment.impls;
 
-import com.talex.server.dtos.requests.subscription.AccountSubscriptionRequestDto;
+import com.talex.server.dtos.subscription.request.AccountSubscriptionRequestDto;
 import com.talex.server.entities.transaction.Order;
 import com.talex.server.services.payment.OrderFulfillmentService;
 import com.talex.server.services.subscription.AccountSubscriptionService;

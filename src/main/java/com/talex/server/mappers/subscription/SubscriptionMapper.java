@@ -1,7 +1,7 @@
 package com.talex.server.mappers.subscription;
 
-import com.talex.server.dtos.requests.subscription.SubscriptionRequestDto;
-import com.talex.server.dtos.responses.subscription.SubscriptionResponseDto;
+import com.talex.server.dtos.subscription.request.SubscriptionRequestDto;
+import com.talex.server.dtos.subscription.response.SubscriptionResponseDto;
 import com.talex.server.entities.subscription.Subscription;
 
 public interface SubscriptionMapper {

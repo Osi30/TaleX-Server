@@ -1,4 +1,4 @@
-package com.talex.server.dtos.responses.subscription;
+package com.talex.server.dtos.subscription.response;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

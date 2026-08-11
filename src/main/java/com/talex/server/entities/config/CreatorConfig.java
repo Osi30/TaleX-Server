@@ -1,4 +1,4 @@
-package com.talex.server.entities.creator;
+package com.talex.server.entities.config;
 
 import jakarta.persistence.*;
 import lombok.*;

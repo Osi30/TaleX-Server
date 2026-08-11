@@ -65,6 +65,12 @@ public class Order {
     @Column(name = "metadata", columnDefinition = "TEXT")
     private String metadata;
 
+    @Column(name = "vat_rate")
+    private Double vatRate;
+
+    @Column(name = "vat_amount")
+    private BigDecimal vatAmount;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "account_id", nullable = false)
     private Account account;

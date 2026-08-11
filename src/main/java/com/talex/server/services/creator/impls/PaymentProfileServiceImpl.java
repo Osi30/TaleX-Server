@@ -58,7 +58,6 @@ public class PaymentProfileServiceImpl implements PaymentProfileService {
             }
         }
         entity.setStatus(PaymentProfileStatus.PENDING);
-        entity.setIsPrimary(dto.getIsPrimary());
 
         PaymentProfile saved = repository.save(entity);
         return mapper.toResponseDto(saved);

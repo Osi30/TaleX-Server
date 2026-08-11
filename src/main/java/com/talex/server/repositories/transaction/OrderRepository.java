@@ -2,6 +2,7 @@ package com.talex.server.repositories.transaction;
 
 import com.talex.server.entities.transaction.Order;
 import com.talex.server.enums.transaction.OrderStatus;
+import com.talex.server.records.OrderStatisticData;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -47,4 +48,49 @@ public interface OrderRepository extends JpaRepository<Order, String> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT o FROM Order o WHERE o.orderId = :orderId AND o.account.accountId = :accountId")
     Optional<Order> findWithLockByOrderIdAndAccountId(@Param("orderId") String orderId, @Param("accountId") UUID accountId);
+
+    /**
+     * Lấy tổng quan thống kê (GMV, Doanh thu thuần, VAT, Coin) trong khoảng thời gian
+     */
+    @Query(value = """
+        SELECT
+            TO_CHAR(NOW(), 'YYYY') AS period,
+            COALESCE(SUM(o.total_amount), 0) AS gmv,
+            COALESCE(SUM(o.fiat_amount - o.vat_amount), 0) AS netRevenue,
+            COALESCE(SUM(o.vat_amount), 0) AS vatAmount,
+            COALESCE(SUM(o.coin_amount), 0) AS totalCoin
+        FROM orders o
+        WHERE o.status = :status
+          AND o.created_at >= :startTime
+          AND o.created_at <= :endTime
+        """, nativeQuery = true)
+    OrderStatisticData getOverviewStatistic(
+            @Param("status") String status,
+            @Param("startTime") LocalDateTime startTime,
+            @Param("endTime") LocalDateTime endTime
+    );
+
+    /**
+     * Thống kê gom nhóm theo Ngày/Tháng (truyền pattern 'YYYY-MM-DD' hoặc 'YYYY-MM')
+     */
+    @Query(value = """
+        SELECT
+            TO_CHAR(o.created_at, :dateFormatPattern) AS period,
+            COALESCE(SUM(o.total_amount), 0) AS gmv,
+            COALESCE(SUM(o.fiat_amount - o.vat_amount), 0) AS netRevenue,
+            COALESCE(SUM(o.vat_amount), 0) AS vatAmount,
+            COALESCE(SUM(o.coin_amount), 0) AS totalCoin
+        FROM orders o
+        WHERE o.status = :status
+          AND o.created_at >= :startTime
+          AND o.created_at <= :endTime
+        GROUP BY 1
+        ORDER BY period ASC
+        """, nativeQuery = true)
+    List<OrderStatisticData> getGroupedStatistics(
+            @Param("status") String status,
+            @Param("startTime") LocalDateTime startTime,
+            @Param("endTime") LocalDateTime endTime,
+            @Param("dateFormatPattern") String dateFormatPattern
+    );
 }

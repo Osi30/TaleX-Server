@@ -4,7 +4,7 @@ import com.talex.server.annotations.CurrentAccountId;
 import com.talex.server.dtos.BaseResponse;
 import com.talex.server.dtos.requests.coin.CoinEconomyConfigRequestDto;
 import com.talex.server.dtos.responses.coin.CoinEconomyConfigResponseDto;
-import com.talex.server.services.coin.CoinEconomyConfigService;
+import com.talex.server.services.config.CoinEconomyConfigService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;

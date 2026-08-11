@@ -1,12 +1,12 @@
 package com.talex.server.services.subscription.impls;
 
+import com.talex.server.dtos.BasePageResponse;
 import com.talex.server.dtos.revenue.request.RuleXCalculationRequestDto;
 import com.talex.server.dtos.revenue.request.UserStreamRequestDto;
 import com.talex.server.dtos.revenue.response.RuleXCalculationResponseDto;
 import com.talex.server.dtos.revenue.response.UserAllocationDto;
+import com.talex.server.dtos.subscription.response.SubscriptionStatResponseDto;
 import com.talex.server.entities.config.SyncMetadata;
-import com.talex.server.entities.creator.Creator;
-import com.talex.server.entities.interaction.WatchSession;
 import com.talex.server.entities.subscription.*;
 import com.talex.server.enums.SyncType;
 import com.talex.server.records.WatchSessionResponseDto;
@@ -18,6 +18,10 @@ import com.talex.server.services.subscription.SubscriptionStatService;
 import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -40,6 +44,43 @@ public class SubscriptionStatServiceImpl implements SubscriptionStatService {
     private static final DateTimeFormatter MONTH_YEAR_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM");
     private static final int MAX_BINARY_SEARCH_ITERATIONS = 100;
     private static final String KEY_SEPARATOR = "::";
+
+    @Override
+    @Transactional(readOnly = true)
+    public BasePageResponse<SubscriptionStatResponseDto> getStatsByAccountSubscriptionId(
+            String accountSubscriptionId, int page, int pageSize) {
+
+        int validPage = page < 1 ? 1 : page;
+        int validPageSize = pageSize < 1 ? 20 : pageSize;
+        Pageable pageable = PageRequest.of(validPage - 1, validPageSize, Sort.by(Sort.Direction.DESC, "views"));
+
+        Page<Object[]> pageResult = subscriptionStatRepository.findStatsDetailsByAccountSubId(
+                accountSubscriptionId, pageable);
+
+        List<SubscriptionStatResponseDto> content = pageResult.stream()
+                .map(row -> SubscriptionStatResponseDto.builder()
+                        .id(Objects.toString(row[0], null))
+                        .monthYear(Objects.toString(row[1], null))
+                        .creatorId(Objects.toString(row[2], null))
+                        .creatorEmail(Objects.toString(row[3], null))
+                        .episodeId(Objects.toString(row[4], null))
+                        .episodeNumber(row[5] != null ? ((Number) row[5]).intValue() : null)
+                        .seriesId(Objects.toString(row[6], null))
+                        .seriesTitle(Objects.toString(row[7], null))
+                        .views(row[8] != null ? ((Number) row[8]).longValue() : 0L)
+                        .build())
+                .toList();
+
+        return BasePageResponse.<SubscriptionStatResponseDto>builder()
+                .content(content)
+                .pageNumber(pageResult.getNumber() + 1)
+                .pageSize(pageResult.getSize())
+                .totalElements(pageResult.getTotalElements())
+                .totalPages(pageResult.getTotalPages())
+                .isFirst(pageResult.isFirst())
+                .isLast(pageResult.isLast())
+                .build();
+    }
 
     @Override
     @Transactional
@@ -149,7 +190,7 @@ public class SubscriptionStatServiceImpl implements SubscriptionStatService {
         List<Long> vList = normalizeAndCalculateUserStreams(users);
 
         // Bước 2: Giải thuật Binary Search tìm Gamma (γ)
-        double alpha = 1.0;
+        double alpha = request.getAlpha();
         double targetBudgetRatio = alpha * users.size();
         double gamma = solveGamma(vList, targetBudgetRatio);
 

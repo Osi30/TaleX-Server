@@ -1,4 +1,4 @@
-package com.talex.server.services.coin;
+package com.talex.server.services.config;
 
 import com.talex.server.dtos.requests.coin.CoinEconomyConfigRequestDto;
 import com.talex.server.dtos.responses.coin.CoinEconomyConfigResponseDto;
