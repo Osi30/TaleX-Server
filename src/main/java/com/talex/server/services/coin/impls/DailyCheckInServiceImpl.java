@@ -8,7 +8,7 @@ import com.talex.server.enums.coin.CoinReferenceType;
 import com.talex.server.exceptions.codes.CoinErrorCode;
 import com.talex.server.exceptions.details.CoinException;
 import com.talex.server.repositories.coin.DailyCheckInRepository;
-import com.talex.server.services.coin.CoinEconomyConfigService;
+import com.talex.server.services.config.CoinEconomyConfigService;
 import com.talex.server.services.coin.CoinWalletService;
 import com.talex.server.services.coin.DailyCheckInService;
 import lombok.RequiredArgsConstructor;

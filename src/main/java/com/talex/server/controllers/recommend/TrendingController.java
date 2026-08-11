@@ -9,6 +9,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -24,6 +25,7 @@ public class TrendingController {
     /**
      * 1. Test Cron Job 1: Kích hoạt chạy đánh giá Wilson Score Vòng 1
      */
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/eval-wilson")
     public ResponseEntity<BaseResponse> triggerWilsonEvaluation() {
         log.info("[AdminAction] Thủ công kích hoạt đánh giá Wilson Score Vòng 1...");
@@ -38,6 +40,7 @@ public class TrendingController {
     /**
      * 2. Test Cron Job 2: Kích hoạt cập nhật Hacker News Ranking Score cho các Series SUCCESS
      */
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/eval-ranking")
     public ResponseEntity<BaseResponse> triggerRankingEvaluation() {
         log.info("[AdminAction] Thủ công kích hoạt tính toán Hacker News Ranking Score...");
@@ -52,6 +55,7 @@ public class TrendingController {
     /**
      * 3. Force tính toán Threshold: Reset currentBatch = 0 và tính toán lại ngay Threshold từ toàn bộ lịch sử
      */
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/force-threshold")
     public ResponseEntity<BaseResponse> forceRecalculateThreshold() {
         log.info("[AdminAction] Admin force tính toán lại Threshold...");
@@ -67,6 +71,7 @@ public class TrendingController {
             summary = "Danh sách ứng viên chờ phân phối",
             description = "Lấy danh sách ứng viên đang chờ phân phối Trending"
     )
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/candidate-new-releases")
     public ResponseEntity<BaseResponse> getCandidateNewReleasesSeries(
             @RequestParam(defaultValue = "0") int page,
@@ -84,6 +89,7 @@ public class TrendingController {
             summary = "Danh sách Series trong Pool New Releases",
             description = "Lấy danh sách chi tiết các Series hiện đang phân phối"
     )
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/new-releases-pool")
     public ResponseEntity<BaseResponse> getNewReleasesPoolSeries() {
         List<SeriesTrendingResponseDto> result = trendingService.getNewReleasesPoolSeries();

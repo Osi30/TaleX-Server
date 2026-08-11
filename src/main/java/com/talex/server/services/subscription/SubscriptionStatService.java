@@ -1,7 +1,9 @@
 package com.talex.server.services.subscription;
 
+import com.talex.server.dtos.BasePageResponse;
 import com.talex.server.dtos.revenue.request.RuleXCalculationRequestDto;
 import com.talex.server.dtos.revenue.response.RuleXCalculationResponseDto;
+import com.talex.server.dtos.subscription.response.SubscriptionStatResponseDto;
 import com.talex.server.entities.subscription.Subscription;
 import com.talex.server.entities.subscription.SubscriptionResult;
 
@@ -9,6 +11,9 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 public interface SubscriptionStatService {
+    BasePageResponse<SubscriptionStatResponseDto> getStatsByAccountSubscriptionId(
+            String accountSubscriptionId, int page, int pageSize);
+
     int processSubscriptionStats();
 
     void upsertSubscriptionStat(UUID accountId, String creatorId, String episodeId, LocalDateTime startTime);

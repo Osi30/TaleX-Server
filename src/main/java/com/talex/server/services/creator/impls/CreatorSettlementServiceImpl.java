@@ -7,7 +7,7 @@ import com.talex.server.enums.AccountStatus;
 import com.talex.server.enums.transaction.SettlementStatus;
 import com.talex.server.repositories.creator.CreatorMonthlySettlementRepository;
 import com.talex.server.repositories.creator.CreatorRepository;
-import com.talex.server.services.TaxConfigService;
+import com.talex.server.services.config.TaxConfigService;
 import com.talex.server.services.creator.CreatorSettlementService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

@@ -1,10 +1,10 @@
-package com.talex.server.services.creator.impls;
+package com.talex.server.services.config.impls;
 
 import com.talex.server.dtos.requests.creator.CreatorConfigRequestDto;
 import com.talex.server.dtos.responses.creator.CreatorConfigResponseDto;
-import com.talex.server.entities.creator.CreatorConfig;
+import com.talex.server.entities.config.CreatorConfig;
 import com.talex.server.repositories.creator.CreatorConfigRepository;
-import com.talex.server.services.creator.CreatorConfigService;
+import com.talex.server.services.config.CreatorConfigService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

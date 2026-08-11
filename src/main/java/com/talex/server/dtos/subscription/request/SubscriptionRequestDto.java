@@ -1,4 +1,4 @@
-package com.talex.server.dtos.requests.subscription;
+package com.talex.server.dtos.subscription.request;
 
 import jakarta.validation.constraints.Positive;
 import lombok.AllArgsConstructor;

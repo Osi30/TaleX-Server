@@ -40,17 +40,13 @@ public class SubscriptionScheduler {
      */
     @Scheduled(cron = "0 0 0 1 * *")
     public void processMonthlyRevenueDistribution() {
-        // Lấy thời gian tháng trước (LocalDate hiện tại trừ đi 1 tháng)
-        String previousMonthYear = LocalDate.now().minusMonths(1).format(MONTH_YEAR_FORMATTER);
-        log.info("Starting scheduled monthly Rule X revenue distribution for month: {}", previousMonthYear);
+        // Lấy thời gian tháng trước
+        String previousMonthYear = LocalDate.now()
+                .minusMonths(1).format(MONTH_YEAR_FORMATTER);
 
-        // 1. Query tất cả Subscriptions (bao gồm cả isDeleted = true và false)
+        // 1. Query tất cả Subscriptions (bao gồm khi đã xóa)
         List<Subscription> subscriptions = subscriptionRepository.findAll();
-
-        if (subscriptions.isEmpty()) {
-            log.info("No subscriptions found in the database.");
-            return;
-        }
+        if (subscriptions.isEmpty()) return;
 
         int processedCount = 0;
         int skippedCount = 0;

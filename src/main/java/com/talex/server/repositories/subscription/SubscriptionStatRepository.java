@@ -1,6 +1,8 @@
 package com.talex.server.repositories.subscription;
 
 import com.talex.server.entities.subscription.SubscriptionStat;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -51,5 +53,26 @@ public interface SubscriptionStatRepository extends JpaRepository<SubscriptionSt
     List<Object[]> findGroupedStatsByMonthYear(
             @Param("monthYear") String monthYear,
             @Param("subscriptionId") String subscriptionId
+    );
+
+    @Query("SELECT s.id, " +
+            "s.monthYear, " +
+            "s.creatorId, " +
+            "a.email, " +
+            "s.episodeId, " +
+            "e.episodeNumber, " +
+            "ser.seriesId, " +
+            "ser.title, " +
+            "s.views " +
+            "FROM SubscriptionStat s " +
+            "LEFT JOIN Creator c ON s.creatorId = c.creatorId " +
+            "LEFT JOIN c.account a " +
+            "LEFT JOIN Episode e ON s.episodeId = e.episodeId " +
+            "LEFT JOIN e.season se " +
+            "LEFT JOIN se.series ser " +
+            "WHERE s.accountSubscription.accountSubscriptionId = :accountSubscriptionId")
+    Page<Object[]> findStatsDetailsByAccountSubId(
+            @Param("accountSubscriptionId") String accountSubscriptionId,
+            Pageable pageable
     );
 }

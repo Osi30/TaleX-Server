@@ -1,5 +1,6 @@
 package com.talex.server.services.coin;
 
+import com.talex.server.services.config.CoinEconomyConfigService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 

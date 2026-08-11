@@ -1,7 +1,7 @@
 package com.talex.server.mappers.subscription.impls;
 
-import com.talex.server.dtos.requests.subscription.SubscriptionRequestDto;
-import com.talex.server.dtos.responses.subscription.SubscriptionResponseDto;
+import com.talex.server.dtos.subscription.request.SubscriptionRequestDto;
+import com.talex.server.dtos.subscription.response.SubscriptionResponseDto;
 import com.talex.server.entities.subscription.Subscription;
 import org.springframework.stereotype.Component;
 
@@ -55,10 +55,5 @@ public class SubscriptionMapperImpl implements com.talex.server.mappers.subscrip
 
         Optional.ofNullable(requestDto.getTier()).ifPresent(subscription::setTier);
         Optional.ofNullable(requestDto.getDescription()).ifPresent(subscription::setDescription);
-        Optional.ofNullable(requestDto.getPrice()).ifPresent(subscription::setPrice);
-        Optional.ofNullable(requestDto.getDuration()).ifPresent(subscription::setDuration);
-        Optional.ofNullable(requestDto.getDurationUnit())
-                .map(Enum::toString)
-                .ifPresent(subscription::setDurationUnit);
     }
 }
