@@ -18,6 +18,7 @@ public class CreatorIdentityMapperImpl implements CreatorIdentityMapper {
                 .creatorIdentityId(entity.getCreatorIdentityId())
                 .idNumber(entity.getIdNumber())
                 .fullName(entity.getFullName())
+                .accountName(entity.getCreator().getAccount().getFullName())
                 .dob(entity.getDob())
                 .sex(entity.getSex())
                 .address(entity.getAddress())

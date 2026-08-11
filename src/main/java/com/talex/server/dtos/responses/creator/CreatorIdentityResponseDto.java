@@ -17,6 +17,7 @@ import java.time.LocalDateTime;
 public class CreatorIdentityResponseDto {
     private String creatorIdentityId;
     private String creatorId;
+    private String accountName;
     private String idNumber;
     private String fullName;
     private LocalDate dob;
