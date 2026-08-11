@@ -1,6 +1,7 @@
 package com.talex.server.services.payment.impls;
 
 import com.talex.server.entities.transaction.Order;
+import com.talex.server.services.creator.RevenueTransactionService;
 import com.talex.server.services.series.EpisodeUnlockedContentService;
 import com.talex.server.services.payment.OrderFulfillmentService;
 import lombok.RequiredArgsConstructor;
@@ -13,6 +14,7 @@ public class EpisodeOrderFulfillmentServiceImpl implements OrderFulfillmentServi
     public static final String ITEM_TYPE = "EPISODE";
 
     private final EpisodeUnlockedContentService episodeUnlockedContentService;
+    private final RevenueTransactionService revenueTransactionService;
 
     @Override
     public String getSupportedItemType() {
@@ -23,5 +25,9 @@ public class EpisodeOrderFulfillmentServiceImpl implements OrderFulfillmentServi
     public void fulfill(Order order) {
         episodeUnlockedContentService.createFromOrder(
                 order.getOrderId(), order.getItemId(), ITEM_TYPE, order.getAccount().getAccountId());
+
+        revenueTransactionService.createFromEpisodeOrder(order);
     }
+
+
 }
