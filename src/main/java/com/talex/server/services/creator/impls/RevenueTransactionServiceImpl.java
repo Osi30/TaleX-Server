@@ -48,18 +48,18 @@ public class RevenueTransactionServiceImpl implements RevenueTransactionService 
         CreatorResponseDto creatorDto = creatorService.getById(creatorId);
         CreatorTierResponseDto tierDto = creatorDto.getCreatorTier();
 
-        Double directPurchaseShareRatio = (tierDto != null && tierDto.getDirectPurchaseShareRatio() != null)
+        double directPurchaseShareRatio = (tierDto != null && tierDto.getDirectPurchaseShareRatio() != null)
                 ? tierDto.getDirectPurchaseShareRatio()
                 : 0.0;
 
         // 4. Lấy CreatorConfig
         CreatorConfig config = creatorConfigService.getConfigEntity();
-        Double baseUnlockShare = (config != null && config.getBaseUnlockShare() != null)
+        double baseUnlockShare = (config != null && config.getBaseUnlockShare() != null)
                 ? config.getBaseUnlockShare()
                 : 0.0;
 
         // 5. Tỷ lệ % nền tảng lấy = baseUnlockShare - directPurchaseShareRatio
-        double platformShareRatioPercent = baseUnlockShare - directPurchaseShareRatio;
+        double platformShareRatioPercent = 1.0 - baseUnlockShare - directPurchaseShareRatio;
         if (platformShareRatioPercent < 0) {
             platformShareRatioPercent = 0.0;
         }
@@ -78,13 +78,18 @@ public class RevenueTransactionServiceImpl implements RevenueTransactionService 
         String contentDetail = buildContentDetailDescription(unlockedContents);
 
         // Soạn description tổng thể
+        assert tierDto != null;
         String description = String.format(
-                "Số tiền nhận khi khách mua %s (Đơn hàng %s) sau khi trừ thuế là %s VNĐ, trừ nền tảng %s VNĐ (Tỷ lệ: %.2f%%) và cộng bonus thì creator nhận được %s VNĐ.",
+                "Số tiền nhận khi khách mua %s (Đơn hàng %s) tổng là %s VND sau khi trừ thuế (%s VND) là %s VNĐ, trừ nền tảng %s VNĐ (Tỷ lệ: %f%%) và cộng bonus cho cấp %s (%f%%) thì creator nhận được %s VNĐ.",
                 contentDetail,
                 order.getOrderId(),
+                order.getTotalAmount().toString(),
+                vatAmount,
                 netAmount.toPlainString(),
                 platformAmount.toPlainString(),
-                platformShareRatioPercent,
+                platformShareRatioPercent * 100,
+                tierDto.getTierLevel().toString(),
+                tierDto.getDirectPurchaseShareRatio() * 100,
                 creatorAmount.toPlainString()
         );
 
@@ -118,7 +123,7 @@ public class RevenueTransactionServiceImpl implements RevenueTransactionService 
 
         // Mua lẻ 1 tập
         if (unlockedContents.size() == 1) {
-            Episode ep = unlockedContents.get(0).getEpisode();
+            Episode ep = unlockedContents.getFirst().getEpisode();
             String seriesTitle = getSeriesTitleFromEpisode(ep);
             return String.format("tập %d của series \"%s\"", ep.getEpisodeNumber(), seriesTitle);
         }

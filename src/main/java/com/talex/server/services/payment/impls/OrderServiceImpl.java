@@ -270,9 +270,9 @@ public class OrderServiceImpl implements com.talex.server.services.payment.Order
         // Áp thuế VAT
         TaxConfig taxConfig = taxConfigService.getTaxConfigEntity();
         BigDecimal divisor = BigDecimal.ONE.add(BigDecimal.valueOf(taxConfig.getVat()));
-        BigDecimal basePrice = order.getTotalAmount().divide(divisor, 2, RoundingMode.HALF_UP);
+        BigDecimal basePrice = order.getTotalAmount().divide(divisor, 0, RoundingMode.HALF_UP);
         order.setVatRate(taxConfig.getVat());
-        order.setVatAmount(basePrice);
+        order.setVatAmount(order.getTotalAmount().subtract(basePrice));
 
         return orderRepository.save(order);
     }
