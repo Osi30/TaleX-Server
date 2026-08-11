@@ -5,6 +5,8 @@ import com.talex.server.dtos.responses.creator.CreatorTierResponseDto;
 import com.talex.server.entities.config.CreatorConfig;
 import com.talex.server.entities.creator.Creator;
 import com.talex.server.entities.creator.RevenueTransaction;
+import com.talex.server.entities.series.Episode;
+import com.talex.server.entities.series.EpisodeUnlockedContent;
 import com.talex.server.entities.transaction.Order;
 import com.talex.server.enums.creator.RevenueTransactionType;
 import com.talex.server.enums.transaction.ReferenceType;
@@ -19,6 +21,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -31,16 +35,16 @@ public class RevenueTransactionServiceImpl implements RevenueTransactionService 
 
     @Override
     @Transactional
-    public RevenueTransaction createFromEpisodeOrder(Order order) {
+    public RevenueTransaction createFromEpisodeOrder(Order order, List<EpisodeUnlockedContent> unlockedContents) {
         // 1. Tính doanh thu NET = fiatAmount - vatAmount
         BigDecimal fiatAmount = order.getFiatAmount() != null ? order.getFiatAmount() : BigDecimal.ZERO;
         BigDecimal vatAmount = order.getVatAmount() != null ? order.getVatAmount() : BigDecimal.ZERO;
         BigDecimal netAmount = fiatAmount.subtract(vatAmount);
 
-        // 2. Lấy creatorId từ episodeId nếu itemType là EPISODE
+        // 2. Lấy creatorId từ episodeId (truy vấn qua episodeId từ itemId của order)
         String creatorId = episodeService.getCreatorIdByEpisodeId(order.getItemId());
 
-        // 3. Lấy thông tin CreatorResponseDto & CreatorTier
+        // 3. Lấy thông tin Creator & CreatorTier
         CreatorResponseDto creatorDto = creatorService.getById(creatorId);
         CreatorTierResponseDto tierDto = creatorDto.getCreatorTier();
 
@@ -48,19 +52,19 @@ public class RevenueTransactionServiceImpl implements RevenueTransactionService 
                 ? tierDto.getDirectPurchaseShareRatio()
                 : 0.0;
 
-        // 4. Lấy CreatorConfig để lấy baseUnlockShare
+        // 4. Lấy CreatorConfig
         CreatorConfig config = creatorConfigService.getConfigEntity();
         Double baseUnlockShare = (config != null && config.getBaseUnlockShare() != null)
                 ? config.getBaseUnlockShare()
                 : 0.0;
 
-        // 5. Tỷ lệ % nền tảng lấy = baseUnlockShare + (-directPurchaseShareRatio)
+        // 5. Tỷ lệ % nền tảng lấy = baseUnlockShare - directPurchaseShareRatio
         double platformShareRatioPercent = baseUnlockShare - directPurchaseShareRatio;
         if (platformShareRatioPercent < 0) {
             platformShareRatioPercent = 0.0;
         }
 
-        // 6. Tính số tiền nền tảng lấy và creator thực nhận (Làm tròn không lấy thập phân)
+        // 6. Tính số tiền nền tảng lấy và creator thực nhận (làm tròn nguyên)
         BigDecimal platformAmount = netAmount.multiply(BigDecimal.valueOf(platformShareRatioPercent))
                 .divide(BigDecimal.valueOf(100), 0, RoundingMode.HALF_UP);
 
@@ -70,24 +74,24 @@ public class RevenueTransactionServiceImpl implements RevenueTransactionService 
         BigDecimal balanceBefore = creatorDto.getCurrentBalance() != null ? creatorDto.getCurrentBalance() : BigDecimal.ZERO;
         BigDecimal balanceAfter = balanceBefore.add(creatorAmount);
 
-        // 8. Soạn description chi tiết
+        // 8. Tạo chuỗi mô tả chi tiết sản phẩm mua (Mua lẻ 1 tập hay Combo)
+        String contentDetail = buildContentDetailDescription(unlockedContents);
+
+        // Soạn description tổng thể
         String description = String.format(
-                "Khách mua tập phim (Đơn hàng %s). Doanh thu sau thuế (NET): %s VNĐ. " +
-                        "Khấu trừ nền tảng: %s VNĐ (Tỷ lệ nền tảng: %.2f%% = Cơ bản %.2f%% - Bonus hạng %.2f%%). " +
-                        "Creator thực nhận: %s VNĐ.",
+                "Số tiền nhận khi khách mua %s (Đơn hàng %s) sau khi trừ thuế là %s VNĐ, trừ nền tảng %s VNĐ (Tỷ lệ: %.2f%%) và cộng bonus thì creator nhận được %s VNĐ.",
+                contentDetail,
                 order.getOrderId(),
                 netAmount.toPlainString(),
                 platformAmount.toPlainString(),
                 platformShareRatioPercent,
-                baseUnlockShare,
-                directPurchaseShareRatio,
                 creatorAmount.toPlainString()
         );
 
-        // 9. Lấy Creator Entity để tạo mối quan hệ FK
+        // 9. Lấy Creator Entity để gắn khóa ngoại
         Creator creatorEntity = creatorService.getEntityById(creatorId);
 
-        // 10. Tạo object RevenueTransaction
+        // 10. Tạo RevenueTransaction
         RevenueTransaction revenueTransaction = RevenueTransaction.builder()
                 .amount(creatorAmount)
                 .balanceBefore(balanceBefore)
@@ -101,9 +105,63 @@ public class RevenueTransactionServiceImpl implements RevenueTransactionService 
 
         RevenueTransaction savedTransaction = revenueTransactionRepository.save(revenueTransaction);
 
-        // 11. Cập nhật currentBalance và totalBalance của Creator
+        // 11. Cập nhật số dư Creator
         creatorService.updateBalance(creatorId, creatorAmount);
 
         return savedTransaction;
+    }
+
+    private String buildContentDetailDescription(List<EpisodeUnlockedContent> unlockedContents) {
+        if (unlockedContents == null || unlockedContents.isEmpty()) {
+            return "tập phim";
+        }
+
+        // Mua lẻ 1 tập
+        if (unlockedContents.size() == 1) {
+            Episode ep = unlockedContents.get(0).getEpisode();
+            String seriesTitle = getSeriesTitleFromEpisode(ep);
+            return String.format("tập %d của series \"%s\"", ep.getEpisodeNumber(), seriesTitle);
+        }
+
+        // Gom nhóm tập theo Series
+        Map<String, List<Episode>> episodesBySeries = unlockedContents.stream()
+                .map(EpisodeUnlockedContent::getEpisode)
+                .filter(Objects::nonNull)
+                .collect(Collectors.groupingBy(
+                        this::getSeriesTitleFromEpisode,
+                        LinkedHashMap::new,
+                        Collectors.toList()
+                ));
+
+        // Nếu tất cả thuộc CÙNG 1 series
+        if (episodesBySeries.size() == 1) {
+            Map.Entry<String, List<Episode>> entry = episodesBySeries.entrySet().iterator().next();
+            String seriesTitle = entry.getKey();
+            String episodeNumbersStr = entry.getValue().stream()
+                    .map(ep -> "tập " + ep.getEpisodeNumber())
+                    .collect(Collectors.joining(", "));
+
+            return String.format("combo gồm %s của series \"%s\"", episodeNumbersStr, seriesTitle);
+        }
+
+        // Nếu thuộc KHÁC series
+        List<String> seriesParts = new ArrayList<>();
+        for (Map.Entry<String, List<Episode>> entry : episodesBySeries.entrySet()) {
+            String seriesTitle = entry.getKey();
+            String epNums = entry.getValue().stream()
+                    .map(ep -> "tập " + ep.getEpisodeNumber())
+                    .collect(Collectors.joining(", "));
+
+            seriesParts.add(String.format("%s của series \"%s\"", epNums, seriesTitle));
+        }
+
+        return "combo gồm " + String.join(" và ", seriesParts);
+    }
+
+    private String getSeriesTitleFromEpisode(Episode episode) {
+        if (episode != null && episode.getSeason() != null && episode.getSeason().getSeries() != null) {
+            return episode.getSeason().getSeries().getTitle();
+        }
+        return "N/A";
     }
 }
