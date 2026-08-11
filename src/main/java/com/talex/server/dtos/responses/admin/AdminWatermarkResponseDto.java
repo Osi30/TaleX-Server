@@ -11,5 +11,6 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class AdminWatermarkResponseDto {
     private String creatorId;
+    private String viewerId;
     private String message;
 }

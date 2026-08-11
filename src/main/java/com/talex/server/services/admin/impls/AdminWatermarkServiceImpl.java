@@ -79,10 +79,12 @@ public class AdminWatermarkServiceImpl implements AdminWatermarkService {
                 try (java.io.InputStream is = connection.getInputStream()) {
                     JsonNode root = objectMapper.readTree(is);
                     String creatorId = root.has("creator_id") ? root.get("creator_id").asText() : null;
+                    String viewerId = root.has("viewer_id") ? root.get("viewer_id").asText() : null;
                     String message = root.has("message") ? root.get("message").asText() : null;
 
                     return AdminWatermarkResponseDto.builder()
                             .creatorId(creatorId)
+                            .viewerId(viewerId)
                             .message(message)
                             .build();
                 }
