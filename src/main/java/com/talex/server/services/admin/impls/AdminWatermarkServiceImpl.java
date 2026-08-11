@@ -78,9 +78,9 @@ public class AdminWatermarkServiceImpl implements AdminWatermarkService {
             if (serverResponseCode >= 200 && serverResponseCode < 300) {
                 try (java.io.InputStream is = connection.getInputStream()) {
                     JsonNode root = objectMapper.readTree(is);
-                    String creatorId = root.has("creator_id") ? root.get("creator_id").asText() : null;
-                    String viewerId = root.has("viewer_id") ? root.get("viewer_id").asText() : null;
-                    String message = root.has("message") ? root.get("message").asText() : null;
+                    String creatorId = root.hasNonNull("creator_id") ? root.get("creator_id").asText() : null;
+                    String viewerId = root.hasNonNull("viewer_id") ? root.get("viewer_id").asText() : null;
+                    String message = root.hasNonNull("message") ? root.get("message").asText() : null;
 
                     return AdminWatermarkResponseDto.builder()
                             .creatorId(creatorId)

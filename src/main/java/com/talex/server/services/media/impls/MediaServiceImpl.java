@@ -47,6 +47,9 @@ import com.talex.server.services.series.EpisodeEntitlementService;
 import com.talex.server.services.series.EpisodeService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.client.RestTemplate;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -91,6 +94,10 @@ public class MediaServiceImpl implements MediaService {
     private final MediaSystemConfigService systemConfigService;
     private final CreatorRepository creatorRepository;
     private final EpisodeEntitlementService episodeEntitlementService;
+    private final RestTemplate restTemplate;
+
+    @Value("${python.api:http://localhost:8000}/watermark/embed")
+    private String aiEmbedUrl;
 
     private record PreparedMediaUrl(
             String fileUrl,
@@ -236,6 +243,85 @@ public class MediaServiceImpl implements MediaService {
         }
 
         return response;
+    }
+
+    @Override
+    public ResponseEntity<byte[]> getWatermarkedImage(String mediaId, String viewerId) {
+        Media media = mediaRepository.findById(mediaId)
+                .orElseThrow(() -> ContentModuleException.notFound("Không tìm thấy media ID: " + mediaId));
+        
+        if (media.getMediaType() != MediaType.IMAGE) {
+            throw ContentModuleException.badRequest("Tính năng này chỉ hỗ trợ hình ảnh.");
+        }
+        
+        String imageUrl = media.getFileUrl();
+        byte[] originalBytes;
+        try {
+            originalBytes = restTemplate.getForObject(imageUrl, byte[].class);
+            if (originalBytes == null) throw new RuntimeException("Tải ảnh gốc thất bại");
+        } catch (Exception e) {
+            log.error("Failed to download image from S3/CloudFront: {}", imageUrl, e);
+            throw ContentModuleException.badRequest("Không thể tải ảnh gốc: " + e.getMessage());
+        }
+
+        String creatorId = media.getCreatorId();
+
+        try {
+            String boundary = "----WebKitFormBoundary" + System.currentTimeMillis();
+            String lineEnd = "\r\n";
+            String twoHyphens = "--";
+
+            java.net.URL url = java.net.URI.create(aiEmbedUrl).toURL();
+            java.net.HttpURLConnection connection = (java.net.HttpURLConnection) url.openConnection();
+            connection.setDoInput(true);
+            connection.setDoOutput(true);
+            connection.setUseCaches(false);
+            connection.setRequestMethod("POST");
+            connection.setRequestProperty("Connection", "Keep-Alive");
+            connection.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + boundary);
+
+            try (java.io.DataOutputStream dos = new java.io.DataOutputStream(connection.getOutputStream())) {
+                dos.writeBytes(twoHyphens + boundary + lineEnd);
+                dos.writeBytes("Content-Disposition: form-data; name=\"media_type\"" + lineEnd + lineEnd);
+                dos.writeBytes("IMAGE" + lineEnd);
+
+                dos.writeBytes(twoHyphens + boundary + lineEnd);
+                dos.writeBytes("Content-Disposition: form-data; name=\"creator_id\"" + lineEnd + lineEnd);
+                dos.writeBytes((creatorId != null ? creatorId : "") + lineEnd);
+                
+                if (viewerId != null && !viewerId.isBlank()) {
+                    dos.writeBytes(twoHyphens + boundary + lineEnd);
+                    dos.writeBytes("Content-Disposition: form-data; name=\"viewer_id\"" + lineEnd + lineEnd);
+                    dos.writeBytes(viewerId + lineEnd);
+                }
+
+                dos.writeBytes(twoHyphens + boundary + lineEnd);
+                dos.writeBytes("Content-Disposition: form-data; name=\"file\"; filename=\"image.png\"" + lineEnd);
+                dos.writeBytes("Content-Type: application/octet-stream" + lineEnd + lineEnd);
+                dos.write(originalBytes);
+                dos.writeBytes(lineEnd);
+
+                dos.writeBytes(twoHyphens + boundary + twoHyphens + lineEnd);
+                dos.flush();
+            }
+
+            int serverResponseCode = connection.getResponseCode();
+            if (serverResponseCode >= 200 && serverResponseCode < 300) {
+                try (java.io.InputStream is = connection.getInputStream()) {
+                    byte[] watermarkedBytes = is.readAllBytes();
+                    return ResponseEntity.ok()
+                            .contentType(org.springframework.http.MediaType.IMAGE_PNG)
+                            .body(watermarkedBytes);
+                }
+            } else {
+                throw new RuntimeException("AI API returned " + serverResponseCode);
+            }
+        } catch (Exception e) {
+            log.error("Failed to embed watermark via AI", e);
+            return ResponseEntity.ok()
+                    .contentType(org.springframework.http.MediaType.IMAGE_JPEG)
+                    .body(originalBytes);
+        }
     }
 
     @Transactional(readOnly = true)
