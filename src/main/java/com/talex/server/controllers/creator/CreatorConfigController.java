@@ -3,7 +3,7 @@ package com.talex.server.controllers.creator;
 import com.talex.server.dtos.BaseResponse;
 import com.talex.server.dtos.requests.creator.CreatorConfigRequestDto;
 import com.talex.server.dtos.responses.creator.CreatorConfigResponseDto;
-import com.talex.server.services.creator.CreatorConfigService;
+import com.talex.server.services.config.CreatorConfigService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;

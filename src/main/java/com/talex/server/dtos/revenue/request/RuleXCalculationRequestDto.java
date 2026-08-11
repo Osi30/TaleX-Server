@@ -14,6 +14,8 @@ import java.util.List;
 @AllArgsConstructor
 public class RuleXCalculationRequestDto {
 
+    private Double alpha;
+
     // Giá trị gói đăng ký của mỗi user (ví dụ: 10.0 USD)
     private Double subscriptionFee;
 

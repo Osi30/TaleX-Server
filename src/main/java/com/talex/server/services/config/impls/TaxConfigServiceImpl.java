@@ -1,10 +1,10 @@
-package com.talex.server.services.impls;
+package com.talex.server.services.config.impls;
 
 import com.talex.server.dtos.requests.TaxConfigRequestDto;
 import com.talex.server.dtos.responses.TaxConfigResponseDto;
 import com.talex.server.entities.config.TaxConfig;
 import com.talex.server.repositories.TaxConfigRepository;
-import com.talex.server.services.TaxConfigService;
+import com.talex.server.services.config.TaxConfigService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

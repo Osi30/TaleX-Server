@@ -1,4 +1,4 @@
-package com.talex.server.services.coin.impls;
+package com.talex.server.services.config.impls;
 
 import com.talex.server.dtos.requests.coin.CoinEconomyConfigRequestDto;
 import com.talex.server.dtos.responses.coin.CoinEconomyConfigResponseDto;
@@ -6,7 +6,7 @@ import com.talex.server.entities.coin.CoinEconomyConfig;
 import com.talex.server.exceptions.codes.CoinErrorCode;
 import com.talex.server.exceptions.details.CoinException;
 import com.talex.server.repositories.coin.CoinEconomyConfigRepository;
-import com.talex.server.services.coin.CoinEconomyConfigService;
+import com.talex.server.services.config.CoinEconomyConfigService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;

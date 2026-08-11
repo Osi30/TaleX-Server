@@ -29,18 +29,6 @@ public class Transaction {
     @Column(name = "paid_amount", nullable = false)
     private BigDecimal paidAmount;
 
-    @Column(name = "vat_rate")
-    private Double vatRate;
-
-    @Column(name = "vat_amount")
-    private BigDecimal vatAmount;
-
-    @Column(name = "store_amount")
-    private BigDecimal storeAmount;
-
-    @Column(name = "net_amount")
-    private BigDecimal netAmount;
-
     @Enumerated(EnumType.STRING)
     @Column(name = "payment_method")
     private PaymentMethod paymentMethod;
@@ -56,12 +44,6 @@ public class Transaction {
     @Enumerated(EnumType.STRING)
     @Column(name = "status")
     private TransactionStatus status;
-
-    @Column(name = "device_id")
-    private String deviceId;
-
-    @Column(name = "ip_address")
-    private String ipAddress;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "reference_type")

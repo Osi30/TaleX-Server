@@ -9,6 +9,7 @@ import com.talex.server.dtos.requests.payment.CreateOrderRequestDto;
 import com.talex.server.dtos.responses.payment.OrderResponseDto;
 import com.talex.server.entities.auth.Account;
 import com.talex.server.entities.campaign.EngagementService;
+import com.talex.server.entities.config.TaxConfig;
 import com.talex.server.entities.subscription.Subscription;
 import com.talex.server.entities.transaction.Order;
 import com.talex.server.enums.coin.CoinReferenceType;
@@ -23,6 +24,7 @@ import com.talex.server.services.campaign.CampaignService;
 import com.talex.server.services.campaign.EngagementServiceService;
 import com.talex.server.services.coin.CoinPricingConverter;
 import com.talex.server.services.coin.CoinWalletService;
+import com.talex.server.services.config.TaxConfigService;
 import com.talex.server.services.payment.SePayService;
 import com.talex.server.services.payment.OrderCompletionService;
 import com.talex.server.services.subscription.SubscriptionService;
@@ -31,6 +33,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -56,6 +59,7 @@ public class OrderServiceImpl implements com.talex.server.services.payment.Order
     private final CoinWalletService coinWalletService;
     private final CoinPricingConverter coinPricingConverter;
     private final OrderCompletionService orderCompletionService;
+    private final TaxConfigService taxConfigService;
     private final ObjectMapper objectMapper;
     private final OrderExpirationMarker orderExpirationMarker;
 
@@ -262,6 +266,14 @@ public class OrderServiceImpl implements com.talex.server.services.payment.Order
         order.setCoinAmount(0L);
         order.setStatus(OrderStatus.AWAITING_PAYMENT);
         order.setExpiresAt(now.plusMinutes(sePayProperties.getOrderExpiryMinutes()));
+
+        // Áp thuế VAT
+        TaxConfig taxConfig = taxConfigService.getTaxConfigEntity();
+        BigDecimal divisor = BigDecimal.ONE.add(BigDecimal.valueOf(taxConfig.getVat()));
+        BigDecimal basePrice = order.getTotalAmount().divide(divisor, 2, RoundingMode.HALF_UP);
+        order.setVatRate(taxConfig.getVat());
+        order.setVatAmount(basePrice);
+
         return orderRepository.save(order);
     }
 

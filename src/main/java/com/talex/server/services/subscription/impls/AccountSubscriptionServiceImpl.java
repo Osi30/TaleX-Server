@@ -2,8 +2,9 @@ package com.talex.server.services.subscription.impls;
 
 import com.talex.server.dtos.BaseFilterRequestDto;
 import com.talex.server.dtos.BasePageResponse;
-import com.talex.server.dtos.requests.subscription.AccountSubscriptionRequestDto;
-import com.talex.server.dtos.responses.subscription.AccountSubscriptionResponseDto;
+import com.talex.server.dtos.subscription.request.AccountSubscriptionRequestDto;
+import com.talex.server.dtos.subscription.response.AccountSubscriptionResponseDto;
+import com.talex.server.dtos.subscription.response.CreatorPoolDetailResponseDto;
 import com.talex.server.entities.auth.Account;
 import com.talex.server.entities.subscription.AccountSubscription;
 import com.talex.server.entities.subscription.Subscription;
@@ -31,12 +32,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.YearMonth;
 import java.time.temporal.ChronoUnit;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -102,6 +100,54 @@ public class AccountSubscriptionServiceImpl implements AccountSubscriptionServic
 
     @Override
     @Transactional(readOnly = true)
+    public BasePageResponse<CreatorPoolDetailResponseDto> getCreatorPoolDetails(
+            int year, int month, String subscriptionId, int page, int pageSize) {
+
+        YearMonth yearMonth = YearMonth.of(year, month);
+        LocalDateTime startOfMonth = yearMonth.atDay(1).atStartOfDay();
+        LocalDateTime endOfMonth = yearMonth.atEndOfMonth().atTime(23, 59, 59, 999999999);
+
+        int validPage = Math.max(page, 1);
+        int validPageSize = pageSize < 1 ? 20 : pageSize;
+        Pageable pageable = PageRequest.of(validPage - 1, validPageSize, Sort.by(Sort.Direction.DESC, "endTime"));
+
+        Page<Object[]> pageResult = accountSubscriptionRepository.findCreatorPoolDetailsRaw(
+                startOfMonth, endOfMonth, subscriptionId, pageable);
+
+        List<CreatorPoolDetailResponseDto> content = pageResult.stream()
+                .map(row -> {
+                    Double totalAmount = row[2] != null ? ((Number) row[2]).doubleValue() : 0.0;
+                    Double vatAmount = row[3] != null ? ((Number) row[3]).doubleValue() : 0.0;
+                    Double fiatAmount = totalAmount - vatAmount;
+
+                    return CreatorPoolDetailResponseDto.builder()
+                            .accountSubscriptionId((String) row[0])
+                            .orderId((String) row[1])
+                            .totalAmount(totalAmount)
+                            .vatAmount(vatAmount)
+                            .fiatAmount(fiatAmount)
+                            .startTime((LocalDateTime) row[4])
+                            .endTime((LocalDateTime) row[5])
+                            .totalViews(row[6] != null ? ((Number) row[6]).longValue() : 0L)
+                            .accountId(Objects.toString(row[7], null))
+                            .email((String) row[8])
+                            .build();
+                })
+                .toList();
+
+        return BasePageResponse.<CreatorPoolDetailResponseDto>builder()
+                .content(content)
+                .pageNumber(pageResult.getNumber() + 1)
+                .pageSize(pageResult.getSize())
+                .totalElements(pageResult.getTotalElements())
+                .totalPages(pageResult.getTotalPages())
+                .isFirst(pageResult.isFirst())
+                .isLast(pageResult.isLast())
+                .build();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public AccountSubscriptionResponseDto getAccountSubscriptionById(String accountSubscriptionId) {
         return toResponseDto(findById(accountSubscriptionId));
     }
@@ -116,6 +162,16 @@ public class AccountSubscriptionServiceImpl implements AccountSubscriptionServic
         subscription.setIsCancelled(true);
         subscription.setCancelledAt(LocalDateTime.now());
         accountSubscriptionRepository.save(subscription);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public AccountSubscriptionResponseDto getActiveAccountSubscription(UUID accountId) {
+        return accountSubscriptionRepository
+                .findActiveAccountSubId(
+                        accountId, LocalDateTime.now())
+                .map(this::toResponseDto)
+                .orElse(null);
     }
 
     private Pageable buildPageable(BaseFilterRequestDto filterRequest) {
@@ -260,7 +316,7 @@ public class AccountSubscriptionServiceImpl implements AccountSubscriptionServic
                 .updatedAt(subscription.getUpdatedAt())
                 .cancelledAt(subscription.getCancelledAt())
                 .isCancelled(subscription.getIsCancelled())
-                .invoiceUrl(invoiceUrlByOrderId.get(subscription.getOrderId()))
+                .invoiceUrl(subscription.getOrderId() == null ? null : invoiceUrlByOrderId.get(subscription.getOrderId()))
                 .build();
     }
 }

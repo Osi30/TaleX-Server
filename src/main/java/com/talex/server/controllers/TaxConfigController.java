@@ -3,7 +3,7 @@ package com.talex.server.controllers;
 import com.talex.server.dtos.BaseResponse;
 import com.talex.server.dtos.requests.TaxConfigRequestDto;
 import com.talex.server.dtos.responses.TaxConfigResponseDto;
-import com.talex.server.services.TaxConfigService;
+import com.talex.server.services.config.TaxConfigService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;

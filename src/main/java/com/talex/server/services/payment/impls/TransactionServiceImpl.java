@@ -6,6 +6,7 @@ import com.talex.server.enums.transaction.PaymentMethod;
 import com.talex.server.enums.transaction.ReferenceType;
 import com.talex.server.enums.transaction.TransactionStatus;
 import com.talex.server.repositories.transaction.TransactionRepository;
+import com.talex.server.services.payment.TransactionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,7 +15,7 @@ import java.math.BigDecimal;
 
 @Service
 @RequiredArgsConstructor
-public class TransactionServiceImpl implements com.talex.server.services.payment.TransactionService {
+public class TransactionServiceImpl implements TransactionService {
 
     private final TransactionRepository transactionRepository;
 

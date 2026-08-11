@@ -22,9 +22,11 @@ public class SubscriptionResult {
     @Column(name = "gamma", nullable = false)
     private Double gamma;
 
+    // Đã trừ VAT
     @Column(name = "target_budget", nullable = false)
     private Double targetBudget;
 
+    // Đã trừ VAT và user không xem
     @Column(name = "calculated_budget", nullable = false)
     private Double calculatedBudget;
 
