@@ -1,5 +1,6 @@
 package com.talex.server.services.mongo;
 
+import com.talex.server.entities.mongo.SeriesMetadata;
 import com.talex.server.entities.series.Category;
 import com.talex.server.entities.series.Series;
 import com.talex.server.entities.series.Tag;
@@ -13,4 +14,6 @@ public interface SeriesFeatureService {
     void syncAllSeriesFeatures();
 
     void resetInactiveSeriesStatsInMongo(List<String> seriesIds, boolean reset24h, boolean reset7d);
+
+    SeriesMetadata getSeriesFeatureById(String seriesId);
 }
