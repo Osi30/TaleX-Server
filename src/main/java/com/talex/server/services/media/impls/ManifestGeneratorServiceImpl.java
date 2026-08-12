@@ -6,10 +6,12 @@ import com.talex.server.enums.media.MediaType;
 import com.talex.server.exceptions.details.ContentModuleException;
 import com.talex.server.repositories.media.MediaRepository;
 import com.talex.server.services.media.ManifestGeneratorService;
+import com.talex.server.services.media.MediaProviderService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -18,6 +20,7 @@ import java.util.List;
 public class ManifestGeneratorServiceImpl implements ManifestGeneratorService {
 
     private final MediaRepository mediaRepository;
+    private final MediaProviderService mediaProviderService;
     private final RestTemplate restTemplate = new RestTemplate();
 
     @Override
@@ -35,11 +38,17 @@ public class ManifestGeneratorServiceImpl implements ManifestGeneratorService {
             throw ContentModuleException.badRequest("VIDEO_NOT_SUPPORT_AB_WATERMARK");
         }
 
+        // Thời hạn ký URL: 10 phút (đủ để stream hết 1 episode)
+        LocalDateTime expiresAt = LocalDateTime.now().plusMinutes(10);
+
         // Tải nội dung manifest của version A (làm chuẩn)
+        // Phải ký URL trước khi fetch vì CloudFront yêu cầu Signed URL
         String masterAUrl = fileUrl + "/version_A/playlist.m3u8";
+        String signedMasterAUrl = mediaProviderService.signSingleUrl(masterAUrl, expiresAt);
+
         String manifestContent;
         try {
-            manifestContent = restTemplate.getForObject(masterAUrl, String.class);
+            manifestContent = restTemplate.getForObject(signedMasterAUrl, String.class);
         } catch (Exception e) {
             log.error("Failed to fetch manifest A from S3: {}", masterAUrl, e);
             throw ContentModuleException.badRequest("MANIFEST_NOT_FOUND");
@@ -51,8 +60,8 @@ public class ManifestGeneratorServiceImpl implements ManifestGeneratorService {
 
         // Chuyển đổi ViewerID (ví dụ: UUID) thành chuỗi nhị phân
         String binaryPattern = convertToBinaryPattern(viewerId);
-        
-        // Trộn các chunk
+
+        // Trộn các chunk — mỗi URL chunk phải được ký để client tải được
         StringBuilder dynamicManifest = new StringBuilder();
         String[] lines = manifestContent.split("\n");
         int chunkIndex = 0;
@@ -67,15 +76,17 @@ public class ManifestGeneratorServiceImpl implements ManifestGeneratorService {
                 // Là dòng chứa link tới chunk
                 char bit = binaryPattern.charAt(chunkIndex % binaryPattern.length());
                 String chunkName = line.trim();
-                
+
                 String chunkUrl;
                 if (bit == '1') {
                     chunkUrl = fileUrl + "/version_A/" + chunkName;
                 } else {
                     chunkUrl = fileUrl + "/version_B/" + chunkName;
                 }
-                
-                dynamicManifest.append(chunkUrl).append("\n");
+
+                // Ký URL chunk trước khi ghi vào manifest trả về client
+                String signedChunkUrl = mediaProviderService.signSingleUrl(chunkUrl, expiresAt);
+                dynamicManifest.append(signedChunkUrl).append("\n");
                 chunkIndex++;
             } else {
                 dynamicManifest.append(line).append("\n");
