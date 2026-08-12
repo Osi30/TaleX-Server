@@ -2,7 +2,7 @@ package com.talex.server.services.series.impls;
 
 import com.talex.server.dtos.BasePageResponse;
 import com.talex.server.dtos.analytic.SeriesLogResponseDto;
-import com.talex.server.dtos.recommend.SeriesCardResponseDto;
+import com.talex.server.dtos.recommend.response.SeriesCardResponseDto;
 import com.talex.server.dtos.requests.series.SeriesRequestDto;
 import com.talex.server.dtos.requests.series.SeriesSearchCriteria;
 import com.talex.server.dtos.responses.series.SeriesResponseDto;
@@ -13,9 +13,7 @@ import com.talex.server.enums.series.SeasonStatus;
 import com.talex.server.enums.series.SeriesStatus;
 import com.talex.server.enums.series.TagStatus;
 import com.talex.server.exceptions.details.ContentModuleException;
-import com.talex.server.mappers.series.CategoryMapper;
 import com.talex.server.mappers.series.SeriesMapper;
-import com.talex.server.mappers.series.TagMapper;
 import com.talex.server.repositories.series.*;
 import com.talex.server.services.audit.ContentAuditLogger;
 import com.talex.server.services.creator.CreatorService;
@@ -44,8 +42,6 @@ public class SeriesServiceImpl implements SeriesService {
     private final CategoryRepository categoryRepository;
     private final TagRepository tagRepository;
     private final SeriesLogRepository seriesLogRepository;
-    private final CategoryMapper categoryMapper;
-    private final TagMapper tagMapper;
     private final ContentOwnershipService contentOwnershipService;
     private final SeriesFeatureService seriesFeatureService;
     private final CreatorService creatorService;
@@ -169,6 +165,38 @@ public class SeriesServiceImpl implements SeriesService {
         // 4. Biến đổi Entity -> DTO bằng hàm .map() có sẵn của Slice
         assert seriesSlice != null;
         return seriesSlice.map(seriesMapper::toCardDto);
+    }
+
+    @Transactional(readOnly = true)
+    @Override
+    public List<SeriesCardResponseDto> getSeriesCardsByIds(List<String> seriesIds) {
+        if (seriesIds == null || seriesIds.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        // 1. Lọc trùng ID (Deduplicate) và loại bỏ null/blank nhưng vẫn giữ nguyên thứ tự ban đầu
+        List<String> distinctIds = seriesIds.stream()
+                .filter(id -> id != null && !id.isBlank())
+                .distinct()
+                .toList();
+
+        if (distinctIds.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        // 2. Query danh sách Series từ DB
+        List<Series> seriesList = seriesRepository.findAllBySeriesIdIn(distinctIds);
+
+        // 3. Map danh sách Series theo seriesId để dễ tra cứu
+        Map<String, Series> seriesMap = seriesList.stream()
+                .collect(Collectors.toMap(Series::getSeriesId, Function.identity(), (s1, s2) -> s1));
+
+        // 4. Duyệt lại theo danh sách distinctIds ban đầu để bảo toàn đúng thứ tự thứ hạng/khuyên dùng
+        return distinctIds.stream()
+                .map(seriesMap::get)
+                .filter(Objects::nonNull)
+                .map(seriesMapper::toCardDto)
+                .toList();
     }
 
     private Pageable buildSortedPageable(SeriesSearchCriteria criteria, Pageable pageable) {

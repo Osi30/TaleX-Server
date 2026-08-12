@@ -1,7 +1,7 @@
 package com.talex.server.services.trending.impls;
 
-import com.talex.server.dtos.recommend.TrendingSampleConfigReq;
-import com.talex.server.dtos.recommend.TrendingSampleConfigRes;
+import com.talex.server.dtos.recommend.request.TrendingSampleConfigReq;
+import com.talex.server.dtos.recommend.response.TrendingSampleConfigRes;
 import com.talex.server.entities.config.TrendingSampleConfig;
 import com.talex.server.enums.interaction.ImpressionStatus;
 import com.talex.server.exceptions.details.ResourceNotFoundException;

@@ -2,9 +2,8 @@ package com.talex.server.controllers;
 
 import com.talex.server.annotations.CurrentAccountId;
 import com.talex.server.dtos.BaseResponse;
-import com.talex.server.dtos.recommend.SeriesCardResponseDto;
+import com.talex.server.dtos.recommend.response.SeriesCardResponseDto;
 import com.talex.server.dtos.requests.series.SeriesSearchCriteria;
-import com.talex.server.dtos.responses.series.SeriesResponseDto;
 import com.talex.server.enums.series.ContentType;
 import com.talex.server.enums.series.SeriesStatus;
 import com.talex.server.services.media.MediaPlaybackSecurityService;

@@ -56,6 +56,19 @@ public class UserFeatureController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    @GetMapping("/{id}")
+    @Operation(
+            summary = "Lấy thông tin đặc điểm của người dùng bằng id",
+            description = "Truy vấn và trả về dữ liệu đặc điểm của người dùng"
+    )
+    public ResponseEntity<UserFeatureDocument> getUserFeaturesById(
+            @PathVariable String id
+    ) {
+        return featureService.getFeaturesByUserId(id)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
     @GetMapping("/static")
     @Operation(
             summary = "Lấy thông tin đặc điểm của người dùng",
@@ -78,6 +91,18 @@ public class UserFeatureController {
     ) {
         return ResponseEntity.ok(featureService
                 .getUserDynamicFeatureByAccountId(accountId.toString()));
+    }
+
+    @GetMapping("/{id}/dynamic")
+    @Operation(
+            summary = "Lấy thông tin đặc điểm động của người dùng bằng id",
+            description = "Truy vấn và trả về danh sách Top 5 tên danh mục và thẻ được người dùng xem nhiều nhất"
+    )
+    public ResponseEntity<UserDynamicFeature> getUserDynamicFeaturesById(
+            @PathVariable String id
+    ) {
+        return ResponseEntity.ok(featureService
+                .getUserDynamicFeatureByAccountId(id));
     }
 
     @PostMapping("/stats/reset")

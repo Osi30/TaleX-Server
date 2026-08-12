@@ -2,11 +2,13 @@ package com.talex.server.controllers.recommend;
 
 import com.talex.server.annotations.CurrentAccountId;
 import com.talex.server.dtos.BaseResponse;
-import com.talex.server.dtos.recommend.HomeFeedRequestDto;
-import com.talex.server.dtos.recommend.HomePoolsSeriesResponseDto;
-import com.talex.server.dtos.recommend.RankResultItem;
-import com.talex.server.dtos.recommend.SeriesCardResponseDto;
+import com.talex.server.dtos.recommend.request.HomeFeedRequestDto;
+import com.talex.server.dtos.recommend.response.HomePoolsSeriesResponseDto;
+import com.talex.server.dtos.recommend.response.PoolSeriesCardResponseDto;
+import com.talex.server.dtos.recommend.response.RankResultItem;
+import com.talex.server.dtos.recommend.response.SeriesCardResponseDto;
 import com.talex.server.services.recommend.RecommendationService;
+import com.talex.server.services.series.SeriesService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -15,6 +17,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
@@ -28,6 +31,7 @@ import java.util.UUID;
 )
 public class RecommendationController {
     private final RecommendationService recommendationService;
+    private final SeriesService seriesService;
 
     @GetMapping("/home-feed")
     @Operation(
@@ -92,12 +96,19 @@ public class RecommendationController {
                     "hết hạn (TTL), hệ thống sẽ chủ động fallback truy vấn dữ liệu từ QuestDB (sử dụng cú pháp tối ưu LATEST ON), " +
                     "sau đó trả về kết quả đồng thời tự động tái cấu trúc (rebuild) lại cache trên Redis cho các lần truy vấn tiếp theo."
     )
-    public ResponseEntity<List<String>> getRecentWatchedSeries(
-            @CurrentAccountId UUID accountId
+    public ResponseEntity<BaseResponse> getRecentWatchedSeries(
+            @RequestParam String accountId
     ) {
-        List<String> recentSeries = recommendationService
-                .getRecentWatchedSeries(accountId == null ? "" : accountId.toString());
-        return ResponseEntity.ok(recentSeries);
+        List<String> recentSeriesIds = recommendationService
+                .getRecentWatchedSeries(accountId == null ? "" : accountId);
+
+        List<SeriesCardResponseDto> seriesCards = seriesService.getSeriesCardsByIds(recentSeriesIds);
+
+        return ResponseEntity.ok(BaseResponse.builder()
+                .code(200)
+                .message("Lấy danh sách series đã xem gần đây thành công!")
+                .data(seriesCards)
+                .build());
     }
 
     @GetMapping("/similar")
@@ -108,11 +119,18 @@ public class RecommendationController {
                     "Nếu không tồn tại hoặc hết hạn, hệ thống tìm kiếm trong MongoDB bộ sưu tập 'series_recommendations', " +
                     "sau đó tự động đồng bộ (rebuild) lại dữ liệu sang Redis với thời gian hết hạn 7 ngày để tối ưu hiệu năng."
     )
-    public ResponseEntity<List<String>> getSimilarSeriesIds(
+    public ResponseEntity<BaseResponse> getSimilarSeriesIds(
             @RequestParam("seriesId") String seriesId
     ) {
-        List<String> similarSeries = recommendationService.getSimilarSeriesIds(seriesId);
-        return ResponseEntity.ok(similarSeries);
+        List<String> similarSeriesIds = recommendationService.getSimilarSeriesIds(seriesId);
+
+        List<SeriesCardResponseDto> similarSeries = seriesService.getSeriesCardsByIds(similarSeriesIds);
+
+        return ResponseEntity.ok(BaseResponse.builder()
+                .code(200)
+                .message("Lấy danh sách series tương tự thành công!")
+                .data(similarSeries)
+                .build());
     }
 
     @PostMapping("/rank")
@@ -123,14 +141,81 @@ public class RecommendationController {
                     "Hệ thống Python sẽ trích xuất đặc trưng từ MongoDB, nạp vào mô hình LightGBM để tính điểm tương thích chi tiết, " +
                     "và trả về danh sách các ID đã sắp xếp theo thứ tự ưu tiên giảm dần để hiển thị trực tiếp lên UI."
     )
-    public ResponseEntity<List<RankResultItem>> rankSeriesIds(
-            @CurrentAccountId UUID accountId,
+    public ResponseEntity<BaseResponse> rankSeriesIds(
+            @RequestParam String accountId,
             @RequestBody List<String> seriesIds
     ) {
-        List<RankResultItem> rankedSeries = recommendationService.rankSeries(
-                accountId == null ? "" : accountId.toString(),
+        List<RankResultItem> rankedItems = recommendationService.rankSeries(
+                accountId == null ? "" : accountId,
                 seriesIds
         );
-        return ResponseEntity.ok(rankedSeries);
+
+        List<String> rankedSeriesIds = rankedItems.stream()
+                .map(RankResultItem::getSeriesId)
+                .toList();
+
+        return ResponseEntity.ok(BaseResponse.builder()
+                .code(200)
+                .message("Xếp hạng danh sách series thành công!")
+                .data(rankedSeriesIds)
+                .build());
+    }
+
+    @GetMapping("/pools/recommendation")
+    @Operation(
+            summary = "Lấy danh sách Series kèm Score trong Recommendation Pool mới nhất (Phục vụ Demo)",
+            description = "Truy vấn toàn bộ Series trong Recommendation Pool kèm theo thông tin ranking score (điểm số AI, 'another_channel', hoặc 'null')."
+    )
+    public ResponseEntity<BaseResponse> getLatestRecommendationPoolSeries(
+            @RequestParam String accountId,
+            @RequestParam(required = false) String sessionId,
+            @RequestParam(defaultValue = "HOME") String pageType
+    ) {
+        if (accountId == null) {
+            return ResponseEntity.ok(BaseResponse.builder()
+                    .code(200)
+                    .message("Người dùng chưa đăng nhập!")
+                    .data(Collections.emptyList())
+                    .build());
+        }
+
+        List<PoolSeriesCardResponseDto> result = recommendationService.getLatestRecommendationPoolSeries(
+                accountId,
+                sessionId,
+                pageType
+        );
+
+        return ResponseEntity.ok(BaseResponse.builder()
+                .code(200)
+                .message("Lấy danh sách Recommendation Pool kèm điểm thành công!")
+                .data(result)
+                .build());
+    }
+
+    @GetMapping("/pools/already-watched")
+    @Operation(
+            summary = "Lấy danh sách Series trong Already Watched Pool",
+            description = "Truy vấn danh sách các Series đã từng xuất hiện/hiển thị cho người dùng gần đây từ Redis Set (Already Watched Pool)."
+    )
+    public ResponseEntity<BaseResponse> getAlreadyWatchedPoolSeries(
+           @RequestParam String accountId
+    ) {
+        if (accountId == null) {
+            return ResponseEntity.ok(BaseResponse.builder()
+                    .code(200)
+                    .message("Người dùng chưa đăng nhập!")
+                    .data(Collections.emptyList())
+                    .build());
+        }
+
+        List<SeriesCardResponseDto> result = recommendationService.getAlreadyWatchedPoolSeries(
+                accountId
+        );
+
+        return ResponseEntity.ok(BaseResponse.builder()
+                .code(200)
+                .message("Lấy danh sách Already Watched Pool thành công!")
+                .data(result)
+                .build());
     }
 }

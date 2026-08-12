@@ -2,7 +2,7 @@ package com.talex.server.services.series;
 
 import com.talex.server.dtos.BasePageResponse;
 import com.talex.server.dtos.analytic.SeriesLogResponseDto;
-import com.talex.server.dtos.recommend.SeriesCardResponseDto;
+import com.talex.server.dtos.recommend.response.SeriesCardResponseDto;
 import com.talex.server.dtos.requests.series.SeriesRequestDto;
 import com.talex.server.dtos.requests.series.SeriesSearchCriteria;
 import com.talex.server.dtos.responses.series.SeriesResponseDto;
@@ -29,6 +29,8 @@ public interface SeriesService {
     BasePageResponse<SeriesResponseDto> listByCreator(UUID accountId, List<SeriesStatus> statuses, Integer page, Integer pageSize);
 
     Slice<SeriesCardResponseDto> searchPublicSeries(SeriesSearchCriteria criteria, Pageable pageable);
+
+    List<SeriesCardResponseDto> getSeriesCardsByIds(List<String> seriesIds);
 
     SeriesResponseDto update(String id, SeriesRequestDto request, String accountId);
 

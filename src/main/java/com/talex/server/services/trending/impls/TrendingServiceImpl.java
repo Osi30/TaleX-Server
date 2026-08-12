@@ -1,6 +1,6 @@
 package com.talex.server.services.trending.impls;
 
-import com.talex.server.dtos.recommend.TrendingSampleConfigRes;
+import com.talex.server.dtos.recommend.response.TrendingSampleConfigRes;
 import com.talex.server.dtos.responses.series.SeriesTrendingResponseDto;
 import com.talex.server.entities.analytic.TrendingAnalyticData;
 import com.talex.server.entities.series.Series;

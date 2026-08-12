@@ -6,6 +6,7 @@ import java.util.Set;
 public interface SeriesChannelService {
 
     // --- Promoted Channel ---
+    List<String> getPromotedPoolElements();
     List<String> getPromotedSeriesIds(String accountId, int limit);
     List<String> refreshPromotedPool(int limit);
 
@@ -15,22 +16,27 @@ public interface SeriesChannelService {
     List<String> refreshNewReleasesPool(List<String> blacklistIds, int limit);
 
     // --- Recently Updated Channel ---
+    List<String> getRecentlyUpdatedPoolElements();
     List<String> getRecentlyUpdatedSeriesIds(String accountId, int limit);
     List<String> refreshRecentlyUpdatedPool(List<String> blacklistIds, int limit);
 
     // --- Latest Community Choice Channel ---
+    List<String> getLatestCommunityChoicePoolElements();
     List<String> getLatestCommunityChoiceSeriesIds(String accountId, int limit);
     List<String> refreshLatestCommunityChoicePool(List<String> blacklistIds, int limit);
 
     // --- Community Choice Channel ---
+    List<String> getCommunityChoicePoolElements();
     List<String> getCommunityChoiceSeriesIds(String accountId, int limit);
     List<String> refreshCommunityChoicePool(List<String> blacklistIds, int limit);
 
     // --- Random Category Channel ---
+    List<String> getRandomCategoryPoolElements();
     List<String> getRandomCategorySeriesIds(String accountId, int limit);
     List<String> refreshRandomCategoryPool(List<String> blacklistIds, int limitPerCategory, int totalLimit);
 
     // --- Trending Channel ---
+    List<String> getTrendingPoolElements();
     List<String> getTrendingSeriesIds(String accountId, int limit);
     List<String> refreshTrendingPool(List<String> blacklistIds, int limit);
 

@@ -1,4 +1,4 @@
-package com.talex.server.dtos.recommend;
+package com.talex.server.dtos.recommend.request;
 
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;

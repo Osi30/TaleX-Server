@@ -3,7 +3,12 @@ package com.talex.server.services.recommend.impls;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.talex.server.dtos.mongo.UserStaticFeature;
-import com.talex.server.dtos.recommend.*;
+import com.talex.server.dtos.recommend.request.HomeFeedRequestDto;
+import com.talex.server.dtos.recommend.request.RankRequestPayload;
+import com.talex.server.dtos.recommend.response.HomePoolsSeriesResponseDto;
+import com.talex.server.dtos.recommend.response.PoolSeriesCardResponseDto;
+import com.talex.server.dtos.recommend.response.RankResultItem;
+import com.talex.server.dtos.recommend.response.SeriesCardResponseDto;
 import com.talex.server.enums.series.SeriesStatus;
 import com.talex.server.repositories.mongo.SeriesRecommendationRepository;
 import com.talex.server.repositories.series.SeriesRepository;
@@ -227,15 +232,19 @@ public class RecommendationServiceImpl implements RecommendationService {
         int currentOffset = (currentOffsetStr != null) ? Integer.parseInt(currentOffsetStr) : 0;
 
         // 3. Đọc dữ liệu từ Redis Pool theo dải [currentOffset -> currentOffset + limit - 1]
-        List<String> pagedSeriesIds = redisTemplate.opsForList().range(
+        List<String> rawPagedItems = redisTemplate.opsForList().range(
                 redisPoolKey,
                 currentOffset,
                 currentOffset + safeLimit - 1
         );
 
-        if (pagedSeriesIds == null || pagedSeriesIds.isEmpty()) {
-            return Collections.emptyList(); // Đã xem hết Pool
+        if (rawPagedItems == null || rawPagedItems.isEmpty()) {
+            return Collections.emptyList();
         }
+        // Tách lấy danh sách seriesId nguyên bản để query PostgreSQL & Kafka
+        List<String> pagedSeriesIds = rawPagedItems.stream()
+                .map(this::parseSeriesId)
+                .collect(Collectors.toList());
 
         // 4. Cập nhật offset mới = currentOffset + số lượng IDs vừa lấy ra
         int newOffset = currentOffset + pagedSeriesIds.size();
@@ -265,6 +274,115 @@ public class RecommendationServiceImpl implements RecommendationService {
         }
 
         return resultCards;
+    }
+
+    @Override
+    public List<PoolSeriesCardResponseDto> getLatestRecommendationPoolSeries(String accountId, String sessionId, String pageType) {
+        if (accountId == null || accountId.trim().isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        String safeAccountId = accountId.trim();
+        String safePageType = (pageType == null || pageType.trim().isEmpty()) ? "HOME" : pageType.trim().toUpperCase();
+        String targetSessionId = sessionId;
+
+        // 1. Tự động tìm Session ID mới nhất nếu truyền vào null hoặc rỗng
+        if (targetSessionId == null || targetSessionId.trim().isEmpty()) {
+            String pattern = RECOMMENDATION_POOL_PREFIX + safeAccountId + ":*:" + safePageType;
+            Set<String> keys = redisTemplate.keys(pattern);
+
+            if (keys != null && !keys.isEmpty()) {
+                String latestKey = keys.stream()
+                        .max(Comparator.comparingLong(k -> {
+                            Long expire = redisTemplate.getExpire(k);
+                            return expire != null ? expire : -1L;
+                        }))
+                        .orElse(null);
+
+                // Key format: recommendation:pool:{accountId}:{sessionId}:{pageType}
+                String[] parts = latestKey.split(":");
+                if (parts.length >= 4) {
+                    targetSessionId = parts[3];
+                }
+            }
+        }
+
+        if (targetSessionId == null || targetSessionId.trim().isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        // 2. Đọc danh sách thô từ Redis Pool (dạng "seriesId:score")
+        String poolKey = RECOMMENDATION_POOL_PREFIX + safeAccountId + ":" + targetSessionId.trim() + ":" + safePageType;
+        List<String> rawPoolItems = redisTemplate.opsForList().range(poolKey, 0, -1);
+        if (rawPoolItems == null || rawPoolItems.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        // 3. Tách riêng Series ID và Score/Tag
+        List<String> seriesIds = new ArrayList<>();
+        Map<String, String> scoreMap = new HashMap<>();
+
+        for (String rawItem : rawPoolItems) {
+            if (rawItem == null) continue;
+            int lastColonIdx = rawItem.lastIndexOf(':');
+            if (lastColonIdx != -1) {
+                String seriesId = rawItem.substring(0, lastColonIdx);
+                String score = rawItem.substring(lastColonIdx + 1);
+                seriesIds.add(seriesId);
+                scoreMap.put(seriesId, score);
+            } else {
+                seriesIds.add(rawItem);
+                scoreMap.put(rawItem, "null");
+            }
+        }
+
+        // 4. Query Database PostgreSQL lấy thông tin chi tiết SeriesCard
+        List<SeriesCardResponseDto> fetchedCards = seriesRepository.findSeriesCardsByIds(
+                new HashSet<>(seriesIds), SeriesStatus.PUBLISHED
+        );
+        Map<String, SeriesCardResponseDto> cardMap = fetchedCards.stream()
+                .collect(Collectors.toMap(SeriesCardResponseDto::getSeriesId, c -> c, (c1, c2) -> c1));
+
+        // 5. Ghép SeriesCard cùng điểm Score theo đúng thứ tự trong Pool
+        List<PoolSeriesCardResponseDto> result = new ArrayList<>();
+        for (String seriesId : seriesIds) {
+            SeriesCardResponseDto card = cardMap.get(seriesId);
+            if (card != null) {
+                result.add(PoolSeriesCardResponseDto.builder()
+                        .score(scoreMap.getOrDefault(seriesId, "null"))
+                        .seriesCard(card)
+                        .build());
+            }
+        }
+
+        return result;
+    }
+
+    @Override
+    public List<SeriesCardResponseDto> getAlreadyWatchedPoolSeries(String accountId) {
+        if (accountId == null || accountId.trim().isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        String safeAccountId = accountId.trim();
+        String alreadyWatchedKey = RECOMMENDATION_ALREADY_WATCHED_PREFIX + safeAccountId;
+
+        // 1. Lấy danh sách Series IDs từ Redis Set
+        Set<String> alreadyWatchedIdsSet = redisTemplate.opsForSet().members(alreadyWatchedKey);
+        if (alreadyWatchedIdsSet == null || alreadyWatchedIdsSet.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<String> alreadyWatchedIds = new ArrayList<>(alreadyWatchedIdsSet);
+
+        // 2. Query PostgreSQL lấy thông tin SeriesCard
+        List<SeriesCardResponseDto> fetchedCards = seriesRepository.findSeriesCardsByIds(
+                new HashSet<>(alreadyWatchedIds), SeriesStatus.PUBLISHED
+        );
+        Map<String, SeriesCardResponseDto> cardMap = fetchedCards.stream()
+                .collect(Collectors.toMap(SeriesCardResponseDto::getSeriesId, c -> c, (c1, c2) -> c1));
+
+        return mapIdsToDtos(alreadyWatchedIds, cardMap);
     }
 
     /// Lấy danh sách series người dùng mới xem (5)
@@ -500,7 +618,7 @@ public class RecommendationServiceImpl implements RecommendationService {
                     // Tạo tài khoản > 1 tiếng -> Ưu tiên lấy theo dữ liệu động
                     additionalIds = seriesChannelService.getDynamicPreferencesSeriesIds(accountId, blacklist, needed);
 
-                    if (additionalIds.isEmpty()){
+                    if (additionalIds.isEmpty()) {
                         additionalIds = seriesChannelService.getOnboardingPreferencesSeriesIds(accountId, blacklist, needed);
                     }
                 } else {
@@ -536,11 +654,30 @@ public class RecommendationServiceImpl implements RecommendationService {
         // B6: Xếp xen kẽ 3 IDs thuộc bộ 50 thì đi với 1 ID thuộc bộ 16
         List<String> finalOrderedPool = interleaveLists(filtered50Ids, channel16Ids, 3, 1);
 
-        // B7: Lưu toàn bộ danh sách đã xếp vào Redis List Pool
-        if (!finalOrderedPool.isEmpty()) {
-            redisTemplate.opsForList().rightPushAll(redisPoolKey, finalOrderedPool);
+        // B7: Định dạng dữ liệu dạng "seriesId:score" hoặc "seriesId:another_channel" trước khi đẩy vào Redis
+        Set<String> channel16Set = new HashSet<>(channel16Ids);
+        List<String> redisPoolItems = new ArrayList<>();
+
+        for (String seriesId : finalOrderedPool) {
+            if (channel16Set.contains(seriesId)) {
+                // Thuộc 8 kênh hệ thống -> Ghi "another_channel"
+                redisPoolItems.add(seriesId + ":another_channel");
+            } else {
+                Double score = scoreMap.get(seriesId);
+                if (score != null) {
+                    // Thuộc danh sách AI chấm điểm -> Ghi điểm số (làm tròn 4 chữ số thập phân)
+                    redisPoolItems.add(seriesId + ":" + String.format(Locale.US, "%.4f", score));
+                } else {
+                    redisPoolItems.add(seriesId + ":null");
+                }
+            }
+        }
+
+        // B8: Lưu toàn bộ danh sách đã định dạng vào Redis List Pool
+        if (!redisPoolItems.isEmpty()) {
+            redisTemplate.opsForList().rightPushAll(redisPoolKey, redisPoolItems);
             redisTemplate.expire(redisPoolKey, RECOMMENDATION_POOL_TTL);
-            log.info("[RecPool Init] Khởi tạo thành công Pool với {} series cho Session {}", finalOrderedPool.size(), sessionId);
+            log.info("[RecPool Init] Khởi tạo thành công Pool với {} series cho Session {}", redisPoolItems.size(), sessionId);
         }
     }
 
@@ -661,5 +798,14 @@ public class RecommendationServiceImpl implements RecommendationService {
             log.error("[AlreadyWatchedPool Error] Lỗi khi đọc Redis cho accountId {}: {}", accountId, e.getMessage());
             return Collections.emptySet();
         }
+    }
+
+    /**
+     * Tách lấy seriesId từ chuỗi "seriesId:score" hoặc "seriesId:another_channel"
+     */
+    private String parseSeriesId(String rawRedisItem) {
+        if (rawRedisItem == null) return null;
+        int lastColonIdx = rawRedisItem.lastIndexOf(':');
+        return (lastColonIdx != -1) ? rawRedisItem.substring(0, lastColonIdx) : rawRedisItem;
     }
 }

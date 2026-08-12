@@ -1,8 +1,8 @@
 package com.talex.server.controllers.recommend;
 
 import com.talex.server.dtos.BaseResponse;
-import com.talex.server.dtos.recommend.TrendingSampleConfigReq;
-import com.talex.server.dtos.recommend.TrendingSampleConfigRes;
+import com.talex.server.dtos.recommend.request.TrendingSampleConfigReq;
+import com.talex.server.dtos.recommend.response.TrendingSampleConfigRes;
 import com.talex.server.services.trending.TrendingSampleConfigService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;

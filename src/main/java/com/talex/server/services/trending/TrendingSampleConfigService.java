@@ -1,7 +1,7 @@
 package com.talex.server.services.trending;
 
-import com.talex.server.dtos.recommend.TrendingSampleConfigReq;
-import com.talex.server.dtos.recommend.TrendingSampleConfigRes;
+import com.talex.server.dtos.recommend.request.TrendingSampleConfigReq;
+import com.talex.server.dtos.recommend.response.TrendingSampleConfigRes;
 import org.apache.coyote.BadRequestException;
 
 public interface TrendingSampleConfigService {

@@ -1,8 +1,10 @@
 package com.talex.server.controllers.recommend;
 
 import com.talex.server.annotations.CurrentAccountId;
+import com.talex.server.dtos.recommend.response.SeriesCardResponseDto;
 import com.talex.server.services.recommend.SeriesChannelService;
 import com.talex.server.services.recommend.SeriesPoolService;
+import com.talex.server.services.series.SeriesService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +25,7 @@ import java.util.UUID;
 )
 public class SeriesChannelController {
     private final SeriesChannelService seriesChannelService;
+    private final SeriesService seriesService;
     private final SeriesPoolService seriesPoolService;
 
     @PostMapping("/pool")
@@ -36,6 +39,13 @@ public class SeriesChannelController {
     }
 
     // --- Kênh: Promoted ---
+
+    @GetMapping("/promoted/cards")
+    @Operation(summary = "1. Kênh Promoted: Lấy toàn bộ danh sách Series Cards")
+    public ResponseEntity<List<SeriesCardResponseDto>> getPromotedSeriesCards() {
+        List<String> ids = seriesChannelService.getPromotedPoolElements();
+        return ResponseEntity.ok(seriesService.getSeriesCardsByIds(ids));
+    }
 
     @PostMapping("/promoted")
     @Operation(
@@ -69,6 +79,13 @@ public class SeriesChannelController {
 
     // --- Kênh: Mới ra mắt (New Releases) ---
 
+    @GetMapping("/new-releases/cards")
+    @Operation(summary = "2. Kênh Mới ra mắt: Lấy toàn bộ danh sách Series Cards")
+    public ResponseEntity<List<SeriesCardResponseDto>> getNewReleasesSeriesCards() {
+        List<String> ids = seriesChannelService.getNewReleasesPoolElements();
+        return ResponseEntity.ok(seriesService.getSeriesCardsByIds(ids));
+    }
+
     @PostMapping("/new-releases")
     @Operation(
             summary = "Kênh Mới ra mắt (New Releases): Lấy danh sách Series IDs",
@@ -98,6 +115,13 @@ public class SeriesChannelController {
     }
 
     // --- Kênh: Mới cập nhật (Recently Updated) ---
+
+    @GetMapping("/recently-updated/cards")
+    @Operation(summary = "3. Kênh Mới cập nhật: Lấy toàn bộ danh sách Series Cards")
+    public ResponseEntity<List<SeriesCardResponseDto>> getRecentlyUpdatedSeriesCards() {
+        List<String> ids = seriesChannelService.getRecentlyUpdatedPoolElements();
+        return ResponseEntity.ok(seriesService.getSeriesCardsByIds(ids));
+    }
 
     @PostMapping("/recently-updated")
     @Operation(
@@ -129,6 +153,13 @@ public class SeriesChannelController {
 
     // --- Kênh: Cộng đồng bình chọn mới nhất (Latest Community Choice Hourly) ---
 
+    @GetMapping("/latest-community-choice/cards")
+    @Operation(summary = "4. Kênh Cộng đồng bình chọn mới nhất: Lấy toàn bộ danh sách Series Cards")
+    public ResponseEntity<List<SeriesCardResponseDto>> getLatestCommunityChoiceSeriesCards() {
+        List<String> ids = seriesChannelService.getLatestCommunityChoicePoolElements();
+        return ResponseEntity.ok(seriesService.getSeriesCardsByIds(ids));
+    }
+
     @PostMapping("/latest-community-choice")
     @Operation(
             summary = "Kênh Cộng đồng bình chọn mới nhất: Lấy danh sách Series IDs",
@@ -158,6 +189,13 @@ public class SeriesChannelController {
     }
 
     // --- Kênh: Cộng đồng bình chọn All-time (Community Choice) ---
+
+    @GetMapping("/community-choice/cards")
+    @Operation(summary = "5. Kênh Cộng đồng bình chọn All-time: Lấy toàn bộ danh sách Series Cards")
+    public ResponseEntity<List<SeriesCardResponseDto>> getCommunityChoiceSeriesCards() {
+        List<String> ids = seriesChannelService.getCommunityChoicePoolElements();
+        return ResponseEntity.ok(seriesService.getSeriesCardsByIds(ids));
+    }
 
     @PostMapping("/community-choice")
     @Operation(
@@ -189,6 +227,13 @@ public class SeriesChannelController {
 
     // --- Kênh: Thể loại ngẫu nhiên (Random Category) ---
 
+    @GetMapping("/random-category/cards")
+    @Operation(summary = "6. Kênh Thể loại ngẫu nhiên: Lấy toàn bộ danh sách Series Cards")
+    public ResponseEntity<List<SeriesCardResponseDto>> getRandomCategorySeriesCards() {
+        List<String> ids = seriesChannelService.getRandomCategoryPoolElements();
+        return ResponseEntity.ok(seriesService.getSeriesCardsByIds(ids));
+    }
+
     @PostMapping("/random-category")
     @Operation(
             summary = "Kênh Thể loại ngẫu nhiên: Lấy danh sách Series IDs",
@@ -219,6 +264,16 @@ public class SeriesChannelController {
     }
 
     // --- Kênh: Tác giả đã đăng ký (Subscribed Creators) ---
+
+    @GetMapping("/subscribed-creators/cards")
+    @Operation(summary = "8. Kênh Tác giả đã đăng ký: Lấy toàn bộ danh sách Series Cards cá nhân hóa")
+    public ResponseEntity<List<SeriesCardResponseDto>> getSubscribedCreatorsSeriesCards(
+            @CurrentAccountId UUID accountId
+    ) {
+        if (accountId == null) return ResponseEntity.noContent().build();
+        List<String> ids = seriesChannelService.getAllSubscribedCreatorsSeriesIds(accountId.toString());
+        return ResponseEntity.ok(seriesService.getSeriesCardsByIds(ids));
+    }
 
     @PostMapping("/subscribed-creators")
     @Operation(
@@ -254,6 +309,13 @@ public class SeriesChannelController {
     }
 
     // --- Kênh: Trending ---
+
+    @GetMapping("/trending/cards")
+    @Operation(summary = "7. Kênh Trending: Lấy toàn bộ danh sách Series Cards")
+    public ResponseEntity<List<SeriesCardResponseDto>> getTrendingSeriesCards() {
+        List<String> ids = seriesChannelService.getTrendingPoolElements();
+        return ResponseEntity.ok(seriesService.getSeriesCardsByIds(ids));
+    }
 
     @PostMapping("/trending")
     @Operation(

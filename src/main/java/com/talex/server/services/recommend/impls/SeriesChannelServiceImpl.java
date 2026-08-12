@@ -77,6 +77,12 @@ public class SeriesChannelServiceImpl implements SeriesChannelService {
     // =========================================================================
 
     @Override
+    public List<String> getPromotedPoolElements() {
+        List<String> elements = redisTemplate.opsForList().range(REDIS_KEY_PROMOTED_POOL, 0, -1);
+        return elements != null ? elements : Collections.emptyList();
+    }
+
+    @Override
     public List<String> getPromotedSeriesIds(String accountId, int limit) {
         if (limit <= 0) return Collections.emptyList();
 
@@ -192,6 +198,12 @@ public class SeriesChannelServiceImpl implements SeriesChannelService {
     // =========================================================================
 
     @Override
+    public List<String> getRecentlyUpdatedPoolElements() {
+        List<String> elements = redisTemplate.opsForList().range(REDIS_KEY_RECENTLY_UPDATED_POOL, 0, -1);
+        return elements != null ? elements : Collections.emptyList();
+    }
+
+    @Override
     public List<String> getRecentlyUpdatedSeriesIds(String accountId, int limit) {
         if (limit <= 0) return Collections.emptyList();
 
@@ -246,6 +258,12 @@ public class SeriesChannelServiceImpl implements SeriesChannelService {
     // =========================================================================
     // 4. COMMUNITY CHOICE CHANNEL (KÊNH THEO GIỜ NEAR-REALTIME)
     // =========================================================================
+
+    @Override
+    public List<String> getLatestCommunityChoicePoolElements() {
+        List<String> elements = redisTemplate.opsForList().range(REDIS_KEY_LATEST_COMMUNITY_CHOICE_POOL, 0, -1);
+        return elements != null ? elements : Collections.emptyList();
+    }
 
     @Override
     public List<String> getLatestCommunityChoiceSeriesIds(String accountId, int limit) {
@@ -306,6 +324,12 @@ public class SeriesChannelServiceImpl implements SeriesChannelService {
     // =========================================================================
 
     @Override
+    public List<String> getCommunityChoicePoolElements() {
+        List<String> elements = redisTemplate.opsForList().range(REDIS_KEY_COMMUNITY_CHOICE_POOL, 0, -1);
+        return elements != null ? elements : Collections.emptyList();
+    }
+
+    @Override
     public List<String> getCommunityChoiceSeriesIds(String accountId, int limit) {
         if (limit <= 0) return Collections.emptyList();
 
@@ -360,6 +384,12 @@ public class SeriesChannelServiceImpl implements SeriesChannelService {
     // =========================================================================
     // 6. RANDOM CATEGORY CHANNEL (KÊNH THỂ LOẠI NGẪU NHIÊN)
     // =========================================================================
+
+    @Override
+    public List<String> getRandomCategoryPoolElements() {
+        List<String> elements = redisTemplate.opsForList().range(REDIS_KEY_RANDOM_CATEGORY_POOL, 0, -1);
+        return elements != null ? elements : Collections.emptyList();
+    }
 
     @Override
     public List<String> getRandomCategorySeriesIds(String accountId, int limit) {
@@ -499,6 +529,12 @@ public class SeriesChannelServiceImpl implements SeriesChannelService {
     // =========================================================================
     // TRENDING CHANNEL (KÊNH XU HƯỚNG)
     // =========================================================================
+
+    @Override
+    public List<String> getTrendingPoolElements() {
+        List<String> elements = redisTemplate.opsForList().range(REDIS_KEY_TRENDING_POOL, 0, -1);
+        return elements != null ? elements : Collections.emptyList();
+    }
 
     @Override
     public List<String> getTrendingSeriesIds(String accountId, int limit) {
@@ -708,11 +744,25 @@ public class SeriesChannelServiceImpl implements SeriesChannelService {
      * Hàm chung lấy dữ liệu theo Offset xoay vòng từ Redis Pool.
      */
     private List<String> getIdsWithOffset(String accountId, int limit, long poolSize, String poolKey, String offsetPrefix) {
+        // 1. Kiểm tra điều kiện biên: Nếu pool rỗng hoặc limit hợp lệ <= 0 thì trả về danh sách rỗng lập tức
+        if (poolSize <= 0 || limit <= 0) {
+            return Collections.emptyList();
+        }
+
         String offsetKey = offsetPrefix + accountId;
         String currentOffsetStr = redisTemplate.opsForValue().get(offsetKey);
-        long currentOffset = (currentOffsetStr != null) ? Long.parseLong(currentOffsetStr) : 0L;
+        long currentOffset = 0L;
 
-        if (currentOffset >= poolSize) {
+        try {
+            if (currentOffsetStr != null) {
+                currentOffset = Long.parseLong(currentOffsetStr);
+            }
+        } catch (NumberFormatException e) {
+            log.warn("[getIdsWithOffset] Format offset không hợp lệ cho key {}: {}", offsetKey, currentOffsetStr);
+            currentOffset = 0L;
+        }
+
+        if (currentOffset >= poolSize || currentOffset < 0) {
             currentOffset = 0L;
         }
 
@@ -728,10 +778,13 @@ public class SeriesChannelServiceImpl implements SeriesChannelService {
 
             // Quay đầu lấy phần thiếu ở đầu danh sách (Circular offset)
             long remaining = limit - result.size();
-            List<String> part2 = redisTemplate.opsForList().range(poolKey, 0, remaining - 1);
-            if (part2 != null) result.addAll(part2);
+            if (remaining > 0) {
+                List<String> part2 = redisTemplate.opsForList().range(poolKey, 0, remaining - 1);
+                if (part2 != null) result.addAll(part2);
+            }
         }
 
+        // 2. Tính toán nextOffset an toàn chống lỗi chia cho 0
         long nextOffset = (currentOffset + limit) % poolSize;
         redisTemplate.opsForValue().set(offsetKey, String.valueOf(nextOffset));
 

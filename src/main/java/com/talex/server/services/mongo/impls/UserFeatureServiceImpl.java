@@ -118,16 +118,9 @@ public class UserFeatureServiceImpl implements com.talex.server.services.mongo.U
                 .map(Map.Entry::getKey)
                 .toList();
 
-        // 3. Chuyển đổi ID thành Name thông qua Repository
-        List<String> categories = top5GenreIds.isEmpty() ? Collections.emptyList()
-                : categoryRepository.findCategoryNamesByCategoryIds(top5GenreIds);
-
-        List<String> tags = top5TagIds.isEmpty() ? Collections.emptyList()
-                : tagRepository.findTagNamesByTagIds(top5TagIds);
-
         return UserDynamicFeature.builder()
-                .categories(categories)
-                .tags(tags)
+                .categories(top5GenreIds)
+                .tags(top5TagIds)
                 .build();
     }
 

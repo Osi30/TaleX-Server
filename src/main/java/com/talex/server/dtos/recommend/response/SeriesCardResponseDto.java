@@ -1,4 +1,4 @@
-package com.talex.server.dtos.recommend;
+package com.talex.server.dtos.recommend.response;
 
 import com.talex.server.enums.series.ContentType;
 import lombok.AllArgsConstructor;
