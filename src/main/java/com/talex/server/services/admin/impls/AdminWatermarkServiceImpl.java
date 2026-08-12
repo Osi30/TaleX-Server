@@ -133,19 +133,58 @@ public class AdminWatermarkServiceImpl implements AdminWatermarkService {
     }
 
     private String findAccountIdByBinaryPattern(String extractedBinary) {
+        log.info("Bắt đầu truy ngược UUID từ chuỗi nhị phân AI: {}", extractedBinary);
         if (extractedBinary == null || extractedBinary.length() < 5) {
-            return null; // Chuỗi quá ngắn, dễ trùng lặp sai
+            log.warn("Chuỗi nhị phân quá ngắn (<5 bit), từ chối đối chiếu.");
+            return null;
         }
         
         java.util.List<java.util.UUID> allIds = accountRepository.findAllAccountIds();
+        log.info("Đang kiểm tra chéo với {} tài khoản trong hệ thống...", allIds.size());
+        
+        String bestMatchId = null;
+        int maxMatchedLength = 0;
+
         for (java.util.UUID id : allIds) {
             String hashBinary = convertToBinaryPattern(id.toString());
-            // Kiểm tra contains thay vì startsWith để hỗ trợ video bị cắt xén (mất chunk đầu)
-            if (hashBinary.contains(extractedBinary)) {
-                return id.toString();
+            
+            // Tìm chuỗi con dài nhất khớp nhau (Longest Common Substring)
+            // hoặc kiểm tra độ tương đồng. Vì video có thể bị nhiễu 1-2 bit, ta cho phép sai số nhỏ.
+            // Cách đơn giản nhất: Kiểm tra xem có chuỗi con nào >= 80% độ dài của extractedBinary nằm trong hash không.
+            int matchScore = calculateMaxConsecutiveMatch(hashBinary, extractedBinary);
+            
+            if (matchScore > maxMatchedLength) {
+                maxMatchedLength = matchScore;
+                bestMatchId = id.toString();
             }
         }
+        
+        // Nếu độ dài khớp liên tiếp >= 5 bit, ta coi như tìm thấy
+        if (maxMatchedLength >= 5) {
+            log.info("TÌM THẤY! UUID: {} (Độ dài khớp: {}/{} bit)", bestMatchId, maxMatchedLength, extractedBinary.length());
+            return bestMatchId;
+        }
+        
+        log.warn("Không tìm thấy UUID nào khớp đủ điều kiện (Max khớp: {} bit)", maxMatchedLength);
         return null;
+    }
+
+    private int calculateMaxConsecutiveMatch(String source, String target) {
+        // Tìm chuỗi con chung dài nhất (Longest Common Substring)
+        int max = 0;
+        for (int i = 0; i < source.length(); i++) {
+            for (int j = 0; j < target.length(); j++) {
+                int len = 0;
+                while (i + len < source.length() && j + len < target.length() 
+                       && source.charAt(i + len) == target.charAt(j + len)) {
+                    len++;
+                }
+                if (len > max) {
+                    max = len;
+                }
+            }
+        }
+        return max;
     }
 
     private String convertToBinaryPattern(String viewerId) {

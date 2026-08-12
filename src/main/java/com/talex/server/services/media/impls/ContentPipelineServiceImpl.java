@@ -132,8 +132,14 @@ public class ContentPipelineServiceImpl implements ContentPipelineService {
                     ? "https://" + domain + "/" + result.getWatermarkedS3Key()
                     : "https://" + mediaProperties.getAws().getBucketName() + ".s3." + mediaProperties.getAws().getRegion() + ".amazonaws.com/" + result.getWatermarkedS3Key();
             media.setFileUrl(newUrl);
-            media.setOriginalUrl(newUrl);
-            media.setProviderPublicId(result.getWatermarkedS3Key());
+            
+            // Chỉ ghi đè originalUrl cho IMAGE vì lúc này file là 1 ảnh có watermark.
+            // Đối với VIDEO, watermarkedS3Key là 1 folder (videos/ab_hls/{id}),
+            // originalUrl BẮT BUỘC phải giữ nguyên là file MP4 gốc để job kiểm duyệt Moderation tải về quét!
+            if (media.getMediaType() == MediaType.IMAGE) {
+                media.setOriginalUrl(newUrl);
+                media.setProviderPublicId(result.getWatermarkedS3Key());
+            }
         }
 
         if (Boolean.FALSE.equals(result.getSuccess())) {
