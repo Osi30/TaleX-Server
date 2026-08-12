@@ -38,4 +38,12 @@ public interface ContentPipelineService {
      * kết quả hợp lệ đang commit cùng lúc, nên phải atomic thay vì read-then-write.
      */
     void markStalePipelineFailed(String mediaId, LocalDateTime staleBefore, String errorMessage, String failedStep);
+
+    /**
+     * Báo real-time (SSE) cho creator khi Staff từ chối thủ công kèm lý do — khác các sự
+     * kiện pipeline khác (copyright/moderation complete) vốn bắn ngay lúc AI xử lý xong lúc
+     * upload, event này bắn muộn hơn (lúc Staff thật sự bấm Từ chối, có thể sau đó rất lâu),
+     * nên cần đường riêng thay vì tái dùng handleModerationResult().
+     */
+    void notifyStaffRejected(Media media, String reason);
 }

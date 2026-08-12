@@ -26,4 +26,8 @@ public class PipelineEventPayload {
     // "APPROVED" | "REJECTED" | "PENDING_REVIEW" — FE cần phân biệt để không báo nhầm
     // "bị từ chối" khi thực ra đang chờ Staff duyệt (case series MATURE).
     private String approvalStatus;
+    // Ghi chú của Staff khi từ chối thủ công (khác primaryLabel — đó là nhãn AI tự động
+    // phát hiện, cái này là lý do người thật gõ tay). Chỉ có giá trị ở event
+    // "pipeline:staff_rejected".
+    private String reviewerNotes;
 }

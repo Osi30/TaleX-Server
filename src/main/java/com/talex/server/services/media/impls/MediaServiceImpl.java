@@ -630,6 +630,11 @@ public class MediaServiceImpl implements MediaService {
         censorship.setCheckedAt(LocalDateTime.now());
         contentCensorshipRepository.save(censorship);
 
+        // Báo real-time cho creator — trước đây creator phải tự load lại trang mới thấy
+        // được lý do Staff từ chối, vì luồng duyệt tay này không bắn SSE như luồng AI
+        // tự động flag lúc upload.
+        contentPipelineService.notifyStaffRejected(media, reason);
+
         return toResponse(media);
     }
 
