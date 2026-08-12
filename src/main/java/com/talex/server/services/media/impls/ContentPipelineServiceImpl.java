@@ -199,13 +199,22 @@ public class ContentPipelineServiceImpl implements ContentPipelineService {
             log.warn("CC0 auto-approval bypassed Staff review: mediaId={} — sources self-declared CC0", result.getMediaId());
         }
 
-        // No blocking violation — lưu DB TRƯỚC rồi mới gửi Kafka (khớp với
-        // dispatchPipelineJob()) — nếu gửi Kafka trước rồi save() mới lỗi, job kiểm duyệt
-        // đã đi Kafka không thể thu hồi, nhưng contentId/status vừa set lại bị rollback,
-        // gây lệch dữ liệu (AI xử lý xong nhưng BE không có contentId tương ứng).
+        boolean hlsAlreadyReady = media.getMediaType() != MediaType.VIDEO
+                || media.getStatus() == MediaStatus.HLS_READY;
+        if (hlsAlreadyReady) {
+            media.setStatus(MediaStatus.ACTIVE);
+            log.info("Pipeline complete — media ACTIVE: mediaId={}", result.getMediaId());
+        } else {
+            log.info("Pipeline complete, waiting for HLS transcode to finish: mediaId={}", result.getMediaId());
+        }
+        
         media.markUpdatedBy(PIPELINE_ACTOR);
         mediaRepository.save(media);
-        dispatchModerationJob(media, result.getCorrelationId());
+        
+        pushSseEvent(media, "pipeline:copyright_complete", PipelineEventPayload.builder()
+                .mediaId(media.getMediaId()).status("COPYRIGHT_COMPLETE")
+                .contentId(result.getContentId()).isDuplicate(false)
+                .violationsCount(0).approvalStatus(media.getApprovalStatus().name()).build());
     }
 
     @Override
@@ -247,24 +256,8 @@ public class ContentPipelineServiceImpl implements ContentPipelineService {
             media.setApprovalStatus(ContentApprovalStatus.APPROVED);
             media.setApprovalReviewedBy(PIPELINE_ACTOR);
             media.setApprovalReviewedAt(LocalDateTime.now());
-            // VIDEO có thể vẫn đang transcode dở (chạy song song, xem dispatchPipelineJob) —
-            // chỉ chuyển ACTIVE khi HLS thật sự đã sẵn sàng, nếu không video sẽ lỗi vì chưa
-            // có file phát được. Nếu chưa xong, giữ nguyên HLS_PROCESSING — SqsMediaEventPoller
-            // sẽ tự chuyển ACTIVE khi transcode xong (thấy ApprovalStatus đã APPROVED sẵn).
-            // Dùng MediaStatus chứ không dùng hlsUrl — hlsUrl bị set NGAY lúc upload xong
-            // (URL dự đoán, xem S3MediaProviderService.applyCompletedUpload()), không phải
-            // khi transcode thật sự hoàn tất. Chỉ coi "đã sẵn sàng" khi status ĐÚNG LÀ
-            // HLS_READY (markHlsReady() đã xác nhận transcode xong) — không dùng kiểu phủ
-            // định "!= HLS_PROCESSING", vì nếu transcode đã FAILED thì điều kiện đó cũng
-            // đúng, sẽ set nhầm ACTIVE đè lên FAILED.
-            boolean hlsAlreadyReady = media.getMediaType() != MediaType.VIDEO
-                    || media.getStatus() == MediaStatus.HLS_READY;
-            if (hlsAlreadyReady) {
-                media.setStatus(MediaStatus.ACTIVE);
-                log.info("Moderation passed — media ACTIVE: mediaId={}", result.getMediaId());
-            } else {
-                log.info("Moderation passed, waiting for HLS transcode to finish: mediaId={}", result.getMediaId());
-            }
+            // Không cần dispatch gì thêm vì PipelineJob đang chạy trên Python sẽ tự đi tiếp
+            return;
         } else {
             // AI chỉ phát hiện NHÃN nhạy cảm, không tự phán được đây là vi phạm thật hay
             // nội dung hợp lệ theo đúng bối cảnh (series 18+ đã khai, hoặc series CHƯA
@@ -416,24 +409,6 @@ public class ContentPipelineServiceImpl implements ContentPipelineService {
             }
         }
         return allCC0;
-    }
-
-    private void dispatchModerationJob(Media media, String correlationId) {
-        PipelineJobMessage message = PipelineJobMessage.builder()
-                .mediaId(media.getMediaId())
-                .s3Key(extractS3Key(media.getOriginalUrl(), mediaProperties.getAws().getBucketName()))
-                .s3Bucket(mediaProperties.getAws().getBucketName())
-                .mediaType(media.getMediaType().name())
-                .correlationId(correlationId != null ? correlationId : UUID.randomUUID().toString())
-                .requestedAt(LocalDateTime.now().toString())
-                // Bắt buộc phải set — Python PipelineJobMessage.creator_id là str (default
-                // rỗng chỉ áp dụng khi field THIẾU HẲN trong JSON). Nếu không set, Java
-                // serialize thành "creatorId": null tường minh, Pydantic validate null vào
-                // str sẽ FAIL toàn bộ job trước khi kịp gửi kết quả lỗi về — job coi như
-                // mất tích vĩnh viễn.
-                .creatorId(resolveEpisodeCreatorId(media))
-                .build();
-        pipelineProducer.sendModerationJob(message);
     }
 
     private ContentCensorship buildCensorship(Media media, ModerationResultMessage result) {
