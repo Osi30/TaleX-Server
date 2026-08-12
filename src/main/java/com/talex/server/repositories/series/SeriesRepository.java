@@ -1,6 +1,6 @@
 package com.talex.server.repositories.series;
 
-import com.talex.server.dtos.recommend.SeriesCardResponseDto;
+import com.talex.server.dtos.recommend.response.SeriesCardResponseDto;
 import com.talex.server.entities.series.Series;
 import com.talex.server.enums.interaction.ImpressionStatus;
 import com.talex.server.enums.series.SeriesStatus;
@@ -24,6 +24,7 @@ public interface SeriesRepository extends JpaRepository<Series, String>, JpaSpec
     Optional<Series> findBySeriesIdAndIsDeletedFalse(String seriesId);
 
     Page<Series> findAllByIsDeletedFalse(Pageable pageable);
+
 
     Page<Series> findAllByCreator_CreatorIdAndIsDeletedFalse(String creatorId, Pageable pageable);
 
@@ -292,7 +293,7 @@ public interface SeriesRepository extends JpaRepository<Series, String>, JpaSpec
     );
 
     @Query("""
-            SELECT new com.talex.server.dtos.recommend.SeriesCardResponseDto(
+            SELECT new com.talex.server.dtos.recommend.response.SeriesCardResponseDto(
                 s.seriesId,
                 s.creator.account.accountId,
                 s.creator.creatorId,
@@ -325,13 +326,14 @@ public interface SeriesRepository extends JpaRepository<Series, String>, JpaSpec
     /**
      * Truy vấn Series IDs dựa theo tên Categories và Tags thu thập từ Onboarding
      */
-    @Query("SELECT DISTINCT s.seriesId FROM Series s " +
+    @Query("SELECT s.seriesId FROM Series s " +
             "LEFT JOIN s.seriesCategories sc LEFT JOIN sc.category c " +
             "LEFT JOIN s.seriesTags st LEFT JOIN st.tag t " +
             "WHERE s.status = :status AND s.isDeleted = false " +
             "AND (:isBlacklistEmpty = true OR s.seriesId NOT IN :blacklistIds) " +
             "AND ((:hasGenres = true AND c.categoryName IN :genres) OR (:hasTags = true AND t.tagName IN :tags)) " +
-            "ORDER BY s.analyticData.views DESC, s.createdAt DESC")
+            "GROUP BY s.seriesId, s.analyticData.views, s.createdAt " +
+            "ORDER BY s.analyticData.watchTime DESC, s.createdAt DESC")
     List<String> findCandidateSeriesByGenresAndTags(
             @Param("status") SeriesStatus status,
             @Param("genres") List<String> genres,
