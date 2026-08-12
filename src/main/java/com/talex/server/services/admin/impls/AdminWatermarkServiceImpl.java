@@ -3,6 +3,7 @@ package com.talex.server.services.admin.impls;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.talex.server.dtos.responses.admin.AdminWatermarkResponseDto;
+import com.talex.server.repositories.auth.AccountRepository;
 import com.talex.server.services.admin.AdminWatermarkService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,6 +26,7 @@ public class AdminWatermarkServiceImpl implements AdminWatermarkService {
 
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
+    private final AccountRepository accountRepository;
 
     @Value("${python.api:http://localhost:8000}/watermark/extract")
     private String aiExtractUrl;
@@ -78,8 +80,19 @@ public class AdminWatermarkServiceImpl implements AdminWatermarkService {
             if (serverResponseCode >= 200 && serverResponseCode < 300) {
                 try (java.io.InputStream is = connection.getInputStream()) {
                     JsonNode root = objectMapper.readTree(is);
+                    log.info("AI Server Raw Response: {}", root.toString());
                     String creatorId = root.hasNonNull("creator_id") ? root.get("creator_id").asText() : null;
                     String viewerId = root.hasNonNull("viewer_id") ? root.get("viewer_id").asText() : null;
+                    
+                    // Map ViewerID Binary to real UUID
+                    if (viewerId != null && viewerId.startsWith("User_Binary_")) {
+                        String binaryStr = viewerId.replace("User_Binary_", "");
+                        String realViewerId = findAccountIdByBinaryPattern(binaryStr);
+                        if (realViewerId != null) {
+                            viewerId = realViewerId;
+                        }
+                    }
+
                     String message = root.hasNonNull("message") ? root.get("message").asText() : null;
 
                     return AdminWatermarkResponseDto.builder()
@@ -113,9 +126,45 @@ public class AdminWatermarkServiceImpl implements AdminWatermarkService {
                 throw (IllegalArgumentException) e;
             }
             if (e instanceof RuntimeException && !e.getMessage().startsWith("Gặp lỗi")) {
-                throw (RuntimeException) e;
+                log.error("Extract Watermark error", e);
             }
-            throw new RuntimeException("Gặp lỗi khi liên kết tới máy chủ AI để quét bản quyền: " + e.getMessage());
+            throw new RuntimeException("Lỗi trích xuất Watermark: " + e.getMessage());
+        }
+    }
+
+    private String findAccountIdByBinaryPattern(String extractedBinary) {
+        if (extractedBinary == null || extractedBinary.length() < 5) {
+            return null; // Chuỗi quá ngắn, dễ trùng lặp sai
+        }
+        
+        java.util.List<java.util.UUID> allIds = accountRepository.findAllAccountIds();
+        for (java.util.UUID id : allIds) {
+            String hashBinary = convertToBinaryPattern(id.toString());
+            // Kiểm tra contains thay vì startsWith để hỗ trợ video bị cắt xén (mất chunk đầu)
+            if (hashBinary.contains(extractedBinary)) {
+                return id.toString();
+            }
+        }
+        return null;
+    }
+
+    private String convertToBinaryPattern(String viewerId) {
+        if (viewerId == null || viewerId.isBlank()) {
+            return "0";
+        }
+        try {
+            java.security.MessageDigest digest = java.security.MessageDigest.getInstance("MD5");
+            byte[] hash = digest.digest(viewerId.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            StringBuilder binary = new StringBuilder();
+            for (byte b : hash) {
+                for (int i = 7; i >= 0; i--) {
+                    binary.append((b >> i) & 1);
+                }
+            }
+            return binary.toString();
+        } catch (Exception e) {
+            log.error("MD5 error", e);
+            return "0";
         }
     }
 }
