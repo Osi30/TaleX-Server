@@ -3,13 +3,18 @@ services:
     build: .
     ports:
       - "8080:8080"
-    # VPS chỉ có 5.8GB RAM chia cho nhiều service (BE+Postgres+QuestDB, AI+Milvus) — không
-    # giới hạn thì JVM có thể phình không kiểm soát dưới tải cao, cạn RAM cả máy chủ và kéo
-    # sập container khác. Đặt trần để nếu vượt, chỉ container này bị Docker tự kill + restart.
+    # VPS nâng cấp lên 8GB RAM / 6 core (từ 5.8GB / 4 core) chia cho nhiều service (BE+
+    # Postgres+QuestDB, AI+Milvus) — không giới hạn thì JVM có thể phình không kiểm soát
+    # dưới tải cao, cạn RAM cả máy chủ và kéo sập container khác. Đặt trần để nếu vượt, chỉ
+    # container này bị Docker tự kill + restart. Giữ nguyên 1.5g vì RAM không phải điểm
+    # tranh chấp chính trong đợt tái cân bằng này (chỉ CPU được phân bổ lại).
     mem_limit: 1.5g
-    # VPS chỉ có 4 core — giới hạn để JVM không chiếm hết CPU khi tải cao, tránh làm container
-    # AI Python (đang xử lý video/ảnh) hoặc Postgres/QuestDB bị nghẽn theo. 1.5 = tối đa 1.5 core.
-    cpus: 1.5
+    # Giảm từ 1.5 xuống 1.0 core — phần CPU dư ra được ưu tiên cho AI-Python xử lý watermark
+    # (xem docker-compose.yml bên repo AI-Python). BE vẫn được giữ ở mức đủ dùng (không giảm
+    # về mức thấp hơn từng cân nhắc, vd. 0.6) vì BE phục vụ trực tiếp traffic HTTP của người
+    # dùng thật — khác AI-Python watermark vốn chạy nền/bất đồng bộ qua Kafka, không chặn
+    # trải nghiệm user ngay lập tức.
+    cpus: 1.0
     env_file: .env
     environment:
       # JVM mặc định chạy UTC nếu không set — mọi @CreationTimestamp LocalDateTime (Media,
@@ -47,6 +52,12 @@ services:
     image: postgres:16
     ports:
       - "0.0.0.0:5432:5432"
+    # Trước đây KHÔNG giới hạn, dựa vào phần dư của các container khác — trên VPS 6 core/
+    # 8GB mới, đặt trần rõ ràng để Postgres không thể chiếm hết CPU/RAM còn lại. Trần mỏng
+    # theo chủ đích (ưu tiên AI-Python watermark) — áp dụng đòi hỏi restart container này
+    # (gián đoạn DB ngắn), nên deploy vào giờ ít người dùng.
+    mem_limit: 600m
+    cpus: 0.15
     environment:
       - POSTGRES_DB=talex-db
       - POSTGRES_USER=${DB_USERNAME:-postgres}
@@ -69,6 +80,10 @@ services:
       - "8812:8812"
       - "9000:9000"
       - "127.0.0.1:9009:9009"
+    # Trước đây KHÔNG giới hạn — xem ghi chú tương tự ở service `db` phía trên. QuestDB chỉ
+    # dùng để ghi interaction log qua ILP, tải nhẹ nên trần thấp nhất trong 5 service.
+    mem_limit: 400m
+    cpus: 0.1
     environment:
       - QDB_PG_USER=${QUESTDB_USER:-admin}
       - QDB_PG_PASSWORD=${QUESTDB_PASSWORD:-quest}

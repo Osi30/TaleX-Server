@@ -359,6 +359,23 @@ public class ContentPipelineServiceImpl implements ContentPipelineService {
         }
     }
 
+    @Override
+    public void notifyStaffRejected(Media media, String reason) {
+        // Best-effort — creator không nhận được thông báo real-time không phải lỗi nghiêm
+        // trọng (họ vẫn thấy được lý do khi tự load lại trang), không được làm fail thao
+        // tác từ chối chính.
+        try {
+            pushSseEvent(media, "pipeline:staff_rejected", PipelineEventPayload.builder()
+                    .mediaId(media.getMediaId())
+                    .status("REJECTED")
+                    .approvalStatus("REJECTED")
+                    .reviewerNotes(reason)
+                    .build());
+        } catch (Exception e) {
+            log.warn("Failed to push staff-rejected SSE event: mediaId={}", media.getMediaId(), e);
+        }
+    }
+
     // ── Private helpers ───────────────────────────────────────────────────────
 
     /**
