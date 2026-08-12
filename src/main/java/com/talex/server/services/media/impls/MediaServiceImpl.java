@@ -630,6 +630,11 @@ public class MediaServiceImpl implements MediaService {
         censorship.setCheckedAt(LocalDateTime.now());
         contentCensorshipRepository.save(censorship);
 
+        // Báo real-time cho creator — trước đây creator phải tự load lại trang mới thấy
+        // được lý do Staff từ chối, vì luồng duyệt tay này không bắn SSE như luồng AI
+        // tự động flag lúc upload.
+        contentPipelineService.notifyStaffRejected(media, reason);
+
         return toResponse(media);
     }
 
@@ -675,6 +680,13 @@ public class MediaServiceImpl implements MediaService {
             mediaProviderService.deleteAsset(media);
         }
         contentPipelineService.notifyMediaDeleted(media.getMediaId());
+        // Dọn bản ghi review/vi phạm còn treo cho media này — nếu không, ContentCensorship/
+        // MediaCopyright PENDING mồ côi vẫn nằm trong DB trỏ tới media đã xóa. Hiện tại được
+        // "bảo vệ nhờ may mắn" vì hàng đợi Staff lọc theo Media.status nên không hiển thị ra,
+        // nhưng approve()/reject() qua findActiveEntity() sẽ báo 404 nếu ai đó cố duyệt bản ghi
+        // này từ 1 tab cũ đã mở sẵn trước khi bị xóa — dọn hẳn để tránh rác dữ liệu vĩnh viễn.
+        mediaCopyrightRepository.deleteAll(mediaCopyrightRepository.findAllByMedia_MediaId(media.getMediaId()));
+        contentCensorshipRepository.deleteAll(contentCensorshipRepository.findAllByMedia_MediaId(media.getMediaId()));
         mediaRepository.save(media);
     }
 

@@ -14,6 +14,7 @@ import com.talex.server.records.SeriesLogData;
 import com.talex.server.repositories.SyncMetadataRepository;
 import com.talex.server.repositories.mongo.SeriesMetadataRepository;
 import com.talex.server.repositories.series.SeriesLogRepository;
+import com.talex.server.services.mongo.SeriesFeatureService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.mongodb.core.MongoTemplate;
@@ -33,11 +34,19 @@ import java.util.concurrent.CompletableFuture;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class SeriesFeatureServiceImpl implements com.talex.server.services.mongo.SeriesFeatureService {
+public class SeriesFeatureServiceImpl implements SeriesFeatureService {
     private final SeriesMetadataRepository seriesMetadataRepository;
     private final SeriesLogRepository seriesLogRepository;
     private final SyncMetadataRepository syncMetadataRepository;
     private final MongoTemplate mongoTemplate;
+
+    @Override
+    public SeriesMetadata getSeriesFeatureById(String seriesId) {
+        if (seriesId == null || seriesId.trim().isEmpty()) {
+            return null;
+        }
+        return seriesMetadataRepository.findById(seriesId.trim()).orElse(null);
+    }
 
     @Async("mongoDbExecutor")
     @Override
