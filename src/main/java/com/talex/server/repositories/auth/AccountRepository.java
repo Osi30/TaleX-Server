@@ -18,6 +18,9 @@ import java.util.UUID;
 @Repository
 public interface AccountRepository extends JpaRepository<Account, UUID>, JpaSpecificationExecutor<Account> {
 
+    @Query("SELECT a.accountId FROM Account a")
+    List<UUID> findAllAccountIds();
+
     Optional<Account> findByEmail(String email);
 
     Optional<Account> findByAccountIdAndStatus(UUID accountId, AccountStatus status);

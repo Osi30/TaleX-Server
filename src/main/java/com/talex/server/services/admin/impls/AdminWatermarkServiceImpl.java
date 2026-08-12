@@ -3,6 +3,7 @@ package com.talex.server.services.admin.impls;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.talex.server.dtos.responses.admin.AdminWatermarkResponseDto;
+import com.talex.server.repositories.auth.AccountRepository;
 import com.talex.server.services.admin.AdminWatermarkService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,6 +26,7 @@ public class AdminWatermarkServiceImpl implements AdminWatermarkService {
 
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
+    private final AccountRepository accountRepository;
 
     @Value("${python.api:http://localhost:8000}/watermark/extract")
     private String aiExtractUrl;
@@ -78,8 +80,19 @@ public class AdminWatermarkServiceImpl implements AdminWatermarkService {
             if (serverResponseCode >= 200 && serverResponseCode < 300) {
                 try (java.io.InputStream is = connection.getInputStream()) {
                     JsonNode root = objectMapper.readTree(is);
+                    log.info("AI Server Raw Response: {}", root.toString());
                     String creatorId = root.hasNonNull("creator_id") ? root.get("creator_id").asText() : null;
                     String viewerId = root.hasNonNull("viewer_id") ? root.get("viewer_id").asText() : null;
+                    
+                    // Map ViewerID Binary to real UUID
+                    if (viewerId != null && viewerId.startsWith("User_Binary_")) {
+                        String binaryStr = viewerId.replace("User_Binary_", "");
+                        String realViewerId = findAccountIdByBinaryPattern(binaryStr);
+                        if (realViewerId != null) {
+                            viewerId = realViewerId;
+                        }
+                    }
+
                     String message = root.hasNonNull("message") ? root.get("message").asText() : null;
 
                     return AdminWatermarkResponseDto.builder()
@@ -113,9 +126,84 @@ public class AdminWatermarkServiceImpl implements AdminWatermarkService {
                 throw (IllegalArgumentException) e;
             }
             if (e instanceof RuntimeException && !e.getMessage().startsWith("Gặp lỗi")) {
-                throw (RuntimeException) e;
+                log.error("Extract Watermark error", e);
             }
-            throw new RuntimeException("Gặp lỗi khi liên kết tới máy chủ AI để quét bản quyền: " + e.getMessage());
+            throw new RuntimeException("Lỗi trích xuất Watermark: " + e.getMessage());
+        }
+    }
+
+    private String findAccountIdByBinaryPattern(String extractedBinary) {
+        log.info("Bắt đầu truy ngược UUID từ chuỗi nhị phân AI: {}", extractedBinary);
+        if (extractedBinary == null || extractedBinary.length() < 5) {
+            log.warn("Chuỗi nhị phân quá ngắn (<5 bit), từ chối đối chiếu.");
+            return null;
+        }
+        
+        java.util.List<java.util.UUID> allIds = accountRepository.findAllAccountIds();
+        log.info("Đang kiểm tra chéo với {} tài khoản trong hệ thống...", allIds.size());
+        
+        String bestMatchId = null;
+        int maxMatchedLength = 0;
+
+        for (java.util.UUID id : allIds) {
+            String hashBinary = convertToBinaryPattern(id.toString());
+            
+            // Tìm chuỗi con dài nhất khớp nhau (Longest Common Substring)
+            // hoặc kiểm tra độ tương đồng. Vì video có thể bị nhiễu 1-2 bit, ta cho phép sai số nhỏ.
+            // Cách đơn giản nhất: Kiểm tra xem có chuỗi con nào >= 80% độ dài của extractedBinary nằm trong hash không.
+            int matchScore = calculateMaxConsecutiveMatch(hashBinary, extractedBinary);
+            
+            if (matchScore > maxMatchedLength) {
+                maxMatchedLength = matchScore;
+                bestMatchId = id.toString();
+            }
+        }
+        
+        // Nếu độ dài khớp liên tiếp >= 5 bit, ta coi như tìm thấy
+        if (maxMatchedLength >= 5) {
+            log.info("TÌM THẤY! UUID: {} (Độ dài khớp: {}/{} bit)", bestMatchId, maxMatchedLength, extractedBinary.length());
+            return bestMatchId;
+        }
+        
+        log.warn("Không tìm thấy UUID nào khớp đủ điều kiện (Max khớp: {} bit)", maxMatchedLength);
+        return null;
+    }
+
+    private int calculateMaxConsecutiveMatch(String source, String target) {
+        // Tìm chuỗi con chung dài nhất (Longest Common Substring)
+        int max = 0;
+        for (int i = 0; i < source.length(); i++) {
+            for (int j = 0; j < target.length(); j++) {
+                int len = 0;
+                while (i + len < source.length() && j + len < target.length() 
+                       && source.charAt(i + len) == target.charAt(j + len)) {
+                    len++;
+                }
+                if (len > max) {
+                    max = len;
+                }
+            }
+        }
+        return max;
+    }
+
+    private String convertToBinaryPattern(String viewerId) {
+        if (viewerId == null || viewerId.isBlank()) {
+            return "0";
+        }
+        try {
+            java.security.MessageDigest digest = java.security.MessageDigest.getInstance("MD5");
+            byte[] hash = digest.digest(viewerId.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            StringBuilder binary = new StringBuilder();
+            for (byte b : hash) {
+                for (int i = 7; i >= 0; i--) {
+                    binary.append((b >> i) & 1);
+                }
+            }
+            return binary.toString();
+        } catch (Exception e) {
+            log.error("MD5 error", e);
+            return "0";
         }
     }
 }

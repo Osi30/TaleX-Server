@@ -209,6 +209,11 @@ public class DefaultMediaPlaybackSecurityService implements MediaPlaybackSecurit
             thumbnailUrl = mediaProviderService.signSingleUrl(thumbnailUrl, expiresAt);
         }
 
+        String finalManifestUrl = playbackUrl;
+        if (media.getFileUrl() != null && media.getFileUrl().contains("/ab_hls/")) {
+            finalManifestUrl = "/api/v1/episodes/" + episodeId + "/playback/manifest.m3u8";
+        }
+
         return EpisodePlaybackResponseDto.builder()
                 .episodeId(episodeId)
                 .mediaId(media.getMediaId())
@@ -218,6 +223,7 @@ public class DefaultMediaPlaybackSecurityService implements MediaPlaybackSecurit
                 .protectionType(protectionType)
                 .hlsUrl(playbackUrl)
                 .playbackUrl(playbackUrl)
+                .manifestUrl(finalManifestUrl)
                 .thumbnailUrl(thumbnailUrl)
                 .duration(media.getDuration())
                 .expiresAt(expiresAt)
