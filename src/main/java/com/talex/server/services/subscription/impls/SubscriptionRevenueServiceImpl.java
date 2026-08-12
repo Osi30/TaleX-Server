@@ -3,7 +3,6 @@ package com.talex.server.services.subscription.impls;
 import com.talex.server.dtos.responses.creator.CreatorResponseDto;
 import com.talex.server.dtos.responses.creator.CreatorTierResponseDto;
 import com.talex.server.entities.creator.Creator;
-import com.talex.server.entities.config.CreatorConfig;
 import com.talex.server.entities.creator.RevenueTransaction;
 import com.talex.server.enums.creator.RevenueTransactionType;
 import com.talex.server.enums.transaction.ReferenceType;
@@ -11,7 +10,6 @@ import com.talex.server.records.CreatorRevenueData;
 import com.talex.server.repositories.creator.CreatorRepository;
 import com.talex.server.repositories.subscription.SubscriptionRevenueLogRepository;
 import com.talex.server.repositories.transaction.RevenueTransactionRepository;
-import com.talex.server.services.config.CreatorConfigService;
 import com.talex.server.services.creator.CreatorService;
 import com.talex.server.services.subscription.SubscriptionRevenueService;
 import lombok.RequiredArgsConstructor;
@@ -30,7 +28,6 @@ public class SubscriptionRevenueServiceImpl implements SubscriptionRevenueServic
 
     private final SubscriptionRevenueLogRepository subscriptionRevenueLogRepository;
     private final CreatorService creatorService;
-    private final CreatorConfigService creatorConfigService;
     private final CreatorRepository creatorRepository;
     private final RevenueTransactionRepository revenueTransactionRepository;
 
@@ -44,10 +41,6 @@ public class SubscriptionRevenueServiceImpl implements SubscriptionRevenueServic
             log.info("Không tìm thấy dữ liệu revenue logs nào trong tháng {}", monthYear);
             return List.of();
         }
-
-        // 2. Lấy CreatorConfig chứa tỉ lệ cơ bản (base_premium_share)
-        CreatorConfig creatorConfig = creatorConfigService.getConfigEntity();
-        double basePremiumShare = creatorConfig.getBasePremiumShare() != null ? creatorConfig.getBasePremiumShare() : 0.0;
 
         List<RevenueTransaction> createdTransactions = new ArrayList<>();
 
@@ -70,7 +63,7 @@ public class SubscriptionRevenueServiceImpl implements SubscriptionRevenueServic
             }
 
             // Tỉ lệ chia sẻ thực tế = min(1.0, basePremiumShare + bonusRatio)
-            double effectiveRatio = Math.min(1.0, basePremiumShare + bonusRatio);
+            double effectiveRatio = 1.0 + bonusRatio;
             double finalRevenueAmount = rawRevenue * effectiveRatio;
             BigDecimal amountToAdd = BigDecimal.valueOf(finalRevenueAmount);
 
@@ -96,11 +89,10 @@ public class SubscriptionRevenueServiceImpl implements SubscriptionRevenueServic
                     .balanceAfter(balanceAfter)
                     .revenueTransactionType(RevenueTransactionType.PREMIUM_SHARE)
                     .description("Chia sẻ doanh thu Premium trong " + monthYear
-                            + " đạt được tổng là " + rawRevenue + "VND"
-                            + " trừ phí nền tảng là " + (1 - effectiveRatio) * 100 + "%"
-                            + " được tính từ 100 % trừ đi tỉ lệ " + creatorConfig.getBasePremiumShare() * 100 + "%"
-                            + " và với cấp nhà sáng tạo là " + creatorDto.getCreatorTier().getTierName()
-                            + " nên được bonus thêm " + creatorDto.getCreatorTier().getPremiumFundShareRatio() * 100 + "%"
+                            + " đạt được " + rawRevenue + " VND"
+                            + " và với cấp nhà sáng tạo là " + creatorDto.getCreatorTier().getTierLevel() + " - " + creatorDto.getCreatorTier().getTierName()
+                            + " nên được cộng thêm " + creatorDto.getCreatorTier().getPremiumFundShareRatio() * 100 + "%"
+                            + ", tổng cộng " + finalRevenueAmount + " VND"
                     )
                     .referenceType(ReferenceType.PREMIUM_RESULT)
                     .referenceId(subscriptionResultId)
@@ -108,14 +100,11 @@ public class SubscriptionRevenueServiceImpl implements SubscriptionRevenueServic
                     .build();
 
             createdTransactions.add(transaction);
-            log.info("Đã xử lý chia sẻ doanh thu cho creatorId: {}, rawRevenue: {}, ratio: {}, finalAmount: {} (isDemo: {})",
-                    creatorId, rawRevenue, effectiveRatio, amountToAdd, isDemo);
         }
 
         // Chỉ lưu danh sách RevenueTransaction xuống DB nếu KHÔNG PHẢI là Demo
         if (!isDemo) {
             revenueTransactionRepository.saveAll(createdTransactions);
-            log.info("Lưu thành công {} bản ghi RevenueTransaction vào DB.", createdTransactions.size());
         }
 
         return createdTransactions;

@@ -47,11 +47,14 @@ public interface SubscriptionStatRepository extends JpaRepository<SubscriptionSt
 
     @Query("SELECT s.accountSubscription.account.accountId, s.creatorId, s.episodeId, SUM(s.views) " +
             "FROM SubscriptionStat s " +
-            "WHERE s.monthYear = :monthYear " +
-            "AND s.accountSubscription.subscription.subscriptionId = :subscriptionId " +
+            "JOIN s.accountSubscription sub " +
+            "WHERE sub.subscription.subscriptionId = :subscriptionId " +
+            "  AND sub.endTime >= :startOfMonth " +
+            "  AND sub.endTime <= :endOfMonth " +
             "GROUP BY s.accountSubscription.account.accountId, s.creatorId, s.episodeId")
     List<Object[]> findGroupedStatsByMonthYear(
-            @Param("monthYear") String monthYear,
+            @Param("startOfMonth") LocalDateTime startOfMonth,
+            @Param("endOfMonth") LocalDateTime endOfMonth,
             @Param("subscriptionId") String subscriptionId
     );
 

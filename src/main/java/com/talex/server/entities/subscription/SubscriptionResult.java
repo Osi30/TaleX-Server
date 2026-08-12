@@ -19,8 +19,14 @@ public class SubscriptionResult {
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
 
+    @Column(name = "alpha")
+    private Double alpha;
+
     @Column(name = "gamma", nullable = false)
     private Double gamma;
+
+    @Column(name = "total_budget")
+    private Double totalBudget;
 
     // Đã trừ VAT
     @Column(name = "target_budget", nullable = false)

@@ -6,6 +6,7 @@ import com.talex.server.dtos.revenue.request.UserStreamRequestDto;
 import com.talex.server.dtos.revenue.response.RuleXCalculationResponseDto;
 import com.talex.server.dtos.revenue.response.UserAllocationDto;
 import com.talex.server.dtos.subscription.response.SubscriptionStatResponseDto;
+import com.talex.server.entities.config.CreatorConfig;
 import com.talex.server.entities.config.SyncMetadata;
 import com.talex.server.entities.subscription.*;
 import com.talex.server.enums.SyncType;
@@ -14,6 +15,7 @@ import com.talex.server.repositories.SyncMetadataRepository;
 import com.talex.server.repositories.interaction.WatchSessionRepository;
 import com.talex.server.repositories.subscription.SubscriptionResultRepository;
 import com.talex.server.repositories.subscription.SubscriptionStatRepository;
+import com.talex.server.services.config.CreatorConfigService;
 import com.talex.server.services.subscription.SubscriptionStatService;
 import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.YearMonth;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -35,6 +38,7 @@ import java.util.*;
 @Service
 @RequiredArgsConstructor
 public class SubscriptionStatServiceImpl implements SubscriptionStatService {
+    private final CreatorConfigService configService;
     private final SubscriptionResultRepository subscriptionResultRepository;
     private final SyncMetadataRepository syncMetadataRepository;
     private final WatchSessionRepository watchSessionRepository;
@@ -50,7 +54,7 @@ public class SubscriptionStatServiceImpl implements SubscriptionStatService {
     public BasePageResponse<SubscriptionStatResponseDto> getStatsByAccountSubscriptionId(
             String accountSubscriptionId, int page, int pageSize) {
 
-        int validPage = page < 1 ? 1 : page;
+        int validPage = Math.max(page, 1);
         int validPageSize = pageSize < 1 ? 20 : pageSize;
         Pageable pageable = PageRequest.of(validPage - 1, validPageSize, Sort.by(Sort.Direction.DESC, "views"));
 
@@ -200,7 +204,15 @@ public class SubscriptionStatServiceImpl implements SubscriptionStatService {
 
     @Override
     public RuleXCalculationRequestDto getRuleXRequestFromStats(String monthYear, Subscription subscription) {
-        List<Object[]> results = subscriptionStatRepository.findGroupedStatsByMonthYear(monthYear, subscription.getSubscriptionId());
+        YearMonth yearMonth = java.time.YearMonth.parse(monthYear, MONTH_YEAR_FORMATTER);
+        LocalDateTime startOfMonth = yearMonth.atDay(1).atStartOfDay(); // 2026-08-01 00:00:00
+        LocalDateTime endOfMonth = yearMonth.atEndOfMonth().atTime(23, 59, 59, 999_999_999); // 2026-08-31 23:59:59.999999999
+
+        List<Object[]> results = subscriptionStatRepository.findGroupedStatsByMonthYear(
+                startOfMonth,
+                endOfMonth,
+                subscription.getSubscriptionId()
+        );
 
         // Map cấu trúc: userId -> creatorId -> episodeId -> views
         Map<String, Map<String, Map<String, Long>>> userMap = new LinkedHashMap<>();
@@ -225,7 +237,10 @@ public class SubscriptionStatServiceImpl implements SubscriptionStatService {
                     .build());
         }
 
+        CreatorConfig config = configService.getConfigEntity();
+
         return RuleXCalculationRequestDto.builder()
+                .alpha(1.0 - config.getBasePremiumShare())
                 .subscriptionFee(subscription.getPrice().doubleValue())
                 .users(userDtos)
                 .build();
@@ -261,6 +276,8 @@ public class SubscriptionStatServiceImpl implements SubscriptionStatService {
         // 5. Tạo Entity SubscriptionResult
         SubscriptionResult resultEntity = SubscriptionResult.builder()
                 .subscription(subscription)
+                .alpha(requestDto.getAlpha())
+                .totalBudget(response.getTotalBudget())
                 .gamma(response.getGamma())
                 .targetBudget(response.getTargetBudget())
                 .calculatedBudget(response.getCalculatedBudget())
@@ -404,6 +421,7 @@ public class SubscriptionStatServiceImpl implements SubscriptionStatService {
 
         return RuleXCalculationResponseDto.builder()
                 .gamma(gamma)
+                .totalBudget(users.size() * subscriptionFee)
                 .targetBudget(alpha * users.size() * subscriptionFee)
                 .calculatedBudget(totalCalculatedBudget)
                 .artistPayouts(globalArtistPayouts)

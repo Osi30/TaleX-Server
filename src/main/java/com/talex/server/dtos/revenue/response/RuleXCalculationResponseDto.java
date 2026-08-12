@@ -15,6 +15,7 @@ import java.util.Map;
 public class RuleXCalculationResponseDto {
     private Map<String, Double> episodePayouts;
     private Double gamma;                      // Hằng số Gamma vừa tìm được
+    private Double totalBudget;
     private Double targetBudget;               // Ngân sách mục tiêu = alpha * n * fee
     private Double calculatedBudget;           // Ngân sách thực tế phân bổ
     private Map<String, Double> artistPayouts; // Doanh thu chia cho từng nghệ sĩ
