@@ -63,6 +63,8 @@ public class MediaResponseDto {
     private ContentApprovalStatus approvalStatus;
     private LocalDateTime approvalReviewedAt;
     private String approvalReviewedBy;
+    private String approvalReviewedByName;
+    private String approvalReviewedByRole;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private LocalDateTime deletedAt;

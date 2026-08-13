@@ -157,27 +157,51 @@ public interface MediaRepository extends JpaRepository<Media, String> {
     // Từ chối tác động lên TỪNG Media riêng lẻ, group sẽ làm Staff không thấy được các media
     // khác cùng episode cần duyệt riêng. Sort lấy từ Pageable (Sort.by createdAt DESC ở
     // MediaServiceImpl.listPendingReview()).
+    // keyword đã được chuẩn hóa "%từ khóa%" thường (lowercase) ở tầng service trước khi
+    // truyền vào — so khớp tiêu đề Episode/Season/Series và mediaId, KHÔNG search theo tên
+    // Creator (creatorId chỉ là chuỗi thô trên Media, không phải quan hệ JPA, join sẽ cần
+    // subquery riêng qua bảng Creator — để dành nếu sau này thật sự cần).
     @Query("SELECT m FROM Media m WHERE m.approvalStatus = :approvalStatus AND m.status = :status "
-            + "AND m.isDeleted = false AND (:mediaType IS NULL OR m.mediaType = :mediaType)")
+            + "AND m.isDeleted = false AND (:mediaType IS NULL OR m.mediaType = :mediaType) "
+            + "AND (:keyword IS NULL "
+            + "     OR LOWER(m.episode.title) LIKE :keyword "
+            + "     OR LOWER(m.episode.season.title) LIKE :keyword "
+            + "     OR LOWER(m.episode.season.series.title) LIKE :keyword "
+            + "     OR LOWER(m.mediaId) LIKE :keyword)")
     Page<Media> findPendingReviewMedia(
             @Param("approvalStatus") ContentApprovalStatus approvalStatus,
             @Param("status") MediaStatus status,
+            @Param("keyword") String keyword,
             @Param("mediaType") MediaType mediaType,
             Pageable pageable);
 
     // "Đã duyệt" tab, filter "all" — cho Staff/Admin xem lại nội dung đã duyệt để phát hiện
     // lỡ bấm nhầm, có thể ép ẩn (forceHide) nếu cần. Gồm cả FORCE_HIDDEN để admin thấy những
     // gì mình đã ép ẩn trước đó (và có thể bỏ ép ẩn lại), không chỉ ACTIVE/HLS_READY.
+    // keyword: xem giải thích ở findPendingReviewMedia bên trên — match ở đây phải nằm
+    // TRONG query xác định trang episodeId (không phải query lấy Media theo episodeIds bên
+    // dưới), vì đây mới là query quyết định phân trang thật.
     @Query(value = "SELECT m.episode.episodeId FROM Media m WHERE m.approvalStatus = :approvalStatus "
             + "AND m.status IN :statuses AND m.isDeleted = false AND (:mediaType IS NULL OR m.mediaType = :mediaType) "
+            + "AND (:keyword IS NULL "
+            + "     OR LOWER(m.episode.title) LIKE :keyword "
+            + "     OR LOWER(m.episode.season.title) LIKE :keyword "
+            + "     OR LOWER(m.episode.season.series.title) LIKE :keyword "
+            + "     OR LOWER(m.mediaId) LIKE :keyword) "
             + "GROUP BY m.episode.episodeId ORDER BY MAX(m.approvalReviewedAt) DESC",
             countQuery = "SELECT COUNT(DISTINCT m.episode.episodeId) FROM Media m "
                     + "WHERE m.approvalStatus = :approvalStatus AND m.status IN :statuses AND m.isDeleted = false "
-                    + "AND (:mediaType IS NULL OR m.mediaType = :mediaType)")
+                    + "AND (:mediaType IS NULL OR m.mediaType = :mediaType) "
+                    + "AND (:keyword IS NULL "
+                    + "     OR LOWER(m.episode.title) LIKE :keyword "
+                    + "     OR LOWER(m.episode.season.title) LIKE :keyword "
+                    + "     OR LOWER(m.episode.season.series.title) LIKE :keyword "
+                    + "     OR LOWER(m.mediaId) LIKE :keyword)")
     Page<String> findDistinctApprovedEpisodeIds(
             @Param("approvalStatus") ContentApprovalStatus approvalStatus,
             @Param("statuses") Collection<MediaStatus> statuses,
             @Param("mediaType") MediaType mediaType,
+            @Param("keyword") String keyword,
             Pageable pageable);
 
     @Query("SELECT m FROM Media m WHERE m.episode.episodeId IN :episodeIds "
@@ -197,16 +221,27 @@ public interface MediaRepository extends JpaRepository<Media, String> {
     @Query(value = "SELECT m.episode.episodeId FROM Media m WHERE m.approvalStatus = :approvalStatus "
             + "AND m.status IN :statuses AND m.isDeleted = false AND m.approvalReviewedBy IS NOT NULL "
             + "AND m.approvalReviewedBy <> :pipelineActor AND (:mediaType IS NULL OR m.mediaType = :mediaType) "
+            + "AND (:keyword IS NULL "
+            + "     OR LOWER(m.episode.title) LIKE :keyword "
+            + "     OR LOWER(m.episode.season.title) LIKE :keyword "
+            + "     OR LOWER(m.episode.season.series.title) LIKE :keyword "
+            + "     OR LOWER(m.mediaId) LIKE :keyword) "
             + "GROUP BY m.episode.episodeId ORDER BY MAX(m.approvalReviewedAt) DESC",
             countQuery = "SELECT COUNT(DISTINCT m.episode.episodeId) FROM Media m "
                     + "WHERE m.approvalStatus = :approvalStatus AND m.status IN :statuses AND m.isDeleted = false "
                     + "AND m.approvalReviewedBy IS NOT NULL AND m.approvalReviewedBy <> :pipelineActor "
-                    + "AND (:mediaType IS NULL OR m.mediaType = :mediaType)")
+                    + "AND (:mediaType IS NULL OR m.mediaType = :mediaType) "
+                    + "AND (:keyword IS NULL "
+                    + "     OR LOWER(m.episode.title) LIKE :keyword "
+                    + "     OR LOWER(m.episode.season.title) LIKE :keyword "
+                    + "     OR LOWER(m.episode.season.series.title) LIKE :keyword "
+                    + "     OR LOWER(m.mediaId) LIKE :keyword)")
     Page<String> findDistinctManuallyApprovedEpisodeIds(
             @Param("approvalStatus") ContentApprovalStatus approvalStatus,
             @Param("statuses") Collection<MediaStatus> statuses,
             @Param("pipelineActor") String pipelineActor,
             @Param("mediaType") MediaType mediaType,
+            @Param("keyword") String keyword,
             Pageable pageable);
 
     @Query("SELECT m FROM Media m WHERE m.episode.episodeId IN :episodeIds "
@@ -224,16 +259,27 @@ public interface MediaRepository extends JpaRepository<Media, String> {
             + "AND m.status IN :statuses AND m.isDeleted = false "
             + "AND (m.approvalReviewedBy IS NULL OR m.approvalReviewedBy = :pipelineActor) "
             + "AND (:mediaType IS NULL OR m.mediaType = :mediaType) "
+            + "AND (:keyword IS NULL "
+            + "     OR LOWER(m.episode.title) LIKE :keyword "
+            + "     OR LOWER(m.episode.season.title) LIKE :keyword "
+            + "     OR LOWER(m.episode.season.series.title) LIKE :keyword "
+            + "     OR LOWER(m.mediaId) LIKE :keyword) "
             + "GROUP BY m.episode.episodeId ORDER BY MAX(m.approvalReviewedAt) DESC",
             countQuery = "SELECT COUNT(DISTINCT m.episode.episodeId) FROM Media m "
                     + "WHERE m.approvalStatus = :approvalStatus AND m.status IN :statuses AND m.isDeleted = false "
                     + "AND (m.approvalReviewedBy IS NULL OR m.approvalReviewedBy = :pipelineActor) "
-                    + "AND (:mediaType IS NULL OR m.mediaType = :mediaType)")
+                    + "AND (:mediaType IS NULL OR m.mediaType = :mediaType) "
+                    + "AND (:keyword IS NULL "
+                    + "     OR LOWER(m.episode.title) LIKE :keyword "
+                    + "     OR LOWER(m.episode.season.title) LIKE :keyword "
+                    + "     OR LOWER(m.episode.season.series.title) LIKE :keyword "
+                    + "     OR LOWER(m.mediaId) LIKE :keyword)")
     Page<String> findDistinctAutoApprovedEpisodeIds(
             @Param("approvalStatus") ContentApprovalStatus approvalStatus,
             @Param("statuses") Collection<MediaStatus> statuses,
             @Param("pipelineActor") String pipelineActor,
             @Param("mediaType") MediaType mediaType,
+            @Param("keyword") String keyword,
             Pageable pageable);
 
     @Query("SELECT m FROM Media m WHERE m.episode.episodeId IN :episodeIds "
