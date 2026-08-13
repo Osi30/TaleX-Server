@@ -149,20 +149,62 @@ public class AdUserController {
                 .build());
     }
 
-    @PostMapping("/{campaignId}/topup")
-    @Operation(summary = "Nạp thêm tiền cho chiến dịch", description = "Lấy tiền từ Master Wallet nạp vào Campaign Balance")
-    public ResponseEntity<BaseResponse> topupCampaign(
+    @PostMapping("/{campaignId}/clone")
+    @Operation(summary = "Tạo lại chiến dịch (Clone)", description = "Tạo một chiến dịch mới dựa trên thông tin chiến dịch đã hủy hoặc hoàn thành, với ngân sách, mục tiêu và lịch chạy mới.")
+    public ResponseEntity<BaseResponse> cloneCampaign(
             @CurrentAccountId UUID accountId,
             @PathVariable UUID campaignId,
-            @RequestBody java.util.Map<String, Long> payload) {
-        Long amount = payload.get("amount");
-        if (amount == null) {
-            throw new IllegalArgumentException("Amount is required");
+            @RequestBody java.util.Map<String, Object> payload) {
+        Number budgetObj = (Number) payload.get("campaignBudget");
+        Number impressionsObj = (Number) payload.get("targetImpressions");
+        if (budgetObj == null || impressionsObj == null) {
+            throw new IllegalArgumentException("Budget and target impressions are required");
         }
-        campaignService.topupCampaign(accountId, campaignId, amount);
+        Long newBudget = budgetObj.longValue();
+        Long newTargetImpressions = impressionsObj.longValue();
+
+        String startDateStr = (String) payload.get("startDate");
+        String endDateStr = (String) payload.get("endDate");
+        java.time.LocalDateTime startDate = startDateStr != null ? java.time.LocalDateTime.parse(startDateStr, java.time.format.DateTimeFormatter.ISO_DATE_TIME) : null;
+        java.time.LocalDateTime endDate = endDateStr != null ? java.time.LocalDateTime.parse(endDateStr, java.time.format.DateTimeFormatter.ISO_DATE_TIME) : null;
+
         return ResponseEntity.ok(BaseResponse.builder()
                 .code(200)
-                .message("Campaign topped up successfully")
+                .message("Campaign cloned successfully")
+                .data(campaignService.cloneCampaign(accountId, campaignId, newBudget, newTargetImpressions, startDate, endDate))
+                .build());
+    }
+
+    @PatchMapping("/{campaignId}/name")
+    @Operation(summary = "Đổi tên chiến dịch", description = "Đổi tên chiến dịch quảng cáo.")
+    public ResponseEntity<BaseResponse> renameCampaign(
+            @CurrentAccountId UUID accountId,
+            @PathVariable UUID campaignId,
+            @RequestBody java.util.Map<String, String> payload) {
+        String newName = payload.get("name");
+        if (newName == null || newName.trim().isEmpty()) {
+            throw new IllegalArgumentException("New name is required");
+        }
+        return ResponseEntity.ok(BaseResponse.builder()
+                .code(200)
+                .message("Campaign renamed successfully")
+                .data(campaignService.renameCampaign(accountId, campaignId, newName))
+                .build());
+    }
+
+    @PostMapping("/bulk-cancel")
+    @Operation(summary = "Hủy hàng loạt chiến dịch", description = "Hủy nhiều chiến dịch cùng lúc.")
+    public ResponseEntity<BaseResponse> bulkCancelCampaigns(
+            @CurrentAccountId UUID accountId,
+            @RequestBody java.util.Map<String, java.util.List<UUID>> payload) {
+        java.util.List<UUID> campaignIds = payload.get("campaignIds");
+        if (campaignIds == null || campaignIds.isEmpty()) {
+            throw new IllegalArgumentException("Campaign IDs are required");
+        }
+        campaignService.bulkCancelCampaigns(accountId, campaignIds);
+        return ResponseEntity.ok(BaseResponse.builder()
+                .code(200)
+                .message("Campaigns cancelled successfully")
                 .build());
     }
 }

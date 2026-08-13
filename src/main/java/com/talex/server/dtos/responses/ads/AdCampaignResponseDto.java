@@ -15,6 +15,7 @@ public class AdCampaignResponseDto {
     private UUID profileId;
     private UUID slotId;
     private String slotCodeName;
+    private String slotType;
     private String name;
     private AdCampaignStatus status;
     private Long campaignBalance;

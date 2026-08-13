@@ -112,19 +112,19 @@ public class AdWalletServiceImpl implements AdWalletService {
     @Override
     @Transactional
     public void chargeHeldFunds(UUID profileId, Long amount, UUID campaignId) {
-        AdvertiseProfile profile = profileRepository.findById(profileId)
-                .orElseThrow(() -> new RuntimeException("Profile not found"));
-        AdCampaign campaign = campaignRepository.findById(campaignId)
-                .orElseThrow(() -> new RuntimeException("Campaign not found"));
+        // AdvertiseProfile profile = profileRepository.findById(profileId)
+        //         .orElseThrow(() -> new RuntimeException("Profile not found"));
+        // AdCampaign campaign = campaignRepository.findById(campaignId)
+        //         .orElseThrow(() -> new RuntimeException("Campaign not found"));
 
-        AdTransaction transaction = AdTransaction.builder()
-                .profile(profile)
-                .campaign(campaign)
-                .amount(amount)
-                .type(AdTransactionType.CHARGE)
-                .note("Charge funds after admin approval for campaign: " + campaign.getName())
-                .build();
-        transactionRepository.save(transaction);
+        // AdTransaction transaction = AdTransaction.builder()
+        //         .profile(profile)
+        //         .campaign(campaign)
+        //         .amount(amount)
+        //         .type(AdTransactionType.CHARGE)
+        //         .note("Charge funds after admin approval for campaign: " + campaign.getName())
+        //         .build();
+        // transactionRepository.save(transaction);
     }
 
     @Override

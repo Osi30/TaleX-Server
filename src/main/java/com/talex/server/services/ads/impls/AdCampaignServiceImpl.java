@@ -176,7 +176,10 @@ public class AdCampaignServiceImpl implements AdCampaignService {
 
         if (request.getStatus() == AdCampaignStatus.ACTIVE) {
             campaign.setStatus(AdCampaignStatus.ACTIVE);
-            walletService.chargeHeldFunds(campaign.getProfile().getProfileId(), campaign.getTotalBudget(), campaign.getCampaignId());
+            if (campaign.getStartDate() == null) {
+                campaign.setStartDate(java.time.LocalDateTime.now());
+            }
+            // walletService.chargeHeldFunds(campaign.getProfile().getProfileId(), campaign.getTotalBudget(), campaign.getCampaignId());
         } else if (request.getStatus() == AdCampaignStatus.REJECTED) {
             campaign.setStatus(AdCampaignStatus.REJECTED);
             campaign.setAdminNote(request.getAdminNote());
@@ -257,6 +260,7 @@ public class AdCampaignServiceImpl implements AdCampaignService {
                 .profileId(campaign.getProfile().getProfileId())
                 .slotId(campaign.getSlot().getSlotId())
                 .slotCodeName(campaign.getSlot().getCodeName())
+                .slotType(campaign.getSlot().getType().name())
                 .name(campaign.getName())
                 .status(campaign.getStatus())
                 .campaignBalance(campaign.getCampaignBalance())
@@ -330,6 +334,7 @@ public class AdCampaignServiceImpl implements AdCampaignService {
             profileRepository.save(profile);
 
             campaign.setCampaignBalance(0L);
+            campaign.setTotalBudget(campaign.getTotalBudget() - balanceToRefund);
 
             com.talex.server.entities.ads.AdTransaction transaction = com.talex.server.entities.ads.AdTransaction.builder()
                     .profile(profile)
@@ -369,7 +374,62 @@ public class AdCampaignServiceImpl implements AdCampaignService {
 
     @Override
     @Transactional
-    public void topupCampaign(UUID accountId, UUID campaignId, Long amount) {
+    public AdCampaignResponseDto cloneCampaign(UUID accountId, UUID campaignId, Long newBudget, Long newTargetImpressions, java.time.LocalDateTime startDate, java.time.LocalDateTime endDate) {
+        AdCampaign oldCampaign = campaignRepository.findById(campaignId)
+                .orElseThrow(() -> new RuntimeException("Campaign not found"));
+
+        if (!oldCampaign.getProfile().getAccount().getAccountId().equals(accountId)) {
+            throw new RuntimeException("Unauthorized");
+        }
+
+        if (oldCampaign.getStatus() != AdCampaignStatus.CANCELLED && oldCampaign.getStatus() != AdCampaignStatus.COMPLETED) {
+            throw new RuntimeException("Chỉ có thể clone các chiến dịch đã Hủy hoặc Hoàn thành");
+        }
+
+        AdvertiseProfile profile = oldCampaign.getProfile();
+
+        if (profile.getWalletBalance() < newBudget) {
+            throw new RuntimeException("Số dư Ví tổng không đủ để cấp ngân sách cho chiến dịch clone này.");
+        }
+
+        AdCampaign newCampaign = AdCampaign.builder()
+                .profile(profile)
+                .slot(oldCampaign.getSlot())
+                .name(oldCampaign.getName() + " - Copy")
+                .targetImpressions(newTargetImpressions)
+                .targetClicks(0L) // reset
+                .totalBudget(newBudget)
+                .campaignBalance(0L) // Sẽ được nạp sau
+                .lockedCpm((long) oldCampaign.getSlot().getPrice()) // Use current slot price
+                .status(AdCampaignStatus.PENDING_REVIEW)
+                .labels(oldCampaign.getLabels() != null ? new java.util.ArrayList<>(oldCampaign.getLabels()) : new java.util.ArrayList<>())
+                .startDate(startDate)
+                .endDate(endDate)
+                .build();
+        
+        newCampaign = campaignRepository.save(newCampaign);
+
+        List<AdCreative> newCreatives = new java.util.ArrayList<>();
+        if (oldCampaign.getCreatives() != null && !oldCampaign.getCreatives().isEmpty()) {
+            AdCreative oldCreative = oldCampaign.getCreatives().get(0);
+            AdCreative newCreative = AdCreative.builder()
+                    .campaign(newCampaign)
+                    .mediaType(oldCreative.getMediaType())
+                    .mediaUrl(oldCreative.getMediaUrl()) // Reuse media
+                    .targetUrl(oldCreative.getTargetUrl())
+                    .build();
+            creativeRepository.save(newCreative);
+            newCreatives.add(newCreative);
+        }
+
+        // Nạp tiền từ Ví Tổng vào Ví Chiến Dịch
+        walletService.fundCampaign(profile.getProfileId(), newBudget, newCampaign.getCampaignId());
+
+        return toDto(newCampaign, newCreatives);
+    }
+
+    @Override
+    public AdCampaignResponseDto renameCampaign(UUID accountId, UUID campaignId, String newName) {
         AdCampaign campaign = campaignRepository.findById(campaignId)
                 .orElseThrow(() -> new RuntimeException("Campaign not found"));
 
@@ -377,18 +437,20 @@ public class AdCampaignServiceImpl implements AdCampaignService {
             throw new RuntimeException("Unauthorized");
         }
 
-        if (campaign.getStatus() != AdCampaignStatus.ACTIVE && campaign.getStatus() != AdCampaignStatus.PAUSED && campaign.getStatus() != AdCampaignStatus.PENDING_REVIEW) {
-            throw new RuntimeException("Chỉ có thể nạp thêm tiền cho chiến dịch đang hoạt động, tạm dừng hoặc chờ duyệt");
-        }
+        campaign.setName(newName);
+        campaign = campaignRepository.save(campaign);
+        return toDto(campaign, campaign.getCreatives());
+    }
 
-        if (amount < 10000) {
-            throw new RuntimeException("Số tiền nạp tối thiểu là 10,000 VND");
+    @Override
+    @Transactional
+    public void bulkCancelCampaigns(UUID accountId, List<UUID> campaignIds) {
+        for (UUID campaignId : campaignIds) {
+            try {
+                this.cancelCampaign(accountId, campaignId);
+            } catch (Exception e) {
+                // Ignore specific failures in bulk cancel (e.g. already cancelled)
+            }
         }
-
-        walletService.fundCampaign(campaign.getProfile().getProfileId(), amount, campaignId);
-        
-        // Cập nhật lại totalBudget
-        campaign.setTotalBudget(campaign.getTotalBudget() + amount);
-        campaignRepository.save(campaign);
     }
 }

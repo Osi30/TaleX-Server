@@ -35,5 +35,7 @@ public interface AdCampaignService {
 
     void updateCampaignSchedule(UUID accountId, UUID campaignId, java.time.LocalDateTime startDate, java.time.LocalDateTime endDate);
 
-    void topupCampaign(UUID accountId, UUID campaignId, Long amount);
+    AdCampaignResponseDto cloneCampaign(UUID accountId, UUID campaignId, Long newBudget, Long newTargetImpressions, java.time.LocalDateTime startDate, java.time.LocalDateTime endDate);
+    AdCampaignResponseDto renameCampaign(UUID accountId, UUID campaignId, String newName);
+    void bulkCancelCampaigns(UUID accountId, List<UUID> campaignIds);
 }
