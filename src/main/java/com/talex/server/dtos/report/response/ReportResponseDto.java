@@ -21,7 +21,8 @@ public class ReportResponseDto {
     private String targetId;
     private ReportReason reason;
     private String description;
-    private String proofImages;
+    private java.util.List<String> proofImages;
+    private java.util.List<String> proofVideos;
     private ReportStatus status;
     private String ticketId;
     private LocalDateTime createdAt;
