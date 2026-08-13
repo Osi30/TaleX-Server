@@ -44,7 +44,6 @@ public class CreatorConfigController {
                 .build());
     }
 
-    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping
     @Operation(summary = "Lấy thông tin Creator Config hiện tại")
     public ResponseEntity<BaseResponse> getConfig() {
