@@ -61,9 +61,13 @@ public class CreatorIdentity {
 
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "creator_id", nullable = false, unique = true)
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private Creator creator;
 
     @OneToOne(fetch = FetchType.LAZY)
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     @JoinColumn(name = "kyc_session_id", unique = true)
     private KycSession kycSession;
 }

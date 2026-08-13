@@ -9,6 +9,6 @@ public enum RevenueTransactionType {
     PREMIUM_SHARE,
     WITHDRAWAL,
     PENALTY_DEDUCTION,
-    CAMPAIGN_REFUND,
+    ADJUSTMENT,
     CONTENT_SHARE
 }

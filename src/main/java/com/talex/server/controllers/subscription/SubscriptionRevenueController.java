@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -25,7 +26,7 @@ public class SubscriptionRevenueController {
             description = "Tính toán chi tiết số tiền phân bổ cho từng Creator theo monthYear nhưng KHÔNG thay đổi cơ sở dữ liệu (isDemo = true)."
     )
     public ResponseEntity<BaseResponse> demoDistribute(
-            @RequestParam("monthYear") String monthYear,
+            @RequestParam("monthYear") LocalDate monthYear,
             @RequestParam("isDemo") Boolean isDemo
     ) {
         List<RevenueTransaction> transactions = subscriptionRevenueService.processAndDistributePremiumRevenue(monthYear, isDemo);

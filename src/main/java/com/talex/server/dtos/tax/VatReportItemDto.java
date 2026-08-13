@@ -1,0 +1,25 @@
+package com.talex.server.dtos.tax;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class VatReportItemDto {
+    private String orderId;
+    private String itemType;
+    private String itemId;
+    private BigDecimal fiatAmount;
+    private Double vatRate;
+    private BigDecimal vatAmount;
+    private String paymentCode;
+    private LocalDateTime createdAt;
+    private String revenueGroup; // "PLATFORM" hoặc "CREATOR"
+}

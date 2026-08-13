@@ -14,6 +14,7 @@ import com.talex.server.dtos.responses.media.MediaViolationsResponseDto;
 import com.talex.server.dtos.responses.media.ViolationDetailResponseDto;
 import com.talex.server.dtos.responses.media.CreatorViolationsSummaryDto;
 import com.talex.server.entities.auth.Account;
+import com.talex.server.entities.auth.Role;
 import com.talex.server.entities.creator.Creator;
 import com.talex.server.entities.media.ContentCensorship;
 import com.talex.server.entities.series.Episode;
@@ -738,7 +739,7 @@ public class MediaServiceImpl implements MediaService {
 
     @Transactional(readOnly = true)
     @Override
-    public Page<MediaResponseDto> listPendingReview(int page, int size, String mediaType) {
+    public Page<MediaResponseDto> listPendingReview(int page, int size, String mediaType, String keyword) {
         // KHÔNG group theo episode ở tab này — khác với listApproved() (force-hide/unhide
         // tác động cả episode nên group được), Duyệt/Từ chối ở tab "Chờ duyệt" tác động lên
         // TỪNG Media riêng lẻ (xem MediaController.approve/reject dùng media id). Nếu group,
@@ -753,7 +754,7 @@ public class MediaServiceImpl implements MediaService {
         // (xem ContentPipelineServiceImpl) — thêm điều kiện này để lọc đúng.
         return mediaRepository
                 .findPendingReviewMedia(ContentApprovalStatus.PENDING_REVIEW, MediaStatus.INACTIVE,
-                        typeFilter, pageable)
+                        parseKeyword(keyword), typeFilter, pageable)
                 .map(this::toAdminPreviewResponse);
     }
 
@@ -778,6 +779,15 @@ public class MediaServiceImpl implements MediaService {
                 })
                 .toList();
         return new PageImpl<>(content, episodeIdsPage.getPageable(), episodeIdsPage.getTotalElements());
+    }
+
+    // Chuẩn hóa keyword giống AccountSpecification (AdminAccountServiceImpl) — trim, lowercase,
+    // bọc "%...%" cho LIKE — null/rỗng thành null để query JPQL hiểu là "không lọc" (:keyword IS NULL).
+    private String parseKeyword(String keyword) {
+        if (keyword == null || keyword.isBlank()) {
+            return null;
+        }
+        return "%" + keyword.trim().toLowerCase() + "%";
     }
 
     // "ALL"/null/giá trị không hợp lệ đều coi là không lọc — tránh 400 lặt vặt cho FE khi
@@ -842,33 +852,69 @@ public class MediaServiceImpl implements MediaService {
     // (approvalReviewedBy = accountId thật) ở filter "manual"/"clean" bên dưới.
     private static final String PIPELINE_REVIEWER_ACTOR = "content-pipeline";
 
+    // approvalReviewedBy chỉ lưu accountId thô (hoặc PIPELINE_REVIEWER_ACTOR) — FE cần tên
+    // + vai trò để hiển thị "ai đã duyệt" thay vì UUID khó đọc. accountId ở đây LUÔN là
+    // Account.accountId thật (không phải Creator id) vì chỉ Staff/Admin mới gọi được
+    // approve()/rejectWithReason() (xem @PreAuthorize ở MediaController), khác với
+    // sourceCreatorId ở resolveCopyrightSource() cần đi qua Creator -> Account.
+    private Optional<Account> resolveReviewerAccount(String reviewedBy) {
+        if (reviewedBy == null || reviewedBy.isBlank() || reviewedBy.equals(PIPELINE_REVIEWER_ACTOR)) {
+            return Optional.empty();
+        }
+        try {
+            return accountRepository.findById(UUID.fromString(reviewedBy));
+        } catch (IllegalArgumentException e) {
+            return Optional.empty();
+        }
+    }
+
+    private String resolveReviewerName(String reviewedBy) {
+        if (PIPELINE_REVIEWER_ACTOR.equals(reviewedBy)) {
+            return "Hệ thống (tự động)";
+        }
+        return resolveReviewerAccount(reviewedBy)
+                .map(account -> account.getFullName() != null && !account.getFullName().isBlank()
+                        ? account.getFullName()
+                        : account.getUsername())
+                .orElse(null);
+    }
+
+    private String resolveReviewerRole(String reviewedBy) {
+        return resolveReviewerAccount(reviewedBy)
+                .map(Account::getRole)
+                .map(Role::getCode)
+                .orElse(null);
+    }
+
     @Transactional(readOnly = true)
     @Override
-    public Page<MediaResponseDto> listApproved(int page, int size, String reviewFilter, String mediaType) {
+    public Page<MediaResponseDto> listApproved(int page, int size, String reviewFilter, String mediaType,
+            String keyword) {
         // Sắp theo approvalReviewedAt (lượt duyệt gần nhất lên đầu, xem ORDER BY trong query
         // ở repository) — mục đích tab này là Staff/Admin rà lại các quyết định VỪA duyệt để
         // phát hiện lỡ bấm nhầm, không phải duyệt toàn bộ lịch sử theo thời gian tạo.
         PageRequest pageable = PageRequest.of(page, size);
         MediaType typeFilter = parseMediaTypeFilter(mediaType);
+        String normalizedKeyword = parseKeyword(keyword);
         Page<String> episodeIdsPage;
         List<Media> media;
         if ("manual".equals(reviewFilter)) {
             episodeIdsPage = mediaRepository.findDistinctManuallyApprovedEpisodeIds(
                     ContentApprovalStatus.APPROVED, APPROVED_TAB_STATUSES, PIPELINE_REVIEWER_ACTOR,
-                    typeFilter, pageable);
+                    typeFilter, normalizedKeyword, pageable);
             media = mediaRepository.findManuallyApprovedMediaByEpisodeIds(
                     episodeIdsPage.getContent(), ContentApprovalStatus.APPROVED, APPROVED_TAB_STATUSES,
                     PIPELINE_REVIEWER_ACTOR, typeFilter);
         } else if ("clean".equals(reviewFilter)) {
             episodeIdsPage = mediaRepository.findDistinctAutoApprovedEpisodeIds(
                     ContentApprovalStatus.APPROVED, APPROVED_TAB_STATUSES, PIPELINE_REVIEWER_ACTOR,
-                    typeFilter, pageable);
+                    typeFilter, normalizedKeyword, pageable);
             media = mediaRepository.findAutoApprovedMediaByEpisodeIds(
                     episodeIdsPage.getContent(), ContentApprovalStatus.APPROVED, APPROVED_TAB_STATUSES,
                     PIPELINE_REVIEWER_ACTOR, typeFilter);
         } else {
             episodeIdsPage = mediaRepository.findDistinctApprovedEpisodeIds(
-                    ContentApprovalStatus.APPROVED, APPROVED_TAB_STATUSES, typeFilter, pageable);
+                    ContentApprovalStatus.APPROVED, APPROVED_TAB_STATUSES, typeFilter, normalizedKeyword, pageable);
             media = mediaRepository.findApprovedMediaByEpisodeIds(
                     episodeIdsPage.getContent(), ContentApprovalStatus.APPROVED, APPROVED_TAB_STATUSES, typeFilter);
         }
@@ -943,6 +989,8 @@ public class MediaServiceImpl implements MediaService {
                 .approvalStatus(media.getApprovalStatus())
                 .approvalReviewedAt(media.getApprovalReviewedAt())
                 .approvalReviewedBy(media.getApprovalReviewedBy())
+                .approvalReviewedByName(resolveReviewerName(media.getApprovalReviewedBy()))
+                .approvalReviewedByRole(resolveReviewerRole(media.getApprovalReviewedBy()))
                 .createdAt(media.getCreatedAt())
                 .updatedAt(media.getUpdatedAt())
                 .deletedAt(media.getDeletedAt())

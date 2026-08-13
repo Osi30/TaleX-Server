@@ -33,4 +33,23 @@ public class CreatorPayoutController {
                 .data(requestDto)
                 .build());
     }
+
+    @PostMapping("/single-request/{settlementId}")
+//    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(
+            summary = "Chi trả tiền cho 1 bản ghi quyết toán theo ID",
+            description = "Nhận settlementId và isDemo. Khi isDemo = true, API trả về payload BatchPayoutRequestDto để preview mà không lưu/gửi PayOS. Khi isDemo = false sẽ thực thi lệnh chi hộ qua PayoutService."
+    )
+    public ResponseEntity<BaseResponse> processSinglePayout(
+            @PathVariable String settlementId,
+            @RequestParam(value = "isDemo", defaultValue = "true") Boolean isDemo
+    ) {
+        BatchPayoutRequestDto requestDto = creatorPayoutService.processSingleSettlementPayout(settlementId, isDemo);
+
+        return ResponseEntity.ok(BaseResponse.builder()
+                .code(200)
+                .message(isDemo ? "Tạo demo BatchPayoutRequest đơn lẻ thành công" : "Khởi tạo lệnh chi hộ thành công")
+                .data(requestDto)
+                .build());
+    }
 }

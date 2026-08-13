@@ -12,4 +12,14 @@ public interface CreatorPayoutService {
      * @return BatchPayoutRequestDto vừa được tổng hợp
      */
     BatchPayoutRequestDto processMonthlyPayout(String monthYear, boolean isDemo);
+
+    /**
+     * Tạo và (nếu không phải Demo) thực hiện chuyển tiền chi hộ cho 01 bản ghi quyết toán đơn lẻ theo ID
+     *
+     * @param settlementId ID của CreatorMonthlySettlement
+     * @param isDemo       Nếu true: Chỉ trả về BatchPayoutRequestDto preview để kiểm tra.
+     *                     Nếu false: Gửi lệnh chi sang PayoutService.
+     * @return BatchPayoutRequestDto chứa 1 lệnh chi duy nhất
+     */
+    BatchPayoutRequestDto processSingleSettlementPayout(String settlementId, boolean isDemo);
 }

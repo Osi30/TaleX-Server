@@ -12,6 +12,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -92,5 +93,28 @@ public interface OrderRepository extends JpaRepository<Order, String> {
             @Param("startTime") LocalDateTime startTime,
             @Param("endTime") LocalDateTime endTime,
             @Param("dateFormatPattern") String dateFormatPattern
+    );
+
+    @Query("SELECT SUM(o.vatAmount) FROM Order o " +
+            "WHERE o.status = :status AND o.itemType IN :itemTypes " +
+            "AND o.createdAt BETWEEN :startDate AND :endDate")
+    BigDecimal sumVatByItemTypesAndDateRange(
+            @Param("status") OrderStatus status,
+            @Param("itemTypes") List<String> itemTypes,
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate
+    );
+
+    @Query("SELECT o FROM Order o " +
+            "WHERE (:status IS NULL OR o.status = :status) " +
+            "AND (:itemType IS NULL OR o.itemType = :itemType) " +
+            "AND o.createdAt BETWEEN :startDate AND :endDate " +
+            "ORDER BY o.createdAt ASC")
+    Page<Order> filterVatOrders(
+            @Param("status") OrderStatus status,
+            @Param("itemType") String itemType,
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate,
+            Pageable pageable
     );
 }
