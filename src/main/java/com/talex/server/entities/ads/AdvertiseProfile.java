@@ -2,10 +2,7 @@ package com.talex.server.entities.ads;
 
 import com.talex.server.entities.auth.Account;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -28,6 +25,8 @@ public class AdvertiseProfile {
     private UUID profileId;
 
     @OneToOne(fetch = FetchType.LAZY)
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     @JoinColumn(name = "account_id", nullable = false, unique = true)
     private Account account;
 

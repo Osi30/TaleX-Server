@@ -11,6 +11,7 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
@@ -36,7 +37,7 @@ public class RevenueTransaction {
     private BigDecimal balanceAfter = BigDecimal.ZERO;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "change_type", nullable = false)
+    @Column(name = "change_type")
     private RevenueTransactionType revenueTransactionType;
 
     @Column(name = "description", length = 500)
@@ -53,8 +54,15 @@ public class RevenueTransaction {
     @Column(name = "reference_id")
     private String referenceId;
 
+    @Column(name = "month_year")
+    private LocalDate monthYear;
+
     @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "creator_id", nullable = false)
     private Creator creator;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "creator_monthly_settlement_id")
+    private CreatorMonthlySettlement creatorMonthlySettlement;
 }

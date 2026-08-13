@@ -18,6 +18,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -30,12 +32,15 @@ public class SubscriptionRevenueServiceImpl implements SubscriptionRevenueServic
     private final CreatorService creatorService;
     private final CreatorRepository creatorRepository;
     private final RevenueTransactionRepository revenueTransactionRepository;
+    private static final DateTimeFormatter MONTH_YEAR_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM");
+
 
     @Override
     @Transactional
-    public List<RevenueTransaction> processAndDistributePremiumRevenue(String monthYear, boolean isDemo) {
+    public List<RevenueTransaction> processAndDistributePremiumRevenue(LocalDate monthYear, boolean isDemo) {
         // 1. Lấy danh sách tổng doanh thu thô gom nhóm theo creatorId và subscriptionResultId trong tháng
-        List<CreatorRevenueData> projections = subscriptionRevenueLogRepository.findAggregatedRevenueByMonthYear(monthYear);
+        String monthYearString = monthYear.format(MONTH_YEAR_FORMATTER);
+        List<CreatorRevenueData> projections = subscriptionRevenueLogRepository.findAggregatedRevenueByMonthYear(monthYearString);
 
         if (projections.isEmpty()) {
             log.info("Không tìm thấy dữ liệu revenue logs nào trong tháng {}", monthYear);
@@ -97,6 +102,7 @@ public class SubscriptionRevenueServiceImpl implements SubscriptionRevenueServic
                     .referenceType(ReferenceType.PREMIUM_RESULT)
                     .referenceId(subscriptionResultId)
                     .creator(creator)
+                    .monthYear(monthYear)
                     .build();
 
             createdTransactions.add(transaction);

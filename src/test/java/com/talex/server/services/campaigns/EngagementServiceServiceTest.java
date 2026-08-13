@@ -9,7 +9,7 @@ import com.talex.server.exceptions.codes.campaign.EngagementErrorCode;
 import com.talex.server.exceptions.details.campaign.EngagementServiceException;
 import com.talex.server.mappers.campaign.EngagementServiceMapper;
 import com.talex.server.repositories.campaign.EngagementServiceRepository;
-import com.talex.server.services.campaign.impls.EngagementServiceService;
+import com.talex.server.services.campaign.impls.EngagementServiceServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -45,7 +45,7 @@ class EngagementServiceServiceTest {
     private EngagementServiceMapper engagementServiceMapper;
 
     @InjectMocks
-    private EngagementServiceService engagementServiceService;
+    private EngagementServiceServiceImpl engagementServiceServiceImpl;
 
     private EngagementService sampleEntity;
     private EngagementServiceRequestDto sampleRequestDto;
@@ -95,7 +95,7 @@ class EngagementServiceServiceTest {
             when(engagementServiceRepository.save(sampleEntity)).thenReturn(sampleEntity);
             when(engagementServiceMapper.toResponseDto(sampleEntity)).thenReturn(sampleResponseDto);
 
-            EngagementServiceResponseDto result = engagementServiceService.createEngagementService(sampleRequestDto);
+            EngagementServiceResponseDto result = engagementServiceServiceImpl.createEngagementService(sampleRequestDto);
 
             assertThat(result).isNotNull();
             assertThat(result.getEngagementServiceId()).isEqualTo("service-123");
@@ -127,7 +127,7 @@ class EngagementServiceServiceTest {
             when(engagementServiceMapper.toResponseDto(sampleEntity)).thenReturn(sampleResponseDto);
 
             BasePageResponse<EngagementServiceResponseDto> response =
-                    engagementServiceService.filterEngagementServices(filterRequest);
+                    engagementServiceServiceImpl.filterEngagementServices(filterRequest);
 
             assertThat(response).isNotNull();
             assertThat(response.getContent()).hasSize(1);
@@ -151,7 +151,7 @@ class EngagementServiceServiceTest {
             when(engagementServiceMapper.toResponseDto(sampleEntity)).thenReturn(sampleResponseDto);
 
             BasePageResponse<EngagementServiceResponseDto> response =
-                    engagementServiceService.filterEngagementServices(filterRequest);
+                    engagementServiceServiceImpl.filterEngagementServices(filterRequest);
 
             assertThat(response).isNotNull();
             verify(engagementServiceRepository).findAll(any(Specification.class), any(Pageable.class));
@@ -173,7 +173,7 @@ class EngagementServiceServiceTest {
             when(engagementServiceMapper.toResponseDto(sampleEntity)).thenReturn(sampleResponseDto);
 
             BasePageResponse<EngagementServiceResponseDto> response =
-                    engagementServiceService.filterEngagementServices(filterRequest);
+                    engagementServiceServiceImpl.filterEngagementServices(filterRequest);
 
             assertThat(response).isNotNull();
         }
@@ -193,7 +193,7 @@ class EngagementServiceServiceTest {
             when(engagementServiceMapper.toResponseDto(sampleEntity)).thenReturn(sampleResponseDto);
 
             BasePageResponse<EngagementServiceResponseDto> response =
-                    engagementServiceService.filterEngagementServices(filterRequest);
+                    engagementServiceServiceImpl.filterEngagementServices(filterRequest);
 
             assertThat(response).isNotNull();
         }
@@ -212,7 +212,7 @@ class EngagementServiceServiceTest {
             when(engagementServiceRepository.findByEngagementServiceIdAndIsDeletedFalse("service-123"))
                     .thenReturn(Optional.of(sampleEntity));
 
-            EngagementService result = engagementServiceService.findById("service-123");
+            EngagementService result = engagementServiceServiceImpl.findById("service-123");
 
             assertThat(result).isNotNull();
             assertThat(result.getEngagementServiceId()).isEqualTo("service-123");
@@ -224,7 +224,7 @@ class EngagementServiceServiceTest {
             when(engagementServiceRepository.findByEngagementServiceIdAndIsDeletedFalse("invalid-id"))
                     .thenReturn(Optional.empty());
 
-            assertThatThrownBy(() -> engagementServiceService.findById("invalid-id"))
+            assertThatThrownBy(() -> engagementServiceServiceImpl.findById("invalid-id"))
                     .isInstanceOf(EngagementServiceException.class)
                     .hasMessageContaining("EngagementService not found with id: invalid-id")
                     .extracting("errorCode")
@@ -238,7 +238,7 @@ class EngagementServiceServiceTest {
                     .thenReturn(Optional.of(sampleEntity));
             when(engagementServiceMapper.toResponseDto(sampleEntity)).thenReturn(sampleResponseDto);
 
-            EngagementServiceResponseDto result = engagementServiceService.getEngagementServiceById("service-123");
+            EngagementServiceResponseDto result = engagementServiceServiceImpl.getEngagementServiceById("service-123");
 
             assertThat(result).isNotNull();
             assertThat(result.getEngagementServiceId()).isEqualTo("service-123");
@@ -259,7 +259,7 @@ class EngagementServiceServiceTest {
             when(engagementServiceRepository.findByEngagementServiceIdAndIsDeletedFalse("service-123"))
                     .thenReturn(Optional.of(sampleEntity));
 
-            EngagementService result = engagementServiceService.findActive("service-123");
+            EngagementService result = engagementServiceServiceImpl.findActive("service-123");
 
             assertThat(result).isNotNull();
             assertThat(result.getIsActive()).isTrue();
@@ -272,7 +272,7 @@ class EngagementServiceServiceTest {
             when(engagementServiceRepository.findByEngagementServiceIdAndIsDeletedFalse("service-123"))
                     .thenReturn(Optional.of(sampleEntity));
 
-            assertThatThrownBy(() -> engagementServiceService.findActive("service-123"))
+            assertThatThrownBy(() -> engagementServiceServiceImpl.findActive("service-123"))
                     .isInstanceOf(EngagementServiceException.class)
                     .hasMessageContaining("Active engagementService not found with id: service-123")
                     .extracting("errorCode")
@@ -297,7 +297,7 @@ class EngagementServiceServiceTest {
             when(engagementServiceMapper.toResponseDto(sampleEntity)).thenReturn(sampleResponseDto);
 
             EngagementServiceResponseDto result =
-                    engagementServiceService.updateEngagementService("service-123", sampleRequestDto);
+                    engagementServiceServiceImpl.updateEngagementService("service-123", sampleRequestDto);
 
             assertThat(result).isNotNull();
             verify(engagementServiceMapper).updateEntity(sampleRequestDto, sampleEntity);
@@ -310,7 +310,7 @@ class EngagementServiceServiceTest {
             when(engagementServiceRepository.findByEngagementServiceIdAndIsDeletedFalse("invalid-id"))
                     .thenReturn(Optional.empty());
 
-            assertThatThrownBy(() -> engagementServiceService.updateEngagementService("invalid-id", sampleRequestDto))
+            assertThatThrownBy(() -> engagementServiceServiceImpl.updateEngagementService("invalid-id", sampleRequestDto))
                     .isInstanceOf(EngagementServiceException.class);
 
             verify(engagementServiceRepository, never()).save(any());
@@ -330,7 +330,7 @@ class EngagementServiceServiceTest {
             when(engagementServiceRepository.findByEngagementServiceIdAndIsDeletedFalse("service-123"))
                     .thenReturn(Optional.of(sampleEntity));
 
-            engagementServiceService.deleteEngagementService("service-123");
+            engagementServiceServiceImpl.deleteEngagementService("service-123");
 
             ArgumentCaptor<EngagementService> captor = ArgumentCaptor.forClass(EngagementService.class);
             verify(engagementServiceRepository).save(captor.capture());
@@ -345,7 +345,7 @@ class EngagementServiceServiceTest {
             when(engagementServiceRepository.findByEngagementServiceIdAndIsDeletedFalse("invalid-id"))
                     .thenReturn(Optional.empty());
 
-            assertThatThrownBy(() -> engagementServiceService.deleteEngagementService("invalid-id"))
+            assertThatThrownBy(() -> engagementServiceServiceImpl.deleteEngagementService("invalid-id"))
                     .isInstanceOf(EngagementServiceException.class);
 
             verify(engagementServiceRepository, never()).save(any());

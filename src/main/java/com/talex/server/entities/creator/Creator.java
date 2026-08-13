@@ -3,10 +3,7 @@ package com.talex.server.entities.creator;
 import com.talex.server.entities.auth.Account;
 import com.talex.server.entities.analytic.AnalyticData;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -63,9 +60,13 @@ public class Creator {
 
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "account_id", nullable = false, unique = true)
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private Account account;
 
     @OneToOne(mappedBy = "creator")
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private CreatorIdentity creatorIdentity;
 
     @OneToMany(mappedBy = "creator", cascade = CascadeType.ALL, orphanRemoval = true)
@@ -73,5 +74,7 @@ public class Creator {
 
     @OneToMany(mappedBy = "creator", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private List<RevenueTransaction> revenueTransactions = new ArrayList<>();
 }

@@ -19,7 +19,6 @@ public class CreatorSettlementScheduler {
      */
     @Scheduled(cron = "0 0 0 2 * *")
     public void processMonthlyCreatorSettlementCron() {
-        log.info("Starting scheduled monthly Creator Settlement calculation job (Day 2 of month)...");
         try {
             creatorSettlementService.processMonthlySettlement(false);
             log.info("Successfully completed monthly Creator Settlement calculation job.");

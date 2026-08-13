@@ -87,9 +87,7 @@ public class SubscriptionScheduler {
      */
     @Scheduled(cron = "0 0 1 1 * *")
     public void processMonthlyCreatorRevenuePayout() {
-        String previousMonthYear = LocalDate.now().minusMonths(1).format(MONTH_YEAR_FORMATTER);
-        log.info("Starting scheduled monthly Creator Premium Revenue payout for month: {}", previousMonthYear);
-
+        LocalDate previousMonthYear = LocalDate.now().minusMonths(1).withDayOfMonth(1);
         try {
             subscriptionRevenueService.processAndDistributePremiumRevenue(previousMonthYear, false);
             log.info("Successfully completed Creator Premium Revenue payout for month: {}", previousMonthYear);

@@ -1,5 +1,5 @@
 package com.talex.server.enums.transaction;
 
 public enum ReferenceType {
-    ORDER, SETTLEMENT, PREMIUM_RESULT
+    ORDER, SETTLEMENT, PREMIUM_RESULT, PENALTY
 }

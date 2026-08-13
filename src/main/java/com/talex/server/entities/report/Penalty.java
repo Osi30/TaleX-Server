@@ -11,6 +11,7 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
@@ -62,6 +63,10 @@ public class Penalty {
     @UpdateTimestamp
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    @Column(name = "fine_amount")
+    @Builder.Default
+    private BigDecimal fineAmount = BigDecimal.ZERO;
 
     @OneToOne(mappedBy = "penalty", cascade = CascadeType.ALL, orphanRemoval = true)
     private Appeal appeal;

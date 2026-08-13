@@ -4,10 +4,7 @@ import com.talex.server.entities.ads.AdvertiseProfile;
 import com.talex.server.entities.subscription.AccountSubscription;
 import com.talex.server.enums.AccountStatus;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -95,5 +92,7 @@ public class Account {
     private Boolean is7d = false;
 
     @OneToOne(mappedBy = "account", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private AdvertiseProfile advertiseProfile;
 }

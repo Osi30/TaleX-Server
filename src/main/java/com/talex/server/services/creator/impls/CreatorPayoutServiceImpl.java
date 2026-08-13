@@ -2,11 +2,16 @@ package com.talex.server.services.creator.impls;
 
 import com.talex.server.dtos.payout.request.BatchPayoutRequestDto;
 import com.talex.server.dtos.payout.request.PayoutItemRequestDto;
+import com.talex.server.dtos.payout.response.BatchPayoutDataResponseDto;
+import com.talex.server.dtos.payout.response.PayoutTransactionResponseDto;
 import com.talex.server.dtos.responses.creator.PaymentProfileResponseDto;
 import com.talex.server.entities.creator.Creator;
 import com.talex.server.entities.creator.CreatorMonthlySettlement;
+import com.talex.server.entities.creator.PayoutTransaction;
+import com.talex.server.enums.PayoutStatus;
 import com.talex.server.enums.transaction.SettlementStatus;
 import com.talex.server.repositories.creator.CreatorMonthlySettlementRepository;
+import com.talex.server.repositories.transaction.PayoutTransactionRepository;
 import com.talex.server.services.creator.CreatorPayoutService;
 import com.talex.server.services.creator.PaymentProfileService;
 import com.talex.server.services.payout.PayoutService;
@@ -15,6 +20,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -25,6 +32,7 @@ import java.util.UUID;
 public class CreatorPayoutServiceImpl implements CreatorPayoutService {
 
     private final CreatorMonthlySettlementRepository settlementRepository;
+    private final PayoutTransactionRepository payoutTransactionRepository;
     private final PaymentProfileService paymentProfileService;
     private final PayoutService payoutService;
 
@@ -33,9 +41,9 @@ public class CreatorPayoutServiceImpl implements CreatorPayoutService {
     public BatchPayoutRequestDto processMonthlyPayout(String monthYear, boolean isDemo) {
         log.info("Bắt đầu chuẩn bị lô Payout quyết toán cho tháng: {} (isDemo: {})", monthYear, isDemo);
 
-        // 1. Lấy danh sách CreatorMonthlySettlement có status = CALCULATED trong tháng truyền vào
+        // 1. Lấy danh sách CreatorMonthlySettlement có status = APPROVED trong tháng truyền vào
         List<CreatorMonthlySettlement> settlements = settlementRepository
-                .findBySettlementMonthAndStatus(monthYear, SettlementStatus.CALCULATED);
+                .findBySettlementMonthAndStatus(monthYear, SettlementStatus.APPROVED);
 
         if (settlements.isEmpty()) {
             log.info("Không tìm thấy bản ghi CreatorMonthlySettlement nào ở trạng thái CALCULATED trong tháng {}", monthYear);
@@ -68,7 +76,7 @@ public class CreatorPayoutServiceImpl implements CreatorPayoutService {
             }
 
             // Chuyển đổi netPayoutAmount (BigDecimal) sang Long
-            Long amountToPay = settlement.getNetPayoutAmount() != null
+            long amountToPay = settlement.getNetPayoutAmount() != null
                     ? settlement.getNetPayoutAmount().longValue()
                     : 0L;
 
@@ -108,6 +116,114 @@ public class CreatorPayoutServiceImpl implements CreatorPayoutService {
         if (!payoutItems.isEmpty()) {
             payoutService.createBatchPayout(batchPayoutRequest);
             log.info("Đã gửi lô lệnh chi thành công tới PayoutService");
+        }
+
+        return batchPayoutRequest;
+    }
+
+    @Override
+    @Transactional
+    public BatchPayoutRequestDto processSingleSettlementPayout(String settlementId, boolean isDemo) {
+        // 1. Lấy bản ghi Settlement theo ID
+        CreatorMonthlySettlement settlement = settlementRepository.findByCreatorMonthlySettlementId(settlementId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy bản ghi quyết toán với ID: " + settlementId));
+
+        // 2. Validate trạng thái APPROVED
+        if (settlement.getStatus() != SettlementStatus.APPROVED) {
+            throw new IllegalStateException(
+                    String.format("Bản ghi quyết toán %s không ở trạng thái APPROVED (Trạng thái hiện tại: %s)",
+                            settlementId, settlement.getStatus())
+            );
+        }
+
+        // 3. Lấy Creator và Account liên kết
+        Creator creator = settlement.getCreator();
+        if (creator == null || creator.getAccount() == null) {
+            throw new IllegalStateException("Không tìm thấy thông tin Creator/Account liên kết với Settlement ID: " + settlementId);
+        }
+
+        UUID accountId = creator.getAccount().getAccountId();
+
+        // 4. Lấy thông tin Ngân hàng chính (Primary Payment Profile)
+        PaymentProfileResponseDto primaryProfile = paymentProfileService.getPrimaryProfile(accountId);
+        if (primaryProfile == null) {
+            throw new IllegalStateException("CreatorId: " + creator.getCreatorId() + " chưa thiết lập PaymentProfile chính");
+        }
+
+        // 5. Kiểm tra số tiền Net Payout
+        long amountToPay = settlement.getNetPayoutAmount() != null
+                ? settlement.getNetPayoutAmount().longValue()
+                : 0L;
+
+        if (amountToPay <= 0) {
+            throw new IllegalStateException("Số tiền netPayoutAmount <= 0 đối với Settlement ID: " + settlementId);
+        }
+
+        // 6. Tạo lệnh chi lẻ PayoutItemRequestDto
+        String batchRefId = "SINGLE_PAYOUT_" + settlementId + "_" + System.currentTimeMillis();
+        PayoutItemRequestDto item = PayoutItemRequestDto.builder()
+                .referenceId(settlement.getCreatorMonthlySettlementId())
+                .amount(amountToPay)
+                .description("Settlement - " + settlement.getSettlementMonth())
+                .toBin(primaryProfile.getBankCode().getBin())
+                .toAccountNumber(primaryProfile.getAccountNumber())
+                .build();
+
+        // 7. Đóng gói thành BatchPayoutRequestDto với 1 item
+        BatchPayoutRequestDto batchPayoutRequest = BatchPayoutRequestDto.builder()
+                .referenceId(batchRefId)
+                .validateDestination(true)
+                .payouts(List.of(item))
+                .build();
+
+        // 8. Nếu là Demo (isDemo = true), dừng lại và trả về Object DTO để kiểm tra
+        if (isDemo) {
+            log.info("[DEMO MODE] Trả về cấu trúc BatchPayoutRequestDto đơn lẻ mà KHÔNG gửi qua PayOS.");
+            return batchPayoutRequest;
+        }
+
+        // 9. Nếu không phải Demo (isDemo = false), gọi PayoutService thực hiện gửi lệnh chi thật
+        PayoutTransaction payoutTxn = PayoutTransaction.builder()
+                .batchReferenceId(batchRefId)
+                .transactionReferenceId(settlement.getCreatorMonthlySettlementId())
+                .amount(BigDecimal.valueOf(amountToPay))
+                .status(PayoutStatus.PENDING)
+                .toBin(primaryProfile.getBankCode())
+                .toAccountNumber(primaryProfile.getAccountNumber())
+                .toAccountName(primaryProfile.getAccountName())
+                .creatorMonthlySettlement(settlement)
+                .build();
+
+        // 9. Thực thi gọi PayoutService trong khối try-catch
+        try {
+            BatchPayoutDataResponseDto response = payoutService.createBatchPayout(batchPayoutRequest);
+
+            // Kiểm tra response chứa danh sách transactions thành công
+            if (response != null && response.getTransactions() != null && !response.getTransactions().isEmpty()) {
+                PayoutTransactionResponseDto gatewayTxn = response.getTransactions().getFirst();
+
+                // Cập nhật PayoutTransaction -> SUCCESS
+                payoutTxn.setStatus(PayoutStatus.SUCCESS);
+                payoutTxn.setGatewayBatchId(response.getId());
+                payoutTxn.setPayoutReference(gatewayTxn.getId());
+                payoutTxn.setPaidAt(LocalDateTime.now());
+                payoutTransactionRepository.save(payoutTxn);
+
+                // Cập nhật CreatorMonthlySettlement -> PAID
+                settlement.setStatus(SettlementStatus.PAID);
+                settlementRepository.save(settlement);
+
+            } else {
+                // Gateway trả về response không thành công hoặc rỗng
+                payoutTxn.setStatus(PayoutStatus.FAILED);
+                payoutTxn.setFailureReason("Cổng thanh toán không trả về giao dịch hợp lệ");
+                payoutTransactionRepository.save(payoutTxn);
+            }
+        } catch (Exception e) {
+            payoutTxn.setStatus(PayoutStatus.FAILED);
+            payoutTxn.setFailureReason(e.getMessage());
+            payoutTransactionRepository.save(payoutTxn);
+            throw new RuntimeException("Thực thi chuyển tiền Payout thất bại: " + e.getMessage(), e);
         }
 
         return batchPayoutRequest;

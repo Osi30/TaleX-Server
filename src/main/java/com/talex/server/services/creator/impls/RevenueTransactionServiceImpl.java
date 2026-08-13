@@ -21,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -111,6 +112,7 @@ public class RevenueTransactionServiceImpl implements RevenueTransactionService 
                 .referenceType(ReferenceType.ORDER)
                 .referenceId(order.getOrderId())
                 .creator(creatorEntity)
+                .monthYear(LocalDate.now())
                 .build();
 
         RevenueTransaction savedTransaction = revenueTransactionRepository.save(revenueTransaction);

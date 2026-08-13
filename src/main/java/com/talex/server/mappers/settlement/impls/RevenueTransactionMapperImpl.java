@@ -1,0 +1,37 @@
+package com.talex.server.mappers.settlement.impls;
+
+import com.talex.server.dtos.revenue.response.RevenueTransactionDto;
+import com.talex.server.entities.creator.RevenueTransaction;
+import com.talex.server.mappers.settlement.RevenueTransactionMapper;
+import org.springframework.stereotype.Component;
+
+import java.util.List;
+import java.util.stream.Collectors;
+
+@Component
+public class RevenueTransactionMapperImpl implements RevenueTransactionMapper {
+
+    @Override
+    public RevenueTransactionDto toDto(RevenueTransaction entity) {
+        if (entity == null) return null;
+
+        return RevenueTransactionDto.builder()
+                .revenueTransactionId(entity.getRevenueTransactionId())
+                .amount(entity.getAmount())
+                .revenueTransactionType(entity.getRevenueTransactionType())
+                .description(entity.getDescription())
+                .monthYear(entity.getMonthYear())
+                .createdAt(entity.getCreatedAt())
+                .build();
+    }
+
+    @Override
+    public List<RevenueTransactionDto> toListDto(List<RevenueTransaction> entities) {
+        if (entities == null || entities.isEmpty()) {
+            return List.of();
+        }
+        return entities.stream()
+                .map(this::toDto)
+                .collect(Collectors.toList());
+    }
+}
