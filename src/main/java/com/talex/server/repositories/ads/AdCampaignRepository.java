@@ -17,6 +17,8 @@ public interface AdCampaignRepository extends JpaRepository<AdCampaign, UUID> {
     
     List<AdCampaign> findByStatusOrderByCreatedAtDesc(AdCampaignStatus status);
     
+    List<AdCampaign> findByStatusIn(List<AdCampaignStatus> statuses);
+    
     @Query("SELECT c FROM AdCampaign c WHERE c.status = 'ACTIVE' AND c.slot.codeName = :slotCode AND c.campaignBalance > 0 AND (c.startDate IS NULL OR c.startDate <= CURRENT_TIMESTAMP) AND (c.endDate IS NULL OR c.endDate >= CURRENT_TIMESTAMP)")
     List<AdCampaign> findActiveCampaignsForSlot(@Param("slotCode") String slotCode);
 }

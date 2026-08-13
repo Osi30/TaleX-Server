@@ -453,4 +453,40 @@ public class AdCampaignServiceImpl implements AdCampaignService {
             }
         }
     }
+
+    @Override
+    @Transactional
+    public void processCampaignLifecycle() {
+        List<AdCampaignStatus> statuses = java.util.List.of(AdCampaignStatus.ACTIVE, AdCampaignStatus.PAUSED);
+        List<AdCampaign> activeCampaigns = campaignRepository.findByStatusIn(statuses);
+        
+        java.time.LocalDateTime now = java.time.LocalDateTime.now();
+        for (AdCampaign campaign : activeCampaigns) {
+            boolean shouldComplete = false;
+            String reason = "";
+
+            if (campaign.getEndDate() != null && campaign.getEndDate().isBefore(now)) {
+                shouldComplete = true;
+                reason = "Campaign end date reached";
+            } else if (campaign.getCampaignBalance() != null && campaign.getCampaignBalance() <= 0) {
+                shouldComplete = true;
+                reason = "Campaign budget exhausted";
+            } else if (campaign.getTargetImpressions() != null && campaign.getTargetImpressions() > 0 && 
+                       campaign.getCurrentImpressions() >= campaign.getTargetImpressions()) {
+                shouldComplete = true;
+                reason = "Target impressions reached";
+            }
+
+            if (shouldComplete) {
+                campaign.setStatus(AdCampaignStatus.COMPLETED);
+                
+                if (campaign.getCampaignBalance() != null && campaign.getCampaignBalance() > 0) {
+                    walletService.refundHeldFunds(campaign.getProfile().getProfileId(), campaign.getCampaignBalance(), campaign.getCampaignId(), "Refund remaining budget: " + reason);
+                    campaign.setCampaignBalance(0L);
+                }
+                
+                campaignRepository.save(campaign);
+            }
+        }
+    }
 }
