@@ -48,6 +48,12 @@ public class ViolationDetail extends BaseAudit {
     @Column(length = 100)
     private String label;
 
+    // Nhóm L1 gốc từ AWS Rekognition (VD "Violence") — dùng để đối chiếu với
+    // Series.contentWarnings khi quyết định tự động duyệt hay đẩy Staff review
+    // (xem ContentPipelineServiceImpl.mapParentLabelToGroup()).
+    @Column(name = "parent_label", length = 100)
+    private String parentLabel;
+
     private Float confidence;
 
     @Column(columnDefinition = "TEXT")

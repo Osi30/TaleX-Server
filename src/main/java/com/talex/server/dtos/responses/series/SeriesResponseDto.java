@@ -2,6 +2,7 @@ package com.talex.server.dtos.responses.series;
 
 import com.talex.server.entities.analytic.AnalyticData;
 import com.talex.server.enums.series.ContentType;
+import com.talex.server.enums.series.ContentWarningGroup;
 import com.talex.server.enums.series.SeriesStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -10,6 +11,7 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
 
 @Data
 @Builder
@@ -29,6 +31,7 @@ public class SeriesResponseDto {
     private ContentType contentType;
     private SeriesStatus status;
     private String ageRating;
+    private Set<ContentWarningGroup> contentWarnings;
     private String language;
     private AnalyticData analyticData = new AnalyticData();
     private Double averageRating = 0.0;

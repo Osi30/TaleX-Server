@@ -354,6 +354,11 @@ public class SeriesServiceImpl implements SeriesService {
             series.setReleasedUpdateTime(java.time.LocalDateTime.now());
         }
         series.setAgeRating(request.getAgeRating());
+        // null = FE không gửi field này (client cũ) — giữ nguyên giá trị hiện có, giống
+        // pattern null-check của categoryIds/tagIds ở syncCategories/syncTags bên dưới.
+        if (request.getContentWarnings() != null) {
+            series.setContentWarnings(request.getContentWarnings());
+        }
         series.setLanguage(request.getLanguage());
     }
 

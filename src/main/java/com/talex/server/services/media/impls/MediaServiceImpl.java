@@ -202,7 +202,6 @@ public class MediaServiceImpl implements MediaService {
         // Admin xem video source bị nghi trùng bản quyền) — xem lý do ký ở toAdminPreviewResponse().
         return toAdminPreviewResponse(media);
     }
-
     @Transactional(readOnly = true)
     @Override
     public MediaResponseDto getPublicById(String id, String viewerId) {
@@ -559,9 +558,17 @@ public class MediaServiceImpl implements MediaService {
         // chờ Staff duyệt, xem ContentPipelineServiceImpl), Staff duyệt xong media vẫn
         // kẹt INACTIVE vĩnh viễn, không ai xem lại được (kể cả Creator/viewer công khai).
         if (media.getStatus() == MediaStatus.INACTIVE) {
-            // VIDEO: status bị ContentPipelineServiceImpl ghi đè thành INACTIVE KHÔNG
-            // ĐIỀU KIỆN khi bị flag chờ Staff — kể cả khi transcode HLS còn đang chạy dở
-            // (kiểm duyệt và transcode chạy song song, kiểm duyệt thường xong trước).
+            // VIDEO: từ khi ContentPipelineServiceImpl.handleCopyrightResult() hoãn hẳn việc
+            // gọi createHlsPackaging() cho media đã bị Moderation flag (tránh ghi đè mất
+            // INACTIVE — xem comment ở đó), providerAssetId sẽ vẫn NULL (field này CHỈ được
+            // set bên trong createHlsPackaging(), xem S3MediaProviderService) — nghĩa là
+            // transcode CHƯA TỪNG được submit, không phải "đang chạy dở". Phải tự bắt đầu
+            // ở đây, nếu không video sẽ kẹt INACTIVE vĩnh viễn dù Staff đã duyệt xong.
+            if (media.getMediaType() == MediaType.VIDEO
+                    && media.getProvider() == MediaProvider.AWS
+                    && media.getProviderAssetId() == null) {
+                mediaPackagingService.createHlsPackaging(media);
+            }
             // Dùng hlsReadyAt (field riêng, chỉ SqsMediaEventPoller.markHlsReady() ghi,
             // không bao giờ bị luồng kiểm duyệt đụng vào) để biết CHẮC CHẮN transcode đã
             // xong chưa — không suy đoán qua status như trước (dễ sai cả 2 chiều: chuyển
@@ -571,9 +578,10 @@ public class MediaServiceImpl implements MediaService {
             if (hlsAlreadyReady) {
                 media.setStatus(MediaStatus.ACTIVE);
             }
-            // Video chưa xong transcode: giữ nguyên INACTIVE — approvalStatus đã APPROVED
-            // ở trên, SqsMediaEventPoller.markHlsReady() sẽ tự chuyển ACTIVE khi transcode
-            // xong thật (đã có check approvalStatus==APPROVED từ trước).
+            // Video chưa xong transcode (dù đã tự submit ngay ở trên, hay đã chạy từ trước):
+            // giữ nguyên INACTIVE — approvalStatus đã APPROVED ở trên, SqsMediaEventPoller.
+            // markHlsReady() sẽ tự chuyển ACTIVE khi transcode xong thật (đã có check
+            // approvalStatus==APPROVED từ trước).
         }
         media.markUpdatedBy(actorId);
         return toResponse(mediaRepository.save(media));
@@ -998,7 +1006,8 @@ public class MediaServiceImpl implements MediaService {
                 .updatedBy(media.getUpdatedBy())
                 .deletedBy(media.getDeletedBy())
                 .isDeleted(media.getIsDeleted())
-                .contentId(media.getContentId());
+                .contentId(media.getContentId())
+                .hasWatermark(media.getHasWatermark());
     }
 
     private MediaCopyrightResponseDto mapCopyrightToDto(MediaCopyright entity, boolean privileged) {

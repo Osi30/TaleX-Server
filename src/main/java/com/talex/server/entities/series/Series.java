@@ -5,13 +5,16 @@ import com.talex.server.entities.BaseTimeEntity;
 import com.talex.server.entities.analytic.TrendingAnalyticData;
 import com.talex.server.entities.creator.Creator;
 import com.talex.server.enums.series.ContentType;
+import com.talex.server.enums.series.ContentWarningGroup;
 import com.talex.server.enums.series.SeriesStatus;
 import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Entity
 @Table(
@@ -52,6 +55,16 @@ public class Series extends BaseTimeEntity {
 
     @Column(name = "age_rating", length = 50)
     private String ageRating;
+
+    // Creator tự khai nhóm nội dung nhạy cảm mà series CÓ (VD bạo lực, khỏa thân) — tách
+    // biệt hoàn toàn khỏi seriesCategories/seriesTags (dùng để tìm kiếm, không phản ánh
+    // đúng nội dung nhạy cảm thật). Dùng ở ContentPipelineServiceImpl để quyết định tự động
+    // duyệt hay đẩy Staff review khi AI phát hiện nhãn nhạy cảm khớp nhóm đã khai + đủ 18+.
+    @ElementCollection(targetClass = ContentWarningGroup.class, fetch = FetchType.LAZY)
+    @CollectionTable(name = "series_content_warnings", joinColumns = @JoinColumn(name = "series_id"))
+    @Enumerated(EnumType.STRING)
+    @Column(name = "content_warning_group", length = 30)
+    private Set<ContentWarningGroup> contentWarnings = new HashSet<>();
 
     @Column(length = 20)
     private String language;

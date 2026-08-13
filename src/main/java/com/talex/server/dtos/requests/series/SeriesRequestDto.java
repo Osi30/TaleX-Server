@@ -1,6 +1,7 @@
 package com.talex.server.dtos.requests.series;
 
 import com.talex.server.enums.series.ContentType;
+import com.talex.server.enums.series.ContentWarningGroup;
 import com.talex.server.enums.series.SeriesStatus;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -9,6 +10,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.util.List;
+import java.util.Set;
 
 @Data
 @NoArgsConstructor
@@ -32,6 +34,8 @@ public class SeriesRequestDto {
     private SeriesStatus status;
 
     private String ageRating;
+
+    private Set<ContentWarningGroup> contentWarnings;
 
     private String language;
 
