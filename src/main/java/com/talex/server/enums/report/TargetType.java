@@ -1,5 +1,5 @@
 package com.talex.server.enums.report;
 
 public enum TargetType {
-    EPISODE, SERIES, ACCOUNT, COMMENT
+    EPISODE, SERIES, ACCOUNT, COMMENT, OTHER
 }

@@ -24,5 +24,6 @@ public class ReportRequestDto {
     private ReportReason reason;
 
     private String description;
-    private String proofImages;
+    private java.util.List<String> proofImages;
+    private java.util.List<String> proofVideos;
 }
