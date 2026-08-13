@@ -188,7 +188,11 @@ public interface MediaRepository extends JpaRepository<Media, String> {
             + "     OR LOWER(m.episode.season.title) LIKE :keyword "
             + "     OR LOWER(m.episode.season.series.title) LIKE :keyword "
             + "     OR LOWER(m.mediaId) LIKE :keyword) "
-            + "GROUP BY m.episode.episodeId ORDER BY MAX(m.approvalReviewedAt) DESC",
+            // NULLS LAST tường minh — Postgres mặc định coi NULL là "lớn nhất" nên NULL tự
+            // trồi lên ĐẦU trong ORDER BY DESC, làm media chưa từng có approvalReviewedAt
+            // (VD dữ liệu cũ/seed) đứng trước cả nội dung vừa duyệt thật, ngược hẳn ý đồ
+            // "duyệt gần nhất lên đầu" của tab này.
+            + "GROUP BY m.episode.episodeId ORDER BY MAX(m.approvalReviewedAt) DESC NULLS LAST",
             countQuery = "SELECT COUNT(DISTINCT m.episode.episodeId) FROM Media m "
                     + "WHERE m.approvalStatus = :approvalStatus AND m.status IN :statuses AND m.isDeleted = false "
                     + "AND (:mediaType IS NULL OR m.mediaType = :mediaType) "
@@ -226,7 +230,11 @@ public interface MediaRepository extends JpaRepository<Media, String> {
             + "     OR LOWER(m.episode.season.title) LIKE :keyword "
             + "     OR LOWER(m.episode.season.series.title) LIKE :keyword "
             + "     OR LOWER(m.mediaId) LIKE :keyword) "
-            + "GROUP BY m.episode.episodeId ORDER BY MAX(m.approvalReviewedAt) DESC",
+            // NULLS LAST tường minh — Postgres mặc định coi NULL là "lớn nhất" nên NULL tự
+            // trồi lên ĐẦU trong ORDER BY DESC, làm media chưa từng có approvalReviewedAt
+            // (VD dữ liệu cũ/seed) đứng trước cả nội dung vừa duyệt thật, ngược hẳn ý đồ
+            // "duyệt gần nhất lên đầu" của tab này.
+            + "GROUP BY m.episode.episodeId ORDER BY MAX(m.approvalReviewedAt) DESC NULLS LAST",
             countQuery = "SELECT COUNT(DISTINCT m.episode.episodeId) FROM Media m "
                     + "WHERE m.approvalStatus = :approvalStatus AND m.status IN :statuses AND m.isDeleted = false "
                     + "AND m.approvalReviewedBy IS NOT NULL AND m.approvalReviewedBy <> :pipelineActor "
@@ -264,7 +272,11 @@ public interface MediaRepository extends JpaRepository<Media, String> {
             + "     OR LOWER(m.episode.season.title) LIKE :keyword "
             + "     OR LOWER(m.episode.season.series.title) LIKE :keyword "
             + "     OR LOWER(m.mediaId) LIKE :keyword) "
-            + "GROUP BY m.episode.episodeId ORDER BY MAX(m.approvalReviewedAt) DESC",
+            // NULLS LAST tường minh — Postgres mặc định coi NULL là "lớn nhất" nên NULL tự
+            // trồi lên ĐẦU trong ORDER BY DESC, làm media chưa từng có approvalReviewedAt
+            // (VD dữ liệu cũ/seed) đứng trước cả nội dung vừa duyệt thật, ngược hẳn ý đồ
+            // "duyệt gần nhất lên đầu" của tab này.
+            + "GROUP BY m.episode.episodeId ORDER BY MAX(m.approvalReviewedAt) DESC NULLS LAST",
             countQuery = "SELECT COUNT(DISTINCT m.episode.episodeId) FROM Media m "
                     + "WHERE m.approvalStatus = :approvalStatus AND m.status IN :statuses AND m.isDeleted = false "
                     + "AND (m.approvalReviewedBy IS NULL OR m.approvalReviewedBy = :pipelineActor) "
