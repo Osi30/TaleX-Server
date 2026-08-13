@@ -688,7 +688,11 @@ public class MediaServiceImpl implements MediaService {
         if (media.getMediaType() == MediaType.VIDEO && media.getProviderPublicId() != null) {
             mediaProviderService.deleteAsset(media);
         }
-        contentPipelineService.notifyMediaDeleted(media.getMediaId());
+        // KHÔNG gọi notifyMediaDeleted() — cố tình GIỮ LẠI fingerprint trong Milvus dù media
+        // đã xóa, cùng nguyên tắc với cascade xóa Episode/Series (ContentCascadeDeleteHelper):
+        // registry content-ID sống độc lập với vòng đời bản ghi Media, để chống 1 kẻ đạo nhái
+        // upload lại đúng nội dung này sau khi chủ gốc xóa media — nếu dọn Milvus ở đây, cluster
+        // mất dòng "sạch" duy nhất, kẻ đạo nhái upload lại sẽ tự trở thành chủ sở hữu mới.
         // Dọn bản ghi review/vi phạm còn treo cho media này — nếu không, ContentCensorship/
         // MediaCopyright PENDING mồ côi vẫn nằm trong DB trỏ tới media đã xóa. Hiện tại được
         // "bảo vệ nhờ may mắn" vì hàng đợi Staff lọc theo Media.status nên không hiển thị ra,

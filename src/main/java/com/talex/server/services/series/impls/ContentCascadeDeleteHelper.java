@@ -24,7 +24,9 @@ import java.util.stream.Collectors;
  * Không cascade sang Milvus fingerprint hay xóa file provider (S3/CloudFront) — chỉ soft
  * delete tầng DB. Fingerprint được giữ lại có chủ đích để vẫn bắt được nội dung đạo nhái
  * nếu ai đó re-upload lại đúng nội dung đã xóa (đây là quyết định nghiệp vụ, không phải
- * thiếu sót — xem notifyMediaDeleted() chỉ được gọi ở luồng xóa Media trực tiếp).
+ * thiếu sót). MediaServiceImpl.delete() (xóa Media trực tiếp) áp dụng CÙNG nguyên tắc này —
+ * cũng không dọn Milvus, để không mở lỗ hổng cho kẻ đạo nhái "chiếm quyền sở hữu" 1 cluster
+ * nội dung ngay sau khi chủ gốc xóa media (fingerprint là dòng "sạch" duy nhất của cluster).
  * <p>
  * CÓ dọn ContentCensorship/MediaCopyright (bản ghi review vi phạm chờ Staff duyệt) — khác
  * với fingerprint Milvus, các bản ghi review này không có giá trị giữ lại khi media cha đã

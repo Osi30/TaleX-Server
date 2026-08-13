@@ -92,22 +92,19 @@ public class ContentPipelineServiceImpl implements ContentPipelineService {
     public void handleCopyrightResult(CopyrightResultMessage result) {
         Optional<Media> mediaOpt = mediaRepository.findByMediaIdAndIsDeletedFalse(result.getMediaId());
         if (mediaOpt.isEmpty()) {
-            // "Không tìm thấy" có 2 nguyên nhân KHÔNG phân biệt được nếu chỉ dựa vào
-            // isEmpty(): (a) media đã bị soft-delete TRONG LÚC job bản quyền đang xử lý
-            // (2 topic content-pipeline-job/content-media-delete không đảm bảo thứ tự,
-            // lệnh xóa có thể chạy TRƯỚC khi AI kịp insert fingerprint, để lại fingerprint
-            // mồ côi), hoặc (b) mediaId hoàn toàn xa lạ với môi trường này (message từ môi
-            // trường khác lẫn vào do trùng topic/group, message cũ bị replay...). Trước đây
-            // code coi cả 2 trường hợp là (a) và luôn gửi lại lệnh xóa — đã từng gây xóa
-            // nhầm fingerprint của môi trường khác. Tra thêm 1 lần KHÔNG lọc isDeleted để
-            // phân biệt: chỉ khi row tồn tại VÀ đã soft-delete mới là race hợp lệ.
+            // "Không tìm thấy" có 2 nguyên nhân: (a) media đã bị soft-delete TRONG LÚC job
+            // bản quyền đang xử lý (2 topic content-pipeline-job/content-media-delete không
+            // đảm bảo thứ tự, lệnh xóa có thể chạy TRƯỚC khi AI kịp insert fingerprint), hoặc
+            // (b) mediaId hoàn toàn xa lạ với môi trường này (message từ môi trường khác lẫn
+            // vào do trùng topic/group, message cũ bị replay...). Cả 2 case đều KHÔNG dọn
+            // Milvus — fingerprint của media đã xóa cố tình được giữ lại để chống re-upload
+            // đạo nhái (xem notifyMediaDeleted() không còn được gọi từ MediaServiceImpl.delete()
+            // nữa, cùng lý do). Tra thêm 1 lần KHÔNG lọc isDeleted chỉ để log rõ nguyên nhân.
             Optional<Media> anyOpt = mediaRepository.findByMediaId(result.getMediaId());
             if (anyOpt.isPresent() && Boolean.TRUE.equals(anyOpt.get().getIsDeleted())) {
-                log.warn("Copyright result for soft-deleted mediaId={} — re-sending cleanup", result.getMediaId());
-                notifyMediaDeleted(result.getMediaId());
+                log.info("Copyright result for soft-deleted mediaId={} — fingerprint intentionally kept in Milvus", result.getMediaId());
             } else {
-                log.warn("Copyright result for mediaId={} unknown to this environment — ignoring (no cleanup fired)",
-                        result.getMediaId());
+                log.warn("Copyright result for mediaId={} unknown to this environment — ignoring", result.getMediaId());
             }
             return;
         }
