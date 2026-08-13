@@ -70,15 +70,17 @@ public class ReportServiceImpl implements ReportService {
         Report savedReport = reportRepository.save(report);
 
         // 4. Ghi Audit Log
-        questDBSender.table("report_logs")
-                .symbol("ticket_id", ticket.getTicketId())
-                .symbol("actor_id", currentUserId)
-                .symbol("report_role", role)
-                .symbol("action_type", AuditActionType.REPORT_SUBMITTED.toString())
-                .symbol("target_type", requestDto.getTargetType().toString())
-                .symbol("target_id", requestDto.getTargetId())
-                .symbol("payload", "Submitted report: " + requestDto.getReason())
-                .at(Instant.now());
+        synchronized (questDBSender) {
+            questDBSender.table("report_logs")
+                    .symbol("ticket_id", ticket.getTicketId())
+                    .symbol("actor_id", currentUserId)
+                    .symbol("report_role", role)
+                    .symbol("action_type", AuditActionType.REPORT_SUBMITTED.toString())
+                    .symbol("target_type", requestDto.getTargetType().toString())
+                    .symbol("target_id", requestDto.getTargetId())
+                    .symbol("payload", "Submitted report: " + requestDto.getReason())
+                    .at(Instant.now());
+        }
 
         return reportMapper.toResponseDto(savedReport);
     }

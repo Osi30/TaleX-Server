@@ -16,9 +16,9 @@ public class ImagePresignedUploadRequestDto {
     @NotBlank
     private String fileName;
 
-    /** Must be an image MIME type, e.g. "image/jpeg", "image/png", "image/webp" */
+    /** Must be an image or video MIME type, e.g. "image/jpeg", "video/mp4" */
     @NotBlank
-    @Pattern(regexp = "image/.+", message = "mimeType must be an image/* MIME type")
+    @Pattern(regexp = "^(image|video)/.+", message = "mimeType must be an image/* or video/* MIME type")
     private String mimeType;
 
     @NotNull
