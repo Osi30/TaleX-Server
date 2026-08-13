@@ -43,7 +43,5 @@ public class AdMetric {
     @Builder.Default
     private Long focusedViews6s = 0L;
 
-    @Column(name = "paid_focused_views_6s", nullable = false)
-    @Builder.Default
-    private Long paidFocusedViews6s = 0L;
+
 }

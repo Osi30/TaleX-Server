@@ -23,7 +23,7 @@ public class AdCampaignResponseDto {
     private Long currentImpressions;
     private Long currentClicks;
     private Long focusedViews6s;
-    private Long paidFocusedViews6s;
+
     private Long totalBudget;
     private Long lockedCpm;
     private String adminNote;
