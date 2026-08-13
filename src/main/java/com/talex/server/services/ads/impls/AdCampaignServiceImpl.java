@@ -132,9 +132,7 @@ public class AdCampaignServiceImpl implements AdCampaignService {
                         .impressions(m.getImpressions())
                         .clicks(m.getClicks())
                         .focusedViews6s(m.getFocusedViews6s())
-                        .paidFocusedViews6s(m.getPaidFocusedViews6s())
                         .spend(m.getImpressions() * (campaign.getLockedCpm() != null ? campaign.getLockedCpm() : 0) / 1000)
-                        .ctr(m.getImpressions() > 0 ? (double) m.getClicks() / m.getImpressions() * 100 : 0.0)
                         .build())
                 .collect(Collectors.toList());
     }
@@ -267,7 +265,6 @@ public class AdCampaignServiceImpl implements AdCampaignService {
                 .currentImpressions(campaign.getCurrentImpressions())
                 .currentClicks(campaign.getCurrentClicks())
                 .focusedViews6s(campaign.getFocusedViews6s())
-                .paidFocusedViews6s(campaign.getPaidFocusedViews6s())
                 .totalBudget(campaign.getTotalBudget())
                 .lockedCpm(campaign.getLockedCpm())
                 .adminNote(campaign.getAdminNote())

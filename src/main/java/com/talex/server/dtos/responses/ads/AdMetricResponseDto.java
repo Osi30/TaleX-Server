@@ -18,5 +18,4 @@ public class AdMetricResponseDto {
     private Long focusedViews6s;
     private Long paidFocusedViews6s;
     private Long spend;
-    private Double ctr;
 }

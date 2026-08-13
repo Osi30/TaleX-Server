@@ -97,9 +97,6 @@ public class AdTrackingServiceImpl implements AdTrackingService {
             if (campaign == null || campaign.getStatus() != AdCampaignStatus.ACTIVE) return;
 
             campaign.setFocusedViews6s(campaign.getFocusedViews6s() + 1);
-            if (campaign.getLockedCpm() != null && campaign.getLockedCpm() > 0) {
-                campaign.setPaidFocusedViews6s(campaign.getPaidFocusedViews6s() + 1);
-            }
 
             campaignRepository.save(campaign);
         } catch (Exception e) {
