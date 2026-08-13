@@ -199,9 +199,21 @@ public class ContentPipelineServiceImpl implements ContentPipelineService {
             log.warn("CC0 auto-approval bypassed Staff review: mediaId={} — sources self-declared CC0", result.getMediaId());
         }
 
+        // Từ khi Fingerprint chuyển lên chạy trước Moderation (AI gửi kết quả Moderation
+        // TRƯỚC, Copyright TRƯỚC ĐÓ phải đợi xong watermark/preview nên gửi SAU), handler
+        // này giờ có thể chạy SAU khi Moderation đã gắn cờ PENDING_REVIEW — nếu cứ set thẳng
+        // ACTIVE ở đây sẽ ghi đè mất quyết định đúng của Moderation, xuất bản nhầm nội dung
+        // vi phạm. Dùng lại đúng cách kiểm tra idempotency ở handleModerationResult (tồn tại
+        // ContentCensorship = Moderation đã xử lý xong) để biết có cần giữ nguyên trạng thái không.
+        boolean moderationAlreadyFlaggedForReview = media.getApprovalStatus() == ContentApprovalStatus.PENDING_REVIEW
+                && !contentCensorshipRepository.findAllByMedia_MediaId(media.getMediaId()).isEmpty();
+
         boolean hlsAlreadyReady = media.getMediaType() != MediaType.VIDEO
                 || media.getStatus() == MediaStatus.HLS_READY;
-        if (hlsAlreadyReady) {
+        if (moderationAlreadyFlaggedForReview) {
+            log.info("Copyright complete but Moderation already routed media to Staff review — keeping status: mediaId={}",
+                    result.getMediaId());
+        } else if (hlsAlreadyReady) {
             media.setStatus(MediaStatus.ACTIVE);
             log.info("Pipeline complete — media ACTIVE: mediaId={}", result.getMediaId());
         } else {
