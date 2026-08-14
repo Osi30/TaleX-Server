@@ -1,8 +1,6 @@
 package com.talex.server.dtos.recommend.request;
 
-import jakarta.validation.constraints.Max;
-import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -15,6 +13,7 @@ import lombok.NoArgsConstructor;
 public class TrendingSampleConfigReq {
     @NotNull(message = "minBatch không được để trống")
     @Min(value = 1, message = "minBatch phải lớn hơn 0")
+    @Max(value = 2000000, message = "minBatch lớn nhất là 2000000")
     private Integer minBatch;
 
     @NotNull(message = "percentile không được để trống")
@@ -24,13 +23,16 @@ public class TrendingSampleConfigReq {
 
     @NotNull(message = "minImpression không được để trống")
     @Min(value = 50, message = "minImpression phải lớn hơn hoặc bằng 50")
+    @Max(value = 2000000, message = "minImpression lớn nhất là 2000000")
     private Long minImpression;
 
     @NotNull(message = "maxImpression không được để trống")
     @Min(value = 100, message = "maxImpression phải lớn hơn hoặc bằng 100")
+    @Max(value = 2000000, message = "maxImpression lớn nhất là 2000000")
     private Long maxImpression;
 
     @NotNull(message = "gravity không được để trống")
-    @Min(value = 0, message = "gravity phải lớn hơn 0")
+    @DecimalMin(value = "0.01", message = "gravity phải lớn hơn 0.01")
+    @DecimalMax(value = "20.0", message = "gravity phải nhỏ hơn 20.0")
     private Double gravity;
 }

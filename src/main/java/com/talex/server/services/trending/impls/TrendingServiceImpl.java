@@ -151,6 +151,22 @@ public class TrendingServiceImpl implements TrendingService {
     }
 
     @Override
+    public List<SeriesTrendingResponseDto> getTrendingPoolSeries() {
+        // Lấy danh sách Series IDs đang có trong Redis pool:new_releases
+        List<String> seriesIds = seriesChannelService.getTrendingPoolElements();
+        if (seriesIds.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<Series> series = seriesRepository.findAllBySeriesIdIn(seriesIds);
+        TrendingSampleConfigRes config = configService.getConfig();
+
+        return series.stream()
+                .map(s -> toTrendingDto(s, config.getGravity()))
+                .toList();
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public BasePageResponse<SeriesTrendingResponseDto> getEvaluatedSeries(
             List<ImpressionStatus> statuses,

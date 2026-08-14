@@ -277,3 +277,7 @@ payos:
   checksum-key: ${PAYOS_CHECKSUM_KEY:Dien_Checksum_Key_Tu_Dashboard}
   payout-url: ${PAYOS_PAYOUT_URL:https://api-merchant.payos.vn/v2/payouts}
   payout-account-balance-url: ${PAYOUT_ACCOUNT_BALANCE_URL:https://api-merchant.payos.vn/v1/payouts-account/balance}
+
+ai:
+  train:
+    token: talex_secret_demo_2026

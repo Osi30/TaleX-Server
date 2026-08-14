@@ -107,6 +107,21 @@ public class TrendingController {
                 .build());
     }
 
+    @Operation(
+            summary = "Danh sách Series trong Pool Trending",
+            description = "Lấy danh sách chi tiết các Series hiện đang phân phối"
+    )
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping("/trending-pool")
+    public ResponseEntity<BaseResponse> getTrendingPoolSeries() {
+        List<SeriesTrendingResponseDto> result = trendingService.getTrendingPoolSeries();
+        return ResponseEntity.ok(BaseResponse.builder()
+                .code(200)
+                .message("Lấy danh sách Series trong Pool Trending thành công!")
+                .data(result)
+                .build());
+    }
+
     @GetMapping("/evaluated-series")
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(

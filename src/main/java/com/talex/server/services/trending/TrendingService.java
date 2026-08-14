@@ -13,14 +13,14 @@ public interface TrendingService {
     void evaluateWilsonScoreBatch();
 
     /**
+     * Vòng 2: Cập nhật Ranking Score theo Hacker News Ranking công thức phân rã hàng giờ
+     */
+    void recalculateHackerNewsRankingScores();
+
+    /**
      * Vòng 1: Lấy các ứng viên đang chờ thực hiện vòng 1
      */
     List<SeriesTrendingResponseDto> getCandidateNewReleasesSeriesIds(int page, int size);
-
-    /**
-     * Vòng 1: Lấy các ứng viên đang thực hiện vòng 1
-     */
-    List<SeriesTrendingResponseDto> getNewReleasesPoolSeries();
 
     /**
      * Vòng 1: Lấy các ứng viên đã thực hiện vòng 1
@@ -32,7 +32,12 @@ public interface TrendingService {
     );
 
     /**
-     * Cập nhật Ranking Score theo Hacker News Ranking công thức phân rã hàng giờ
+     * Vòng 1: Lấy các ứng viên đang thực hiện vòng 1
      */
-    void recalculateHackerNewsRankingScores();
+    List<SeriesTrendingResponseDto> getNewReleasesPoolSeries();
+
+    /**
+     * Vòng 2: Lấy các ứng viên đang thực hiện vòng 2
+     */
+    List<SeriesTrendingResponseDto> getTrendingPoolSeries();
 }
