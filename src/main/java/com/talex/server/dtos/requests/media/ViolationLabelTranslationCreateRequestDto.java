@@ -5,6 +5,8 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.UUID;
+
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -16,5 +18,7 @@ public class ViolationLabelTranslationCreateRequestDto {
     @NotBlank
     private String vietnameseText;
 
-    private String category;
+    // Nullable — "Nhóm" là tùy chọn. Tham chiếu ViolationLabelCategory.categoryId (xem
+    // GET /api/v1/violation-label-categories cho danh sách chọn).
+    private UUID categoryId;
 }

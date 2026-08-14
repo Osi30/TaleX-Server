@@ -3,9 +3,11 @@ package com.talex.server.services.media.impls;
 import com.talex.server.dtos.requests.media.ViolationLabelTranslationCreateRequestDto;
 import com.talex.server.dtos.requests.media.ViolationLabelTranslationUpdateRequestDto;
 import com.talex.server.dtos.responses.media.ViolationLabelTranslationResponseDto;
+import com.talex.server.entities.media.ViolationLabelCategory;
 import com.talex.server.entities.media.ViolationLabelTranslation;
 import com.talex.server.exceptions.details.ContentModuleException;
 import com.talex.server.mappers.media.ViolationLabelTranslationMapper;
+import com.talex.server.repositories.media.ViolationLabelCategoryRepository;
 import com.talex.server.repositories.media.ViolationLabelTranslationRepository;
 import com.talex.server.services.media.ViolationLabelTranslationService;
 import lombok.RequiredArgsConstructor;
@@ -23,12 +25,13 @@ import java.util.stream.Collectors;
 public class ViolationLabelTranslationServiceImpl implements ViolationLabelTranslationService {
 
     private final ViolationLabelTranslationRepository repository;
+    private final ViolationLabelCategoryRepository categoryRepository;
     private final ViolationLabelTranslationMapper mapper;
 
     @Override
     @Transactional(readOnly = true)
     public List<ViolationLabelTranslationResponseDto> list() {
-        return repository.findAllByIsDeletedFalseOrderByCategoryAscAwsLabelAsc().stream()
+        return repository.findAllByIsDeletedFalseOrderByCategory_NameAscAwsLabelAsc().stream()
                 .map(mapper::toResponse)
                 .collect(Collectors.toList());
     }
@@ -44,7 +47,7 @@ public class ViolationLabelTranslationServiceImpl implements ViolationLabelTrans
         ViolationLabelTranslation entity = ViolationLabelTranslation.builder()
                 .awsLabel(awsLabel)
                 .vietnameseText(request.getVietnameseText().trim())
-                .category(request.getCategory() != null ? request.getCategory().trim() : null)
+                .category(resolveCategory(request.getCategoryId()))
                 .build();
         entity.markCreatedBy(accountId.toString());
 
@@ -57,10 +60,18 @@ public class ViolationLabelTranslationServiceImpl implements ViolationLabelTrans
         ViolationLabelTranslation entity = findManageableEntity(translationId);
 
         entity.setVietnameseText(request.getVietnameseText().trim());
-        entity.setCategory(request.getCategory() != null ? request.getCategory().trim() : null);
+        entity.setCategory(resolveCategory(request.getCategoryId()));
         entity.markUpdatedBy(accountId.toString());
 
         return mapper.toResponse(repository.save(entity));
+    }
+
+    private ViolationLabelCategory resolveCategory(UUID categoryId) {
+        if (categoryId == null) {
+            return null;
+        }
+        return categoryRepository.findByCategoryIdAndIsDeletedFalse(categoryId)
+                .orElseThrow(() -> ContentModuleException.notFound("Không tìm thấy nhóm: " + categoryId));
     }
 
     @Override

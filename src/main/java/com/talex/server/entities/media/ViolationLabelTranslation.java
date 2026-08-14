@@ -31,7 +31,9 @@ public class ViolationLabelTranslation extends BaseAudit {
     private String vietnameseText;
 
     // Nhóm L1 taxonomy Rekognition (VD "Violence") — chỉ dùng để nhóm hiển thị trong Admin
-    // CRUD, KHÔNG dùng cho tra cứu FE (tra cứu luôn phẳng theo awsLabel).
-    @Column(name = "category")
-    private String category;
+    // CRUD, KHÔNG dùng cho tra cứu FE (tra cứu luôn phẳng theo awsLabel). Tách entity riêng
+    // (ViolationLabelCategory) thay vì chuỗi tự do để Admin CRUD được danh sách nhóm.
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "category_id")
+    private ViolationLabelCategory category;
 }

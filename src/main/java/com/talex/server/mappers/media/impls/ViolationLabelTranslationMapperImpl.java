@@ -14,7 +14,8 @@ public class ViolationLabelTranslationMapperImpl implements ViolationLabelTransl
                 .translationId(entity.getTranslationId())
                 .awsLabel(entity.getAwsLabel())
                 .vietnameseText(entity.getVietnameseText())
-                .category(entity.getCategory())
+                .categoryId(entity.getCategory() != null ? entity.getCategory().getCategoryId() : null)
+                .categoryName(entity.getCategory() != null ? entity.getCategory().getName() : null)
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
                 .build();

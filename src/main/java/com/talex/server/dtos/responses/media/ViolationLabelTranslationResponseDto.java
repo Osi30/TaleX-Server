@@ -16,7 +16,8 @@ public class ViolationLabelTranslationResponseDto {
     private UUID translationId;
     private String awsLabel;
     private String vietnameseText;
-    private String category;
+    private UUID categoryId;
+    private String categoryName;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }
