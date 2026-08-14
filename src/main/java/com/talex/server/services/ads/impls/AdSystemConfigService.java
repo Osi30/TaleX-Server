@@ -1,20 +1,23 @@
 package com.talex.server.services.ads.impls;
 
+import com.talex.server.dtos.requests.ads.InVideoConfigDto;
+import com.talex.server.dtos.requests.ads.PopupConfigDto;
 import com.talex.server.entities.ads.AdSystemConfig;
 import com.talex.server.repositories.ads.AdSystemConfigRepository;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.talex.server.dtos.requests.ads.PopupConfigDto;
 import java.util.Arrays;
 import java.util.List;
 
 @Service
 @RequiredArgsConstructor
-@Slf4j
 public class AdSystemConfigService {
+
+    private static final Logger log = LoggerFactory.getLogger(AdSystemConfigService.class);
 
     private static final String POPUP_ROUTES_KEY = "POPUP_ALLOWED_ROUTES";
     private static final String POPUP_ROUTES_DEFAULT = "/,/series,/comics,/watch,/read,/intro,/missions,/profile,/bookmarks,/liked,/coin-history,/premium,/premium-history,/purchase-history,/subscriptions,/creator-channel,/public-channel,/recomment-demo";
@@ -22,6 +25,11 @@ public class AdSystemConfigService {
     private static final String POPUP_DELAY_DEFAULT = "3000";
     private static final String POPUP_COOLDOWN_KEY = "POPUP_COOLDOWN_MINUTES";
     private static final String POPUP_COOLDOWN_DEFAULT = "15";
+
+    private static final String INVIDEO_SKIP_KEY = "INVIDEO_SKIP_AFTER_SEC";
+    private static final String INVIDEO_SKIP_DEFAULT = "5";
+    private static final String INVIDEO_COOLDOWN_KEY = "INVIDEO_COOLDOWN_SECONDS";
+    private static final String INVIDEO_COOLDOWN_DEFAULT = "30";
 
     private final AdSystemConfigRepository configRepository;
 
@@ -46,6 +54,33 @@ public class AdSystemConfigService {
                 .build();
     }
 
+    public InVideoConfigDto getInVideoConfig() {
+        AdSystemConfig skipConfig = configRepository.findByConfigKey(INVIDEO_SKIP_KEY)
+                .orElseGet(() -> seedConfig(INVIDEO_SKIP_KEY, INVIDEO_SKIP_DEFAULT, "Số giây bắt buộc xem trước khi hiện nút Skip của video"));
+        AdSystemConfig cooldownConfig = configRepository.findByConfigKey(INVIDEO_COOLDOWN_KEY)
+                .orElseGet(() -> seedConfig(INVIDEO_COOLDOWN_KEY, INVIDEO_COOLDOWN_DEFAULT, "Thời gian chống spam (giây) cho quảng cáo in-video"));
+
+        return InVideoConfigDto.builder()
+                .skipAfterSec(Integer.parseInt(skipConfig.getConfigValue()))
+                .cooldownSeconds(Integer.parseInt(cooldownConfig.getConfigValue()))
+                .build();
+    }
+
+    @Transactional
+    public InVideoConfigDto updateInVideoConfig(InVideoConfigDto request) {
+        if (request.getSkipAfterSec() == null || request.getSkipAfterSec() < 0) {
+            throw new IllegalArgumentException("Skip after seconds must be >= 0");
+        }
+        if (request.getCooldownSeconds() == null || request.getCooldownSeconds() < 0) {
+            throw new IllegalArgumentException("Cooldown seconds must be >= 0");
+        }
+
+        saveOrUpdateConfig(INVIDEO_SKIP_KEY, String.valueOf(request.getSkipAfterSec()), "Số giây bắt buộc xem trước khi hiện nút Skip của video");
+        saveOrUpdateConfig(INVIDEO_COOLDOWN_KEY, String.valueOf(request.getCooldownSeconds()), "Thời gian chống spam (giây) cho quảng cáo in-video");
+
+        return getInVideoConfig();
+    }
+
     @Transactional
     public PopupConfigDto updatePopupConfig(PopupConfigDto request) {
         if (request.getAllowedRoutes() == null || request.getAllowedRoutes().isEmpty()) {
@@ -58,71 +93,55 @@ public class AdSystemConfigService {
             throw new IllegalArgumentException("Cooldown minutes must be >= 0");
         }
 
-        String routesValue = String.join(",", request.getAllowedRoutes().stream()
-                .map(String::trim)
-                .filter(r -> !r.isBlank())
-                .toList());
+        String routesStr = String.join(",", request.getAllowedRoutes());
+        saveOrUpdateConfig(POPUP_ROUTES_KEY, routesStr, "Danh sách routes được phép hiện Popup");
+        saveOrUpdateConfig(POPUP_DELAY_KEY, String.valueOf(request.getShowDelayMs()), "Thời gian trễ (ms) trước khi hiện Popup");
+        saveOrUpdateConfig(POPUP_COOLDOWN_KEY, String.valueOf(request.getCooldownMinutes()), "Thời gian cooldown (phút) sau khi đóng Popup");
 
-        AdSystemConfig routesConfig = configRepository.findByConfigKey(POPUP_ROUTES_KEY)
-                .orElseGet(() -> AdSystemConfig.builder()
-                        .configKey(POPUP_ROUTES_KEY)
-                        .description("Danh sách các route trên FE được phép hiển thị Popup Quảng Cáo")
-                        .build());
-        routesConfig.setConfigValue(routesValue);
-        configRepository.save(routesConfig);
-
-        AdSystemConfig delayConfig = configRepository.findByConfigKey(POPUP_DELAY_KEY)
-                .orElseGet(() -> AdSystemConfig.builder()
-                        .configKey(POPUP_DELAY_KEY)
-                        .description("Thời gian chờ (ms) trước khi tự động hiện popup")
-                        .build());
-        delayConfig.setConfigValue(request.getShowDelayMs().toString());
-        configRepository.save(delayConfig);
-
-        AdSystemConfig cooldownConfig = configRepository.findByConfigKey(POPUP_COOLDOWN_KEY)
-                .orElseGet(() -> AdSystemConfig.builder()
-                        .configKey(POPUP_COOLDOWN_KEY)
-                        .description("Thời gian chờ (phút) trước khi hiện lại popup sau khi user đã xem")
-                        .build());
-        cooldownConfig.setConfigValue(request.getCooldownMinutes().toString());
-        configRepository.save(cooldownConfig);
-
-        log.info("Admin updated POPUP config: routes={}, delay={}, cooldown={}", routesValue, request.getShowDelayMs(), request.getCooldownMinutes());
-
-        return PopupConfigDto.builder()
-                .allowedRoutes(Arrays.asList(routesValue.split(",")))
-                .showDelayMs(request.getShowDelayMs())
-                .cooldownMinutes(request.getCooldownMinutes())
-                .build();
+        return getPopupConfig();
     }
 
-    /**
-     * Seed giá trị mặc định nếu chưa có trong DB.
-     */
+    private void saveOrUpdateConfig(String key, String value, String desc) {
+        AdSystemConfig config = configRepository.findByConfigKey(key)
+                .orElse(AdSystemConfig.builder().configKey(key).build());
+        config.setConfigValue(value);
+        config.setDescription(desc);
+        configRepository.save(config);
+    }
+
+    private AdSystemConfig seedConfig(String key, String value, String desc) {
+        AdSystemConfig config = AdSystemConfig.builder()
+                .configKey(key)
+                .configValue(value)
+                .description(desc)
+                .build();
+        return configRepository.save(config);
+    }
+
     private AdSystemConfig seedDefaultPopupRoutes() {
-        AdSystemConfig defaultConfig = AdSystemConfig.builder()
+        AdSystemConfig config = AdSystemConfig.builder()
                 .configKey(POPUP_ROUTES_KEY)
                 .configValue(POPUP_ROUTES_DEFAULT)
-                .description("Danh sách các route trên FE được phép hiển thị Popup Quảng Cáo")
+                .description("Danh sách routes được phép hiện Popup")
                 .build();
-        return configRepository.save(defaultConfig);
+        return configRepository.save(config);
     }
 
     private AdSystemConfig seedDefaultPopupDelay() {
-        AdSystemConfig defaultConfig = AdSystemConfig.builder()
+        AdSystemConfig config = AdSystemConfig.builder()
                 .configKey(POPUP_DELAY_KEY)
                 .configValue(POPUP_DELAY_DEFAULT)
-                .description("Thời gian chờ (ms) trước khi tự động hiện popup")
+                .description("Thời gian trễ (ms) trước khi hiện Popup")
                 .build();
-        return configRepository.save(defaultConfig);
+        return configRepository.save(config);
     }
 
     private AdSystemConfig seedDefaultPopupCooldown() {
-        AdSystemConfig defaultConfig = AdSystemConfig.builder()
+        AdSystemConfig config = AdSystemConfig.builder()
                 .configKey(POPUP_COOLDOWN_KEY)
                 .configValue(POPUP_COOLDOWN_DEFAULT)
-                .description("Thời gian chờ (phút) trước khi hiện lại popup sau khi user đã xem")
+                .description("Thời gian cooldown (phút) sau khi đóng Popup")
                 .build();
-        return configRepository.save(defaultConfig);
+        return configRepository.save(config);
     }
 }

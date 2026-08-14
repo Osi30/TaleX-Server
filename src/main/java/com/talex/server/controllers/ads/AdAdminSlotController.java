@@ -32,16 +32,6 @@ public class AdAdminSlotController {
                 .build());
     }
 
-    // @PostMapping
-    // @Operation(summary = "Tạo cấu hình Slot mới", description = "Admin tạo thêm vị trí cho phép user đặt QC.")
-    // public ResponseEntity<BaseResponse> createSlot(@Valid @RequestBody AdSlotRequestDto request) {
-    //     return ResponseEntity.ok(BaseResponse.builder()
-    //             .code(200)
-    //             .message("Slot created")
-    //             .data(slotService.createSlot(request))
-    //             .build());
-    // }
-
     @PutMapping("/{slotId}")
     @Operation(summary = "Cập nhật cấu hình Slot", description = "Admin đổi giá, đổi tên Slot.")
     public ResponseEntity<BaseResponse> updateSlot(
@@ -55,7 +45,7 @@ public class AdAdminSlotController {
     }
 
     @PatchMapping("/{slotId}/status")
-    @Operation(summary = "Bật/Tắt Slot", description = "Admin ẩn/hiện vị trí QC.")
+    @Operation(summary = "Bật/Tắt Cho phép Đặt mua Slot", description = "Admin ẩn/hiện vị trí QC với Advertiser.")
     public ResponseEntity<BaseResponse> toggleSlotStatus(
             @PathVariable UUID slotId,
             @RequestParam boolean isActive) {
@@ -66,13 +56,15 @@ public class AdAdminSlotController {
                 .build());
     }
 
-    // @DeleteMapping("/{slotId}")
-    // @Operation(summary = "Xoá cấu hình Slot", description = "Admin xoá vị trí QC.")
-    // public ResponseEntity<BaseResponse> deleteSlot(@PathVariable UUID slotId) {
-    //     slotService.deleteSlot(slotId);
-    //     return ResponseEntity.ok(BaseResponse.builder()
-    //             .code(200)
-    //             .message("Slot deleted")
-    //             .build());
-    // }
+    @PatchMapping("/{slotId}/serving-status")
+    @Operation(summary = "Bật/Tắt Phân phối Quảng cáo cho Slot", description = "Admin bật/tắt phát quảng cáo cho người dùng.")
+    public ResponseEntity<BaseResponse> toggleServingStatus(
+            @PathVariable UUID slotId,
+            @RequestParam boolean isServingEnabled) {
+        return ResponseEntity.ok(BaseResponse.builder()
+                .code(200)
+                .message("Slot serving status updated")
+                .data(slotService.toggleServingStatus(slotId, isServingEnabled))
+                .build());
+    }
 }

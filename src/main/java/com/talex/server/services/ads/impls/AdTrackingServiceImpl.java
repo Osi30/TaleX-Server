@@ -4,33 +4,96 @@ import com.talex.server.dtos.requests.ads.AdTrackRequestDto;
 import com.talex.server.entities.ads.AdCampaign;
 import com.talex.server.entities.ads.AdMetric;
 import com.talex.server.enums.ads.AdCampaignStatus;
+import com.talex.server.enums.ads.AdSlotType;
 import com.talex.server.repositories.ads.AdCampaignRepository;
 import com.talex.server.repositories.ads.AdMetricRepository;
 import com.talex.server.services.ads.AdTrackingService;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.time.LocalDate;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
-@Slf4j
 public class AdTrackingServiceImpl implements AdTrackingService {
+
+    private static final Logger log = LoggerFactory.getLogger(AdTrackingServiceImpl.class);
 
     private final AdCampaignRepository campaignRepository;
     private final AdMetricRepository metricRepository;
-
     private final com.talex.server.repositories.ads.AdTransactionRepository transactionRepository;
+    private final StringRedisTemplate redisTemplate;
+    private final AdSystemConfigService systemConfigService;
+
+    private Duration getCooldownDuration(UUID campaignId) {
+        try {
+            AdCampaign campaign = campaignRepository.findById(campaignId).orElse(null);
+            if (campaign != null && campaign.getSlot() != null && systemConfigService != null) {
+                AdSlotType slotType = campaign.getSlot().getType();
+                if (slotType == AdSlotType.VIDEO) {
+                    Integer seconds = systemConfigService.getInVideoConfig().getCooldownSeconds();
+                    if (seconds != null && seconds > 0) {
+                        return Duration.ofSeconds(seconds);
+                    }
+                    return Duration.ofSeconds(30);
+                } else if (slotType == AdSlotType.POPUP) {
+                    Integer minutes = systemConfigService.getPopupConfig().getCooldownMinutes();
+                    if (minutes != null && minutes > 0) {
+                        return Duration.ofMinutes(minutes);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Error reading cooldown config, falling back to default: {}", e.getMessage());
+        }
+        return Duration.ofMinutes(15);
+    }
+
+    private boolean isFraudulentOrDuplicate(String eventType, UUID campaignId, UUID accountId, String clientFingerprint) {
+        String fpKey = "ad_freq:" + eventType + ":fp:" + (clientFingerprint != null ? clientFingerprint : "unknown") + ":" + campaignId;
+        boolean fpRestricted = Boolean.TRUE.equals(redisTemplate.hasKey(fpKey));
+
+        boolean userRestricted = false;
+        String userKey = null;
+        if (accountId != null) {
+            userKey = "ad_freq:" + eventType + ":user:" + accountId + ":" + campaignId;
+            userRestricted = Boolean.TRUE.equals(redisTemplate.hasKey(userKey));
+        }
+
+        if (fpRestricted || userRestricted) {
+            log.info("Anti-fraud: duplicate {} skipped for campaign {} (FP={}, User={})", eventType, campaignId, clientFingerprint, accountId);
+            return true;
+        }
+
+        // Save keys into Redis with dynamically configured TTL
+        Duration cooldown = getCooldownDuration(campaignId);
+        redisTemplate.opsForValue().set(fpKey, "1", cooldown);
+        if (userKey != null) {
+            redisTemplate.opsForValue().set(userKey, "1", cooldown);
+        }
+
+        return false;
+    }
 
     @Override
     @Async
     @Transactional
-    public void trackImpressionAsync(AdTrackRequestDto request) {
+    public void trackImpressionAsync(AdTrackRequestDto request, UUID accountId, String clientFingerprint) {
         try {
-            AdCampaign campaign = campaignRepository.findById(request.getCampaignId()).orElse(null);
+            UUID campaignId = request.getCampaignId();
+
+            if (isFraudulentOrDuplicate("imp", campaignId, accountId, clientFingerprint)) {
+                return;
+            }
+
+            AdCampaign campaign = campaignRepository.findById(campaignId).orElse(null);
             if (campaign == null || campaign.getStatus() != AdCampaignStatus.ACTIVE) return;
 
             long costPerImpression = campaign.getLockedCpm() != null ? campaign.getLockedCpm() / 1000 : 0;
@@ -70,9 +133,15 @@ public class AdTrackingServiceImpl implements AdTrackingService {
     @Override
     @Async
     @Transactional
-    public void trackClickAsync(AdTrackRequestDto request) {
+    public void trackClickAsync(AdTrackRequestDto request, UUID accountId, String clientFingerprint) {
         try {
-            AdCampaign campaign = campaignRepository.findById(request.getCampaignId()).orElse(null);
+            UUID campaignId = request.getCampaignId();
+
+            if (isFraudulentOrDuplicate("click", campaignId, accountId, clientFingerprint)) {
+                return;
+            }
+
+            AdCampaign campaign = campaignRepository.findById(campaignId).orElse(null);
             if (campaign == null || campaign.getStatus() != AdCampaignStatus.ACTIVE) return;
 
             campaign.setCurrentClicks(campaign.getCurrentClicks() + 1);
@@ -91,9 +160,15 @@ public class AdTrackingServiceImpl implements AdTrackingService {
     @Override
     @Async
     @Transactional
-    public void track6sViewAsync(AdTrackRequestDto request) {
+    public void track6sViewAsync(AdTrackRequestDto request, UUID accountId, String clientFingerprint) {
         try {
-            AdCampaign campaign = campaignRepository.findById(request.getCampaignId()).orElse(null);
+            UUID campaignId = request.getCampaignId();
+
+            if (isFraudulentOrDuplicate("view6s", campaignId, accountId, clientFingerprint)) {
+                return;
+            }
+
+            AdCampaign campaign = campaignRepository.findById(campaignId).orElse(null);
             if (campaign == null || campaign.getStatus() != AdCampaignStatus.ACTIVE) return;
 
             campaign.setFocusedViews6s(campaign.getFocusedViews6s() + 1);

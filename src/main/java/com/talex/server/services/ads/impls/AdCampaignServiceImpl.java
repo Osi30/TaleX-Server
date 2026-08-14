@@ -18,6 +18,7 @@ import com.talex.server.services.ads.AdCampaignService;
 import com.talex.server.services.ads.AdMediaUploadService;
 import com.talex.server.services.ads.AdWalletService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,6 +31,23 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class AdCampaignServiceImpl implements AdCampaignService {
 
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(AdCampaignServiceImpl.class);
+
+    private static final String AD_POOL_CACHE_PREFIX = "ad_pool:slot:";
+    private static final java.time.Duration AD_POOL_CACHE_TTL = java.time.Duration.ofSeconds(60);
+
+    private void evictSlotCache(String slotCode) {
+        if (slotCode != null && redisTemplate != null) {
+            try {
+                redisTemplate.delete(AD_POOL_CACHE_PREFIX + slotCode);
+                log.info("Evicted ad pool cache for slot: {}", slotCode);
+            } catch (Exception e) {
+                log.warn("Failed to evict ad pool cache for slot {}: {}", slotCode, e.getMessage());
+            }
+        }
+    }
+
+
     private final AdCampaignRepository campaignRepository;
     private final AdCreativeRepository creativeRepository;
     private final AdSlotRepository slotRepository;
@@ -38,6 +56,8 @@ public class AdCampaignServiceImpl implements AdCampaignService {
     private final com.talex.server.repositories.ads.AdTransactionRepository transactionRepository;
     private final AdWalletService walletService;
     private final AdMediaUploadService adMediaUploadService;
+    private final org.springframework.data.redis.core.StringRedisTemplate redisTemplate;
+    private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
     private final Random random = new Random();
 
     @Override
@@ -209,37 +229,32 @@ public class AdCampaignServiceImpl implements AdCampaignService {
         return toDto(campaignRepository.save(campaign), campaign.getCreatives());
     }
 
-    @Override
+        @Override
     public AdServeResponseDto serveAd(String slotCode) {
-        List<AdCampaign> activeCampaigns = campaignRepository.findActiveCampaignsForSlot(slotCode);
-        
-        if (activeCampaigns.isEmpty()) {
-            return null; // Return nothing to trigger AdSense fallback on FE
-        }
-
-        // Randomly pick one weighted by something, or just uniformly for now
-        AdCampaign pickedCampaign = activeCampaigns.get(random.nextInt(activeCampaigns.size()));
-        
-        if (pickedCampaign.getCreatives().isEmpty()) {
+        List<AdServeResponseDto> allAds = serveAllAds(slotCode);
+        if (allAds == null || allAds.isEmpty()) {
             return null;
         }
-
-        AdCreative creative = pickedCampaign.getCreatives().get(0);
-        String signedUrl = adMediaUploadService.generatePresignedGetUrl(creative.getMediaUrl());
-
-        return AdServeResponseDto.builder()
-                .campaignId(pickedCampaign.getCampaignId())
-                .mediaUrl(signedUrl)
-                .targetUrl(creative.getTargetUrl())
-                .mediaType(creative.getMediaType().name())
-                .build();
+        return allAds.get(random.nextInt(allAds.size()));
     }
 
     @Override
     public List<AdServeResponseDto> serveAllAds(String slotCode) {
+        String cacheKey = AD_POOL_CACHE_PREFIX + slotCode;
+        if (redisTemplate != null) {
+            try {
+                String cachedJson = redisTemplate.opsForValue().get(cacheKey);
+                if (cachedJson != null && !cachedJson.isBlank()) {
+                    return objectMapper.readValue(cachedJson, new com.fasterxml.jackson.core.type.TypeReference<List<AdServeResponseDto>>() {});
+                }
+            } catch (Exception e) {
+                log.warn("Error reading ad pool from Redis for slot {}: {}", slotCode, e.getMessage());
+            }
+        }
+
         List<AdCampaign> activeCampaigns = campaignRepository.findActiveCampaignsForSlot(slotCode);
         
-        return activeCampaigns.stream()
+        List<AdServeResponseDto> result = activeCampaigns.stream()
                 .filter(c -> !c.getCreatives().isEmpty())
                 .map(c -> {
                     AdCreative creative = c.getCreatives().get(0);
@@ -252,6 +267,17 @@ public class AdCampaignServiceImpl implements AdCampaignService {
                             .build();
                 })
                 .collect(java.util.stream.Collectors.toList());
+
+        if (redisTemplate != null && !result.isEmpty()) {
+            try {
+                String json = objectMapper.writeValueAsString(result);
+                redisTemplate.opsForValue().set(cacheKey, json, AD_POOL_CACHE_TTL);
+            } catch (Exception e) {
+                log.warn("Error caching ad pool to Redis for slot {}: {}", slotCode, e.getMessage());
+            }
+        }
+
+        return result;
     }
 
     private AdCampaignResponseDto toDto(AdCampaign campaign, List<AdCreative> creatives) {
