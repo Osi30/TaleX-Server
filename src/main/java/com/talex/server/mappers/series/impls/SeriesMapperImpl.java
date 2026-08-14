@@ -88,6 +88,7 @@ public class SeriesMapperImpl implements SeriesMapper {
                 .contentType(series.getContentType())
                 .status(series.getStatus())
                 .ageRating(series.getAgeRating())
+                .contentWarnings(series.getContentWarnings())
                 .language(series.getLanguage())
                 .analyticData(series.getAnalyticData())
                 .averageRating(series.getAverageRating())

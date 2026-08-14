@@ -182,6 +182,13 @@ public class Media extends BaseAudit {
     @Column(name = "content_id", length = 100)
     private String contentId;
 
+    // Nhúng watermark có thể fail âm thầm (bắt exception, không làm hỏng cả pipeline —
+    // xem kafka_consumer_service.py) — field này lưu lại KẾT QUẢ THẬT (thành công hay
+    // không), không suy đoán qua contentId (vốn luôn có bất kể watermark có thành công
+    // hay không). FE dùng field này để hiện đúng trạng thái bước "Nhúng watermark".
+    @Column(name = "has_watermark")
+    private Boolean hasWatermark = false;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "copyright_id")
     private Copyright copyright;

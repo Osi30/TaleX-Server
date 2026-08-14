@@ -73,6 +73,8 @@ public class PayoutServiceImpl implements PayoutService {
             String errorMsg = (body != null) ? body.getDesc() : "Không nhận được phản hồi từ PayOS";
             log.error("Lỗi lấy thông tin số dư tài khoản chi: code={}, desc={}",
                     body != null ? body.getCode() : "N/A", errorMsg);
+            log.error("apikey={}, clientid={}",
+                    apiKey, clientId);
             throw new RuntimeException("Lấy số dư tài khoản chi thất bại: " + errorMsg);
 
         } catch (Exception e) {

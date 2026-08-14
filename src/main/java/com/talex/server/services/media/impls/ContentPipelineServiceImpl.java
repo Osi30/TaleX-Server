@@ -12,6 +12,7 @@ import com.talex.server.entities.media.MediaCopyright;
 import com.talex.server.entities.media.ViolationDetail;
 import com.talex.server.enums.media.CensorshipStatus;
 import com.talex.server.enums.series.ContentApprovalStatus;
+import com.talex.server.enums.series.ContentWarningGroup;
 import com.talex.server.enums.media.MediaProvider;
 import com.talex.server.enums.media.MediaStatus;
 import com.talex.server.enums.media.MediaType;
@@ -91,22 +92,19 @@ public class ContentPipelineServiceImpl implements ContentPipelineService {
     public void handleCopyrightResult(CopyrightResultMessage result) {
         Optional<Media> mediaOpt = mediaRepository.findByMediaIdAndIsDeletedFalse(result.getMediaId());
         if (mediaOpt.isEmpty()) {
-            // "Không tìm thấy" có 2 nguyên nhân KHÔNG phân biệt được nếu chỉ dựa vào
-            // isEmpty(): (a) media đã bị soft-delete TRONG LÚC job bản quyền đang xử lý
-            // (2 topic content-pipeline-job/content-media-delete không đảm bảo thứ tự,
-            // lệnh xóa có thể chạy TRƯỚC khi AI kịp insert fingerprint, để lại fingerprint
-            // mồ côi), hoặc (b) mediaId hoàn toàn xa lạ với môi trường này (message từ môi
-            // trường khác lẫn vào do trùng topic/group, message cũ bị replay...). Trước đây
-            // code coi cả 2 trường hợp là (a) và luôn gửi lại lệnh xóa — đã từng gây xóa
-            // nhầm fingerprint của môi trường khác. Tra thêm 1 lần KHÔNG lọc isDeleted để
-            // phân biệt: chỉ khi row tồn tại VÀ đã soft-delete mới là race hợp lệ.
+            // "Không tìm thấy" có 2 nguyên nhân: (a) media đã bị soft-delete TRONG LÚC job
+            // bản quyền đang xử lý (2 topic content-pipeline-job/content-media-delete không
+            // đảm bảo thứ tự, lệnh xóa có thể chạy TRƯỚC khi AI kịp insert fingerprint), hoặc
+            // (b) mediaId hoàn toàn xa lạ với môi trường này (message từ môi trường khác lẫn
+            // vào do trùng topic/group, message cũ bị replay...). Cả 2 case đều KHÔNG dọn
+            // Milvus — fingerprint của media đã xóa cố tình được giữ lại để chống re-upload
+            // đạo nhái (xem notifyMediaDeleted() không còn được gọi từ MediaServiceImpl.delete()
+            // nữa, cùng lý do). Tra thêm 1 lần KHÔNG lọc isDeleted chỉ để log rõ nguyên nhân.
             Optional<Media> anyOpt = mediaRepository.findByMediaId(result.getMediaId());
             if (anyOpt.isPresent() && Boolean.TRUE.equals(anyOpt.get().getIsDeleted())) {
-                log.warn("Copyright result for soft-deleted mediaId={} — re-sending cleanup", result.getMediaId());
-                notifyMediaDeleted(result.getMediaId());
+                log.info("Copyright result for soft-deleted mediaId={} — fingerprint intentionally kept in Milvus", result.getMediaId());
             } else {
-                log.warn("Copyright result for mediaId={} unknown to this environment — ignoring (no cleanup fired)",
-                        result.getMediaId());
+                log.warn("Copyright result for mediaId={} unknown to this environment — ignoring", result.getMediaId());
             }
             return;
         }
@@ -126,13 +124,17 @@ public class ContentPipelineServiceImpl implements ContentPipelineService {
             media.setPreviewUrl(previewUrl);
         }
 
+        // watermarkedS3Key rỗng/null nghĩa là bước nhúng watermark đã fail (AI bắt exception,
+        // không làm hỏng cả pipeline — xem kafka_consumer_service.py) — ghi lại ĐÚNG kết quả
+        // thật, không mặc định true chỉ vì contentId đã có (2 việc độc lập nhau).
+        media.setHasWatermark(result.getWatermarkedS3Key() != null && !result.getWatermarkedS3Key().isBlank());
         if (result.getWatermarkedS3Key() != null && !result.getWatermarkedS3Key().isBlank()) {
             String domain = mediaProperties.getAws().getCloudfrontDomain();
             String newUrl = (domain != null && !domain.isBlank())
                     ? "https://" + domain + "/" + result.getWatermarkedS3Key()
                     : "https://" + mediaProperties.getAws().getBucketName() + ".s3." + mediaProperties.getAws().getRegion() + ".amazonaws.com/" + result.getWatermarkedS3Key();
             media.setFileUrl(newUrl);
-            
+
             // Chỉ ghi đè originalUrl cho IMAGE vì lúc này file là 1 ảnh có watermark.
             // Đối với VIDEO, watermarkedS3Key là 1 folder (videos/ab_hls/{id}),
             // originalUrl BẮT BUỘC phải giữ nguyên là file MP4 gốc để job kiểm duyệt Moderation tải về quét!
@@ -157,9 +159,25 @@ public class ContentPipelineServiceImpl implements ContentPipelineService {
             return;
         }
 
+        // Từ khi Fingerprint chuyển lên chạy trước Moderation, Moderation LUÔN resolve
+        // TRƯỚC Copyright (xem giải thích đầy đủ ở dưới, chỗ moderationAlreadyFlaggedForReview
+        // gốc) — nghĩa là nếu Moderation đã flag nội dung (status=INACTIVE), việc CHƯA
+        // ĐỤNG vào status là đúng. Nhưng createHlsPackaging() bên dưới set thẳng
+        // status=HLS_PROCESSING KHÔNG ĐIỀU KIỆN — nếu gọi vô điều kiện ở đây, nó ghi đè
+        // mất INACTIVE ngay lập tức (chạy TRƯỚC cả đoạn check "moderationAlreadyFlaggedForReview"
+        // phía dưới), khiến media biến mất khỏi hàng chờ Staff review
+        // (MediaRepository.findPendingReviewMedia lọc CHÍNH XÁC status=INACTIVE) dù chưa
+        // ai duyệt gì cả — bug thật đã xảy ra, phát hiện qua rà lại code cùng user.
+        // Staff vẫn xem trước video được (toAdminPreviewResponse ký originalUrl riêng cho
+        // admin, không cần HLS) nên hoãn transcode tới lúc Staff thật sự duyệt không mất
+        // chức năng gì — xem MediaServiceImpl.approve() nơi resume packaging này.
+        boolean moderationAlreadyFlaggedForReview = media.getApprovalStatus() == ContentApprovalStatus.PENDING_REVIEW
+                && !contentCensorshipRepository.findAllByMedia_MediaId(media.getMediaId()).isEmpty();
+
         // Bắt đầu HLS Packaging (Transcode) TẠI ĐÂY thay vì lúc upload xong.
         // Điều này đảm bảo MediaConvert sử dụng S3 url MỚI (đã có watermark).
-        if (media.getMediaType() == MediaType.VIDEO && media.getProvider() == MediaProvider.AWS) {
+        if (!moderationAlreadyFlaggedForReview
+                && media.getMediaType() == MediaType.VIDEO && media.getProvider() == MediaProvider.AWS) {
             mediaPackagingService.createHlsPackaging(media);
         }
 
@@ -199,15 +217,9 @@ public class ContentPipelineServiceImpl implements ContentPipelineService {
             log.warn("CC0 auto-approval bypassed Staff review: mediaId={} — sources self-declared CC0", result.getMediaId());
         }
 
-        // Từ khi Fingerprint chuyển lên chạy trước Moderation (AI gửi kết quả Moderation
-        // TRƯỚC, Copyright TRƯỚC ĐÓ phải đợi xong watermark/preview nên gửi SAU), handler
-        // này giờ có thể chạy SAU khi Moderation đã gắn cờ PENDING_REVIEW — nếu cứ set thẳng
-        // ACTIVE ở đây sẽ ghi đè mất quyết định đúng của Moderation, xuất bản nhầm nội dung
-        // vi phạm. Dùng lại đúng cách kiểm tra idempotency ở handleModerationResult (tồn tại
-        // ContentCensorship = Moderation đã xử lý xong) để biết có cần giữ nguyên trạng thái không.
-        boolean moderationAlreadyFlaggedForReview = media.getApprovalStatus() == ContentApprovalStatus.PENDING_REVIEW
-                && !contentCensorshipRepository.findAllByMedia_MediaId(media.getMediaId()).isEmpty();
-
+        // moderationAlreadyFlaggedForReview đã tính ở trên (trước đoạn createHlsPackaging)
+        // — dùng lại, KHÔNG tính lại lần 2 ở đây (media/censorship không đổi gì thêm giữa
+        // 2 điểm này trong cùng 1 lần gọi hàm).
         boolean hlsAlreadyReady = media.getMediaType() != MediaType.VIDEO
                 || media.getStatus() == MediaStatus.HLS_READY;
         if (moderationAlreadyFlaggedForReview) {
@@ -270,6 +282,16 @@ public class ContentPipelineServiceImpl implements ContentPipelineService {
             media.setApprovalReviewedAt(LocalDateTime.now());
             // Không cần dispatch gì thêm vì PipelineJob đang chạy trên Python sẽ tự đi tiếp
             return;
+        } else if (areAllViolationsShieldedByDeclaredWarnings(media, result.getViolations())) {
+            // MỚI: Creator đã khai TRƯỚC đúng nhóm cảnh báo (VD Bạo lực/Máu me) cho TOÀN
+            // BỘ nhãn AI phát hiện được, VÀ series đủ 18+ — coi như đã cảnh báo người xem
+            // trước, không cần Staff xem lại. Nếu chỉ khớp MỘT PHẦN (còn nhãn nào chưa khai)
+            // vẫn rơi xuống nhánh else bên dưới như cũ (xem areAllViolationsShieldedByDeclaredWarnings).
+            media.setApprovalStatus(ContentApprovalStatus.APPROVED);
+            media.setApprovalReviewedBy(PIPELINE_ACTOR);
+            media.setApprovalReviewedAt(LocalDateTime.now());
+            log.info("Auto-approved via declared content warnings: mediaId={} label={} seriesAgeRating={}",
+                    result.getMediaId(), result.getPrimaryLabel(), resolveSeriesAgeRating(media));
         } else {
             // AI chỉ phát hiện NHÃN nhạy cảm, không tự phán được đây là vi phạm thật hay
             // nội dung hợp lệ theo đúng bối cảnh (series 18+ đã khai, hoặc series CHƯA
@@ -442,6 +464,7 @@ public class ContentPipelineServiceImpl implements ContentPipelineService {
                 detail.setViolationAt(v.getTimestampMs());
                 detail.setEndViolationAt(v.getEndTimestampMs());
                 detail.setLabel(v.getLabel());
+                detail.setParentLabel(v.getParentLabel());
                 detail.setConfidence(v.getConfidence());
                 detail.setSuggestion(v.getSuggestion());
                 detail.markCreatedBy(PIPELINE_ACTOR);
@@ -533,6 +556,140 @@ public class ContentPipelineServiceImpl implements ContentPipelineService {
             log.warn("Could not resolve series ageRating for media: {}", media.getMediaId());
             return "";
         }
+    }
+
+    private static final String AGE_RATING_MATURE = "MATURE";
+
+    // Ban đầu chỉ map 10 nhãn L1 rồi dò 1 cấp cha qua parentLabel — SAI vì taxonomy AWS
+    // Rekognition thật có tới 3 tầng cho 1 số nhánh (VD Violence → Graphic Violence →
+    // Blood & Gore, đã xác nhận thật qua dữ liệu production: parent_label của "Blood & Gore"
+    // là "Graphic Violence" — TẦNG L2, không phải "Violence" tầng L1). Dò 1 cấp cha bỏ sót
+    // toàn bộ nhãn L3. Map thẳng TOÀN BỘ ~66 nhãn đã biết (L1+L2+L3, đúng danh sách đã port
+    // sang bảng violation_label_translations) → nhóm — không cần dò cấp cha nữa, đúng ở mọi
+    // độ sâu taxonomy.
+    private static final java.util.Map<String, ContentWarningGroup> AWS_LABEL_TO_WARNING_GROUP =
+            java.util.Map.<String, ContentWarningGroup>ofEntries(
+                    // SEXUAL_NUDITY
+                    java.util.Map.entry("Explicit", ContentWarningGroup.SEXUAL_NUDITY),
+                    java.util.Map.entry("Explicit Nudity", ContentWarningGroup.SEXUAL_NUDITY),
+                    java.util.Map.entry("Exposed Male Genitalia", ContentWarningGroup.SEXUAL_NUDITY),
+                    java.util.Map.entry("Exposed Female Genitalia", ContentWarningGroup.SEXUAL_NUDITY),
+                    java.util.Map.entry("Exposed Buttocks or Anus", ContentWarningGroup.SEXUAL_NUDITY),
+                    java.util.Map.entry("Exposed Female Nipple", ContentWarningGroup.SEXUAL_NUDITY),
+                    java.util.Map.entry("Explicit Sexual Activity", ContentWarningGroup.SEXUAL_NUDITY),
+                    java.util.Map.entry("Sex Toys", ContentWarningGroup.SEXUAL_NUDITY),
+                    java.util.Map.entry("Non-Explicit Nudity of Intimate parts and Kissing", ContentWarningGroup.SEXUAL_NUDITY),
+                    java.util.Map.entry("Non-Explicit Nudity", ContentWarningGroup.SEXUAL_NUDITY),
+                    java.util.Map.entry("Bare Back", ContentWarningGroup.SEXUAL_NUDITY),
+                    java.util.Map.entry("Exposed Male Nipple", ContentWarningGroup.SEXUAL_NUDITY),
+                    java.util.Map.entry("Partially Exposed Buttocks", ContentWarningGroup.SEXUAL_NUDITY),
+                    java.util.Map.entry("Partially Exposed Female Breast", ContentWarningGroup.SEXUAL_NUDITY),
+                    java.util.Map.entry("Implied Nudity", ContentWarningGroup.SEXUAL_NUDITY),
+                    java.util.Map.entry("Obstructed Intimate Parts", ContentWarningGroup.SEXUAL_NUDITY),
+                    java.util.Map.entry("Obstructed Female Nipple", ContentWarningGroup.SEXUAL_NUDITY),
+                    java.util.Map.entry("Obstructed Male Genitalia", ContentWarningGroup.SEXUAL_NUDITY),
+                    java.util.Map.entry("Kissing on the Lips", ContentWarningGroup.SEXUAL_NUDITY),
+                    java.util.Map.entry("Swimwear or Underwear", ContentWarningGroup.SEXUAL_NUDITY),
+                    java.util.Map.entry("Female Swimwear or Underwear", ContentWarningGroup.SEXUAL_NUDITY),
+                    java.util.Map.entry("Male Swimwear or Underwear", ContentWarningGroup.SEXUAL_NUDITY),
+                    // VIOLENCE_GORE
+                    java.util.Map.entry("Violence", ContentWarningGroup.VIOLENCE_GORE),
+                    java.util.Map.entry("Weapons", ContentWarningGroup.VIOLENCE_GORE),
+                    java.util.Map.entry("Graphic Violence", ContentWarningGroup.VIOLENCE_GORE),
+                    java.util.Map.entry("Weapon Violence", ContentWarningGroup.VIOLENCE_GORE),
+                    java.util.Map.entry("Physical Violence", ContentWarningGroup.VIOLENCE_GORE),
+                    java.util.Map.entry("Self-Harm", ContentWarningGroup.VIOLENCE_GORE),
+                    java.util.Map.entry("Blood & Gore", ContentWarningGroup.VIOLENCE_GORE),
+                    java.util.Map.entry("Explosions and Blasts", ContentWarningGroup.VIOLENCE_GORE),
+                    java.util.Map.entry("Visually Disturbing", ContentWarningGroup.VIOLENCE_GORE),
+                    java.util.Map.entry("Death and Emaciation", ContentWarningGroup.VIOLENCE_GORE),
+                    java.util.Map.entry("Emaciated Bodies", ContentWarningGroup.VIOLENCE_GORE),
+                    java.util.Map.entry("Corpses", ContentWarningGroup.VIOLENCE_GORE),
+                    java.util.Map.entry("Crashes", ContentWarningGroup.VIOLENCE_GORE),
+                    java.util.Map.entry("Air Crash", ContentWarningGroup.VIOLENCE_GORE),
+                    // DRUGS_TOBACCO
+                    java.util.Map.entry("Drugs & Tobacco", ContentWarningGroup.DRUGS_TOBACCO),
+                    java.util.Map.entry("Products", ContentWarningGroup.DRUGS_TOBACCO),
+                    java.util.Map.entry("Pills", ContentWarningGroup.DRUGS_TOBACCO),
+                    java.util.Map.entry("Drugs & Tobacco Paraphernalia & Use", ContentWarningGroup.DRUGS_TOBACCO),
+                    java.util.Map.entry("Smoking", ContentWarningGroup.DRUGS_TOBACCO),
+                    // ALCOHOL
+                    java.util.Map.entry("Alcohol", ContentWarningGroup.ALCOHOL),
+                    java.util.Map.entry("Alcohol Use", ContentWarningGroup.ALCOHOL),
+                    java.util.Map.entry("Drinking", ContentWarningGroup.ALCOHOL),
+                    java.util.Map.entry("Alcoholic Beverages", ContentWarningGroup.ALCOHOL),
+                    // RUDE_GESTURES
+                    java.util.Map.entry("Rude Gestures", ContentWarningGroup.RUDE_GESTURES),
+                    java.util.Map.entry("Middle Finger", ContentWarningGroup.RUDE_GESTURES),
+                    // GAMBLING
+                    java.util.Map.entry("Gambling", ContentWarningGroup.GAMBLING),
+                    // HATE_SYMBOLS
+                    java.util.Map.entry("Hate Symbols", ContentWarningGroup.HATE_SYMBOLS),
+                    java.util.Map.entry("Nazi Party", ContentWarningGroup.HATE_SYMBOLS),
+                    java.util.Map.entry("White Supremacy", ContentWarningGroup.HATE_SYMBOLS),
+                    java.util.Map.entry("Extremist", ContentWarningGroup.HATE_SYMBOLS),
+                    // Legacy v6.1 taxonomy — dữ liệu cũ trước khi tài khoản AWS chuyển version 7
+                    java.util.Map.entry("Sexual Activity", ContentWarningGroup.SEXUAL_NUDITY),
+                    java.util.Map.entry("Illustrated Explicit Nudity", ContentWarningGroup.SEXUAL_NUDITY),
+                    java.util.Map.entry("Adult Toys", ContentWarningGroup.SEXUAL_NUDITY),
+                    java.util.Map.entry("Bare-chested Male", ContentWarningGroup.SEXUAL_NUDITY),
+                    java.util.Map.entry("Sexual Situations", ContentWarningGroup.SEXUAL_NUDITY),
+                    java.util.Map.entry("Graphic Violence or Gore", ContentWarningGroup.VIOLENCE_GORE),
+                    java.util.Map.entry("Self Injury", ContentWarningGroup.VIOLENCE_GORE),
+                    java.util.Map.entry("Hanging", ContentWarningGroup.VIOLENCE_GORE),
+                    java.util.Map.entry("Drug Products", ContentWarningGroup.DRUGS_TOBACCO),
+                    java.util.Map.entry("Drug Use", ContentWarningGroup.DRUGS_TOBACCO),
+                    java.util.Map.entry("Drug Paraphernalia", ContentWarningGroup.DRUGS_TOBACCO),
+                    java.util.Map.entry("Tobacco", ContentWarningGroup.DRUGS_TOBACCO),
+                    java.util.Map.entry("Tobacco Products", ContentWarningGroup.DRUGS_TOBACCO),
+                    java.util.Map.entry("Drugs", ContentWarningGroup.DRUGS_TOBACCO));
+
+    private ContentWarningGroup mapParentLabelToGroup(ModerationViolationItem violation) {
+        // Kiểm chính label trước — phủ đúng ở MỌI tầng taxonomy (L1/L2/L3), không phụ thuộc
+        // parentLabel là 1 hay 2 cấp phía trên.
+        ContentWarningGroup group = AWS_LABEL_TO_WARNING_GROUP.get(violation.getLabel());
+        if (group != null) {
+            return group;
+        }
+        // Fallback: nhãn lạ chưa có trong danh sách trên, nhưng parentLabel lại là nhãn đã
+        // biết (VD AWS thêm nhãn con mới dưới 1 nhóm cũ) — vẫn nhận diện được qua cha.
+        if (violation.getParentLabel() != null && !violation.getParentLabel().isBlank()) {
+            return AWS_LABEL_TO_WARNING_GROUP.get(violation.getParentLabel());
+        }
+        return null;
+    }
+
+    private java.util.Set<ContentWarningGroup> resolveSeriesContentWarnings(Media media) {
+        try {
+            return media.getEpisode().getSeason().getSeries().getContentWarnings();
+        } catch (Exception e) {
+            log.warn("Could not resolve series contentWarnings for media: {}", media.getMediaId());
+            return java.util.Set.of();
+        }
+    }
+
+    // Chỉ tự động duyệt khi TOÀN BỘ violation đều thuộc nhóm Series đã khai trước + series
+    // đủ 18+ — nếu còn dù chỉ 1 nhãn KHÔNG khớp (chưa khai, hoặc khai nhóm khác), vẫn đẩy
+    // Staff review như hành vi gốc để tránh Creator "lách" bằng cách chỉ khai 1 nhóm nhưng
+    // đăng nội dung vi phạm nhóm khác.
+    private boolean areAllViolationsShieldedByDeclaredWarnings(Media media, List<ModerationViolationItem> violations) {
+        if (violations == null || violations.isEmpty()) {
+            return false;
+        }
+        if (!AGE_RATING_MATURE.equals(resolveSeriesAgeRating(media))) {
+            return false;
+        }
+        java.util.Set<ContentWarningGroup> declaredWarnings = resolveSeriesContentWarnings(media);
+        if (declaredWarnings.isEmpty()) {
+            return false;
+        }
+        for (ModerationViolationItem violation : violations) {
+            ContentWarningGroup group = mapParentLabelToGroup(violation);
+            if (group == null || !declaredWarnings.contains(group)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private String resolveCreatorAccountId(Media media) {

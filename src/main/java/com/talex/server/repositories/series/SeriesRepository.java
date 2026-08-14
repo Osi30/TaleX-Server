@@ -344,4 +344,18 @@ public interface SeriesRepository extends JpaRepository<Series, String>, JpaSpec
             @Param("isBlacklistEmpty") boolean isBlacklistEmpty,
             Pageable pageable
     );
+
+    @Query("""
+            SELECT s
+            FROM Series s
+            WHERE s.isDeleted = false
+              AND s.status = :status
+              AND s.trendingAnalyticData.impressionStatus IN :statuses
+            ORDER BY s.trendingAnalyticData.wilsonUpdatedAt DESC NULLS LAST
+            """)
+    Page<Series> findEvaluatedWilsonSeries(
+            @Param("status") SeriesStatus status,
+            @Param("statuses") Collection<ImpressionStatus> statuses,
+            Pageable pageable
+    );
 }

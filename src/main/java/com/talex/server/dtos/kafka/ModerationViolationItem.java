@@ -18,6 +18,9 @@ public class ModerationViolationItem {
     private Float timestampMs;
     private Float endTimestampMs;
     private String label;
+    // Nhóm L1 gốc do chính AWS Rekognition trả về (VD "Violence", "Explicit") — dùng để
+    // map sang ContentWarningGroup, không tự chế dictionary trùng lặp phía Java.
+    private String parentLabel;
     private Float confidence;
     private String suggestion;
 }
