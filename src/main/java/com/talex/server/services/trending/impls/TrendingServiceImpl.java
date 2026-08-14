@@ -1,5 +1,6 @@
 package com.talex.server.services.trending.impls;
 
+import com.talex.server.dtos.BasePageResponse;
 import com.talex.server.dtos.recommend.response.TrendingSampleConfigRes;
 import com.talex.server.dtos.responses.series.SeriesTrendingResponseDto;
 import com.talex.server.entities.analytic.TrendingAnalyticData;
@@ -13,6 +14,7 @@ import com.talex.server.services.trending.TrendingSampleConfigService;
 import com.talex.server.services.trending.TrendingService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -149,6 +151,40 @@ public class TrendingServiceImpl implements TrendingService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public BasePageResponse<SeriesTrendingResponseDto> getEvaluatedSeries(
+            List<ImpressionStatus> statuses,
+            int page,
+            int size
+    ) {
+        // Mặc định nếu người dùng không truyền danh sách status thì lấy cả SUCCESS và FAILED
+        if (statuses == null || statuses.isEmpty()) {
+            statuses = List.of(ImpressionStatus.SUCCESS, ImpressionStatus.FAILED);
+        }
+
+        Pageable pageable = PageRequest.of(page, size);
+        TrendingSampleConfigRes config = configService.getConfig();
+
+        Page<Series> seriesPage = seriesRepository.findEvaluatedWilsonSeries(
+                SeriesStatus.PUBLISHED,
+                statuses,
+                pageable
+        );
+
+        List<SeriesTrendingResponseDto> content = seriesPage.getContent().stream()
+                .map(s -> toTrendingDto(s, config.getGravity()))
+                .toList();
+
+        return BasePageResponse.<SeriesTrendingResponseDto>builder()
+                .content(content)
+                .pageNumber(seriesPage.getNumber())
+                .pageSize(seriesPage.getSize())
+                .totalElements(seriesPage.getTotalElements())
+                .totalPages(seriesPage.getTotalPages())
+                .build();
+    }
+
+    @Override
     @Transactional
     public void recalculateHackerNewsRankingScores() {
         TrendingSampleConfigRes config = configService.getConfig();
@@ -185,6 +221,7 @@ public class TrendingServiceImpl implements TrendingService {
         long engageClick = trendingAnalytic != null ? trendingAnalytic.getEngageClick() : 0L;
         long totalImpression = trendingAnalytic != null ? trendingAnalytic.getTotalImpression() : 0L;
         long interactionClick = trendingAnalytic != null ? trendingAnalytic.getInteractionClick() : 0L;
+        double sampleRatio = totalImpression > 0 ? (double) engageClick / totalImpression : 0.0;
 
         // Tính điểm Realtime khi Admin gọi API xem danh sách
         double realtimeWilsonScore = calculateWilsonScore(engageClick, totalImpression);
@@ -198,6 +235,7 @@ public class TrendingServiceImpl implements TrendingService {
         );
 
         SeriesTrendingResponseDto dto = seriesMapper.toTrendingDto(series);
+        dto.getTrendingAnalyticData().setSampleRatio(sampleRatio);
         dto.setWilsonScore(realtimeWilsonScore);
         dto.setUpperWilsonScore(realtimeUpperWilsonScore);
         dto.setRankingScore(realtimeRankingScore);
