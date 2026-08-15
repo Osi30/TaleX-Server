@@ -120,7 +120,7 @@ public class CampaignController {
 
     @PutMapping("/{campaignId}")
     @PreAuthorize("isAuthenticated()")
-    @Operation(summary = "Cập nhật chiến dịch", description = "Cập nhật thông tin chiến dịch theo id. Chỉ Admin/Staff.")
+    @Operation(summary = "Cập nhật chiến dịch", description = "Cập nhật thông tin chiến dịch theo id.")
     public ResponseEntity<BaseResponse> update(
             @PathVariable String campaignId,
             @RequestBody CampaignUpdateDto request

@@ -74,18 +74,4 @@ public class CampaignSeriesController {
                 .data(response)
                 .build());
     }
-
-    @PatchMapping("/{id}/cancel")
-    @Operation(
-            summary = "Hủy Campaign Series",
-            description = "Chuyển trạng thái sang CANCELLED. Chỉ thực hiện được khi trạng thái hiện tại là RUNNING hoặc PAUSED."
-    )
-    public ResponseEntity<BaseResponse> cancelCampaignSeries(@PathVariable String id) {
-        CampaignSeriesResponseDto response = campaignSeriesService.cancelCampaignSeries(id);
-        return ResponseEntity.ok(BaseResponse.builder()
-                .code(200)
-                .message("Campaign series cancelled")
-                .data(response)
-                .build());
-    }
 }

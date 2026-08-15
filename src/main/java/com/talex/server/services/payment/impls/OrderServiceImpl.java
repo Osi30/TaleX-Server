@@ -130,6 +130,19 @@ public class OrderServiceImpl implements OrderService {
                     .metadata(metadata)
                     .build();
 
+            // Trường hợp 1: Ví đủ thanh toán 100% (fiatAmount == 0)
+            if (fiatAmount.compareTo(BigDecimal.ZERO) == 0) {
+                order.setStatus(OrderStatus.COMPLETED);
+                order = createNewOrderWithStatus(order, OrderStatus.COMPLETED);
+
+                // Hoàn tất đơn & Kích hoạt dịch vụ ngay lập tức (Không qua SePay/Transaction online)
+                orderCompletionService.completeViaWalletOnly(order);
+            }
+            // Trường hợp 2: Cần thanh toán phần còn lại qua SePay
+            else {
+                order = createNewOrderWithStatus(order, OrderStatus.AWAITING_PAYMENT);
+            }
+
             // Khấu trừ tiền ví Campaign Wallet nếu có áp dụng
             if (campaignWalletToUse.compareTo(BigDecimal.ZERO) > 0) {
                 campaignWalletService.debitWallet(
@@ -140,18 +153,6 @@ public class OrderServiceImpl implements OrderService {
                 );
             }
 
-            // Trường hợp 1: Ví đủ thanh toán 100% (fiatAmount == 0)
-            if (fiatAmount.compareTo(BigDecimal.ZERO) == 0) {
-                order.setStatus(OrderStatus.COMPLETED);
-                order = createNewOrderWithStatus(order, OrderStatus.COMPLETED);
-
-                // Hoàn tất đơn & Kích hoạt dịch vụ ngay lập tức (Không qua SePay/Transaction online)
-                orderCompletionService.completeViaWalletOnly(order);
-                return toResponseDto(order);
-            }
-
-            // Trường hợp 2: Cần thanh toán phần còn lại qua SePay
-            order = createNewOrderWithStatus(order, OrderStatus.AWAITING_PAYMENT);
         }
 
         return toResponseDto(order);

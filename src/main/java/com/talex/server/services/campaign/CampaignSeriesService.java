@@ -12,7 +12,5 @@ public interface CampaignSeriesService {
 
     CampaignSeriesResponseDto updateStatus(String campaignSeriesId, CampaignStatus newStatus);
 
-    CampaignSeriesResponseDto cancelCampaignSeries(String campaignSeriesId);
-
     List<CampaignSeriesLogResponseDto> getLogs(String campaignSeriesId, LocalDateTime startTime, LocalDateTime endTime);
 }

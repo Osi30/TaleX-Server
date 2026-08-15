@@ -53,26 +53,6 @@ public class CampaignSeriesServiceImpl implements CampaignSeriesService {
     }
 
     @Override
-    @Transactional
-    public CampaignSeriesResponseDto cancelCampaignSeries(String campaignSeriesId) {
-        CampaignSeries campaignSeries = campaignSeriesRepository.findById(campaignSeriesId)
-                .orElseThrow(() -> new CampaignSeriesException(CampaignSeriesErrorCode.NOT_FOUND));
-
-        CampaignStatus currentStatus = campaignSeries.getStatus();
-
-        // Qui tắc: Chỉ kích hoạt khi status là RUNNING hoặc PAUSED
-        if (currentStatus != CampaignStatus.RUNNING && currentStatus != CampaignStatus.PAUSED) {
-            throw new CampaignSeriesException(
-                    CampaignSeriesErrorCode.CANNOT_CANCEL,
-                    "Không thể hủy CampaignSeries đang ở trạng thái: " + currentStatus
-            );
-        }
-
-        campaignSeries.setStatus(CampaignStatus.CANCELLED);
-        return mapToResponse(campaignSeriesRepository.save(campaignSeries));
-    }
-
-    @Override
     @Transactional(readOnly = true)
     public List<CampaignSeriesLogResponseDto> getLogs(String campaignSeriesId, LocalDateTime startTime, LocalDateTime endTime) {
         List<CampaignSeriesLog> logs = campaignSeriesLogRepository
