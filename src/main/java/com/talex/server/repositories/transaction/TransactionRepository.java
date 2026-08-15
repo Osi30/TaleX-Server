@@ -10,4 +10,6 @@ import java.util.List;
 @Repository
 public interface TransactionRepository extends JpaRepository<Transaction, String> {
     List<Transaction> findByReferenceTypeAndReferenceIdIn(ReferenceType referenceType, List<String> referenceIds);
+
+    List<Transaction> findByReferenceTypeAndReferenceIdOrderByCreatedAtDesc(ReferenceType referenceType, String referenceId);
 }

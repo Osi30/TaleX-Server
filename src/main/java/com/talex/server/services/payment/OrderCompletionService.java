@@ -15,4 +15,5 @@ import java.math.BigDecimal;
  */
 public interface OrderCompletionService {
     void complete(Order order, BigDecimal paidAmount, PaymentMethod paymentMethod);
+    void completeViaWalletOnly(Order order);
 }

@@ -1,10 +1,10 @@
 package com.talex.server.services.campaign;
 
 import com.talex.server.dtos.BasePageResponse;
-import com.talex.server.dtos.requests.campaign.CampaignRequestDto;
-import com.talex.server.dtos.requests.campaign.CampaignUpdateDto;
+import com.talex.server.dtos.campaign.request.CampaignRequestDto;
+import com.talex.server.dtos.campaign.request.CampaignUpdateDto;
 import com.talex.server.dtos.requests.filters.CampaignFilterRequestDto;
-import com.talex.server.dtos.responses.campaign.CampaignResponseDto;
+import com.talex.server.dtos.campaign.response.CampaignResponseDto;
 
 import java.util.List;
 import java.util.UUID;
@@ -21,6 +21,4 @@ public interface CampaignService {
     CampaignResponseDto updateCampaign(String campaignId, CampaignUpdateDto requestDto);
 
     void deleteCampaign(String campaignId);
-
-    void refundIfAllCampaignCancelled(String campaignId);
 }

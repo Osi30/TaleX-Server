@@ -30,10 +30,10 @@ public interface OrderRepository extends JpaRepository<Order, String> {
     long nextPaymentCodeSequence();
 
     @Query("SELECT o FROM Order o WHERE o.orderId = :orderId AND o.account.accountId = :accountId")
-    Optional<Order> findByOrderIdAndAccountId(@Param("orderId") String orderId, @Param("accountId") java.util.UUID accountId);
+    Optional<Order> findByOrderIdAndAccountId(@Param("orderId") String orderId, @Param("accountId") UUID accountId);
 
     Optional<Order> findFirstByAccount_AccountIdAndItemTypeAndItemIdAndStatusOrderByCreatedAtDesc(
-            java.util.UUID accountId, String itemType, String itemId, OrderStatus status);
+            UUID accountId, String itemType, String itemId, OrderStatus status);
 
     Page<Order> findByAccount_AccountIdAndItemTypeInOrderByCreatedAtDesc(
             UUID accountId, List<String> itemTypes, Pageable pageable);

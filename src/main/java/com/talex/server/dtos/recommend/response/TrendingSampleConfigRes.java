@@ -23,6 +23,7 @@ public class TrendingSampleConfigRes {
     private Long maxImpression;
     private LocalDateTime updatedAt;
     private Double gravity;
+    private Double confidenceScore;
 
     public static TrendingSampleConfigRes fromEntity(TrendingSampleConfig entity) {
         if (entity == null) return null;
@@ -37,6 +38,7 @@ public class TrendingSampleConfigRes {
                 .maxImpression(entity.getMaxImpression())
                 .updatedAt(entity.getUpdatedAt())
                 .gravity(entity.getGravity())
+                .confidenceScore(entity.getConfidenceScore())
                 .build();
     }
 }

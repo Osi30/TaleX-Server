@@ -61,6 +61,7 @@ public class TrendingSampleConfigServiceImpl implements TrendingSampleConfigServ
                 .percentile(req.getPercentile())
                 .minImpression(req.getMinImpression())
                 .maxImpression(req.getMaxImpression())
+                .confidenceScore(req.getConfidenceScore())
                 .updatedAt(LocalDateTime.now())
                 .build();
 
@@ -86,6 +87,7 @@ public class TrendingSampleConfigServiceImpl implements TrendingSampleConfigServ
         config.setMinImpression(req.getMinImpression());
         config.setMaxImpression(req.getMaxImpression());
         config.setGravity(req.getGravity());
+        config.setConfidenceScore(req.getConfidenceScore());
         config.setUpdatedAt(LocalDateTime.now());
 
         TrendingSampleConfig updated = configRepository.save(config);

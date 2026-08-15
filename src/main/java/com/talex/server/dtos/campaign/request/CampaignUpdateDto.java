@@ -1,4 +1,4 @@
-package com.talex.server.dtos.requests.campaign;
+package com.talex.server.dtos.campaign.request;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.talex.server.enums.engagement.CampaignStatus;

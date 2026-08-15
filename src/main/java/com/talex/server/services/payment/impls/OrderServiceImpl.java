@@ -21,10 +21,12 @@ import com.talex.server.exceptions.details.ResourceNotFoundException;
 import com.talex.server.repositories.auth.AccountRepository;
 import com.talex.server.repositories.transaction.OrderRepository;
 import com.talex.server.services.campaign.CampaignService;
+import com.talex.server.services.campaign.CampaignWalletService;
 import com.talex.server.services.campaign.EngagementServiceService;
 import com.talex.server.services.coin.CoinPricingConverter;
 import com.talex.server.services.coin.CoinWalletService;
 import com.talex.server.services.config.TaxConfigService;
+import com.talex.server.services.payment.OrderService;
 import com.talex.server.services.payment.SePayService;
 import com.talex.server.services.payment.OrderCompletionService;
 import com.talex.server.services.subscription.SubscriptionService;
@@ -43,7 +45,7 @@ import java.util.function.Supplier;
 
 @Service
 @RequiredArgsConstructor
-public class OrderServiceImpl implements com.talex.server.services.payment.OrderService {
+public class OrderServiceImpl implements OrderService {
 
     private static final String ITEM_TYPE_SUBSCRIPTION = SubscriptionOrderFulfillmentServiceImpl.ITEM_TYPE;
     private static final String ITEM_TYPE_ENGAGEMENT = EngagementOrderFulfillmentServiceImpl.ITEM_TYPE;
@@ -60,6 +62,7 @@ public class OrderServiceImpl implements com.talex.server.services.payment.Order
     private final CoinPricingConverter coinPricingConverter;
     private final OrderCompletionService orderCompletionService;
     private final TaxConfigService taxConfigService;
+    private final CampaignWalletService campaignWalletService;
     private final ObjectMapper objectMapper;
     private final OrderExpirationMarker orderExpirationMarker;
 
@@ -92,15 +95,64 @@ public class OrderServiceImpl implements com.talex.server.services.payment.Order
                 service.getPrice() != null ? service.getPrice() : 0L);
         String metadata = serializeSeriesIds(request.getSeriesIds());
 
-        Order order = resolveActiveOrCreateNew(accountId, ITEM_TYPE_ENGAGEMENT, service.getEngagementServiceId(),
-                () -> Order.builder()
-                        .account(account)
-                        .itemType(ITEM_TYPE_ENGAGEMENT)
-                        .itemId(service.getEngagementServiceId())
-                        .totalAmount(totalAmount)
-                        .fiatAmount(totalAmount)
-                        .metadata(metadata)
-                        .build());
+        // 1. Tính toán phần tiền khấu trừ từ Campaign Wallet (nếu user yêu cầu)
+        BigDecimal campaignWalletToUse = BigDecimal.ZERO;
+        boolean useWallet = Boolean.TRUE.equals(request.getUseCampaignWallet());
+
+        if (useWallet) {
+            BigDecimal walletBalance = campaignWalletService.getAvailableBalance(accountId);
+            if (walletBalance.compareTo(BigDecimal.ZERO) > 0) {
+                campaignWalletToUse = walletBalance.min(totalAmount);
+            }
+        }
+
+        BigDecimal fiatAmount = totalAmount.subtract(campaignWalletToUse);
+
+        // 2. Kiểm tra nếu tái sử dụng Order cũ AWAITING_PAYMENT
+        Optional<Order> activeOrderOpt = orderRepository
+                .findFirstByAccount_AccountIdAndItemTypeAndItemIdAndStatusOrderByCreatedAtDesc(
+                        accountId, ITEM_TYPE_ENGAGEMENT, service.getEngagementServiceId(), OrderStatus.AWAITING_PAYMENT);
+
+        Order order;
+        if (activeOrderOpt.isPresent()) {
+            order = reuseOrBlockActiveOrder(activeOrderOpt.get());
+            // Cập nhật lại số tiền ví nếu order được reuse
+            reconcileCampaignWalletPayment(accountId, order, campaignWalletToUse);
+        } else {
+            // Tạo Order mới
+            order = Order.builder()
+                    .account(account)
+                    .itemType(ITEM_TYPE_ENGAGEMENT)
+                    .itemId(service.getEngagementServiceId())
+                    .totalAmount(totalAmount)
+                    .campaignWalletAmount(campaignWalletToUse)
+                    .fiatAmount(fiatAmount)
+                    .metadata(metadata)
+                    .build();
+
+            // Khấu trừ tiền ví Campaign Wallet nếu có áp dụng
+            if (campaignWalletToUse.compareTo(BigDecimal.ZERO) > 0) {
+                campaignWalletService.debitWallet(
+                        accountId,
+                        campaignWalletToUse,
+                        "Thanh toán đơn hàng đẩy tương tác " + order.getPaymentCode(),
+                        order.getOrderId()
+                );
+            }
+
+            // Trường hợp 1: Ví đủ thanh toán 100% (fiatAmount == 0)
+            if (fiatAmount.compareTo(BigDecimal.ZERO) == 0) {
+                order.setStatus(OrderStatus.COMPLETED);
+                order = createNewOrderWithStatus(order, OrderStatus.COMPLETED);
+
+                // Hoàn tất đơn & Kích hoạt dịch vụ ngay lập tức (Không qua SePay/Transaction online)
+                orderCompletionService.completeViaWalletOnly(order);
+                return toResponseDto(order);
+            }
+
+            // Trường hợp 2: Cần thanh toán phần còn lại qua SePay
+            order = createNewOrderWithStatus(order, OrderStatus.AWAITING_PAYMENT);
+        }
 
         return toResponseDto(order);
     }
@@ -198,10 +250,17 @@ public class OrderServiceImpl implements com.talex.server.services.payment.Order
             throw new PaymentException(PaymentErrorCode.ORDER_NOT_CANCELLABLE);
         }
 
+        // 1. Hoàn trả Coin (nếu có)
         if (order.getCoinAmount() != null && order.getCoinAmount() > 0) {
             coinWalletService.creditCoin(accountId, BigDecimal.valueOf(order.getCoinAmount()),
                     CoinReferenceType.ORDER, order.getOrderId(),
                     "Hoàn Coin do hủy đơn hàng " + order.getPaymentCode());
+        }
+
+        // 2. Hoàn trả Campaign Wallet (nếu có)
+        if (order.getCampaignWalletAmount() != null && order.getCampaignWalletAmount().compareTo(BigDecimal.ZERO) > 0) {
+            campaignWalletService.creditWallet(accountId, order.getCampaignWalletAmount(),
+                    "Hoàn tiền ví do hủy đơn hàng " + order.getPaymentCode(), order.getOrderId());
         }
 
         order.setStatus(OrderStatus.CANCELLED);
@@ -347,5 +406,48 @@ public class OrderServiceImpl implements com.talex.server.services.payment.Order
     }
 
     private record ComboDiscountMetadata(BigDecimal originalPrice, int ownedEpisodeCount, int totalEpisodeCount) {
+    }
+
+    /**
+     * Điều chỉnh số tiền ví áp dụng nếu user gọi lại API với lựa chọn dùng ví khác
+     */
+    private void reconcileCampaignWalletPayment(UUID accountId, Order order, BigDecimal targetWalletAmount) {
+        BigDecimal currentWalletApplied = order.getCampaignWalletAmount() != null
+                ? order.getCampaignWalletAmount() : BigDecimal.ZERO;
+
+        int comparison = targetWalletAmount.compareTo(currentWalletApplied);
+        if (comparison == 0) {
+            return;
+        } else if (comparison > 0) {
+            BigDecimal delta = targetWalletAmount.subtract(currentWalletApplied);
+            campaignWalletService.debitWallet(accountId, delta,
+                    "Khấu trừ thêm cho đơn hàng " + order.getPaymentCode(), order.getOrderId());
+        } else {
+            BigDecimal delta = currentWalletApplied.subtract(targetWalletAmount);
+            campaignWalletService.creditWallet(accountId, delta,
+                    "Hoàn lại tiền ví do điều chỉnh đơn hàng " + order.getPaymentCode(), order.getOrderId());
+        }
+
+        BigDecimal newFiatAmount = order.getTotalAmount().subtract(targetWalletAmount).max(BigDecimal.ZERO);
+        order.setCampaignWalletAmount(targetWalletAmount);
+        order.setFiatAmount(newFiatAmount);
+        orderRepository.save(order);
+    }
+
+    private Order createNewOrderWithStatus(Order order, OrderStatus status) {
+        LocalDateTime now = LocalDateTime.now();
+        order.setPaymentCode(generatePaymentCode());
+        order.setCoinAmount(0L);
+        order.setStatus(status);
+        order.setExpiresAt(now.plusMinutes(sePayProperties.getOrderExpiryMinutes()));
+
+        // Tính VAT dựa trên tổng tiền ban đầu (totalAmount)
+        TaxConfig taxConfig = taxConfigService.getTaxConfigEntity();
+        BigDecimal divisor = BigDecimal.ONE.add(BigDecimal.valueOf(taxConfig.getVat()));
+        BigDecimal basePrice = order.getTotalAmount().divide(divisor, 0, RoundingMode.HALF_UP);
+        order.setVatRate(taxConfig.getVat());
+        order.setVatAmount(order.getTotalAmount().subtract(basePrice));
+
+        return orderRepository.save(order);
     }
 }

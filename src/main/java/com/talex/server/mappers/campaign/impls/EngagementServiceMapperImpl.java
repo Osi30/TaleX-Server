@@ -1,7 +1,7 @@
 package com.talex.server.mappers.campaign.impls;
 
-import com.talex.server.dtos.requests.campaign.EngagementServiceRequestDto;
-import com.talex.server.dtos.responses.campaign.EngagementServiceResponseDto;
+import com.talex.server.dtos.campaign.request.EngagementServiceRequestDto;
+import com.talex.server.dtos.campaign.response.EngagementServiceResponseDto;
 import com.talex.server.entities.campaign.EngagementService;
 import com.talex.server.mappers.campaign.EngagementServiceMapper;
 import org.springframework.stereotype.Component;

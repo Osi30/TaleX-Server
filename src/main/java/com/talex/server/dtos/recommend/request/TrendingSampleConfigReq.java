@@ -35,4 +35,9 @@ public class TrendingSampleConfigReq {
     @DecimalMin(value = "0.01", message = "gravity phải lớn hơn 0.01")
     @DecimalMax(value = "20.0", message = "gravity phải nhỏ hơn 20.0")
     private Double gravity;
+
+    @NotNull(message = "confidence score không được để trống")
+    @DecimalMin(value = "0.01", message = "confidence score phải lớn hơn 0.01")
+    @DecimalMax(value = "20.0", message = "confidence score phải nhỏ hơn 20.0")
+    private Double confidenceScore;
 }

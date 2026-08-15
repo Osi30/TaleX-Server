@@ -1,7 +1,7 @@
 package com.talex.server.services.campaign.impls;
 
 import com.talex.server.dtos.analytic.CampaignSeriesLogResponseDto;
-import com.talex.server.dtos.responses.campaign.CampaignSeriesResponseDto;
+import com.talex.server.dtos.campaign.response.CampaignSeriesResponseDto;
 import com.talex.server.entities.campaign.CampaignSeries;
 import com.talex.server.entities.campaign.CampaignSeriesLog;
 import com.talex.server.enums.engagement.CampaignStatus;
