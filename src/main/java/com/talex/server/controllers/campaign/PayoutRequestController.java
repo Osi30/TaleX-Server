@@ -69,7 +69,7 @@ public class PayoutRequestController {
             @RequestParam(defaultValue = "1") Integer page,
             @RequestParam(defaultValue = "20") Integer pageSize
     ) {
-        criteria.put("accountId", accountId);
+        criteria.put("accountId", accountId.toString());
         BasePageResponse<PayoutRequestResponseDto> response = payoutRequestService.getPayoutRequests(criteria, page, pageSize);
         return ResponseEntity.ok(BaseResponse.builder()
                 .code(200)
