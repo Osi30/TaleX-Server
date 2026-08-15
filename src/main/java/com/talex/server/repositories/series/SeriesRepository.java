@@ -18,6 +18,7 @@ import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Repository
 public interface SeriesRepository extends JpaRepository<Series, String>, JpaSpecificationExecutor<Series> {
@@ -53,7 +54,7 @@ public interface SeriesRepository extends JpaRepository<Series, String>, JpaSpec
     Optional<Series> findActiveSeriesWithAvatarById(
             @Param("seriesId") String seriesId);
 
-    long countBySeriesIdInAndStatusAndIsDeletedFalseAndCreator_CreatorId(Collection<String> seriesIds, SeriesStatus status, String creatorId);
+    long countBySeriesIdInAndStatusAndIsDeletedFalseAndCreator_Account_AccountId(Collection<String> seriesIds, SeriesStatus status, UUID accountId);
 
     /// Tìm các Series ngừng tương tác quá 24h nhưng chưa reset cụm 24h
     @Query("SELECT s.seriesId " +

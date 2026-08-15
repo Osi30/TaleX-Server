@@ -13,9 +13,9 @@ public class TrendingScheduler {
     private final TrendingService trendingService;
 
     /**
-     * Cron Job 1: Kiểm tra và đánh giá Wilson Score Vòng 1 định kỳ mỗi 30 phút.
+     * Cron Job 1: Kiểm tra và đánh giá Wilson Score Vòng 1 định kỳ mỗi 1 tiếng.
      */
-    @Scheduled(cron = "0 */30 * * * *")
+    @Scheduled(cron = "0 0 * * * *")
     public void scheduleWilsonScoreEvaluation() {
         log.info("[CronJob] Start process Wilson Score evaluation...");
         try {

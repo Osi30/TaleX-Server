@@ -15,7 +15,6 @@ import com.talex.server.exceptions.codes.campaign.CampaignErrorCode;
 import com.talex.server.exceptions.codes.payment.PaymentErrorCode;
 import com.talex.server.exceptions.details.campaign.CampaignException;
 import com.talex.server.exceptions.details.payment.PaymentException;
-import com.talex.server.repositories.auth.AccountRepository;
 import com.talex.server.repositories.campaign.CampaignWalletRepository;
 import com.talex.server.repositories.campaign.CampaignWalletTransactionRepository;
 import com.talex.server.repositories.creator.CreatorRepository;
@@ -28,7 +27,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -42,7 +40,6 @@ public class CampaignWalletServiceImpl implements CampaignWalletService {
     private final CampaignWalletTransactionRepository campaignWalletTransactionRepository;
     private final CreatorRepository creatorRepository;
     private final OrderRepository orderRepository;
-    private final AccountRepository accountRepository;
 
     @Override
     @Transactional

@@ -76,13 +76,12 @@ public class CampaignServiceImpl implements CampaignService {
     }
 
     @Override
-    public void validateCampaign(UUID accountId, List<String> seriesIds){
+    public void validateCampaign(UUID accountId, List<String> seriesIds) {
         // 1. Kiểm tra nhanh số lượng tập phim hợp lệ
-        String creatorId = creatorService.getIdByAccountId(accountId);
-        long validSeriesCount = seriesRepository.countBySeriesIdInAndStatusAndIsDeletedFalseAndCreator_CreatorId(
+        long validSeriesCount = seriesRepository.countBySeriesIdInAndStatusAndIsDeletedFalseAndCreator_Account_AccountId(
                 seriesIds,
                 SeriesStatus.PUBLISHED,
-                creatorId
+                accountId
         );
         // Nếu số lượng trong DB không khớp với số lượng ID
         if (validSeriesCount != seriesIds.size()) {
@@ -143,7 +142,7 @@ public class CampaignServiceImpl implements CampaignService {
     public CampaignResponseDto updateCampaign(String campaignId, CampaignUpdateDto requestDto) {
         Campaign existing = findById(campaignId);
 
-        if (!requestDto.getStatus().equals(CampaignStatus.CANCELLED)){
+        if (!requestDto.getStatus().equals(CampaignStatus.CANCELLED)) {
             existing.updateStatus(requestDto.getStatus());
         }
         Optional.ofNullable(requestDto.getEndAt()).ifPresent(existing::setEndAt);
@@ -156,9 +155,13 @@ public class CampaignServiceImpl implements CampaignService {
     @Transactional
     public void deleteCampaign(String campaignId) {
         Campaign campaign = findById(campaignId);
-        campaign.updateStatus(CampaignStatus.CANCELLED);
-        campaignRepository.save(campaign);
-        campaignWalletService.refundCampaign(campaign);
+        if (campaign.getCampaignStatus().equals(CampaignStatus.RUNNING)
+                || campaign.getCampaignStatus().equals(CampaignStatus.PAUSED)
+        ) {
+            campaign.updateStatus(CampaignStatus.CANCELLED);
+            campaignRepository.save(campaign);
+            campaignWalletService.refundCampaign(campaign);
+        }
     }
 
     private Campaign findById(String id) {
