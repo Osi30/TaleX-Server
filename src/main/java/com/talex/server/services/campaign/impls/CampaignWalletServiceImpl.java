@@ -10,6 +10,7 @@ import com.talex.server.entities.creator.Creator;
 import com.talex.server.entities.transaction.Order;
 import com.talex.server.enums.engagement.WalletReferenceType;
 import com.talex.server.enums.engagement.WalletTransactionType;
+import com.talex.server.enums.transaction.OrderStatus;
 import com.talex.server.exceptions.codes.campaign.CampaignErrorCode;
 import com.talex.server.exceptions.codes.payment.PaymentErrorCode;
 import com.talex.server.exceptions.details.campaign.CampaignException;
@@ -83,30 +84,13 @@ public class CampaignWalletServiceImpl implements CampaignWalletService {
             return;
         }
 
-        // 3. Tính toán tỷ lệ dịch vụ chưa sử dụng để hoàn tiền
-        long target = campaign.getTargetImpression() != null ? campaign.getTargetImpression() : 0L;
+        // 3. Ràng buộc: Chỉ cho phép hủy/hoàn tiền 100% khi chiến dịch CHƯA PHÂN PHỐI (currentImpression == 0)
         long current = campaign.getCurrentImpression() != null ? campaign.getCurrentImpression() : 0L;
-
-        BigDecimal refundAmount;
-        if (target <= 0) {
-            // Trường hợp target không xác định -> Hoàn lại 100%
-            refundAmount = totalAmount;
-        } else {
-            long remainingImpressions = Math.max(0L, target - current);
-            if (remainingImpressions == 0) {
-                // Đã đạt 100% target -> Không hoàn tiền
-                return;
-            }
-
-            // Tỷ lệ hoàn tiền = (Target - Current) / Target
-            BigDecimal remainingRatio = BigDecimal.valueOf(remainingImpressions)
-                    .divide(BigDecimal.valueOf(target), 4, RoundingMode.HALF_UP);
-
-            refundAmount = totalAmount.multiply(remainingRatio);
-        }
-
-        if (refundAmount.compareTo(BigDecimal.ZERO) <= 0) {
-            return;
+        if (current > 0) {
+            throw new CampaignException(
+                    CampaignErrorCode.NOT_FOUND,
+                    "Chiến dịch đã bắt đầu phân phối (" + current + " lượt hiển thị). Không thể hủy và hoàn tiền."
+            );
         }
 
         // 4. Lấy hoặc tạo Ví Quảng Cáo cho Creator
@@ -114,23 +98,27 @@ public class CampaignWalletServiceImpl implements CampaignWalletService {
 
         // 5. Cập nhật số dư trong ví
         BigDecimal balanceBefore = wallet.getBalance();
-        BigDecimal balanceAfter = balanceBefore.add(refundAmount);
+        BigDecimal balanceAfter = balanceBefore.add(totalAmount);
         wallet.setBalance(balanceAfter);
         campaignWalletRepository.save(wallet);
 
         // 6. Ghi nhật ký giao dịch (CampaignWalletTransaction)
         CampaignWalletTransaction transaction = CampaignWalletTransaction.builder()
                 .campaignWallet(wallet)
-                .amount(refundAmount)
+                .amount(totalAmount)
                 .balanceBefore(balanceBefore)
                 .balanceAfter(balanceAfter)
                 .transactionType(WalletTransactionType.REFUND)
                 .referenceType(WalletReferenceType.CAMPAIGN)
                 .referenceId(campaign.getCampaignId())
-                .description("Hoàn tiền chiến dịch #" + campaign.getCampaignId() + " do bị hủy giữa chừng")
+                .description("Hoàn tiền 100% cho chiến dịch #" + campaign.getCampaignId() + " do hủy khi chưa phân phối")
                 .build();
 
         campaignWalletTransactionRepository.save(transaction);
+
+        // 7. Cập nhật trạng thái Order thành CANCELLED
+        order.setStatus(OrderStatus.CANCELLED);
+        orderRepository.save(order);
     }
 
     @Override

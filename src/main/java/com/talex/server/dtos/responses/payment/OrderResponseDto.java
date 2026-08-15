@@ -20,6 +20,7 @@ public class OrderResponseDto {
     private BigDecimal totalAmount;
     private Long coinAmountUsed;
     private BigDecimal fiatAmount;
+    private BigDecimal walletAmount;
     private OrderStatus status;
     private LocalDateTime expiresAt;
     // Chỉ có giá trị khi mua Combo và đã sở hữu 1 phần tập trong combo trước đó

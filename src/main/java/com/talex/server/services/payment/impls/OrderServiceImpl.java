@@ -365,6 +365,7 @@ public class OrderServiceImpl implements OrderService {
                 .totalAmount(order.getTotalAmount())
                 .coinAmountUsed(order.getCoinAmount())
                 .fiatAmount(fiatAmount)
+                .walletAmount(order.getCampaignWalletAmount())
                 .status(order.getStatus())
                 .expiresAt(order.getExpiresAt())
                 .comboOriginalPrice(comboDiscount != null ? comboDiscount.originalPrice() : null)
