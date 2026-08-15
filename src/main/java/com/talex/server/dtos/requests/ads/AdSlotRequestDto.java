@@ -1,12 +1,17 @@
 package com.talex.server.dtos.requests.ads;
 
 import com.talex.server.enums.ads.AdSlotType;
-import lombok.Data;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Min;
+import lombok.*;
 
 @Data
+@Getter
+@Setter
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class AdSlotRequestDto {
     @NotBlank(message = "Code name is required")
     private String codeName;
@@ -25,5 +30,9 @@ public class AdSlotRequestDto {
     @Min(value = 1, message = "Total view must be at least 1")
     private Long totalViewOfPrice;
 
+    @Builder.Default
     private Boolean isActive = true;
+
+    @Builder.Default
+    private Boolean isServingEnabled = true;
 }

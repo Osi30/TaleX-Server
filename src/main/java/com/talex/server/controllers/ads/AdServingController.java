@@ -1,5 +1,6 @@
 package com.talex.server.controllers.ads;
 
+import com.talex.server.annotations.CurrentAccountId;
 import com.talex.server.dtos.BaseResponse;
 import com.talex.server.dtos.requests.ads.AdTrackRequestDto;
 import com.talex.server.services.ads.AdCampaignService;
@@ -7,10 +8,13 @@ import com.talex.server.services.ads.AdSlotService;
 import com.talex.server.services.ads.AdTrackingService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/ads")
@@ -54,8 +58,13 @@ public class AdServingController {
 
     @PostMapping("/track/impression")
     @Operation(summary = "Đếm View (Impression)", description = "Gọi ngầm khi quảng cáo hiển thị thành công (Async).")
-    public ResponseEntity<BaseResponse> trackImpression(@Valid @RequestBody AdTrackRequestDto request) {
-        trackingService.trackImpressionAsync(request);
+    public ResponseEntity<BaseResponse> trackImpression(
+            @Valid @RequestBody AdTrackRequestDto request,
+            @CurrentAccountId UUID accountId,
+            HttpServletRequest httpRequest
+    ) {
+        String clientFingerprint = extractClientFingerprint(httpRequest);
+        trackingService.trackImpressionAsync(request, accountId, clientFingerprint);
         return ResponseEntity.ok(BaseResponse.builder()
                 .code(200)
                 .message("Impression tracked asynchronously")
@@ -64,8 +73,13 @@ public class AdServingController {
 
     @PostMapping("/track/view-6s")
     @Operation(summary = "Đếm View 6s", description = "Gọi ngầm khi quảng cáo video phát được 6 giây (Async).")
-    public ResponseEntity<BaseResponse> track6sView(@Valid @RequestBody AdTrackRequestDto request) {
-        trackingService.track6sViewAsync(request);
+    public ResponseEntity<BaseResponse> track6sView(
+            @Valid @RequestBody AdTrackRequestDto request,
+            @CurrentAccountId UUID accountId,
+            HttpServletRequest httpRequest
+    ) {
+        String clientFingerprint = extractClientFingerprint(httpRequest);
+        trackingService.track6sViewAsync(request, accountId, clientFingerprint);
         return ResponseEntity.ok(BaseResponse.builder()
                 .code(200)
                 .message("6s view tracked asynchronously")
@@ -74,11 +88,32 @@ public class AdServingController {
 
     @PostMapping("/track/click")
     @Operation(summary = "Đếm Click", description = "Gọi ngầm khi người dùng click vào quảng cáo (Async).")
-    public ResponseEntity<BaseResponse> trackClick(@Valid @RequestBody AdTrackRequestDto request) {
-        trackingService.trackClickAsync(request);
+    public ResponseEntity<BaseResponse> trackClick(
+            @Valid @RequestBody AdTrackRequestDto request,
+            @CurrentAccountId UUID accountId,
+            HttpServletRequest httpRequest
+    ) {
+        String clientFingerprint = extractClientFingerprint(httpRequest);
+        trackingService.trackClickAsync(request, accountId, clientFingerprint);
         return ResponseEntity.ok(BaseResponse.builder()
                 .code(200)
                 .message("Click tracked asynchronously")
                 .build());
+    }
+
+    private String extractClientFingerprint(HttpServletRequest request) {
+        String xfHeader = request.getHeader("X-Forwarded-For");
+        if (xfHeader == null || xfHeader.isEmpty() || "unknown".equalsIgnoreCase(xfHeader)) {
+            xfHeader = request.getHeader("X-Real-IP");
+        }
+        if (xfHeader == null || xfHeader.isEmpty() || "unknown".equalsIgnoreCase(xfHeader)) {
+            xfHeader = request.getRemoteAddr();
+        }
+        String ip = xfHeader.split(",")[0].trim();
+
+        String userAgent = request.getHeader("User-Agent");
+        int uaHash = (userAgent != null) ? userAgent.hashCode() : 0;
+
+        return ip + "_" + uaHash;
     }
 }

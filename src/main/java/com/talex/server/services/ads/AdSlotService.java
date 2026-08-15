@@ -10,6 +10,7 @@ public interface AdSlotService {
     AdSlotResponseDto createSlot(AdSlotRequestDto request);
     AdSlotResponseDto updateSlot(UUID slotId, AdSlotRequestDto request);
     AdSlotResponseDto toggleSlotStatus(UUID slotId, boolean isActive);
+    AdSlotResponseDto toggleServingStatus(UUID slotId, boolean isServingEnabled);
     void deleteSlot(UUID slotId);
     List<AdSlotResponseDto> getAllSlots();
     List<AdSlotResponseDto> getActiveSlots();
