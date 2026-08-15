@@ -1,6 +1,7 @@
 package com.talex.server.services.campaign.impls;
 
 import com.talex.server.dtos.BasePageResponse;
+import com.talex.server.dtos.campaign.response.WalletPayoutTransactionResponseDto;
 import com.talex.server.dtos.payout.request.BatchPayoutRequestDto;
 import com.talex.server.dtos.payout.request.PayoutItemRequestDto;
 import com.talex.server.dtos.payout.request.PayoutRequestProcessDto;
@@ -280,6 +281,41 @@ public class PayoutRequestServiceImpl implements PayoutRequestService {
         }
 
         return toResponseDto(payoutRequest);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<WalletPayoutTransactionResponseDto> getTransactionsByPayoutRequestId(String payoutRequestId) {
+        if (!payoutRequestRepository.existsById(payoutRequestId)) {
+            throw new PaymentException(
+                    PaymentErrorCode.ORDER_NOT_FOUND,
+                    "Không tìm thấy yêu cầu rút tiền với ID: " + payoutRequestId
+            );
+        }
+
+        return walletPayoutTransactionRepository.findByPayoutRequest_PayoutRequestId(payoutRequestId)
+                .stream()
+                .map(this::toWalletPayoutTransactionResponseDto)
+                .toList();
+    }
+
+    private WalletPayoutTransactionResponseDto toWalletPayoutTransactionResponseDto(WalletPayoutTransaction entity) {
+        return WalletPayoutTransactionResponseDto.builder()
+                .walletPayoutTransactionId(entity.getWalletPayoutTransactionId())
+                .batchReferenceId(entity.getBatchReferenceId())
+                .transactionReferenceId(entity.getTransactionReferenceId())
+                .gatewayBatchId(entity.getGatewayBatchId())
+                .payoutReference(entity.getPayoutReference())
+                .amount(entity.getAmount())
+                .status(entity.getStatus())
+                .failureReason(entity.getFailureReason())
+                .paidAt(entity.getPaidAt())
+                .toBin(entity.getToBin())
+                .toAccountNumber(entity.getToAccountNumber())
+                .toAccountName(entity.getToAccountName())
+                .createdAt(entity.getCreatedAt())
+                .updatedAt(entity.getUpdatedAt())
+                .build();
     }
 
     private PayoutRequestResponseDto toResponseDto(PayoutRequest entity) {

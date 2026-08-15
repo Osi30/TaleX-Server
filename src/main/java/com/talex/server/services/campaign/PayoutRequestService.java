@@ -1,9 +1,11 @@
 package com.talex.server.services.campaign;
 
 import com.talex.server.dtos.BasePageResponse;
+import com.talex.server.dtos.campaign.response.WalletPayoutTransactionResponseDto;
 import com.talex.server.dtos.payout.request.PayoutRequestProcessDto;
 import com.talex.server.dtos.payout.response.PayoutRequestResponseDto;
 
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -20,4 +22,6 @@ public interface PayoutRequestService {
 
     // Gọi PayoutService thực hiện chuyển tiền
     PayoutRequestResponseDto executePayout(String payoutRequestId);
+
+    List<WalletPayoutTransactionResponseDto> getTransactionsByPayoutRequestId(String payoutRequestId);
 }

@@ -3,6 +3,7 @@ package com.talex.server.controllers.campaign;
 import com.talex.server.annotations.CurrentAccountId;
 import com.talex.server.dtos.BasePageResponse;
 import com.talex.server.dtos.BaseResponse;
+import com.talex.server.dtos.campaign.response.WalletPayoutTransactionResponseDto;
 import com.talex.server.dtos.payout.request.PayoutRequestProcessDto;
 import com.talex.server.dtos.payout.response.PayoutRequestResponseDto;
 import com.talex.server.services.campaign.PayoutRequestService;
@@ -14,6 +15,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -58,7 +60,7 @@ public class PayoutRequestController {
     }
 
     @GetMapping("/own")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Lấy danh sách yêu cầu rút tiền (Own)",
             description = "Lọc danh sách phân trang theo status, accountId, khoảng ngày tạo,...")
     public ResponseEntity<BaseResponse> getOwnPayoutRequests(
@@ -103,6 +105,21 @@ public class PayoutRequestController {
         return ResponseEntity.ok(BaseResponse.builder()
                 .code(200)
                 .message("Thực thi chi trả thành công")
+                .data(response)
+                .build());
+    }
+
+    @GetMapping("/{id}/transactions")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(
+            summary = "Lấy danh sách giao dịch chi trả thực tế qua PayOS của Payout Request",
+            description = "Trả về danh sách tất cả các lượt giao dịch chi trả (WalletPayoutTransaction) liên quan đến yêu cầu rút tiền."
+    )
+    public ResponseEntity<BaseResponse> getTransactionsByPayoutRequestId(@PathVariable("id") String payoutRequestId) {
+        List<WalletPayoutTransactionResponseDto> response = payoutRequestService.getTransactionsByPayoutRequestId(payoutRequestId);
+        return ResponseEntity.ok(BaseResponse.builder()
+                .code(200)
+                .message("OK")
                 .data(response)
                 .build());
     }
