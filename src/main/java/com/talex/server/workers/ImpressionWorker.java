@@ -50,15 +50,11 @@ public class ImpressionWorker {
 
             UUID accountId = UUID.fromString(accountIdStr);
 
-            // =========================================================================
             // 1. Batch Insert AccountImpression (Native Query dùng unnest)
-            // =========================================================================
             String seriesIdsCsv = String.join(",", seriesIds);
             int insertedAccountImp = accountImpressionRepository.insertBatchIfNotExists(accountId, seriesIdsCsv);
 
-            // =========================================================================
             // 2. Batch Update cho Campaign & CampaignSeries
-            // =========================================================================
             // 2.1. Cập nhật total_impression cho CampaignSeries đang RUNNING
             int updatedCsCount = campaignSeriesRepository.incrementImpressionsBySeriesIds(seriesIds);
 
