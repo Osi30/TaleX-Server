@@ -142,7 +142,7 @@ public class TrendingServiceImpl implements TrendingService {
             return Collections.emptyList();
         }
 
-        List<Series> series = seriesRepository.findAllBySeriesIdIn(seriesIds);
+        List<Series> series = seriesRepository.findAllBySeriesIdInAndStatus(seriesIds, SeriesStatus.PUBLISHED);
         TrendingSampleConfigRes config = configService.getConfig();
 
         return series.stream()
@@ -158,7 +158,7 @@ public class TrendingServiceImpl implements TrendingService {
             return Collections.emptyList();
         }
 
-        List<Series> series = seriesRepository.findAllBySeriesIdIn(seriesIds);
+        List<Series> series = seriesRepository.findAllBySeriesIdInAndStatus(seriesIds, SeriesStatus.PUBLISHED);
         TrendingSampleConfigRes config = configService.getConfig();
 
         return series.stream()

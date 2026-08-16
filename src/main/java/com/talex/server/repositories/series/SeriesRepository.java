@@ -35,7 +35,7 @@ public interface SeriesRepository extends JpaRepository<Series, String>, JpaSpec
             Pageable pageable
     );
 
-    List<Series> findAllBySeriesIdIn(Collection<String> seriesIds);
+    List<Series> findAllBySeriesIdInAndStatus(Collection<String> seriesIds, SeriesStatus status);
 
     @Query("SELECT s " +
             "FROM Series s " +
