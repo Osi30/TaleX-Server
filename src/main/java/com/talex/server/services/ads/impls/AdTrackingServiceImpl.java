@@ -88,8 +88,10 @@ public class AdTrackingServiceImpl implements AdTrackingService {
     public void trackImpressionAsync(AdTrackRequestDto request, UUID accountId, String clientFingerprint) {
         try {
             UUID campaignId = request.getCampaignId();
+            boolean isMission = "MISSION".equalsIgnoreCase(request.getSource());
 
-            if (isFraudulentOrDuplicate("imp", campaignId, accountId, clientFingerprint)) {
+            // If it's a mission reward impression, bypass Redis cooldown check and do not set cooldown
+            if (!isMission && isFraudulentOrDuplicate("imp", campaignId, accountId, clientFingerprint)) {
                 return;
             }
 
@@ -119,7 +121,7 @@ public class AdTrackingServiceImpl implements AdTrackingService {
                         .campaign(campaign)
                         .amount(costPerImpression)
                         .type(com.talex.server.enums.ads.AdTransactionType.DEDUCT_CAMPAIGN)
-                        .note("Trừ phí lượt xem")
+                        .note(isMission ? "Trừ phí lượt xem (Nhiệm vụ thưởng)" : "Trừ phí lượt xem")
                         .build();
                 transactionRepository.save(transaction);
             }
