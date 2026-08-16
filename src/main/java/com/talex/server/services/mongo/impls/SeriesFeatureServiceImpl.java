@@ -79,7 +79,7 @@ public class SeriesFeatureServiceImpl implements SeriesFeatureService {
 
     @Override
     public void syncAllSeriesFeatures() {
-        LocalDateTime currentHour = LocalDateTime.now().truncatedTo(ChronoUnit.HOURS);
+        LocalDateTime currentHour = LocalDateTime.now().truncatedTo(ChronoUnit.HOURS).minusMinutes(1);
 
         SyncMetadata syncMetadata = syncMetadataRepository.findById(SyncType.SERIES_DYNAMIC_SYNC)
                 .orElse(SyncMetadata.builder()
@@ -87,7 +87,8 @@ public class SeriesFeatureServiceImpl implements SeriesFeatureService {
                         .lastSyncTime(LocalDateTime.of(1970, 1, 1, 0, 0).atZone(ZoneId.systemDefault()).toInstant())
                         .build());
 
-        LocalDateTime lastSyncTime = LocalDateTime.ofInstant(syncMetadata.getLastSyncTime(), ZoneId.systemDefault());
+        LocalDateTime lastSyncTime = LocalDateTime.ofInstant(syncMetadata.getLastSyncTime(), ZoneId.systemDefault())
+                .truncatedTo(ChronoUnit.HOURS).minusMinutes(1);
 
         CompletableFuture<Void> cumulativeTask = syncCumulativeStats(lastSyncTime, currentHour);
         CompletableFuture<Void> task24h = syncLast24hStats(currentHour);
