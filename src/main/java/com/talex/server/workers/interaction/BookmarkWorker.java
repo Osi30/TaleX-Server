@@ -109,7 +109,7 @@ public class BookmarkWorker {
                 // Định dạng localdatetime gom cụm theo giờ (Hour Bucket)
                 LocalDateTime hourBucket = LocalDateTime.ofInstant(
                         Instant.ofEpochMilli(createdAt / 1000),
-                        ZoneId.systemDefault()
+                        ZoneId.of("UTC")
                 ).truncatedTo(ChronoUnit.HOURS);
 
                 // Xác định delta tăng giảm: 'd' (delete) -> -1, 'c' (create) -> +1
