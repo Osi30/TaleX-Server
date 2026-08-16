@@ -175,7 +175,7 @@ public class TrendingServiceImpl implements TrendingService {
     ) {
         // Mặc định nếu người dùng không truyền danh sách status thì lấy cả SUCCESS và FAILED
         if (statuses == null || statuses.isEmpty()) {
-            statuses = List.of(ImpressionStatus.SUCCESS, ImpressionStatus.FAILED);
+            statuses = List.of(ImpressionStatus.SUCCESS);
         }
 
         Pageable pageable = PageRequest.of(page, size);
