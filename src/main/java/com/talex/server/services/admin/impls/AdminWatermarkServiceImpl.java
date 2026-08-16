@@ -3,6 +3,8 @@ package com.talex.server.services.admin.impls;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.talex.server.dtos.responses.admin.AdminWatermarkResponseDto;
+import com.talex.server.dtos.responses.auth.AdminAccountResponseDto;
+import com.talex.server.entities.auth.Account;
 import com.talex.server.repositories.auth.AccountRepository;
 import com.talex.server.services.admin.AdminWatermarkService;
 import lombok.RequiredArgsConstructor;
@@ -101,10 +103,36 @@ public class AdminWatermarkServiceImpl implements AdminWatermarkService {
 
                     String message = root.hasNonNull("message") ? root.get("message").asText() : null;
 
+                    AdminAccountResponseDto creatorAccount = null;
+                    if (creatorId != null) {
+                        try {
+                            Account account = accountRepository.findById(java.util.UUID.fromString(creatorId)).orElse(null);
+                            if (account != null) {
+                                creatorAccount = toAdminAccountDto(account);
+                            }
+                        } catch (Exception e) {
+                            log.warn("Invalid Creator ID format: {}", creatorId);
+                        }
+                    }
+
+                    AdminAccountResponseDto viewerAccount = null;
+                    if (viewerId != null) {
+                        try {
+                            Account account = accountRepository.findById(java.util.UUID.fromString(viewerId)).orElse(null);
+                            if (account != null) {
+                                viewerAccount = toAdminAccountDto(account);
+                            }
+                        } catch (Exception e) {
+                            log.warn("Invalid Viewer ID format: {}", viewerId);
+                        }
+                    }
+
                     return AdminWatermarkResponseDto.builder()
                             .creatorId(creatorId)
                             .viewerId(viewerId)
                             .message(message)
+                            .creatorAccount(creatorAccount)
+                            .viewerAccount(viewerAccount)
                             .build();
                 }
             } else {
@@ -136,6 +164,19 @@ public class AdminWatermarkServiceImpl implements AdminWatermarkService {
             }
             throw new RuntimeException("Lỗi trích xuất Watermark: " + e.getMessage());
         }
+    }
+
+    private AdminAccountResponseDto toAdminAccountDto(Account account) {
+        return AdminAccountResponseDto.builder()
+                .accountId(account.getAccountId())
+                .email(account.getEmail())
+                .username(account.getUsername())
+                .fullName(account.getFullName())
+                .avatarUrl(account.getAvatarUrl())
+                .roleName(account.getRole() == null ? null : account.getRole().getCode())
+                .status(account.getStatus() == null ? null : account.getStatus().name())
+                .createdAt(account.getCreatedAt())
+                .build();
     }
 
     private String determineBestCreatorId(String audioId, String fingerprintId) {
