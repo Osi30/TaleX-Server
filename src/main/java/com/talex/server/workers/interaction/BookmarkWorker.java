@@ -11,8 +11,10 @@ import com.talex.server.repositories.trending.AccountImpressionRepository;
 import com.talex.server.services.series.EpisodeService;
 import io.questdb.client.Sender;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -25,6 +27,7 @@ import java.util.UUID;
 
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class BookmarkWorker {
     private final Sender questDBSender;
     private final ObjectMapper objectMapper;
@@ -76,9 +79,10 @@ public class BookmarkWorker {
 
     @KafkaListener(
             topics = "talex-cdc.public.account_bookmarks",
-            groupId = "talex-bookmark-postgres-group",
+            groupId = "talex-bookmark-postgres-group-local",
             containerFactory = "batchFactory"
     )
+    @Transactional
     public void processBookmarksForPostgres(List<String> messages) {
         Map<String, Long> episodeDeltaMap = new HashMap<>();
         Map<EpisodeHourKey, Long> logDeltaMap = new HashMap<>();
@@ -105,7 +109,7 @@ public class BookmarkWorker {
                 // Định dạng localdatetime gom cụm theo giờ (Hour Bucket)
                 LocalDateTime hourBucket = LocalDateTime.ofInstant(
                         Instant.ofEpochMilli(createdAt / 1000),
-                        ZoneId.systemDefault()
+                        ZoneId.of("UTC")
                 ).truncatedTo(ChronoUnit.HOURS);
 
                 // Xác định delta tăng giảm: 'd' (delete) -> -1, 'c' (create) -> +1
@@ -152,6 +156,7 @@ public class BookmarkWorker {
             });
 
         } catch (Exception e) {
+            log.error(e.getMessage());
             throw new InteractionException(InteractionErrorCode.KAFKA_PROCESSING_ERROR, "PostgreSQL aggregation failure: " + e.getMessage());
         }
     }

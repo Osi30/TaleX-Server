@@ -2,6 +2,7 @@ package com.talex.server.entities.creator;
 
 import com.talex.server.entities.auth.Account;
 import com.talex.server.entities.analytic.AnalyticData;
+import com.talex.server.entities.campaign.CampaignWallet;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -77,4 +78,9 @@ public class Creator {
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
     private List<RevenueTransaction> revenueTransactions = new ArrayList<>();
+
+    @OneToOne(mappedBy = "creator", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    private CampaignWallet campaignWallet;
 }

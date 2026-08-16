@@ -1,4 +1,4 @@
-package com.talex.server.dtos.responses.campaign;
+package com.talex.server.dtos.campaign.response;
 
 import com.talex.server.entities.analytic.AnalyticData;
 import com.talex.server.enums.engagement.CampaignStatus;

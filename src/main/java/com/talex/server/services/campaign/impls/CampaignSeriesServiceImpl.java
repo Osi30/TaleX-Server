@@ -1,7 +1,7 @@
 package com.talex.server.services.campaign.impls;
 
 import com.talex.server.dtos.analytic.CampaignSeriesLogResponseDto;
-import com.talex.server.dtos.responses.campaign.CampaignSeriesResponseDto;
+import com.talex.server.dtos.campaign.response.CampaignSeriesResponseDto;
 import com.talex.server.entities.campaign.CampaignSeries;
 import com.talex.server.entities.campaign.CampaignSeriesLog;
 import com.talex.server.enums.engagement.CampaignStatus;
@@ -49,26 +49,6 @@ public class CampaignSeriesServiceImpl implements CampaignSeriesService {
         }
 
         campaignSeries.setStatus(newStatus);
-        return mapToResponse(campaignSeriesRepository.save(campaignSeries));
-    }
-
-    @Override
-    @Transactional
-    public CampaignSeriesResponseDto cancelCampaignSeries(String campaignSeriesId) {
-        CampaignSeries campaignSeries = campaignSeriesRepository.findById(campaignSeriesId)
-                .orElseThrow(() -> new CampaignSeriesException(CampaignSeriesErrorCode.NOT_FOUND));
-
-        CampaignStatus currentStatus = campaignSeries.getStatus();
-
-        // Qui tắc: Chỉ kích hoạt khi status là RUNNING hoặc PAUSED
-        if (currentStatus != CampaignStatus.RUNNING && currentStatus != CampaignStatus.PAUSED) {
-            throw new CampaignSeriesException(
-                    CampaignSeriesErrorCode.CANNOT_CANCEL,
-                    "Không thể hủy CampaignSeries đang ở trạng thái: " + currentStatus
-            );
-        }
-
-        campaignSeries.setStatus(CampaignStatus.CANCELLED);
         return mapToResponse(campaignSeriesRepository.save(campaignSeries));
     }
 

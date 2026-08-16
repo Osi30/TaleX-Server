@@ -2,7 +2,7 @@ package com.talex.server.services.payment.impls;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.talex.server.dtos.requests.campaign.CampaignRequestDto;
+import com.talex.server.dtos.campaign.request.CampaignRequestDto;
 import com.talex.server.entities.transaction.Order;
 import com.talex.server.services.campaign.CampaignService;
 import com.talex.server.services.payment.OrderFulfillmentService;

@@ -1,4 +1,4 @@
-package com.talex.server.dtos.responses.campaign;
+package com.talex.server.dtos.campaign.response;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

@@ -1,17 +1,21 @@
-package com.talex.server.dtos.requests.campaign;
+package com.talex.server.dtos.campaign.response;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
+
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class CampaignLogRequestDto {
+public class CampaignLogResponseDto {
+    private String campaignLogId;
     private String campaignId;
     private String accountId;
     private String eventType;
     private String message;
+    private LocalDateTime createdAt;
 }

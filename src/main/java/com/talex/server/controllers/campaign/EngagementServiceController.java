@@ -2,9 +2,9 @@ package com.talex.server.controllers.campaign;
 
 import com.talex.server.dtos.BaseResponse;
 import com.talex.server.dtos.BasePageResponse;
-import com.talex.server.dtos.requests.campaign.EngagementServiceRequestDto;
+import com.talex.server.dtos.campaign.request.EngagementServiceRequestDto;
 import com.talex.server.dtos.requests.filters.EngagementServiceFilterRequestDto;
-import com.talex.server.dtos.responses.campaign.EngagementServiceResponseDto;
+import com.talex.server.dtos.campaign.response.EngagementServiceResponseDto;
 import com.talex.server.services.campaign.EngagementServiceService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;

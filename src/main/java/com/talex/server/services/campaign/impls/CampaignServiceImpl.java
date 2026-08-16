@@ -1,10 +1,10 @@
 package com.talex.server.services.campaign.impls;
 
 import com.talex.server.dtos.BasePageResponse;
-import com.talex.server.dtos.requests.campaign.CampaignRequestDto;
-import com.talex.server.dtos.requests.campaign.CampaignUpdateDto;
+import com.talex.server.dtos.campaign.request.CampaignRequestDto;
+import com.talex.server.dtos.campaign.request.CampaignUpdateDto;
 import com.talex.server.dtos.requests.filters.CampaignFilterRequestDto;
-import com.talex.server.dtos.responses.campaign.CampaignResponseDto;
+import com.talex.server.dtos.campaign.response.CampaignResponseDto;
 import com.talex.server.entities.campaign.Campaign;
 import com.talex.server.entities.campaign.EngagementService;
 import com.talex.server.entities.series.Series;
@@ -16,6 +16,8 @@ import com.talex.server.mappers.campaign.CampaignMapper;
 import com.talex.server.repositories.campaign.CampaignRepository;
 import com.talex.server.repositories.campaign.CampaignSeriesRepository;
 import com.talex.server.repositories.series.SeriesRepository;
+import com.talex.server.services.campaign.CampaignService;
+import com.talex.server.services.campaign.CampaignWalletService;
 import com.talex.server.services.campaign.EngagementServiceService;
 import com.talex.server.services.creator.CreatorService;
 import com.talex.server.specifications.campaign.CampaignSpec;
@@ -25,7 +27,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,12 +36,13 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
-public class CampaignService implements com.talex.server.services.campaign.CampaignService {
+public class CampaignServiceImpl implements CampaignService {
     private final CampaignRepository campaignRepository;
     private final CampaignSeriesRepository campaignSeriesRepository;
     private final SeriesRepository seriesRepository;
     private final CreatorService creatorService;
     private final EngagementServiceService engagementService;
+    private final CampaignWalletService campaignWalletService;
     private final CampaignMapper campaignMapper;
 
     @Override
@@ -74,13 +76,12 @@ public class CampaignService implements com.talex.server.services.campaign.Campa
     }
 
     @Override
-    public void validateCampaign(UUID accountId, List<String> seriesIds){
+    public void validateCampaign(UUID accountId, List<String> seriesIds) {
         // 1. Kiểm tra nhanh số lượng tập phim hợp lệ
-        String creatorId = creatorService.getIdByAccountId(accountId);
-        long validSeriesCount = seriesRepository.countBySeriesIdInAndStatusAndIsDeletedFalseAndCreator_CreatorId(
+        long validSeriesCount = seriesRepository.countBySeriesIdInAndStatusAndIsDeletedFalseAndCreator_Account_AccountId(
                 seriesIds,
                 SeriesStatus.PUBLISHED,
-                creatorId
+                accountId
         );
         // Nếu số lượng trong DB không khớp với số lượng ID
         if (validSeriesCount != seriesIds.size()) {
@@ -141,7 +142,9 @@ public class CampaignService implements com.talex.server.services.campaign.Campa
     public CampaignResponseDto updateCampaign(String campaignId, CampaignUpdateDto requestDto) {
         Campaign existing = findById(campaignId);
 
-        Optional.ofNullable(requestDto.getStatus()).ifPresent(existing::updateStatus);
+        if (!requestDto.getStatus().equals(CampaignStatus.CANCELLED)) {
+            existing.updateStatus(requestDto.getStatus());
+        }
         Optional.ofNullable(requestDto.getEndAt()).ifPresent(existing::setEndAt);
 
         Campaign updated = campaignRepository.save(existing);
@@ -152,18 +155,12 @@ public class CampaignService implements com.talex.server.services.campaign.Campa
     @Transactional
     public void deleteCampaign(String campaignId) {
         Campaign campaign = findById(campaignId);
-        campaign.updateStatus(CampaignStatus.CANCELLED);
-        campaignRepository.save(campaign);
-    }
-
-    @Async("kafkaExecutor")
-    @Override
-    @Transactional
-    public void refundIfAllCampaignCancelled(String campaignId) {
-        Campaign campaign = findById(campaignId);
-        if (campaign.getCampaignStatus().equals(CampaignStatus.CANCELLED)) {
-            // Send event
-            System.out.println("Campaign is cancelled");
+        if (campaign.getCampaignStatus().equals(CampaignStatus.RUNNING)
+                || campaign.getCampaignStatus().equals(CampaignStatus.PAUSED)
+        ) {
+            campaign.updateStatus(CampaignStatus.CANCELLED);
+            campaignRepository.save(campaign);
+            campaignWalletService.refundCampaign(campaign);
         }
     }
 

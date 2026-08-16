@@ -23,6 +23,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Service
@@ -80,6 +81,7 @@ public class AuthServiceImpl implements AuthService {
                 .dateOfBirth(request.getDateOfBirth())
                 .phone(request.getPhone())
                 .role(roleService.findByCode("VIEWER"))
+                .lastInteractionTime(LocalDateTime.now())
                 .build();
 
         accountRepository.save(account);

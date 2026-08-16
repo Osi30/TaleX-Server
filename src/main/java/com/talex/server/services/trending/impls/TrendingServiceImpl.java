@@ -64,7 +64,7 @@ public class TrendingServiceImpl implements TrendingService {
             analytic.setSampleRatio(sampleRatio);
 
             // Tính Wilson Score
-            double wilsonScore = calculateWilsonScore(engageClick, totalImpression);
+            double wilsonScore = calculateWilsonScore(engageClick, totalImpression, config.getConfidenceScore());
             analytic.setWilsonScore(wilsonScore);
 
             boolean isEvaluated = false;
@@ -175,7 +175,7 @@ public class TrendingServiceImpl implements TrendingService {
     ) {
         // Mặc định nếu người dùng không truyền danh sách status thì lấy cả SUCCESS và FAILED
         if (statuses == null || statuses.isEmpty()) {
-            statuses = List.of(ImpressionStatus.SUCCESS, ImpressionStatus.FAILED);
+            statuses = List.of(ImpressionStatus.SUCCESS);
         }
 
         Pageable pageable = PageRequest.of(page, size);
@@ -240,7 +240,10 @@ public class TrendingServiceImpl implements TrendingService {
         double sampleRatio = totalImpression > 0 ? (double) engageClick / totalImpression : 0.0;
 
         // Tính điểm Realtime khi Admin gọi API xem danh sách
-        double realtimeWilsonScore = calculateWilsonScore(engageClick, totalImpression);
+        double realtimeWilsonScore = calculateWilsonScore(
+                engageClick, totalImpression,
+                configService.getConfig().getConfidenceScore()
+        );
         double realtimeUpperWilsonScore = calculateUpperWilsonScore(engageClick, totalImpression);
         double realtimeRankingScore = calculateHackerNewsRankingScore(
                 series.getRatingCount(),
@@ -261,12 +264,12 @@ public class TrendingServiceImpl implements TrendingService {
     /**
      * Công thức khoảng tin cậy Wilson (Wilson Score Lower Bound) - Độ tin cậy 95% (z = 1.96)
      */
-    private double calculateWilsonScore(long engageClick, long totalImpression) {
+    private double calculateWilsonScore(long engageClick, long totalImpression, double confidenceLevel) {
         if (totalImpression <= 0) return 0.0;
 
         double p = (double) engageClick / totalImpression;
         double n = totalImpression;
-        double z = 1.96; // 95% confidence level
+        double z =  confidenceLevel; // 1.96 ~ 95% confidence level
 
         double z2 = z * z;
         double denominator = 1.0 + z2 / n;

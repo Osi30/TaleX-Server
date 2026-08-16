@@ -84,6 +84,26 @@ public class OrderCompletionServiceImpl implements OrderCompletionService {
         // }
     }
 
+    @Override
+    @Transactional
+    public void completeViaWalletOnly(Order order) {
+        // Hoàn tất đơn thanh toán 100% bằng Wallet (KHÔNG tạo Transaction SePay/fiat)
+        order.setStatus(OrderStatus.COMPLETED);
+        orderRepository.save(order);
+
+        OrderFulfillmentService fulfillmentService = fulfillmentServiceByItemType.get(order.getItemType());
+        if (fulfillmentService == null) {
+            throw new IllegalStateException(
+                    "No OrderFulfillmentService registered for itemType=" + order.getItemType());
+        }
+        fulfillmentService.fulfill(order);
+
+        log.info("Order {} completed 100% via Campaign Wallet, totalAmount={}, itemType={} fulfilled",
+                order.getOrderId(), order.getTotalAmount(), order.getItemType());
+
+        notifyPurchaseSuccess(order);
+    }
+
     private void notifyPurchaseSuccess(Order order) {
         String recipientAccountId = order.getAccount().getAccountId().toString();
         NotificationType type;

@@ -19,4 +19,6 @@ public class CreateEngagementOrderRequestDto {
 
     @NotEmpty
     private List<String> seriesIds;
+
+    private Boolean useCampaignWallet;
 }

@@ -1,9 +1,9 @@
 package com.talex.server.services.campaign;
 
 import com.talex.server.dtos.BasePageResponse;
-import com.talex.server.dtos.requests.campaign.EngagementServiceRequestDto;
+import com.talex.server.dtos.campaign.request.EngagementServiceRequestDto;
 import com.talex.server.dtos.requests.filters.EngagementServiceFilterRequestDto;
-import com.talex.server.dtos.responses.campaign.EngagementServiceResponseDto;
+import com.talex.server.dtos.campaign.response.EngagementServiceResponseDto;
 import com.talex.server.entities.campaign.EngagementService;
 
 public interface EngagementServiceService {

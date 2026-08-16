@@ -71,6 +71,9 @@ public class Order {
     @Column(name = "vat_amount")
     private BigDecimal vatAmount;
 
+    @Column(name = "campaign_wallet_amount", precision = 19, scale = 2)
+    private BigDecimal campaignWalletAmount = BigDecimal.ZERO;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "account_id", nullable = false)
     private Account account;

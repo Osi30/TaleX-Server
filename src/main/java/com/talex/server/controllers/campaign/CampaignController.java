@@ -3,10 +3,10 @@ package com.talex.server.controllers.campaign;
 import com.talex.server.annotations.CurrentAccountId;
 import com.talex.server.dtos.BasePageResponse;
 import com.talex.server.dtos.BaseResponse;
-import com.talex.server.dtos.requests.campaign.CampaignRequestDto;
-import com.talex.server.dtos.requests.campaign.CampaignUpdateDto;
+import com.talex.server.dtos.campaign.request.CampaignRequestDto;
+import com.talex.server.dtos.campaign.request.CampaignUpdateDto;
 import com.talex.server.dtos.requests.filters.CampaignFilterRequestDto;
-import com.talex.server.dtos.responses.campaign.CampaignResponseDto;
+import com.talex.server.dtos.campaign.response.CampaignResponseDto;
 import com.talex.server.services.campaign.CampaignService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -119,8 +119,8 @@ public class CampaignController {
     }
 
     @PutMapping("/{campaignId}")
-    @PreAuthorize("hasAnyRole('ADMIN','STAFF')")
-    @Operation(summary = "Cập nhật chiến dịch", description = "Cập nhật thông tin chiến dịch theo id. Chỉ Admin/Staff.")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Cập nhật chiến dịch", description = "Cập nhật thông tin chiến dịch theo id.")
     public ResponseEntity<BaseResponse> update(
             @PathVariable String campaignId,
             @RequestBody CampaignUpdateDto request

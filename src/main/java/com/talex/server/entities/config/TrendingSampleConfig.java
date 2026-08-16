@@ -59,6 +59,10 @@ public class TrendingSampleConfig {
     @Builder.Default
     private Double gravity = 1.8;
 
+    @Column(name = "confidence_score", columnDefinition = "float8 default 1.96")
+    @Builder.Default
+    private Double confidenceScore = 1.96;
+
     @Column(name = "updated_at")
     @Builder.Default
     private LocalDateTime updatedAt = LocalDateTime.now();

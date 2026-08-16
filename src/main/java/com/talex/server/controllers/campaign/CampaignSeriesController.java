@@ -2,10 +2,9 @@ package com.talex.server.controllers.campaign;
 
 import com.talex.server.dtos.BaseResponse;
 import com.talex.server.dtos.analytic.CampaignSeriesLogResponseDto;
-import com.talex.server.dtos.responses.campaign.CampaignSeriesResponseDto;
+import com.talex.server.dtos.campaign.response.CampaignSeriesResponseDto;
 import com.talex.server.enums.engagement.CampaignStatus;
 import com.talex.server.services.campaign.CampaignSeriesService;
-import com.talex.server.services.campaign.impls.CampaignService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -24,7 +23,6 @@ import java.util.List;
 @Tag(name = "Campaign Series", description = "API quản lý danh sách và trạng thái của Campaign Series")
 public class CampaignSeriesController {
     private final CampaignSeriesService campaignSeriesService;
-    private final CampaignService campaignService;
 
     @GetMapping("/campaign/{campaignId}")
     @Operation(
@@ -73,21 +71,6 @@ public class CampaignSeriesController {
         return ResponseEntity.ok(BaseResponse.builder()
                 .code(200)
                 .message("Campaign series status updated")
-                .data(response)
-                .build());
-    }
-
-    @PatchMapping("/{id}/cancel")
-    @Operation(
-            summary = "Hủy Campaign Series",
-            description = "Chuyển trạng thái sang CANCELLED. Chỉ thực hiện được khi trạng thái hiện tại là RUNNING hoặc PAUSED."
-    )
-    public ResponseEntity<BaseResponse> cancelCampaignSeries(@PathVariable String id) {
-        CampaignSeriesResponseDto response = campaignSeriesService.cancelCampaignSeries(id);
-        campaignService.refundIfAllCampaignCancelled(response.getCampaignId());
-        return ResponseEntity.ok(BaseResponse.builder()
-                .code(200)
-                .message("Campaign series cancelled")
                 .data(response)
                 .build());
     }

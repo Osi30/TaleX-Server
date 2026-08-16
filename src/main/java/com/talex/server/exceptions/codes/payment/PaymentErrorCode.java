@@ -16,7 +16,10 @@ public enum PaymentErrorCode {
     INVALID_ITEM_TYPE(4004, HttpStatus.BAD_REQUEST, "Loại nội dung không hợp lệ, chỉ chấp nhận EPISODE hoặc COMBO"),
     ORDER_NOT_CANCELLABLE(4005, HttpStatus.BAD_REQUEST, "Chỉ có thể hủy đơn hàng đang chờ thanh toán"),
     ORDER_NOT_FULLY_COVERED_BY_COIN(4006, HttpStatus.BAD_REQUEST,
-            "Số Coin hiện tại chưa đủ trả hết đơn hàng, vui lòng thanh toán phần còn lại qua SePay");
+            "Số Coin hiện tại chưa đủ trả hết đơn hàng, vui lòng thanh toán phần còn lại qua SePay"),
+    INSUFFICIENT_BALANCE(4007, HttpStatus.BAD_REQUEST,
+            "Số dư không đủ")
+    ;
 
     private final int code;
     private final HttpStatus httpStatus;
