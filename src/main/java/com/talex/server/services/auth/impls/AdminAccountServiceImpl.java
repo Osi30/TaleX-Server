@@ -41,6 +41,12 @@ public class AdminAccountServiceImpl implements AdminAccountService {
 
     @Override
     @Transactional
+    public AdminAccountResponseDto getAccountById(UUID accountId) {
+        return toResponse(findAccount(accountId));
+    }
+
+    @Override
+    @Transactional
     public AdminAccountResponseDto createStaff(CreateStaffRequestDto request) {
         if (accountRepository.existsByEmail(request.getEmail())) {
             throw new AdminAccountException(AdminAccountErrorCode.EMAIL_ALREADY_EXISTS);

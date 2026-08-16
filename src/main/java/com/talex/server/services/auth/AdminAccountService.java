@@ -11,6 +11,8 @@ public interface AdminAccountService {
 
     Page<AdminAccountResponseDto> getAccounts(String keyword, String roleName, String status, Pageable pageable);
 
+    AdminAccountResponseDto getAccountById(UUID accountId);
+
     AdminAccountResponseDto createStaff(CreateStaffRequestDto request);
 
     AdminAccountResponseDto banAccount(UUID accountId);
