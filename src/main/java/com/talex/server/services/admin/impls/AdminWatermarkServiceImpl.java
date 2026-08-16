@@ -84,6 +84,12 @@ public class AdminWatermarkServiceImpl implements AdminWatermarkService {
                     String creatorId = root.hasNonNull("creator_id") ? root.get("creator_id").asText() : null;
                     String viewerId = root.hasNonNull("viewer_id") ? root.get("viewer_id").asText() : null;
                     
+                    if (creatorId == null) {
+                        String creatorIdAudio = root.hasNonNull("creator_id_audio") ? root.get("creator_id_audio").asText() : null;
+                        String creatorIdFingerprint = root.hasNonNull("creator_id_fingerprint") ? root.get("creator_id_fingerprint").asText() : null;
+                        creatorId = determineBestCreatorId(creatorIdAudio, creatorIdFingerprint);
+                    }
+
                     // Map ViewerID Binary to real UUID
                     if (viewerId != null && viewerId.startsWith("User_Binary_")) {
                         String binaryStr = viewerId.replace("User_Binary_", "");
@@ -130,6 +136,80 @@ public class AdminWatermarkServiceImpl implements AdminWatermarkService {
             }
             throw new RuntimeException("Lỗi trích xuất Watermark: " + e.getMessage());
         }
+    }
+
+    private String determineBestCreatorId(String audioId, String fingerprintId) {
+        log.info("Xác định Creator ID. Audio: {}, Fingerprint: {}", audioId, fingerprintId);
+        
+        String bestAudioMatch = null;
+        if (audioId != null && !audioId.isBlank()) {
+            bestAudioMatch = findClosestAccountId(audioId);
+        }
+
+        String bestFpMatch = null;
+        if (fingerprintId != null && !fingerprintId.isBlank()) {
+            if (isValidAndExists(fingerprintId)) {
+                bestFpMatch = fingerprintId;
+            }
+        }
+
+        if (bestAudioMatch != null && bestFpMatch != null) {
+            if (bestAudioMatch.equals(bestFpMatch)) {
+                log.info("Audio và Fingerprint đều match trùng 1 User: {}", bestAudioMatch);
+                return bestAudioMatch;
+            } else {
+                log.info("Audio và Fingerprint ra 2 User khác nhau. Ưu tiên Audio: {}", bestAudioMatch);
+                return bestAudioMatch; // Audio is a hard watermark, usually more reliable if matched
+            }
+        }
+
+        if (bestAudioMatch != null) {
+            log.info("Chỉ tìm thấy Audio ID: {}", bestAudioMatch);
+            return bestAudioMatch;
+        }
+
+        if (bestFpMatch != null) {
+            log.info("Chỉ tìm thấy Fingerprint ID: {}", bestFpMatch);
+            return bestFpMatch;
+        }
+
+        return null;
+    }
+
+    private boolean isValidAndExists(String id) {
+        try {
+            java.util.UUID uuid = java.util.UUID.fromString(id);
+            return accountRepository.existsById(uuid);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private String findClosestAccountId(String extractedString) {
+        if (extractedString == null || extractedString.length() < 10) return null;
+
+        java.util.List<java.util.UUID> allIds = accountRepository.findAllAccountIds();
+        
+        String bestMatchId = null;
+        int maxMatchedLength = 0;
+
+        for (java.util.UUID id : allIds) {
+            String target = id.toString();
+            int matchScore = calculateMaxConsecutiveMatch(target, extractedString);
+            
+            if (matchScore > maxMatchedLength) {
+                maxMatchedLength = matchScore;
+                bestMatchId = target;
+            }
+        }
+        
+        // Cần khớp ít nhất 10 ký tự liên tiếp để tránh nhận diện sai
+        if (maxMatchedLength >= 10) {
+            log.info("TÌM THẤY Creator UUID gần giống nhất: {} (Khớp liên tiếp {}/36 char)", bestMatchId, maxMatchedLength);
+            return bestMatchId;
+        }
+        
+        return null;
     }
 
     private String findAccountIdByBinaryPattern(String extractedBinary) {
