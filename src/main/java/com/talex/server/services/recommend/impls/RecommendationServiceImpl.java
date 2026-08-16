@@ -167,15 +167,18 @@ public class RecommendationServiceImpl implements RecommendationService {
             );
         }
 
-        // Bắn sự kiện Async sang Kafka cho ImpressionWorker xử lý
-        if (!userIdStr.isEmpty() && !"anonymous".equals(userIdStr) && !"guest_user".equals(userIdStr)) {
-            sendHomeImpressionsAsync(userIdStr, new ArrayList<>(allUniqueIds));
-        }
-
         // 7. Query PostgreSQL lấy dữ liệu Card
         List<SeriesCardResponseDto> fetchedCards = seriesRepository.findSeriesCardsByIds(
                 allUniqueIds, SeriesStatus.PUBLISHED
         );
+
+        // Bắn sự kiện Async sang Kafka cho ImpressionWorker xử lý
+        if (!userIdStr.isEmpty() && !"anonymous".equals(userIdStr) && !"guest_user".equals(userIdStr)) {
+            sendHomeImpressionsAsync(
+                    userIdStr,
+                    fetchedCards.stream().map(SeriesCardResponseDto::getSeriesId).toList()
+            );
+        }
 
         Map<String, SeriesCardResponseDto> cardMap = fetchedCards.stream()
                 .collect(Collectors.toMap(SeriesCardResponseDto::getSeriesId, card -> card, (c1, c2) -> c1));

@@ -415,14 +415,32 @@ public class ContentPipelineServiceImpl implements ContentPipelineService {
             Media sourceMedia = null;
             boolean isCC0 = false;
 
-            Optional<Media> sourceOpt = mediaRepository.findByMediaIdAndIsDeletedFalse(item.getSourceMediaId());
+            // KHÔNG lọc isDeletedFalse ở đây — nguồn trùng có thể đã bị soft-delete (Media
+            // xóa trực tiếp, hoặc cascade từ Episode/Season/Series cha, xem
+            // ContentCascadeDeleteHelper) TRONG KHI fingerprint Milvus vẫn được giữ lại có
+            // chủ đích để bắt đạo nhái. Trước đây dùng findByMediaIdAndIsDeletedFalse nên
+            // mọi nguồn đã xóa bị coi như "không tồn tại", MediaCopyright.sourceMedia lưu
+            // NULL vĩnh viễn — Staff nhìn vào chỉ thấy "Không xác định (nội dung gốc có thể
+            // đã bị xóa)" dù bản ghi Media vẫn còn (soft-delete), mất luôn tên tập/series/
+            // creator lẽ ra vẫn hiển thị được kèm nhãn "(nội dung đã bị xóa)" — đúng như FE
+            // (moderation-management.tsx) đã có sẵn logic hiển thị nhưng không bao giờ chạy
+            // tới vì backend không giữ lại liên kết. Dùng findByMediaId (không lọc) để luôn
+            // lưu lại liên kết, Staff xem được ai là chủ nguồn dù nguồn đã bị xóa hay chưa.
+            Optional<Media> sourceOpt = mediaRepository.findByMediaId(item.getSourceMediaId());
             if (sourceOpt.isPresent()) {
                 sourceMedia = sourceOpt.get();
-                // Check if source media carries a CC0 license
-                isCC0 = sourceMedia.getCopyright() != null
+                // Chỉ miễn trừ CC0 cho nguồn CÒN TỒN TẠI (chưa xóa) — nguồn đã xóa luôn coi
+                // là non-CC0 để về hàng chờ Staff review, tránh dựa vào license của 1 media
+                // không còn truy xuất được (Creator đã xóa) để tự động bỏ qua kiểm duyệt.
+                isCC0 = !Boolean.TRUE.equals(sourceMedia.getIsDeleted())
+                        && sourceMedia.getCopyright() != null
                         && CC0_CODE.equalsIgnoreCase(sourceMedia.getCopyright().getCode());
+            } else {
+                // mediaId hoàn toàn không tồn tại trong DB này (stale/cross-environment) —
+                // khác với case "đã xóa" ở trên, trường hợp này KHÔNG có gì để hiển thị.
+                log.warn("Copyright violation source mediaId={} not found in DB (target mediaId={}) — sourceMedia left null",
+                        item.getSourceMediaId(), media.getMediaId());
             }
-            // Source not in DB → conservative: treat as non-CC0
 
             MediaCopyright copyright = new MediaCopyright();
             copyright.setMedia(media);

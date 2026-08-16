@@ -185,7 +185,7 @@ public class SeriesServiceImpl implements SeriesService {
         }
 
         // 2. Query danh sách Series từ DB
-        List<Series> seriesList = seriesRepository.findAllBySeriesIdIn(distinctIds);
+        List<Series> seriesList = seriesRepository.findAllBySeriesIdInAndStatus(distinctIds, SeriesStatus.PUBLISHED);
 
         // 3. Map danh sách Series theo seriesId để dễ tra cứu
         Map<String, Series> seriesMap = seriesList.stream()

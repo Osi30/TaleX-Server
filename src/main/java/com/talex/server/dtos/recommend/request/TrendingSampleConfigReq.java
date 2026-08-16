@@ -22,7 +22,7 @@ public class TrendingSampleConfigReq {
     private Double percentile;
 
     @NotNull(message = "minImpression không được để trống")
-    @Min(value = 50, message = "minImpression phải lớn hơn hoặc bằng 50")
+    @Min(value = 20, message = "minImpression phải lớn hơn hoặc bằng 20")
     @Max(value = 2000000, message = "minImpression lớn nhất là 2000000")
     private Long minImpression;
 
