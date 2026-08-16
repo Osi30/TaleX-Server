@@ -11,6 +11,7 @@ import com.talex.server.repositories.trending.AccountImpressionRepository;
 import com.talex.server.services.series.EpisodeService;
 import io.questdb.client.Sender;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
@@ -25,6 +26,7 @@ import java.util.UUID;
 
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class BookmarkWorker {
     private final Sender questDBSender;
     private final ObjectMapper objectMapper;
@@ -76,7 +78,7 @@ public class BookmarkWorker {
 
     @KafkaListener(
             topics = "talex-cdc.public.account_bookmarks",
-            groupId = "talex-bookmark-postgres-group",
+            groupId = "talex-bookmark-postgres-group-local",
             containerFactory = "batchFactory"
     )
     public void processBookmarksForPostgres(List<String> messages) {
@@ -152,6 +154,7 @@ public class BookmarkWorker {
             });
 
         } catch (Exception e) {
+            log.error(e.getMessage());
             throw new InteractionException(InteractionErrorCode.KAFKA_PROCESSING_ERROR, "PostgreSQL aggregation failure: " + e.getMessage());
         }
     }
