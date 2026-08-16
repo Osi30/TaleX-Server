@@ -14,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -81,6 +82,7 @@ public class BookmarkWorker {
             groupId = "talex-bookmark-postgres-group-local",
             containerFactory = "batchFactory"
     )
+    @Transactional
     public void processBookmarksForPostgres(List<String> messages) {
         Map<String, Long> episodeDeltaMap = new HashMap<>();
         Map<EpisodeHourKey, Long> logDeltaMap = new HashMap<>();
