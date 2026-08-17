@@ -21,4 +21,8 @@ public interface MediaUploadSessionRepository extends JpaRepository<MediaUploadS
     List<MediaUploadSession> findAllByStatusInAndExpiredAtBeforeAndIsDeletedFalse(
             Collection<MediaUploadSessionStatus> statuses,
             LocalDateTime expiredAt);
+
+    // Admin hard-purge: remove ALL upload-session bookkeeping rows of a media (transient, no
+    // retention value).
+    void deleteAllByMedia_MediaId(String mediaId);
 }

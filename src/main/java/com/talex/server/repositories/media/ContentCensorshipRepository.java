@@ -20,4 +20,8 @@ public interface ContentCensorshipRepository extends JpaRepository<ContentCensor
     // Bulk delete (1 DELETE statement) cho cascade xóa nhiều media cùng lúc (Series/Season/
     // Episode) — tránh N+1 query nếu gọi findAllByMedia_MediaId() lặp lại cho từng media.
     void deleteAllByMedia_MediaIdIn(Collection<String> mediaIds);
+
+    // Admin hard-purge: delete all censorship rows of a single media. Callers MUST delete the
+    // child violation_detail rows first (bulk delete bypasses JPA orphanRemoval).
+    void deleteAllByMedia_MediaId(String mediaId);
 }
