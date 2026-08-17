@@ -55,7 +55,7 @@ public interface LikeAggregationRepository extends JpaRepository<AccountLike, St
     @Modifying
     @Transactional
     @Query(value = "UPDATE campaign " +
-            "SET likes = likes + :delta, " +
+            "SET likes = likes + :delta " +
             "WHERE campaign_id IN " +
             "(SELECT cs.campaign_id " +
             "FROM campaign_series cs " +

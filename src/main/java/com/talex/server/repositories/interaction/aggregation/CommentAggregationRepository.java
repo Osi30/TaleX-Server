@@ -71,7 +71,6 @@ public interface CommentAggregationRepository extends JpaRepository<Episode, Str
     @Transactional
     @Query(value = "UPDATE campaign " +
             "SET comments = COALESCE(comments, 0) + :delta " +
-            "THEN COALESCE(current_value, 0) + :delta ELSE current_value END " +
             "WHERE campaign_id IN " +
             "(SELECT cs.campaign_id " +
             "FROM campaign_series cs " +
