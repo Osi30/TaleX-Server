@@ -933,6 +933,19 @@ public class MediaServiceImpl implements MediaService {
         return groupByEpisode(episodeIdsPage, media);
     }
 
+    @Transactional(readOnly = true)
+    @Override
+    public Page<MediaResponseDto> listRejected(int page, int size, String mediaType, String keyword) {
+        PageRequest pageable = PageRequest.of(page, size);
+        MediaType typeFilter = parseMediaTypeFilter(mediaType);
+        String normalizedKeyword = parseKeyword(keyword);
+        Page<String> episodeIdsPage = mediaRepository.findDistinctRejectedEpisodeIds(
+                ContentApprovalStatus.REJECTED, typeFilter, normalizedKeyword, pageable);
+        List<Media> media = mediaRepository.findRejectedMediaByEpisodeIds(
+                episodeIdsPage.getContent(), ContentApprovalStatus.REJECTED, typeFilter);
+        return groupByEpisode(episodeIdsPage, media);
+    }
+
     @Override
     public MediaResponseDto toResponse(Media media) {
         return baseResponse(media).build();

@@ -1,7 +1,6 @@
 package com.talex.server.dtos.requests.series;
 
 import com.talex.server.enums.series.ContentType;
-import com.talex.server.enums.series.ContentWarningGroup;
 import com.talex.server.enums.series.SeriesStatus;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -35,7 +34,9 @@ public class SeriesRequestDto {
 
     private String ageRating;
 
-    private Set<ContentWarningGroup> contentWarnings;
+    // Danh sách "code" của ContentWarningCategory đã khai (VD "SEXUAL_NUDITY") — validate
+    // đúng code tồn tại/đang active ở SeriesServiceImpl trước khi lưu.
+    private Set<String> contentWarnings;
 
     private String language;
 

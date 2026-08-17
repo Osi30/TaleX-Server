@@ -158,16 +158,17 @@ public interface MediaRepository extends JpaRepository<Media, String> {
     // khác cùng episode cần duyệt riêng. Sort lấy từ Pageable (Sort.by createdAt DESC ở
     // MediaServiceImpl.listPendingReview()).
     // keyword đã được chuẩn hóa "%từ khóa%" thường (lowercase) ở tầng service trước khi
-    // truyền vào — so khớp tiêu đề Episode/Season/Series và mediaId, KHÔNG search theo tên
-    // Creator (creatorId chỉ là chuỗi thô trên Media, không phải quan hệ JPA, join sẽ cần
-    // subquery riêng qua bảng Creator — để dành nếu sau này thật sự cần).
+    // truyền vào — so khớp tiêu đề Episode/Season/Series, mediaId, contentId (mã fingerprint
+    // hiện trên UI), và tên Creator. creatorId là chuỗi thô trên Media (không phải quan hệ
+    // JPA) nên search theo Creator phải qua subquery riêng (SELECT ... FROM Creator c WHERE
+    // LOWER(c.account.username) LIKE :keyword) thay vì join thẳng.
     @Query("SELECT m FROM Media m WHERE m.approvalStatus = :approvalStatus AND m.status = :status "
             + "AND m.isDeleted = false AND (:mediaType IS NULL OR m.mediaType = :mediaType) "
             + "AND (:keyword IS NULL "
             + "     OR LOWER(m.episode.title) LIKE :keyword "
             + "     OR LOWER(m.episode.season.title) LIKE :keyword "
             + "     OR LOWER(m.episode.season.series.title) LIKE :keyword "
-            + "     OR LOWER(m.mediaId) LIKE :keyword)")
+            + "     OR LOWER(m.mediaId) LIKE :keyword OR LOWER(m.contentId) LIKE :keyword OR m.creatorId IN (SELECT c.creatorId FROM Creator c WHERE LOWER(c.account.username) LIKE :keyword))")
     Page<Media> findPendingReviewMedia(
             @Param("approvalStatus") ContentApprovalStatus approvalStatus,
             @Param("status") MediaStatus status,
@@ -187,7 +188,7 @@ public interface MediaRepository extends JpaRepository<Media, String> {
             + "     OR LOWER(m.episode.title) LIKE :keyword "
             + "     OR LOWER(m.episode.season.title) LIKE :keyword "
             + "     OR LOWER(m.episode.season.series.title) LIKE :keyword "
-            + "     OR LOWER(m.mediaId) LIKE :keyword) "
+            + "     OR LOWER(m.mediaId) LIKE :keyword OR LOWER(m.contentId) LIKE :keyword OR m.creatorId IN (SELECT c.creatorId FROM Creator c WHERE LOWER(c.account.username) LIKE :keyword)) "
             // NULLS LAST tường minh — Postgres mặc định coi NULL là "lớn nhất" nên NULL tự
             // trồi lên ĐẦU trong ORDER BY DESC, làm media chưa từng có approvalReviewedAt
             // (VD dữ liệu cũ/seed) đứng trước cả nội dung vừa duyệt thật, ngược hẳn ý đồ
@@ -200,7 +201,7 @@ public interface MediaRepository extends JpaRepository<Media, String> {
                     + "     OR LOWER(m.episode.title) LIKE :keyword "
                     + "     OR LOWER(m.episode.season.title) LIKE :keyword "
                     + "     OR LOWER(m.episode.season.series.title) LIKE :keyword "
-                    + "     OR LOWER(m.mediaId) LIKE :keyword)")
+                    + "     OR LOWER(m.mediaId) LIKE :keyword OR LOWER(m.contentId) LIKE :keyword OR m.creatorId IN (SELECT c.creatorId FROM Creator c WHERE LOWER(c.account.username) LIKE :keyword))")
     Page<String> findDistinctApprovedEpisodeIds(
             @Param("approvalStatus") ContentApprovalStatus approvalStatus,
             @Param("statuses") Collection<MediaStatus> statuses,
@@ -229,7 +230,7 @@ public interface MediaRepository extends JpaRepository<Media, String> {
             + "     OR LOWER(m.episode.title) LIKE :keyword "
             + "     OR LOWER(m.episode.season.title) LIKE :keyword "
             + "     OR LOWER(m.episode.season.series.title) LIKE :keyword "
-            + "     OR LOWER(m.mediaId) LIKE :keyword) "
+            + "     OR LOWER(m.mediaId) LIKE :keyword OR LOWER(m.contentId) LIKE :keyword OR m.creatorId IN (SELECT c.creatorId FROM Creator c WHERE LOWER(c.account.username) LIKE :keyword)) "
             // NULLS LAST tường minh — Postgres mặc định coi NULL là "lớn nhất" nên NULL tự
             // trồi lên ĐẦU trong ORDER BY DESC, làm media chưa từng có approvalReviewedAt
             // (VD dữ liệu cũ/seed) đứng trước cả nội dung vừa duyệt thật, ngược hẳn ý đồ
@@ -243,7 +244,7 @@ public interface MediaRepository extends JpaRepository<Media, String> {
                     + "     OR LOWER(m.episode.title) LIKE :keyword "
                     + "     OR LOWER(m.episode.season.title) LIKE :keyword "
                     + "     OR LOWER(m.episode.season.series.title) LIKE :keyword "
-                    + "     OR LOWER(m.mediaId) LIKE :keyword)")
+                    + "     OR LOWER(m.mediaId) LIKE :keyword OR LOWER(m.contentId) LIKE :keyword OR m.creatorId IN (SELECT c.creatorId FROM Creator c WHERE LOWER(c.account.username) LIKE :keyword))")
     Page<String> findDistinctManuallyApprovedEpisodeIds(
             @Param("approvalStatus") ContentApprovalStatus approvalStatus,
             @Param("statuses") Collection<MediaStatus> statuses,
@@ -271,7 +272,7 @@ public interface MediaRepository extends JpaRepository<Media, String> {
             + "     OR LOWER(m.episode.title) LIKE :keyword "
             + "     OR LOWER(m.episode.season.title) LIKE :keyword "
             + "     OR LOWER(m.episode.season.series.title) LIKE :keyword "
-            + "     OR LOWER(m.mediaId) LIKE :keyword) "
+            + "     OR LOWER(m.mediaId) LIKE :keyword OR LOWER(m.contentId) LIKE :keyword OR m.creatorId IN (SELECT c.creatorId FROM Creator c WHERE LOWER(c.account.username) LIKE :keyword)) "
             // NULLS LAST tường minh — Postgres mặc định coi NULL là "lớn nhất" nên NULL tự
             // trồi lên ĐẦU trong ORDER BY DESC, làm media chưa từng có approvalReviewedAt
             // (VD dữ liệu cũ/seed) đứng trước cả nội dung vừa duyệt thật, ngược hẳn ý đồ
@@ -285,7 +286,7 @@ public interface MediaRepository extends JpaRepository<Media, String> {
                     + "     OR LOWER(m.episode.title) LIKE :keyword "
                     + "     OR LOWER(m.episode.season.title) LIKE :keyword "
                     + "     OR LOWER(m.episode.season.series.title) LIKE :keyword "
-                    + "     OR LOWER(m.mediaId) LIKE :keyword)")
+                    + "     OR LOWER(m.mediaId) LIKE :keyword OR LOWER(m.contentId) LIKE :keyword OR m.creatorId IN (SELECT c.creatorId FROM Creator c WHERE LOWER(c.account.username) LIKE :keyword))")
     Page<String> findDistinctAutoApprovedEpisodeIds(
             @Param("approvalStatus") ContentApprovalStatus approvalStatus,
             @Param("statuses") Collection<MediaStatus> statuses,
@@ -303,6 +304,43 @@ public interface MediaRepository extends JpaRepository<Media, String> {
             @Param("approvalStatus") ContentApprovalStatus approvalStatus,
             @Param("statuses") Collection<MediaStatus> statuses,
             @Param("pipelineActor") String pipelineActor,
+            @Param("mediaType") MediaType mediaType);
+
+    // Tab "Từ chối" — gồm cả bị Staff từ chối tay (rejectWithReason) lẫn pipeline tự động
+    // reject do lỗi hệ thống (VD copyright check fail, xem ContentPipelineServiceImpl).
+    // KHÔNG lọc theo MediaStatus (khác tab "Đã duyệt" dùng APPROVED_TAB_STATUSES cố định) —
+    // media bị từ chối có thể đang ở nhiều status khác nhau tùy trạng thái trước đó
+    // (FAILED/HIDDEN/INACTIVE...), lọc cứng sẽ bỏ sót nội dung thật sự bị từ chối.
+    @Query(value = "SELECT m.episode.episodeId FROM Media m WHERE m.approvalStatus = :approvalStatus "
+            + "AND m.isDeleted = false AND (:mediaType IS NULL OR m.mediaType = :mediaType) "
+            + "AND (:keyword IS NULL "
+            + "     OR LOWER(m.episode.title) LIKE :keyword "
+            + "     OR LOWER(m.episode.season.title) LIKE :keyword "
+            + "     OR LOWER(m.episode.season.series.title) LIKE :keyword "
+            + "     OR LOWER(m.mediaId) LIKE :keyword OR LOWER(m.contentId) LIKE :keyword "
+            + "     OR m.creatorId IN (SELECT c.creatorId FROM Creator c WHERE LOWER(c.account.username) LIKE :keyword)) "
+            + "GROUP BY m.episode.episodeId ORDER BY MAX(m.approvalReviewedAt) DESC NULLS LAST",
+            countQuery = "SELECT COUNT(DISTINCT m.episode.episodeId) FROM Media m "
+                    + "WHERE m.approvalStatus = :approvalStatus AND m.isDeleted = false "
+                    + "AND (:mediaType IS NULL OR m.mediaType = :mediaType) "
+                    + "AND (:keyword IS NULL "
+                    + "     OR LOWER(m.episode.title) LIKE :keyword "
+                    + "     OR LOWER(m.episode.season.title) LIKE :keyword "
+                    + "     OR LOWER(m.episode.season.series.title) LIKE :keyword "
+                    + "     OR LOWER(m.mediaId) LIKE :keyword OR LOWER(m.contentId) LIKE :keyword "
+                    + "     OR m.creatorId IN (SELECT c.creatorId FROM Creator c WHERE LOWER(c.account.username) LIKE :keyword))")
+    Page<String> findDistinctRejectedEpisodeIds(
+            @Param("approvalStatus") ContentApprovalStatus approvalStatus,
+            @Param("mediaType") MediaType mediaType,
+            @Param("keyword") String keyword,
+            Pageable pageable);
+
+    @Query("SELECT m FROM Media m WHERE m.episode.episodeId IN :episodeIds "
+            + "AND m.approvalStatus = :approvalStatus AND m.isDeleted = false "
+            + "AND (:mediaType IS NULL OR m.mediaType = :mediaType)")
+    List<Media> findRejectedMediaByEpisodeIds(
+            @Param("episodeIds") Collection<String> episodeIds,
+            @Param("approvalStatus") ContentApprovalStatus approvalStatus,
             @Param("mediaType") MediaType mediaType);
 
     // Reconcile fallback cho content pipeline (copyright/kiểm duyệt) bị "mất tích" do gửi

@@ -64,8 +64,8 @@ public interface MediaService {
     MediaViolationsResponseDto getMediaViolations(String mediaId, String accountId);
 
     /**
-     * @param keyword so khớp không phân biệt hoa/thường theo tiêu đề Episode/Season/Series
-     *                và mediaId, null/rỗng = không lọc.
+     * @param keyword so khớp không phân biệt hoa/thường theo tiêu đề Episode/Season/Series,
+     *                mediaId, contentId, và tên đăng nhập Creator, null/rỗng = không lọc.
      */
     Page<MediaResponseDto> listPendingReview(int page, int size, String mediaType, String keyword);
 
@@ -77,8 +77,18 @@ public interface MediaService {
      *                     vi phạm), "clean" = chỉ nội dung pipeline tự duyệt (không vi phạm),
      *                     giá trị khác hoặc null = không lọc, trả về tất cả.
      * @param mediaType    "IMAGE"/"VIDEO" = chỉ lọc đúng loại đó, null/giá trị khác = không lọc.
-     * @param keyword      so khớp không phân biệt hoa/thường theo tiêu đề Episode/Season/Series
-     *                     và mediaId, null/rỗng = không lọc.
+     * @param keyword      so khớp không phân biệt hoa/thường theo tiêu đề Episode/Season/Series,
+     *                     mediaId, contentId, và tên đăng nhập Creator, null/rỗng = không lọc.
      */
     Page<MediaResponseDto> listApproved(int page, int size, String reviewFilter, String mediaType, String keyword);
+
+    /**
+     * "Từ chối" — nội dung approvalStatus=REJECTED (Staff từ chối tay hoặc pipeline tự động
+     * reject do lỗi hệ thống), sắp theo lượt duyệt gần nhất.
+     *
+     * @param mediaType "IMAGE"/"VIDEO" = chỉ lọc đúng loại đó, null/giá trị khác = không lọc.
+     * @param keyword   so khớp không phân biệt hoa/thường theo tiêu đề Episode/Season/Series,
+     *                  mediaId, contentId, và tên đăng nhập Creator, null/rỗng = không lọc.
+     */
+    Page<MediaResponseDto> listRejected(int page, int size, String mediaType, String keyword);
 }

@@ -198,6 +198,18 @@ public class MediaController {
         return ResponseEntity.ok(response(200, "OK", mediaService.listApproved(page, size, filter, mediaType, keyword)));
     }
 
+    // Paginated list of rejected media (Staff từ chối tay hoặc pipeline tự động reject do
+    // lỗi hệ thống) — cho Staff/Admin rà lại lịch sử từ chối.
+    @GetMapping("/api/v1/media/rejected")
+    @PreAuthorize("hasAnyRole('STAFF', 'ADMIN')")
+    public ResponseEntity<BaseResponse> listRejected(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String mediaType,
+            @RequestParam(required = false) String keyword) {
+        return ResponseEntity.ok(response(200, "OK", mediaService.listRejected(page, size, mediaType, keyword)));
+    }
+
     @PutMapping("/api/v1/media/{id}")
      @PreAuthorize("isAuthenticated()")
     public ResponseEntity<BaseResponse> update(
