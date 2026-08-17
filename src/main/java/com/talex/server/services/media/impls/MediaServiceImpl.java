@@ -46,6 +46,7 @@ import com.talex.server.services.media.MediaService;
 import com.talex.server.services.media.MediaSystemConfigService;
 import com.talex.server.services.series.EpisodeEntitlementService;
 import com.talex.server.services.series.EpisodeService;
+import com.talex.server.utils.ValidationUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -795,11 +796,16 @@ public class MediaServiceImpl implements MediaService {
 
     // Chuẩn hóa keyword giống AccountSpecification (AdminAccountServiceImpl) — trim, lowercase,
     // bọc "%...%" cho LIKE — null/rỗng thành null để query JPQL hiểu là "không lọc" (:keyword IS NULL).
+    // Bỏ dấu tiếng Việt (ValidationUtils.stripVietnameseAccents) để khớp với FUNCTION('unaccent', ...)
+    // áp trên 3 field tiêu đề trong MediaRepository — search không phân biệt Staff có gõ dấu
+    // hay không (VD "bao luc" vẫn khớp "Bạo lực"), giống hệt cách Series search công khai đã
+    // làm (SeriesSpec) — không ảnh hưởng mediaId/contentId/username vì các giá trị này vốn
+    // không có dấu, strip là no-op.
     private String parseKeyword(String keyword) {
         if (keyword == null || keyword.isBlank()) {
             return null;
         }
-        return "%" + keyword.trim().toLowerCase() + "%";
+        return "%" + ValidationUtils.stripVietnameseAccents(keyword.trim().toLowerCase()) + "%";
     }
 
     // "ALL"/null/giá trị không hợp lệ đều coi là không lọc — tránh 400 lặt vặt cho FE khi
