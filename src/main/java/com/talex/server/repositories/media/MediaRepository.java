@@ -165,9 +165,9 @@ public interface MediaRepository extends JpaRepository<Media, String> {
     @Query("SELECT m FROM Media m WHERE m.approvalStatus = :approvalStatus AND m.status = :status "
             + "AND m.isDeleted = false AND (:mediaType IS NULL OR m.mediaType = :mediaType) "
             + "AND (:keyword IS NULL "
-            + "     OR FUNCTION('unaccent', LOWER(m.episode.title)) LIKE :keyword "
-            + "     OR FUNCTION('unaccent', LOWER(m.episode.season.title)) LIKE :keyword "
-            + "     OR FUNCTION('unaccent', LOWER(m.episode.season.series.title)) LIKE :keyword "
+            + "     OR CAST(FUNCTION('unaccent', LOWER(m.episode.title)) AS string) LIKE :keyword"
+            + "     OR CAST(FUNCTION('unaccent', LOWER(m.episode.season.title)) AS string) LIKE :keyword"
+            + "     OR CAST(FUNCTION('unaccent', LOWER(m.episode.season.series.title)) AS string) LIKE :keyword"
             + "     OR LOWER(m.mediaId) LIKE :keyword OR LOWER(m.contentId) LIKE :keyword OR m.creatorId IN (SELECT c.creatorId FROM Creator c WHERE LOWER(c.account.username) LIKE :keyword))")
     Page<Media> findPendingReviewMedia(
             @Param("approvalStatus") ContentApprovalStatus approvalStatus,
@@ -185,9 +185,9 @@ public interface MediaRepository extends JpaRepository<Media, String> {
     @Query(value = "SELECT m.episode.episodeId FROM Media m WHERE m.approvalStatus = :approvalStatus "
             + "AND m.status IN :statuses AND m.isDeleted = false AND (:mediaType IS NULL OR m.mediaType = :mediaType) "
             + "AND (:keyword IS NULL "
-            + "     OR FUNCTION('unaccent', LOWER(m.episode.title)) LIKE :keyword "
-            + "     OR FUNCTION('unaccent', LOWER(m.episode.season.title)) LIKE :keyword "
-            + "     OR FUNCTION('unaccent', LOWER(m.episode.season.series.title)) LIKE :keyword "
+            + "     OR CAST(FUNCTION('unaccent', LOWER(m.episode.title)) AS string) LIKE :keyword"
+            + "     OR CAST(FUNCTION('unaccent', LOWER(m.episode.season.title)) AS string) LIKE :keyword"
+            + "     OR CAST(FUNCTION('unaccent', LOWER(m.episode.season.series.title)) AS string) LIKE :keyword"
             + "     OR LOWER(m.mediaId) LIKE :keyword OR LOWER(m.contentId) LIKE :keyword OR m.creatorId IN (SELECT c.creatorId FROM Creator c WHERE LOWER(c.account.username) LIKE :keyword)) "
             // NULLS LAST tường minh — Postgres mặc định coi NULL là "lớn nhất" nên NULL tự
             // trồi lên ĐẦU trong ORDER BY DESC, làm media chưa từng có approvalReviewedAt
@@ -198,9 +198,9 @@ public interface MediaRepository extends JpaRepository<Media, String> {
                     + "WHERE m.approvalStatus = :approvalStatus AND m.status IN :statuses AND m.isDeleted = false "
                     + "AND (:mediaType IS NULL OR m.mediaType = :mediaType) "
                     + "AND (:keyword IS NULL "
-                    + "     OR FUNCTION('unaccent', LOWER(m.episode.title)) LIKE :keyword "
-                    + "     OR FUNCTION('unaccent', LOWER(m.episode.season.title)) LIKE :keyword "
-                    + "     OR FUNCTION('unaccent', LOWER(m.episode.season.series.title)) LIKE :keyword "
+                    + "     OR CAST(FUNCTION('unaccent', LOWER(m.episode.title)) AS string) LIKE :keyword"
+                    + "     OR CAST(FUNCTION('unaccent', LOWER(m.episode.season.title)) AS string) LIKE :keyword"
+                    + "     OR CAST(FUNCTION('unaccent', LOWER(m.episode.season.series.title)) AS string) LIKE :keyword"
                     + "     OR LOWER(m.mediaId) LIKE :keyword OR LOWER(m.contentId) LIKE :keyword OR m.creatorId IN (SELECT c.creatorId FROM Creator c WHERE LOWER(c.account.username) LIKE :keyword))")
     Page<String> findDistinctApprovedEpisodeIds(
             @Param("approvalStatus") ContentApprovalStatus approvalStatus,
@@ -227,9 +227,9 @@ public interface MediaRepository extends JpaRepository<Media, String> {
             + "AND m.status IN :statuses AND m.isDeleted = false AND m.approvalReviewedBy IS NOT NULL "
             + "AND m.approvalReviewedBy <> :pipelineActor AND (:mediaType IS NULL OR m.mediaType = :mediaType) "
             + "AND (:keyword IS NULL "
-            + "     OR FUNCTION('unaccent', LOWER(m.episode.title)) LIKE :keyword "
-            + "     OR FUNCTION('unaccent', LOWER(m.episode.season.title)) LIKE :keyword "
-            + "     OR FUNCTION('unaccent', LOWER(m.episode.season.series.title)) LIKE :keyword "
+            + "     OR CAST(FUNCTION('unaccent', LOWER(m.episode.title)) AS string) LIKE :keyword"
+            + "     OR CAST(FUNCTION('unaccent', LOWER(m.episode.season.title)) AS string) LIKE :keyword"
+            + "     OR CAST(FUNCTION('unaccent', LOWER(m.episode.season.series.title)) AS string) LIKE :keyword"
             + "     OR LOWER(m.mediaId) LIKE :keyword OR LOWER(m.contentId) LIKE :keyword OR m.creatorId IN (SELECT c.creatorId FROM Creator c WHERE LOWER(c.account.username) LIKE :keyword)) "
             // NULLS LAST tường minh — Postgres mặc định coi NULL là "lớn nhất" nên NULL tự
             // trồi lên ĐẦU trong ORDER BY DESC, làm media chưa từng có approvalReviewedAt
@@ -241,9 +241,9 @@ public interface MediaRepository extends JpaRepository<Media, String> {
                     + "AND m.approvalReviewedBy IS NOT NULL AND m.approvalReviewedBy <> :pipelineActor "
                     + "AND (:mediaType IS NULL OR m.mediaType = :mediaType) "
                     + "AND (:keyword IS NULL "
-                    + "     OR FUNCTION('unaccent', LOWER(m.episode.title)) LIKE :keyword "
-                    + "     OR FUNCTION('unaccent', LOWER(m.episode.season.title)) LIKE :keyword "
-                    + "     OR FUNCTION('unaccent', LOWER(m.episode.season.series.title)) LIKE :keyword "
+                    + "     OR CAST(FUNCTION('unaccent', LOWER(m.episode.title)) AS string) LIKE :keyword"
+                    + "     OR CAST(FUNCTION('unaccent', LOWER(m.episode.season.title)) AS string) LIKE :keyword"
+                    + "     OR CAST(FUNCTION('unaccent', LOWER(m.episode.season.series.title)) AS string) LIKE :keyword"
                     + "     OR LOWER(m.mediaId) LIKE :keyword OR LOWER(m.contentId) LIKE :keyword OR m.creatorId IN (SELECT c.creatorId FROM Creator c WHERE LOWER(c.account.username) LIKE :keyword))")
     Page<String> findDistinctManuallyApprovedEpisodeIds(
             @Param("approvalStatus") ContentApprovalStatus approvalStatus,
@@ -269,9 +269,9 @@ public interface MediaRepository extends JpaRepository<Media, String> {
             + "AND (m.approvalReviewedBy IS NULL OR m.approvalReviewedBy = :pipelineActor) "
             + "AND (:mediaType IS NULL OR m.mediaType = :mediaType) "
             + "AND (:keyword IS NULL "
-            + "     OR FUNCTION('unaccent', LOWER(m.episode.title)) LIKE :keyword "
-            + "     OR FUNCTION('unaccent', LOWER(m.episode.season.title)) LIKE :keyword "
-            + "     OR FUNCTION('unaccent', LOWER(m.episode.season.series.title)) LIKE :keyword "
+            + "     OR CAST(FUNCTION('unaccent', LOWER(m.episode.title)) AS string) LIKE :keyword"
+            + "     OR CAST(FUNCTION('unaccent', LOWER(m.episode.season.title)) AS string) LIKE :keyword"
+            + "     OR CAST(FUNCTION('unaccent', LOWER(m.episode.season.series.title)) AS string) LIKE :keyword"
             + "     OR LOWER(m.mediaId) LIKE :keyword OR LOWER(m.contentId) LIKE :keyword OR m.creatorId IN (SELECT c.creatorId FROM Creator c WHERE LOWER(c.account.username) LIKE :keyword)) "
             // NULLS LAST tường minh — Postgres mặc định coi NULL là "lớn nhất" nên NULL tự
             // trồi lên ĐẦU trong ORDER BY DESC, làm media chưa từng có approvalReviewedAt
@@ -283,9 +283,9 @@ public interface MediaRepository extends JpaRepository<Media, String> {
                     + "AND (m.approvalReviewedBy IS NULL OR m.approvalReviewedBy = :pipelineActor) "
                     + "AND (:mediaType IS NULL OR m.mediaType = :mediaType) "
                     + "AND (:keyword IS NULL "
-                    + "     OR FUNCTION('unaccent', LOWER(m.episode.title)) LIKE :keyword "
-                    + "     OR FUNCTION('unaccent', LOWER(m.episode.season.title)) LIKE :keyword "
-                    + "     OR FUNCTION('unaccent', LOWER(m.episode.season.series.title)) LIKE :keyword "
+                    + "     OR CAST(FUNCTION('unaccent', LOWER(m.episode.title)) AS string) LIKE :keyword"
+                    + "     OR CAST(FUNCTION('unaccent', LOWER(m.episode.season.title)) AS string) LIKE :keyword"
+                    + "     OR CAST(FUNCTION('unaccent', LOWER(m.episode.season.series.title)) AS string) LIKE :keyword"
                     + "     OR LOWER(m.mediaId) LIKE :keyword OR LOWER(m.contentId) LIKE :keyword OR m.creatorId IN (SELECT c.creatorId FROM Creator c WHERE LOWER(c.account.username) LIKE :keyword))")
     Page<String> findDistinctAutoApprovedEpisodeIds(
             @Param("approvalStatus") ContentApprovalStatus approvalStatus,
@@ -314,9 +314,9 @@ public interface MediaRepository extends JpaRepository<Media, String> {
     @Query(value = "SELECT m.episode.episodeId FROM Media m WHERE m.approvalStatus = :approvalStatus "
             + "AND m.isDeleted = false AND (:mediaType IS NULL OR m.mediaType = :mediaType) "
             + "AND (:keyword IS NULL "
-            + "     OR FUNCTION('unaccent', LOWER(m.episode.title)) LIKE :keyword "
-            + "     OR FUNCTION('unaccent', LOWER(m.episode.season.title)) LIKE :keyword "
-            + "     OR FUNCTION('unaccent', LOWER(m.episode.season.series.title)) LIKE :keyword "
+            + "     OR CAST(FUNCTION('unaccent', LOWER(m.episode.title)) AS string) LIKE :keyword"
+            + "     OR CAST(FUNCTION('unaccent', LOWER(m.episode.season.title)) AS string) LIKE :keyword"
+            + "     OR CAST(FUNCTION('unaccent', LOWER(m.episode.season.series.title)) AS string) LIKE :keyword"
             + "     OR LOWER(m.mediaId) LIKE :keyword OR LOWER(m.contentId) LIKE :keyword "
             + "     OR m.creatorId IN (SELECT c.creatorId FROM Creator c WHERE LOWER(c.account.username) LIKE :keyword)) "
             + "GROUP BY m.episode.episodeId ORDER BY MAX(m.approvalReviewedAt) DESC NULLS LAST",
@@ -324,9 +324,9 @@ public interface MediaRepository extends JpaRepository<Media, String> {
                     + "WHERE m.approvalStatus = :approvalStatus AND m.isDeleted = false "
                     + "AND (:mediaType IS NULL OR m.mediaType = :mediaType) "
                     + "AND (:keyword IS NULL "
-                    + "     OR FUNCTION('unaccent', LOWER(m.episode.title)) LIKE :keyword "
-                    + "     OR FUNCTION('unaccent', LOWER(m.episode.season.title)) LIKE :keyword "
-                    + "     OR FUNCTION('unaccent', LOWER(m.episode.season.series.title)) LIKE :keyword "
+                    + "     OR CAST(FUNCTION('unaccent', LOWER(m.episode.title)) AS string) LIKE :keyword"
+                    + "     OR CAST(FUNCTION('unaccent', LOWER(m.episode.season.title)) AS string) LIKE :keyword"
+                    + "     OR CAST(FUNCTION('unaccent', LOWER(m.episode.season.series.title)) AS string) LIKE :keyword"
                     + "     OR LOWER(m.mediaId) LIKE :keyword OR LOWER(m.contentId) LIKE :keyword "
                     + "     OR m.creatorId IN (SELECT c.creatorId FROM Creator c WHERE LOWER(c.account.username) LIKE :keyword))")
     Page<String> findDistinctRejectedEpisodeIds(
