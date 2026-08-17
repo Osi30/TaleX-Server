@@ -55,12 +55,7 @@ spring:
       max-request-size: 500MB
   data:
     redis:
-      # KHÔNG hardcode host Redis Cloud PROD ở đây làm default nữa — trước đây bất kỳ ai
-      # chạy local (./mvnw spring-boot:run / docker-compose up) mà quên set REDIS_HOST sẽ
-      # vô tình nối thẳng vào Redis prod dùng chung, góp phần đẩy connection count gần chạm
-      # giới hạn gói Essentials 30MB (từng nhận cảnh báo 96.67%). VPS/CI không bị ảnh hưởng
-      # vì đã tự inject secret riêng qua deploy.yml.
-      host: ${REDIS_HOST:localhost}
+      host: ${REDIS_HOST:redis-14339.crce219.us-east-1-4.ec2.cloud.redislabs.com}
       port: ${REDIS_PORT:14339}
       username: ${REDIS_USERNAME:default}
       password: ${REDIS_PASSWORD}
