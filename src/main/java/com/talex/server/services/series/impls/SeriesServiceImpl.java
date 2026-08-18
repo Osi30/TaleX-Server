@@ -49,6 +49,7 @@ public class SeriesServiceImpl implements SeriesService {
     private final ContentAuditLogger contentAuditLogger;
     private final ContentCascadeDeleteHelper contentCascadeDeleteHelper;
     private final SeriesMapper seriesMapper;
+    private final ContentWarningCategoryRepository contentWarningCategoryRepository;
 
     @Transactional
     @Override
@@ -357,9 +358,31 @@ public class SeriesServiceImpl implements SeriesService {
         // null = FE không gửi field này (client cũ) — giữ nguyên giá trị hiện có, giống
         // pattern null-check của categoryIds/tagIds ở syncCategories/syncTags bên dưới.
         if (request.getContentWarnings() != null) {
-            series.setContentWarnings(request.getContentWarnings());
+            series.setContentWarnings(validateContentWarningCodes(request.getContentWarnings()));
         }
         series.setLanguage(request.getLanguage());
+    }
+
+    // Chặn code rác/gõ sai — CHỈ cần code tồn tại trong bảng ContentWarningCategory
+    // (isDeleted=false), KHÔNG bắt buộc isActive=true. Nếu chặn cả inactive, series đã khai
+    // 1 nhóm trước đó rồi Admin ẩn nhóm này đi sẽ bị silently mất luôn khai báo cũ mỗi lần
+    // Creator lưu lại series (kể cả khi họ chỉ sửa field khác, không liên quan content
+    // warning) — không mong muốn, giữ nguyên khai báo cũ, chỉ ẩn nhóm khỏi form chọn MỚI.
+    private Set<String> validateContentWarningCodes(Set<String> codes) {
+        if (codes.isEmpty()) {
+            return codes;
+        }
+        List<String> validCodes = contentWarningCategoryRepository
+                .findAllByCodeInAndIsDeletedFalse(new ArrayList<>(codes))
+                .stream()
+                .map(ContentWarningCategory::getCode)
+                .toList();
+        Set<String> invalid = new HashSet<>(codes);
+        invalid.removeAll(validCodes);
+        if (!invalid.isEmpty()) {
+            throw ContentModuleException.badRequest("Nhóm cảnh báo nội dung không hợp lệ: " + invalid);
+        }
+        return codes;
     }
 
     private Map<String, Category> syncCategories(Series series, List<String> categoryIds, String actorId) {

@@ -19,8 +19,15 @@ import software.amazon.awssdk.services.cloudfront.CloudFrontUtilities;
 import software.amazon.awssdk.services.cloudfront.model.CannedSignerRequest;
 import software.amazon.awssdk.services.cloudfront.model.CustomSignerRequest;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.Delete;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
+import software.amazon.awssdk.services.s3.model.DeleteObjectsRequest;
+import software.amazon.awssdk.services.s3.model.DeleteObjectsResponse;
+import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
+import software.amazon.awssdk.services.s3.model.ListObjectsV2Response;
+import software.amazon.awssdk.services.s3.model.ObjectIdentifier;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.s3.model.S3Object;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
@@ -34,9 +41,11 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 @Service
@@ -301,6 +310,84 @@ public class S3MediaProviderService implements MediaProviderService, MediaPackag
                 .key(key)
                 .build());
         log.info("S3 asset deleted. mediaId={} key={}", media.getMediaId(), key);
+    }
+
+    @Override
+    public void purgeAllAssets(Media media) {
+        String bucket = mediaProperties.getAws().getBucketName();
+
+        // 1) Source object (raw MP4). May be null for image media or legacy rows — skip if absent.
+        String sourceKey = media.getProviderPublicId();
+        if (sourceKey != null && !sourceKey.isBlank()) {
+            try {
+                s3Client.deleteObject(DeleteObjectRequest.builder()
+                        .bucket(bucket)
+                        .key(sourceKey)
+                        .build());
+                log.info("S3 purge: source object deleted. mediaId={} key={}", media.getMediaId(), sourceKey);
+            } catch (Exception e) {
+                // Best-effort: a missing/failed source delete must not abort the whole purge.
+                log.warn("S3 purge: source delete failed (continuing). mediaId={} key={}",
+                        media.getMediaId(), sourceKey, e);
+            }
+        }
+
+        // 2) MediaConvert output tree (HLS master + variant playlists + .ts segments + thumbnails).
+        // deleteAsset() only removes the source key — the output prefix has no env segment and must
+        // be reconstructed from episodeId + mediaId (see MediaConvertService output URLs).
+        if (media.getEpisode() != null) {
+            String outputPrefix = String.format("output/videos/%s/%s/",
+                    media.getEpisode().getEpisodeId(), media.getMediaId());
+            purgePrefix(bucket, outputPrefix, media.getMediaId());
+        }
+    }
+
+    /**
+     * List every object under a prefix and delete them in batches (S3 caps deleteObjects at 1000
+     * keys/request). Paginates via continuation token. Best-effort — logs errors, never throws.
+     */
+    private void purgePrefix(String bucket, String prefix, String mediaId) {
+        int totalDeleted = 0;
+        try {
+            String continuationToken = null;
+            do {
+                ListObjectsV2Request.Builder listBuilder = ListObjectsV2Request.builder()
+                        .bucket(bucket)
+                        .prefix(prefix);
+                if (continuationToken != null) {
+                    listBuilder.continuationToken(continuationToken);
+                }
+                ListObjectsV2Response listResponse = s3Client.listObjectsV2(listBuilder.build());
+
+                List<ObjectIdentifier> toDelete = new ArrayList<>();
+                for (S3Object obj : listResponse.contents()) {
+                    toDelete.add(ObjectIdentifier.builder().key(obj.key()).build());
+                }
+
+                if (!toDelete.isEmpty()) {
+                    DeleteObjectsResponse deleteResponse = s3Client.deleteObjects(DeleteObjectsRequest.builder()
+                            .bucket(bucket)
+                            .delete(Delete.builder().objects(toDelete).quiet(true).build())
+                            .build());
+                    totalDeleted += toDelete.size();
+                    if (deleteResponse.hasErrors() && !deleteResponse.errors().isEmpty()) {
+                        deleteResponse.errors().forEach(err ->
+                                log.warn("S3 purge: failed to delete key={} code={} msg={}",
+                                        err.key(), err.code(), err.message()));
+                    }
+                }
+
+                continuationToken = Boolean.TRUE.equals(listResponse.isTruncated())
+                        ? listResponse.nextContinuationToken()
+                        : null;
+            } while (continuationToken != null);
+
+            log.info("S3 purge: output prefix cleared. mediaId={} prefix={} deletedCount={}",
+                    mediaId, prefix, totalDeleted);
+        } catch (Exception e) {
+            log.warn("S3 purge: prefix delete failed (continuing). mediaId={} prefix={} deletedSoFar={}",
+                    mediaId, prefix, totalDeleted, e);
+        }
     }
 
     @Override

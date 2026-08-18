@@ -28,4 +28,13 @@ public interface MediaProviderService {
     String signSingleUrl(String url, LocalDateTime expiresAt);
 
     void deleteAsset(Media media);
+
+    /**
+     * Hard-purge ALL storage artifacts of a media: the source object AND every MediaConvert output
+     * (HLS master + variant playlists + .ts segments + thumbnails under the output prefix).
+     * Unlike {@link #deleteAsset(Media)} which only removes the single source key, this removes the
+     * whole output tree — required for irreversible admin purge (legal/DMCA/GDPR erasure).
+     * Best-effort per key: a missing/absent object is not an error.
+     */
+    void purgeAllAssets(Media media);
 }

@@ -12,7 +12,6 @@ import com.talex.server.entities.media.MediaCopyright;
 import com.talex.server.entities.media.ViolationDetail;
 import com.talex.server.enums.media.CensorshipStatus;
 import com.talex.server.enums.series.ContentApprovalStatus;
-import com.talex.server.enums.series.ContentWarningGroup;
 import com.talex.server.enums.media.MediaProvider;
 import com.talex.server.enums.media.MediaStatus;
 import com.talex.server.enums.media.MediaType;
@@ -205,6 +204,16 @@ public class ContentPipelineServiceImpl implements ContentPipelineService {
                     media.setStatus(MediaStatus.INACTIVE);
                 }
                 media.setApprovalStatus(ContentApprovalStatus.PENDING_REVIEW);
+                // Moderation LUÔN resolve trước Copyright — nếu Moderation vừa auto-approve
+                // (isSafe=true) thì approvalReviewedBy/At đã bị set = "content-pipeline" +
+                // now() ngay TRƯỚC ĐÓ trong cùng lần xử lý media này. Copyright phát hiện
+                // trùng lặp SAU đó hạ cấp lại về PENDING_REVIEW nhưng không dọn lại 2 field
+                // này — Staff mở "Chi tiết kiểm duyệt" thấy "Người duyệt: Hệ thống (tự động)"
+                // + thời điểm duyệt cụ thể dù trạng thái vẫn "Chờ duyệt", tưởng đã có ai đó
+                // duyệt rồi trong khi thực chất là dấu vết của lượt auto-approve đã bị chính
+                // Copyright ghi đè ngay sau. Dọn về null để nhất quán với PENDING_REVIEW.
+                media.setApprovalReviewedBy(null);
+                media.setApprovalReviewedAt(null);
                 media.markUpdatedBy(PIPELINE_ACTOR);
                 mediaRepository.save(media);
                 pushSseEvent(media, "pipeline:copyright_complete", PipelineEventPayload.builder()
@@ -306,6 +315,11 @@ public class ContentPipelineServiceImpl implements ContentPipelineService {
                 media.setStatus(MediaStatus.INACTIVE);
             }
             media.setApprovalStatus(ContentApprovalStatus.PENDING_REVIEW);
+            // Dọn lại nếu media từng có lượt auto-approve trước đó rồi bị đẩy lại thành
+            // PENDING_REVIEW (VD job xử lý lại sau retry) — cùng lý do đã sửa ở nhánh
+            // Copyright non-CC0 phía trên, xem giải thích đầy đủ ở đó.
+            media.setApprovalReviewedBy(null);
+            media.setApprovalReviewedAt(null);
             log.info("Moderation flagged content — routed to Staff review: mediaId={} label={} seriesAgeRating={}",
                     result.getMediaId(), result.getPrimaryLabel(), resolveSeriesAgeRating(media));
         }
@@ -585,87 +599,87 @@ public class ContentPipelineServiceImpl implements ContentPipelineService {
     // toàn bộ nhãn L3. Map thẳng TOÀN BỘ ~66 nhãn đã biết (L1+L2+L3, đúng danh sách đã port
     // sang bảng violation_label_translations) → nhóm — không cần dò cấp cha nữa, đúng ở mọi
     // độ sâu taxonomy.
-    private static final java.util.Map<String, ContentWarningGroup> AWS_LABEL_TO_WARNING_GROUP =
-            java.util.Map.<String, ContentWarningGroup>ofEntries(
+    private static final java.util.Map<String, String> AWS_LABEL_TO_WARNING_GROUP =
+            java.util.Map.<String, String>ofEntries(
                     // SEXUAL_NUDITY
-                    java.util.Map.entry("Explicit", ContentWarningGroup.SEXUAL_NUDITY),
-                    java.util.Map.entry("Explicit Nudity", ContentWarningGroup.SEXUAL_NUDITY),
-                    java.util.Map.entry("Exposed Male Genitalia", ContentWarningGroup.SEXUAL_NUDITY),
-                    java.util.Map.entry("Exposed Female Genitalia", ContentWarningGroup.SEXUAL_NUDITY),
-                    java.util.Map.entry("Exposed Buttocks or Anus", ContentWarningGroup.SEXUAL_NUDITY),
-                    java.util.Map.entry("Exposed Female Nipple", ContentWarningGroup.SEXUAL_NUDITY),
-                    java.util.Map.entry("Explicit Sexual Activity", ContentWarningGroup.SEXUAL_NUDITY),
-                    java.util.Map.entry("Sex Toys", ContentWarningGroup.SEXUAL_NUDITY),
-                    java.util.Map.entry("Non-Explicit Nudity of Intimate parts and Kissing", ContentWarningGroup.SEXUAL_NUDITY),
-                    java.util.Map.entry("Non-Explicit Nudity", ContentWarningGroup.SEXUAL_NUDITY),
-                    java.util.Map.entry("Bare Back", ContentWarningGroup.SEXUAL_NUDITY),
-                    java.util.Map.entry("Exposed Male Nipple", ContentWarningGroup.SEXUAL_NUDITY),
-                    java.util.Map.entry("Partially Exposed Buttocks", ContentWarningGroup.SEXUAL_NUDITY),
-                    java.util.Map.entry("Partially Exposed Female Breast", ContentWarningGroup.SEXUAL_NUDITY),
-                    java.util.Map.entry("Implied Nudity", ContentWarningGroup.SEXUAL_NUDITY),
-                    java.util.Map.entry("Obstructed Intimate Parts", ContentWarningGroup.SEXUAL_NUDITY),
-                    java.util.Map.entry("Obstructed Female Nipple", ContentWarningGroup.SEXUAL_NUDITY),
-                    java.util.Map.entry("Obstructed Male Genitalia", ContentWarningGroup.SEXUAL_NUDITY),
-                    java.util.Map.entry("Kissing on the Lips", ContentWarningGroup.SEXUAL_NUDITY),
-                    java.util.Map.entry("Swimwear or Underwear", ContentWarningGroup.SEXUAL_NUDITY),
-                    java.util.Map.entry("Female Swimwear or Underwear", ContentWarningGroup.SEXUAL_NUDITY),
-                    java.util.Map.entry("Male Swimwear or Underwear", ContentWarningGroup.SEXUAL_NUDITY),
+                    java.util.Map.entry("Explicit", "SEXUAL_NUDITY"),
+                    java.util.Map.entry("Explicit Nudity", "SEXUAL_NUDITY"),
+                    java.util.Map.entry("Exposed Male Genitalia", "SEXUAL_NUDITY"),
+                    java.util.Map.entry("Exposed Female Genitalia", "SEXUAL_NUDITY"),
+                    java.util.Map.entry("Exposed Buttocks or Anus", "SEXUAL_NUDITY"),
+                    java.util.Map.entry("Exposed Female Nipple", "SEXUAL_NUDITY"),
+                    java.util.Map.entry("Explicit Sexual Activity", "SEXUAL_NUDITY"),
+                    java.util.Map.entry("Sex Toys", "SEXUAL_NUDITY"),
+                    java.util.Map.entry("Non-Explicit Nudity of Intimate parts and Kissing", "SEXUAL_NUDITY"),
+                    java.util.Map.entry("Non-Explicit Nudity", "SEXUAL_NUDITY"),
+                    java.util.Map.entry("Bare Back", "SEXUAL_NUDITY"),
+                    java.util.Map.entry("Exposed Male Nipple", "SEXUAL_NUDITY"),
+                    java.util.Map.entry("Partially Exposed Buttocks", "SEXUAL_NUDITY"),
+                    java.util.Map.entry("Partially Exposed Female Breast", "SEXUAL_NUDITY"),
+                    java.util.Map.entry("Implied Nudity", "SEXUAL_NUDITY"),
+                    java.util.Map.entry("Obstructed Intimate Parts", "SEXUAL_NUDITY"),
+                    java.util.Map.entry("Obstructed Female Nipple", "SEXUAL_NUDITY"),
+                    java.util.Map.entry("Obstructed Male Genitalia", "SEXUAL_NUDITY"),
+                    java.util.Map.entry("Kissing on the Lips", "SEXUAL_NUDITY"),
+                    java.util.Map.entry("Swimwear or Underwear", "SEXUAL_NUDITY"),
+                    java.util.Map.entry("Female Swimwear or Underwear", "SEXUAL_NUDITY"),
+                    java.util.Map.entry("Male Swimwear or Underwear", "SEXUAL_NUDITY"),
                     // VIOLENCE_GORE
-                    java.util.Map.entry("Violence", ContentWarningGroup.VIOLENCE_GORE),
-                    java.util.Map.entry("Weapons", ContentWarningGroup.VIOLENCE_GORE),
-                    java.util.Map.entry("Graphic Violence", ContentWarningGroup.VIOLENCE_GORE),
-                    java.util.Map.entry("Weapon Violence", ContentWarningGroup.VIOLENCE_GORE),
-                    java.util.Map.entry("Physical Violence", ContentWarningGroup.VIOLENCE_GORE),
-                    java.util.Map.entry("Self-Harm", ContentWarningGroup.VIOLENCE_GORE),
-                    java.util.Map.entry("Blood & Gore", ContentWarningGroup.VIOLENCE_GORE),
-                    java.util.Map.entry("Explosions and Blasts", ContentWarningGroup.VIOLENCE_GORE),
-                    java.util.Map.entry("Visually Disturbing", ContentWarningGroup.VIOLENCE_GORE),
-                    java.util.Map.entry("Death and Emaciation", ContentWarningGroup.VIOLENCE_GORE),
-                    java.util.Map.entry("Emaciated Bodies", ContentWarningGroup.VIOLENCE_GORE),
-                    java.util.Map.entry("Corpses", ContentWarningGroup.VIOLENCE_GORE),
-                    java.util.Map.entry("Crashes", ContentWarningGroup.VIOLENCE_GORE),
-                    java.util.Map.entry("Air Crash", ContentWarningGroup.VIOLENCE_GORE),
+                    java.util.Map.entry("Violence", "VIOLENCE_GORE"),
+                    java.util.Map.entry("Weapons", "VIOLENCE_GORE"),
+                    java.util.Map.entry("Graphic Violence", "VIOLENCE_GORE"),
+                    java.util.Map.entry("Weapon Violence", "VIOLENCE_GORE"),
+                    java.util.Map.entry("Physical Violence", "VIOLENCE_GORE"),
+                    java.util.Map.entry("Self-Harm", "VIOLENCE_GORE"),
+                    java.util.Map.entry("Blood & Gore", "VIOLENCE_GORE"),
+                    java.util.Map.entry("Explosions and Blasts", "VIOLENCE_GORE"),
+                    java.util.Map.entry("Visually Disturbing", "VIOLENCE_GORE"),
+                    java.util.Map.entry("Death and Emaciation", "VIOLENCE_GORE"),
+                    java.util.Map.entry("Emaciated Bodies", "VIOLENCE_GORE"),
+                    java.util.Map.entry("Corpses", "VIOLENCE_GORE"),
+                    java.util.Map.entry("Crashes", "VIOLENCE_GORE"),
+                    java.util.Map.entry("Air Crash", "VIOLENCE_GORE"),
                     // DRUGS_TOBACCO
-                    java.util.Map.entry("Drugs & Tobacco", ContentWarningGroup.DRUGS_TOBACCO),
-                    java.util.Map.entry("Products", ContentWarningGroup.DRUGS_TOBACCO),
-                    java.util.Map.entry("Pills", ContentWarningGroup.DRUGS_TOBACCO),
-                    java.util.Map.entry("Drugs & Tobacco Paraphernalia & Use", ContentWarningGroup.DRUGS_TOBACCO),
-                    java.util.Map.entry("Smoking", ContentWarningGroup.DRUGS_TOBACCO),
+                    java.util.Map.entry("Drugs & Tobacco", "DRUGS_TOBACCO"),
+                    java.util.Map.entry("Products", "DRUGS_TOBACCO"),
+                    java.util.Map.entry("Pills", "DRUGS_TOBACCO"),
+                    java.util.Map.entry("Drugs & Tobacco Paraphernalia & Use", "DRUGS_TOBACCO"),
+                    java.util.Map.entry("Smoking", "DRUGS_TOBACCO"),
                     // ALCOHOL
-                    java.util.Map.entry("Alcohol", ContentWarningGroup.ALCOHOL),
-                    java.util.Map.entry("Alcohol Use", ContentWarningGroup.ALCOHOL),
-                    java.util.Map.entry("Drinking", ContentWarningGroup.ALCOHOL),
-                    java.util.Map.entry("Alcoholic Beverages", ContentWarningGroup.ALCOHOL),
+                    java.util.Map.entry("Alcohol", "ALCOHOL"),
+                    java.util.Map.entry("Alcohol Use", "ALCOHOL"),
+                    java.util.Map.entry("Drinking", "ALCOHOL"),
+                    java.util.Map.entry("Alcoholic Beverages", "ALCOHOL"),
                     // RUDE_GESTURES
-                    java.util.Map.entry("Rude Gestures", ContentWarningGroup.RUDE_GESTURES),
-                    java.util.Map.entry("Middle Finger", ContentWarningGroup.RUDE_GESTURES),
+                    java.util.Map.entry("Rude Gestures", "RUDE_GESTURES"),
+                    java.util.Map.entry("Middle Finger", "RUDE_GESTURES"),
                     // GAMBLING
-                    java.util.Map.entry("Gambling", ContentWarningGroup.GAMBLING),
+                    java.util.Map.entry("Gambling", "GAMBLING"),
                     // HATE_SYMBOLS
-                    java.util.Map.entry("Hate Symbols", ContentWarningGroup.HATE_SYMBOLS),
-                    java.util.Map.entry("Nazi Party", ContentWarningGroup.HATE_SYMBOLS),
-                    java.util.Map.entry("White Supremacy", ContentWarningGroup.HATE_SYMBOLS),
-                    java.util.Map.entry("Extremist", ContentWarningGroup.HATE_SYMBOLS),
+                    java.util.Map.entry("Hate Symbols", "HATE_SYMBOLS"),
+                    java.util.Map.entry("Nazi Party", "HATE_SYMBOLS"),
+                    java.util.Map.entry("White Supremacy", "HATE_SYMBOLS"),
+                    java.util.Map.entry("Extremist", "HATE_SYMBOLS"),
                     // Legacy v6.1 taxonomy — dữ liệu cũ trước khi tài khoản AWS chuyển version 7
-                    java.util.Map.entry("Sexual Activity", ContentWarningGroup.SEXUAL_NUDITY),
-                    java.util.Map.entry("Illustrated Explicit Nudity", ContentWarningGroup.SEXUAL_NUDITY),
-                    java.util.Map.entry("Adult Toys", ContentWarningGroup.SEXUAL_NUDITY),
-                    java.util.Map.entry("Bare-chested Male", ContentWarningGroup.SEXUAL_NUDITY),
-                    java.util.Map.entry("Sexual Situations", ContentWarningGroup.SEXUAL_NUDITY),
-                    java.util.Map.entry("Graphic Violence or Gore", ContentWarningGroup.VIOLENCE_GORE),
-                    java.util.Map.entry("Self Injury", ContentWarningGroup.VIOLENCE_GORE),
-                    java.util.Map.entry("Hanging", ContentWarningGroup.VIOLENCE_GORE),
-                    java.util.Map.entry("Drug Products", ContentWarningGroup.DRUGS_TOBACCO),
-                    java.util.Map.entry("Drug Use", ContentWarningGroup.DRUGS_TOBACCO),
-                    java.util.Map.entry("Drug Paraphernalia", ContentWarningGroup.DRUGS_TOBACCO),
-                    java.util.Map.entry("Tobacco", ContentWarningGroup.DRUGS_TOBACCO),
-                    java.util.Map.entry("Tobacco Products", ContentWarningGroup.DRUGS_TOBACCO),
-                    java.util.Map.entry("Drugs", ContentWarningGroup.DRUGS_TOBACCO));
+                    java.util.Map.entry("Sexual Activity", "SEXUAL_NUDITY"),
+                    java.util.Map.entry("Illustrated Explicit Nudity", "SEXUAL_NUDITY"),
+                    java.util.Map.entry("Adult Toys", "SEXUAL_NUDITY"),
+                    java.util.Map.entry("Bare-chested Male", "SEXUAL_NUDITY"),
+                    java.util.Map.entry("Sexual Situations", "SEXUAL_NUDITY"),
+                    java.util.Map.entry("Graphic Violence or Gore", "VIOLENCE_GORE"),
+                    java.util.Map.entry("Self Injury", "VIOLENCE_GORE"),
+                    java.util.Map.entry("Hanging", "VIOLENCE_GORE"),
+                    java.util.Map.entry("Drug Products", "DRUGS_TOBACCO"),
+                    java.util.Map.entry("Drug Use", "DRUGS_TOBACCO"),
+                    java.util.Map.entry("Drug Paraphernalia", "DRUGS_TOBACCO"),
+                    java.util.Map.entry("Tobacco", "DRUGS_TOBACCO"),
+                    java.util.Map.entry("Tobacco Products", "DRUGS_TOBACCO"),
+                    java.util.Map.entry("Drugs", "DRUGS_TOBACCO"));
 
-    private ContentWarningGroup mapParentLabelToGroup(ModerationViolationItem violation) {
+    private String mapParentLabelToGroup(ModerationViolationItem violation) {
         // Kiểm chính label trước — phủ đúng ở MỌI tầng taxonomy (L1/L2/L3), không phụ thuộc
         // parentLabel là 1 hay 2 cấp phía trên.
-        ContentWarningGroup group = AWS_LABEL_TO_WARNING_GROUP.get(violation.getLabel());
+        String group = AWS_LABEL_TO_WARNING_GROUP.get(violation.getLabel());
         if (group != null) {
             return group;
         }
@@ -677,7 +691,7 @@ public class ContentPipelineServiceImpl implements ContentPipelineService {
         return null;
     }
 
-    private java.util.Set<ContentWarningGroup> resolveSeriesContentWarnings(Media media) {
+    private java.util.Set<String> resolveSeriesContentWarnings(Media media) {
         try {
             return media.getEpisode().getSeason().getSeries().getContentWarnings();
         } catch (Exception e) {
@@ -697,12 +711,12 @@ public class ContentPipelineServiceImpl implements ContentPipelineService {
         if (!AGE_RATING_MATURE.equals(resolveSeriesAgeRating(media))) {
             return false;
         }
-        java.util.Set<ContentWarningGroup> declaredWarnings = resolveSeriesContentWarnings(media);
+        java.util.Set<String> declaredWarnings = resolveSeriesContentWarnings(media);
         if (declaredWarnings.isEmpty()) {
             return false;
         }
         for (ModerationViolationItem violation : violations) {
-            ContentWarningGroup group = mapParentLabelToGroup(violation);
+            String group = mapParentLabelToGroup(violation);
             if (group == null || !declaredWarnings.contains(group)) {
                 return false;
             }

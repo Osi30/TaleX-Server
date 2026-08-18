@@ -97,6 +97,11 @@ public class RoutingMediaProviderService implements MediaProviderService, MediaP
     }
 
     @Override
+    public void purgeAllAssets(Media media) {
+        getProviderForMedia(media.getProvider()).purgeAllAssets(media);
+    }
+
+    @Override
     public String createHlsPackaging(Media media) {
         MediaProviderService provider = getProviderForMedia(media.getProvider());
         if (provider instanceof MediaPackagingService pkg) {

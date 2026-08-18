@@ -24,6 +24,18 @@ spring:
       password: ${QUESTDB_PASSWORD:quest}
       driver-class-name: org.postgresql.Driver
 
+  task:
+    scheduling:
+      # Mặc định Spring chỉ dùng 1 thread cho MỌI @Scheduled trong toàn app (15 scheduler
+      # hiện có: OrderExpiryScheduler, MongoFeatureSyncScheduler, SqsMediaEventPoller...).
+      # Job nào chạy hơi lâu sẽ chặn luôn heartbeat SSE (SseNotificationServiceImpl),
+      # heartbeat trễ quá proxy_read_timeout (60s mặc định) của nginx khiến nginx tưởng
+      # backend chết và cắt kết nối SSE — gặp thật trong demo, log nginx ghi "upstream
+      # timed out ... /api/v1/sse/pipeline/connect". Cấp pool riêng để heartbeat luôn có
+      # thread trống, không phụ thuộc các job khác có đang chạy hay không.
+      pool:
+        size: 10
+
   jpa:
     show-sql: ${JPA_SHOW_SQL:false}
     hibernate:

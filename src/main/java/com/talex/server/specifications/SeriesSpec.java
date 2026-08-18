@@ -11,7 +11,6 @@ import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Predicate;
 import org.springframework.data.jpa.domain.Specification;
 
-import java.text.Normalizer;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -35,7 +34,7 @@ public class SeriesSpec {
 
             // 3. Tìm kiếm theo title và description (Bỏ dấu tiếng Việt)
             if (!ValidationUtils.isNullOrEmpty(criteria.getSearch())) {
-                String cleanKeyword = stripVietnameseAccents(criteria.getSearch().trim().toLowerCase());
+                String cleanKeyword = ValidationUtils.stripVietnameseAccents(criteria.getSearch().trim().toLowerCase());
                 String likePattern = "%" + cleanKeyword + "%";
 
                 // Sử dụng hàm unaccent() trong DB PostgreSQL để chuyển giá trị cột title và description thành không dấu
@@ -80,15 +79,5 @@ public class SeriesSpec {
 
             return builder.and(predicates.toArray(new Predicate[0]));
         };
-    }
-
-    /**
-     * Hàm hỗ trợ loại bỏ toàn bộ dấu tiếng Việt trên Java side trước khi đưa vào SQL LIKE
-     */
-    private static String stripVietnameseAccents(String text) {
-        if (text == null) return "";
-        String nfd = Normalizer.normalize(text, Normalizer.Form.NFD);
-        String noMarks = nfd.replaceAll("\\p{InCombiningDiacriticalMarks}", "");
-        return noMarks.replace('đ', 'd').replace('Đ', 'D');
     }
 }

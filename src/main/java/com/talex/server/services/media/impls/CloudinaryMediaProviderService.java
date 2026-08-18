@@ -224,6 +224,13 @@ public class CloudinaryMediaProviderService implements MediaProviderService, Med
     }
 
     @Override
+    public void purgeAllAssets(Media media) {
+        // Cloudinary's destroy() removes the asset and all its derived transformations in one call —
+        // there is no separate output prefix to sweep as with S3. Reuse the single-asset delete.
+        deleteAsset(media);
+    }
+
+    @Override
     public String createHlsPackaging(Media media) {
         return buildHlsUrl(media);
     }
