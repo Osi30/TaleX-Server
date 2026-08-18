@@ -1,5 +1,7 @@
 package com.talex.server.services.recommend.impls;
 
+import com.talex.server.dtos.recommend.response.SeriesChannelConfigRes;
+import com.talex.server.services.recommend.SeriesChannelConfigService;
 import com.talex.server.services.recommend.SeriesChannelService;
 import com.talex.server.services.recommend.SeriesPoolService;
 import lombok.RequiredArgsConstructor;
@@ -16,6 +18,7 @@ import java.util.Set;
 @Slf4j
 public class SeriesPoolServiceImpl implements SeriesPoolService {
     private final SeriesChannelService seriesChannelService;
+    private final SeriesChannelConfigService configService;
 
     /**
      * Trật tự thực thi:
@@ -32,52 +35,47 @@ public class SeriesPoolServiceImpl implements SeriesPoolService {
         Set<String> cumulativeBlacklist = new LinkedHashSet<>();
 
         try {
+            SeriesChannelConfigRes config = configService.getConfig();
+
             // 1. Promoted Channel (Kênh Quảng Cáo - Ưu tiên hàng đầu)
-            List<String> promotedIds = seriesChannelService.refreshPromotedPool(20);
+            List<String> promotedIds = seriesChannelService.refreshPromotedPool(config.getPromotedPoolNumber());
             cumulativeBlacklist.addAll(promotedIds);
-            log.info("1. [Promoted] Lấy được {} series.", promotedIds.size());
 
             // 2. New Releases Channel (Mới phát hành)
             List<String> newReleasesIds = seriesChannelService.refreshNewReleasesPool(
-                    new ArrayList<>(cumulativeBlacklist), 20
+                    new ArrayList<>(cumulativeBlacklist), config.getNewReleasedPoolNumber()
             );
             cumulativeBlacklist.addAll(newReleasesIds);
-            log.info("4. [New Releases] Lấy được {} series.", newReleasesIds.size());
 
             // 2. Trending Channel (Kênh Xu Hướng)
             List<String> trendingIds = seriesChannelService.refreshTrendingPool(
-                    new ArrayList<>(cumulativeBlacklist), 20
+                    new ArrayList<>(cumulativeBlacklist), config.getTrendingPoolNumber()
             );
             cumulativeBlacklist.addAll(trendingIds);
-            log.info("2. [Trending] Lấy được {} series.", trendingIds.size());
 
-            // 3. Latest Community Choice Channel (Cộng đồng bình chọn 7-30 ngày)
+            // 3. Latest Community Choice Channel (Cộng đồng bình chọn)
             List<String> latestCommunityIds = seriesChannelService.refreshLatestCommunityChoicePool(
-                    new ArrayList<>(cumulativeBlacklist), 20
+                    new ArrayList<>(cumulativeBlacklist), config.getLatestCommunityChoicePoolNumber()
             );
             cumulativeBlacklist.addAll(latestCommunityIds);
-            log.info("2. [Latest Community Choice] Lấy được {} series.", latestCommunityIds.size());
 
             // 4. Community Choice Channel (Cộng đồng bình chọn All-time)
             List<String> communityChoiceIds = seriesChannelService.refreshCommunityChoicePool(
-                    new ArrayList<>(cumulativeBlacklist), 20
+                    new ArrayList<>(cumulativeBlacklist), config.getCommunityChoicePoolNumber()
             );
             cumulativeBlacklist.addAll(communityChoiceIds);
-            log.info("3. [Community Choice] Lấy được {} series.", communityChoiceIds.size());
 
             // 6. Recently Updated Channel (Mới cập nhật tập mới)
             List<String> recentlyUpdatedIds = seriesChannelService.refreshRecentlyUpdatedPool(
-                    new ArrayList<>(cumulativeBlacklist), 20
+                    new ArrayList<>(cumulativeBlacklist), config.getRecentlyUpdatedPoolNumber()
             );
             cumulativeBlacklist.addAll(recentlyUpdatedIds);
-            log.info("5. [Recently Updated] Lấy được {} series.", recentlyUpdatedIds.size());
 
             // 7. Random Category Channel (Thể loại ngẫu nhiên - Mặc định 3 series/category, tối đa 50 series)
             List<String> randomCategoryIds = seriesChannelService.refreshRandomCategoryPool(
-                    new ArrayList<>(cumulativeBlacklist), 3, 20
+                    new ArrayList<>(cumulativeBlacklist), config.getNumberPerCategory(), config.getRandomCategoryPoolNumber()
             );
             cumulativeBlacklist.addAll(randomCategoryIds);
-            log.info("6. [Random Category] Lấy được {} series.", randomCategoryIds.size());
 
             // 8. Cập nhật Global Candidate IDs vào Redis 1 lần duy nhất sau khi hoàn tất
             seriesChannelService.updateGlobalIds(cumulativeBlacklist);
