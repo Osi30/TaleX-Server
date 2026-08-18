@@ -25,14 +25,13 @@ public interface CampaignRepository extends JpaRepository<Campaign, String>, Jpa
     FROM (
         SELECT cs.campaign_id, COUNT(*) AS cnt
         FROM campaign_series cs
-        WHERE cs.series_id IN (:seriesIds)
-          AND cs.status = 'RUNNING'
+        WHERE cs.campaign_series_id IN (:campaignSeriesIds)
         GROUP BY cs.campaign_id
     ) sub
     WHERE c.campaign_id = sub.campaign_id
-    """, nativeQuery = true)
-    int incrementCampaignImpressionsBySeriesIds(
-            @Param("seriesIds") Collection<String> seriesIds,
+""", nativeQuery = true)
+    void incrementCampaignImpressionsByCampaignSeriesIds(
+            @Param("campaignSeriesIds") Collection<String> campaignSeriesIds,
             @Param("now") LocalDateTime now
     );
 }

@@ -2,6 +2,7 @@ package com.talex.server.workers;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.talex.server.repositories.campaign.AccountCampaignImpressionRepository;
 import com.talex.server.repositories.campaign.CampaignRepository;
 import com.talex.server.repositories.campaign.CampaignSeriesLogRepository;
 import com.talex.server.repositories.campaign.CampaignSeriesRepository;
@@ -24,6 +25,7 @@ import java.util.UUID;
 public class ImpressionWorker {
 
     private final AccountImpressionRepository accountImpressionRepository;
+    private final AccountCampaignImpressionRepository accountCampaignImpressionRepository;
     private final CampaignSeriesRepository campaignSeriesRepository;
     private final CampaignSeriesLogRepository campaignSeriesLogRepository;
     private final CampaignRepository campaignRepository;
@@ -37,7 +39,7 @@ public class ImpressionWorker {
     public void processHomeImpressions(String messagePayload) {
         try {
             Map<String, Object> payload = objectMapper.readValue(
-                    messagePayload, new TypeReference<Map<String, Object>>() {}
+                    messagePayload, new TypeReference<>() {}
             );
 
             String accountIdStr = (String) payload.get("accountId");
@@ -50,22 +52,24 @@ public class ImpressionWorker {
 
             UUID accountId = UUID.fromString(accountIdStr);
 
-            // 1. Batch Insert AccountImpression (Native Query dùng unnest)
+            // 1. Batch Insert AccountImpression (Toàn hệ thống Series)
             String seriesIdsCsv = String.join(",", seriesIds);
-            int insertedAccountImp = accountImpressionRepository.insertBatchIfNotExists(accountId, seriesIdsCsv);
+            accountImpressionRepository.insertBatchIfNotExists(accountId, seriesIdsCsv);
 
-            // 2. Batch Update cho Campaign & CampaignSeries
-            // 2.1. Cập nhật total_impression cho CampaignSeries đang RUNNING
-            int updatedCsCount = campaignSeriesRepository.incrementImpressionsBySeriesIds(seriesIds);
+            // 2. Chèn AccountCampaignImpression và LẤY DANH SÁCH campaign_series_id MỚI THỰC SỰ ĐƯỢC CHÈN
+            List<String> newlyInsertedCsIds = accountCampaignImpressionRepository.insertIfNotExistsAndGetInsertedIds(accountId, seriesIds);
 
-            // Nếu có ít nhất 1 Series thuộc Campaign đang RUNNING thì mới thực hiện tiếp
-            if (updatedCsCount > 0) {
-                // 2.2. UPSERT cho CampaignSeriesLog (Atomic Insert hoặc Incremental Update)
+            // Nếu có ít nhất 1 CampaignSeries mới được tạo cho Account này thì mới thực hiện cộng Impression
+            if (!newlyInsertedCsIds.isEmpty()) {
+                // 2.1. Cập nhật total_impression cho CampaignSeries
+                campaignSeriesRepository.incrementImpressionsByCampaignSeriesIds(newlyInsertedCsIds);
+
+                // 2.2. UPSERT cho CampaignSeriesLog
                 LocalDateTime currentHourBucket = LocalDateTime.now().truncatedTo(ChronoUnit.HOURS);
-                campaignSeriesLogRepository.upsertBatchLogImpressions(seriesIds, currentHourBucket);
+                campaignSeriesLogRepository.upsertBatchLogImpressionsByCampaignSeriesIds(newlyInsertedCsIds, currentHourBucket);
 
                 // 2.3. Cập nhật current_impression cho Campaign
-                campaignRepository.incrementCampaignImpressionsBySeriesIds(seriesIds, LocalDateTime.now());
+                campaignRepository.incrementCampaignImpressionsByCampaignSeriesIds(newlyInsertedCsIds, LocalDateTime.now());
 
                 // 2.4. Tự động hoàn thành các CampaignSeries đã đạt Target Impression
                 int completedCount = campaignSeriesRepository.autoCompleteReachedCampaignSeries();
@@ -73,10 +77,6 @@ public class ImpressionWorker {
                     log.info("[ImpressionWorker] Đã hoàn thành (COMPLETED) {} CampaignSeries do đạt chỉ tiêu Impression!", completedCount);
                 }
             }
-
-            log.info("[ImpressionWorker] Xử lý Batch Impression thành công | AccountId: {} | " +
-                            "AccountImpressions inserted: {} | CampaignSeries updated: {}",
-                    accountId, insertedAccountImp, updatedCsCount);
 
         } catch (Exception e) {
             log.error("[ImpressionWorker Error] Lỗi khi xử lý tin nhắn impression: {}", e.getMessage(), e);

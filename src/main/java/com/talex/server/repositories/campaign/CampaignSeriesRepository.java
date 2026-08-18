@@ -44,15 +44,6 @@ public interface CampaignSeriesRepository extends JpaRepository<CampaignSeries, 
 
     @Modifying
     @Query(value = """
-    UPDATE campaign_series
-    SET total_impression = COALESCE(total_impression, 0) + 1
-    WHERE series_id IN (:seriesIds)
-      AND status = 'RUNNING'
-    """, nativeQuery = true)
-    int incrementImpressionsBySeriesIds(@Param("seriesIds") Collection<String> seriesIds);
-
-    @Modifying
-    @Query(value = """
         UPDATE campaign_series cs
         SET status = 'COMPLETED'
         FROM campaign c
@@ -63,4 +54,12 @@ public interface CampaignSeriesRepository extends JpaRepository<CampaignSeries, 
           AND cs.status IN ('RUNNING', 'PAUSED')
         """, nativeQuery = true)
     int autoCompleteReachedCampaignSeries();
+
+    @Modifying
+    @Query(value = """
+    UPDATE campaign_series
+    SET total_impression = COALESCE(total_impression, 0) + 1
+    WHERE campaign_series_id IN (:campaignSeriesIds)
+""", nativeQuery = true)
+    void incrementImpressionsByCampaignSeriesIds(@Param("campaignSeriesIds") Collection<String> campaignSeriesIds);
 }
