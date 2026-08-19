@@ -56,15 +56,20 @@ public class UserFeatureServiceImpl implements com.talex.server.services.mongo.U
         if (incoming.getGender() != null) existing.setGender(incoming.getGender());
         if (incoming.getAge() != null) existing.setAge(incoming.getAge());
 
-        if (existing.getOnboardingGenres().isEmpty() && incoming.getOnboardingGenres() != null) {
+        if (!existing.getOnboardingGenres().isEmpty() && incoming.getOnboardingGenres() != null) {
             List<String> genres = categoryRepository
                     .findCategoryNamesByCategoryIds(incoming.getOnboardingGenres());
             existing.setOnboardingGenres(genres);
+        } else {
+            existing.setOnboardingGenres(new ArrayList<>());
         }
-        if (existing.getOnboardingTags().isEmpty() && incoming.getOnboardingTags() != null) {
+
+        if (!existing.getOnboardingTags().isEmpty() && incoming.getOnboardingTags() != null) {
             List<String> tags = tagRepository
                     .findTagNamesByTagIds(incoming.getOnboardingTags());
             existing.setOnboardingTags(tags);
+        } else {
+            existing.setOnboardingTags(new ArrayList<>());
         }
 
         return featureRepository.save(existing);

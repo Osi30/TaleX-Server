@@ -99,8 +99,6 @@ public class SubscriptionStatServiceImpl implements SubscriptionStatService {
         LocalDateTime lastSyncLocalDateTime = null;
         if (syncMetadata.getLastSyncTime() != null) {
             lastSyncLocalDateTime = LocalDateTime.ofInstant(syncMetadata.getLastSyncTime(), ZoneId.systemDefault());
-            log.info("lastSyncLocalDateTime - Default: {}", lastSyncLocalDateTime);
-            log.info("lastSyncLocalDateTime - UTC: {}", LocalDateTime.ofInstant(syncMetadata.getLastSyncTime(), ZoneId.of("UTC")));
         }
 
         Instant currentSyncTime = Instant.now();
