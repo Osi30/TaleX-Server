@@ -1,9 +1,6 @@
 package com.talex.server.schedulers;
 
-import com.talex.server.dtos.revenue.request.RuleXCalculationRequestDto;
-import com.talex.server.entities.subscription.Subscription;
 import com.talex.server.entities.subscription.SubscriptionResult;
-import com.talex.server.repositories.subscription.SubscriptionRepository;
 import com.talex.server.services.subscription.SubscriptionRevenueService;
 import com.talex.server.services.subscription.SubscriptionStatService;
 import lombok.RequiredArgsConstructor;
@@ -20,7 +17,6 @@ import java.util.List;
 @RequiredArgsConstructor
 public class SubscriptionScheduler {
     private final SubscriptionStatService subscriptionStatService;
-    private final SubscriptionRepository subscriptionRepository;
     private final SubscriptionRevenueService subscriptionRevenueService;
     private static final DateTimeFormatter MONTH_YEAR_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM");
 

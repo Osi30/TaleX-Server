@@ -1,4 +1,4 @@
-package com.talex.server.dtos.responses;
+package com.talex.server.dtos.responses.config;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.*;
