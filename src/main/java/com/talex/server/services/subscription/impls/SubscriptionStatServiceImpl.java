@@ -263,6 +263,7 @@ public class SubscriptionStatServiceImpl implements SubscriptionStatService {
                     .alpha(requestDto.getAlpha())
                     .totalBudget(response.getTotalBudget())
                     .gamma(response.getGamma())
+                    .subscriptionFee(requestDto.getSubscriptionFee())
                     .targetBudget(response.getTargetBudget())
                     .calculatedBudget(response.getCalculatedBudget())
                     .monthYear(monthYear)

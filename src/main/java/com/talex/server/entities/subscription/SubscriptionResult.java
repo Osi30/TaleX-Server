@@ -25,6 +25,9 @@ public class SubscriptionResult {
     @Column(name = "gamma", nullable = false)
     private Double gamma;
 
+    @Column(name = "subscription_fee")
+    private Double subscriptionFee;
+
     @Column(name = "total_budget")
     private Double totalBudget;
 
@@ -38,11 +41,6 @@ public class SubscriptionResult {
 
     @Column(name = "month_year", nullable = false, length = 7)
     private String monthYear;
-
-    @JsonIgnore
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "subscription_id", nullable = false)
-    private Subscription subscription;
 
     @OneToMany(mappedBy = "subscriptionResult", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
