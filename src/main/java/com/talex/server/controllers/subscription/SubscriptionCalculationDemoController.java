@@ -4,7 +4,6 @@ import com.talex.server.dtos.BaseResponse;
 import com.talex.server.dtos.revenue.request.RuleXCalculationRequestDto;
 import com.talex.server.dtos.revenue.response.RuleXCalculationResponseDto;
 import com.talex.server.entities.subscription.SubscriptionResult;
-import com.talex.server.services.subscription.SubscriptionService;
 import com.talex.server.services.subscription.SubscriptionStatService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -22,7 +21,6 @@ import java.util.List;
 public class SubscriptionCalculationDemoController {
 
     private final SubscriptionStatService subscriptionStatService;
-    private final SubscriptionService subscriptionService;
 
     @PostMapping("/calculate-rulex")
     @Operation(

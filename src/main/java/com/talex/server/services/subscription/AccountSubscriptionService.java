@@ -5,6 +5,7 @@ import com.talex.server.dtos.BasePageResponse;
 import com.talex.server.dtos.subscription.request.AccountSubscriptionRequestDto;
 import com.talex.server.dtos.subscription.response.AccountSubscriptionResponseDto;
 import com.talex.server.dtos.subscription.response.CreatorPoolDetailResponseDto;
+import com.talex.server.dtos.subscription.response.MonthlyAccountSubscriptionResponseDto;
 
 import java.util.UUID;
 
@@ -15,6 +16,9 @@ public interface AccountSubscriptionService {
 
     BasePageResponse<CreatorPoolDetailResponseDto> getCreatorPoolDetails(
             int year, int month, String subscriptionId, int page, int pageSize);
+
+    BasePageResponse<MonthlyAccountSubscriptionResponseDto> getMonthlyAccountSubscriptions(
+            int year, int month, int page, int pageSize);
 
     AccountSubscriptionResponseDto getAccountSubscriptionById(String accountSubscriptionId);
 

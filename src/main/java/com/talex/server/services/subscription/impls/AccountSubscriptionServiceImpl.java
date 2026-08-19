@@ -5,6 +5,7 @@ import com.talex.server.dtos.BasePageResponse;
 import com.talex.server.dtos.subscription.request.AccountSubscriptionRequestDto;
 import com.talex.server.dtos.subscription.response.AccountSubscriptionResponseDto;
 import com.talex.server.dtos.subscription.response.CreatorPoolDetailResponseDto;
+import com.talex.server.dtos.subscription.response.MonthlyAccountSubscriptionResponseDto;
 import com.talex.server.entities.auth.Account;
 import com.talex.server.entities.subscription.AccountSubscription;
 import com.talex.server.entities.subscription.Subscription;
@@ -136,6 +137,56 @@ public class AccountSubscriptionServiceImpl implements AccountSubscriptionServic
                 .toList();
 
         return BasePageResponse.<CreatorPoolDetailResponseDto>builder()
+                .content(content)
+                .pageNumber(pageResult.getNumber() + 1)
+                .pageSize(pageResult.getSize())
+                .totalElements(pageResult.getTotalElements())
+                .totalPages(pageResult.getTotalPages())
+                .isFirst(pageResult.isFirst())
+                .isLast(pageResult.isLast())
+                .build();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public BasePageResponse<MonthlyAccountSubscriptionResponseDto> getMonthlyAccountSubscriptions(
+            int year, int month, int page, int pageSize) {
+
+        YearMonth yearMonth = YearMonth.of(year, month);
+        LocalDateTime startOfMonth = yearMonth.atDay(1).atStartOfDay();
+        LocalDateTime endOfMonth = yearMonth.atEndOfMonth().atTime(23, 59, 59, 999999999);
+
+        int validPage = Math.max(page, 1);
+        int validPageSize = pageSize < 1 ? 20 : pageSize;
+        Pageable pageable = PageRequest.of(validPage - 1, validPageSize, Sort.by(Sort.Direction.DESC, "endTime"));
+
+        Page<Object[]> pageResult = accountSubscriptionRepository.findMonthlyAccountSubscriptionsRaw(
+                startOfMonth, endOfMonth, pageable);
+
+        List<MonthlyAccountSubscriptionResponseDto> content = pageResult.stream()
+                .map(row -> {
+                    Double totalAmount = row[3] != null ? ((Number) row[3]).doubleValue() : 0.0;
+                    Double vatAmount = row[4] != null ? ((Number) row[4]).doubleValue() : 0.0;
+                    Double amount = totalAmount - vatAmount; // Tính toán amount = total - vat
+
+                    return MonthlyAccountSubscriptionResponseDto.builder()
+                            .accountSubscriptionId((String) row[0])
+                            .subscriptionId((String) row[1])
+                            .orderId((String) row[2])
+                            .totalAmount(totalAmount)
+                            .vatAmount(vatAmount)
+                            .amount(amount)
+                            .startTime((LocalDateTime) row[5])
+                            .endTime((LocalDateTime) row[6])
+                            .totalViews(row[7] != null ? ((Number) row[7]).longValue() : 0L)
+                            .accountId(Objects.toString(row[8], null))
+                            .username((String) row[9])
+                            .email((String) row[10])
+                            .build();
+                })
+                .toList();
+
+        return BasePageResponse.<MonthlyAccountSubscriptionResponseDto>builder()
                 .content(content)
                 .pageNumber(pageResult.getNumber() + 1)
                 .pageSize(pageResult.getSize())

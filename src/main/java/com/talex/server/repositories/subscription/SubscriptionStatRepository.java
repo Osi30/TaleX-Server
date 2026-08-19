@@ -46,19 +46,6 @@ public interface SubscriptionStatRepository extends JpaRepository<SubscriptionSt
             @Param("monthYear") String monthYear
     );
 
-    @Query("SELECT s.accountSubscription.account.accountId, s.creatorId, s.episodeId, SUM(s.views) " +
-            "FROM SubscriptionStat s " +
-            "JOIN s.accountSubscription sub " +
-            "WHERE sub.subscription.subscriptionId = :subscriptionId " +
-            "  AND sub.endTime >= :startOfMonth " +
-            "  AND sub.endTime <= :endOfMonth " +
-            "GROUP BY s.accountSubscription.account.accountId, s.creatorId, s.episodeId")
-    List<Object[]> findGroupedStatsByMonthYear(
-            @Param("startOfMonth") LocalDateTime startOfMonth,
-            @Param("endOfMonth") LocalDateTime endOfMonth,
-            @Param("subscriptionId") String subscriptionId
-    );
-
     @Query("SELECT s.id, " +
             "s.monthYear, " +
             "s.creatorId, " +
@@ -106,5 +93,32 @@ public interface SubscriptionStatRepository extends JpaRepository<SubscriptionSt
     List<SubscriptionStatRawData> findGroupedStatsWithOrderDetailsByMonthYear(
             @Param("startOfMonth") LocalDateTime startOfMonth,
             @Param("endOfMonth") LocalDateTime endOfMonth
+    );
+
+    @Query("SELECT st.id AS id, " +
+            "st.monthYear AS monthYear, " +
+            "st.creatorId AS creatorId, " +
+            "acc.username AS creatorUsername, " +
+            "acc.avatarUrl AS creatorAvatarUrl, " +
+            "st.episodeId AS episodeId, " +
+            "ep.title AS episodeTitle, " +
+            "ep.episodeNumber AS episodeNumber, " +
+            "ser.seriesId AS seriesId, " +
+            "ser.title AS seriesTitle, " +
+            "ser.coverUrl AS coverUrl, " +
+            "ser.bannerUrl AS bannerUrl, " +
+            "st.views AS views, " +
+            "sub.accountSubscriptionId AS accountSubscriptionId " +
+            "FROM SubscriptionStat st " +
+            "JOIN st.accountSubscription sub " +
+            "LEFT JOIN Episode ep ON st.episodeId = ep.episodeId " +
+            "LEFT JOIN ep.season sea " +
+            "LEFT JOIN sea.series ser " +
+            "LEFT JOIN Creator c ON st.creatorId = c.creatorId " +
+            "LEFT JOIN c.account acc " +
+            "WHERE sub.accountSubscriptionId = :accountSubscriptionId")
+    Page<Object[]> findDetailedStatsByAccountSubscriptionId(
+            @Param("accountSubscriptionId") String accountSubscriptionId,
+            Pageable pageable
     );
 }

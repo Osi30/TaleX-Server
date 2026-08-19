@@ -7,6 +7,7 @@ import com.talex.server.dtos.BaseResponse;
 import com.talex.server.dtos.subscription.request.AccountSubscriptionRequestDto;
 import com.talex.server.dtos.subscription.response.AccountSubscriptionResponseDto;
 import com.talex.server.dtos.subscription.response.CreatorPoolDetailResponseDto;
+import com.talex.server.dtos.subscription.response.MonthlyAccountSubscriptionResponseDto;
 import com.talex.server.dtos.subscription.response.SubscriptionStatResponseDto;
 import com.talex.server.services.subscription.AccountSubscriptionService;
 import com.talex.server.services.subscription.SubscriptionStatService;
@@ -95,6 +96,28 @@ public class AccountSubscriptionController {
 
         BasePageResponse<AccountSubscriptionResponseDto> pageResponse = accountSubscriptionService
                 .filterAndSortAccountSubscriptions(filterRequest);
+        return ResponseEntity.ok(BaseResponse.builder()
+                .code(200)
+                .message("OK")
+                .data(pageResponse)
+                .build());
+    }
+
+    @GetMapping("/monthly")
+//    @PreAuthorize("hasAnyRole('ADMIN','STAFF')")
+    @Operation(
+            summary = "Lấy danh sách Account Subscription có EndTime trong tháng",
+            description = "Trả về danh sách các gói đăng ký kết thúc trong tháng truyền vào, bao gồm orderId, username và số tiền thực nhận (totalAmount - vatAmount)."
+    )
+    public ResponseEntity<BaseResponse> getMonthlyAccountSubscriptions(
+            @RequestParam int year,
+            @RequestParam int month,
+            @RequestParam(defaultValue = "1") Integer page,
+            @RequestParam(defaultValue = "20") Integer pageSize
+    ) {
+        BasePageResponse<MonthlyAccountSubscriptionResponseDto> pageResponse = accountSubscriptionService
+                .getMonthlyAccountSubscriptions(year, month, page, pageSize);
+
         return ResponseEntity.ok(BaseResponse.builder()
                 .code(200)
                 .message("OK")

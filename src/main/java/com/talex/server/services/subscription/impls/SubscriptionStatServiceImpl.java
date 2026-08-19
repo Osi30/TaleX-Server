@@ -6,6 +6,7 @@ import com.talex.server.dtos.revenue.request.UserStreamRequestDto;
 import com.talex.server.dtos.revenue.response.RuleXCalculationResponseDto;
 import com.talex.server.dtos.revenue.response.UserAllocationDto;
 import com.talex.server.dtos.subscription.dtos.SubscriptionStatRawData;
+import com.talex.server.dtos.subscription.response.SubscriptionStatDetailResponseDto;
 import com.talex.server.dtos.subscription.response.SubscriptionStatResponseDto;
 import com.talex.server.entities.config.CreatorConfig;
 import com.talex.server.entities.config.SyncMetadata;
@@ -297,6 +298,48 @@ public class SubscriptionStatServiceImpl implements SubscriptionStatService {
         }
 
         return results;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public BasePageResponse<SubscriptionStatDetailResponseDto> getDetailedStatsByAccountSubscriptionId(
+            String accountSubscriptionId, int page, int pageSize) {
+
+        int validPage = Math.max(page, 1);
+        int validPageSize = pageSize < 1 ? 20 : pageSize;
+        Pageable pageable = PageRequest.of(validPage - 1, validPageSize, Sort.by(Sort.Direction.DESC, "views"));
+
+        Page<Object[]> pageResult = subscriptionStatRepository.findDetailedStatsByAccountSubscriptionId(
+                accountSubscriptionId, pageable);
+
+        List<SubscriptionStatDetailResponseDto> content = pageResult.stream()
+                .map(row -> SubscriptionStatDetailResponseDto.builder()
+                        .id((String) row[0])
+                        .monthYear((String) row[1])
+                        .creatorId((String) row[2])
+                        .creatorUsername((String) row[3])
+                        .creatorAvatarUrl((String) row[4])
+                        .episodeId((String) row[5])
+                        .episodeTitle((String) row[6])
+                        .episodeNumber(row[7] != null ? ((Number) row[7]).intValue() : null)
+                        .seriesId((String) row[8])
+                        .seriesTitle((String) row[9])
+                        .coverUrl((String) row[10])
+                        .bannerUrl((String) row[11])
+                        .views(row[12] != null ? ((Number) row[12]).longValue() : 0L)
+                        .accountSubscriptionId((String) row[13])
+                        .build())
+                .toList();
+
+        return BasePageResponse.<SubscriptionStatDetailResponseDto>builder()
+                .content(content)
+                .pageNumber(pageResult.getNumber() + 1)
+                .pageSize(pageResult.getSize())
+                .totalElements(pageResult.getTotalElements())
+                .totalPages(pageResult.getTotalPages())
+                .isFirst(pageResult.isFirst())
+                .isLast(pageResult.isLast())
+                .build();
     }
 
     // HELPER METHODS

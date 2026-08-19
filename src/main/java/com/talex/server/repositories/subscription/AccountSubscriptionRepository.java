@@ -70,4 +70,25 @@ public interface AccountSubscriptionRepository extends JpaRepository<AccountSubs
             @Param("subscriptionId") String subscriptionId,
             Pageable pageable
     );
+
+    @Query("SELECT sub.accountSubscriptionId AS accountSubscriptionId, " +
+            "sub.subscription.subscriptionId AS subscriptionId, " +
+            "sub.orderId AS orderId, " +
+            "o.totalAmount AS totalAmount, " +
+            "o.vatAmount AS vatAmount, " +
+            "sub.startTime AS startTime, " +
+            "sub.endTime AS endTime, " +
+            "sub.totalViews AS totalViews, " +
+            "sub.account.accountId AS accountId, " +
+            "sub.account.username AS username, " +
+            "sub.account.email AS email " +
+            "FROM AccountSubscription sub " +
+            "LEFT JOIN Order o ON sub.orderId = o.orderId " +
+            "WHERE sub.endTime >= :startOfMonth " +
+            "AND sub.endTime <= :endOfMonth")
+    Page<Object[]> findMonthlyAccountSubscriptionsRaw(
+            @Param("startOfMonth") LocalDateTime startOfMonth,
+            @Param("endOfMonth") LocalDateTime endOfMonth,
+            Pageable pageable
+    );
 }
