@@ -3,7 +3,6 @@ package com.talex.server.controllers.subscription;
 import com.talex.server.dtos.BaseResponse;
 import com.talex.server.dtos.revenue.request.RuleXCalculationRequestDto;
 import com.talex.server.dtos.revenue.response.RuleXCalculationResponseDto;
-import com.talex.server.entities.subscription.Subscription;
 import com.talex.server.entities.subscription.SubscriptionResult;
 import com.talex.server.services.subscription.SubscriptionService;
 import com.talex.server.services.subscription.SubscriptionStatService;
@@ -55,36 +54,16 @@ public class SubscriptionCalculationDemoController {
                 .build());
     }
 
-    @GetMapping("/export-request-data")
-    @Operation(
-            summary = "Lấy dữ liệu Subscription Stat theo tháng và map thành RuleXCalculationRequestDto",
-            description = "Lấy dữ liệu thống kê từ DB theo monthYear và biến đổi thành định dạng request đầu vào cho thuật toán Rule X."
-    )
-    public ResponseEntity<BaseResponse> exportRequestData(
-            @RequestParam("monthYear") String monthYear,
-            @RequestParam(value = "subscriptionId") String subscriptionId
-    ) {
-        Subscription service = subscriptionService.getSubscriptionByIdEntity(subscriptionId);
-        RuleXCalculationRequestDto requestDto = subscriptionStatService.getRuleXRequestFromStats(monthYear, service);
-        return ResponseEntity.ok(BaseResponse.builder()
-                .code(200)
-                .message("Tạo dữ liệu RuleXCalculationRequestDto thành công")
-                .data(requestDto)
-                .build());
-    }
-
     @PostMapping("/calculate-and-save")
     @Operation(
             summary = "Tính toán Rule X từ DB stats theo tháng & lưu kết quả phân chia doanh thu",
-            description = "Trích xuất thống kê từ DB theo monthYear và subscriptionId, tính toán Rule X, lưu dữ liệu phân bổ vào các entity SubscriptionResult và SubscriptionRevenueLog, sau đó trả về kết quả chia tiền."
+            description = "Trích xuất thống kê từ DB theo monthYear và Order thực tế, tính toán Rule X cho từng nhóm gói."
     )
     public ResponseEntity<BaseResponse> calculateAndSave(
             @RequestParam("monthYear") String monthYear,
-            @RequestParam("subscriptionId") String subscriptionId,
             @RequestParam("isDemo") Boolean isDemo
     ) {
-        Subscription service = subscriptionService.getSubscriptionByIdEntity(subscriptionId);
-        SubscriptionResult response = subscriptionStatService.calculateAndSaveRevenue(monthYear, service, isDemo);
+        List<SubscriptionResult> response = subscriptionStatService.calculateAndSaveRevenue(monthYear, isDemo);
         return ResponseEntity.ok(BaseResponse.builder()
                 .code(200)
                 .message("Tính toán và lưu dữ liệu phân chia doanh thu thành công")
@@ -92,7 +71,7 @@ public class SubscriptionCalculationDemoController {
                 .build());
     }
 
-    @GetMapping("/export-request-data/v2")
+    @GetMapping("/export-request-data")
     @Operation(
             summary = "Lấy dữ liệu Subscription Stat theo tháng và map thành danh sách RuleXCalculationRequestDto",
             description = "Lấy dữ liệu thống kê từ DB theo monthYear, gom nhóm theo số tiền (total_amount - vat_amount) và thời hạn sub, trả về danh sách request đầu vào cho Rule X."

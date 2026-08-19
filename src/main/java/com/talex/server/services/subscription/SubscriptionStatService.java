@@ -25,10 +25,8 @@ public interface SubscriptionStatService {
     RuleXCalculationResponseDto calculateRuleX(RuleXCalculationRequestDto request);
 
     // For Demo - Get Request
-    RuleXCalculationRequestDto getRuleXRequestFromStats(String monthYear, Subscription subscription);
-
     List<RuleXCalculationRequestDto> getRuleXRequestFromStats(String monthYear);
 
     // For Demo - Get Response
-    SubscriptionResult calculateAndSaveRevenue(String monthYear, Subscription subscription, boolean isDemo);
+    List<SubscriptionResult> calculateAndSaveRevenue(String monthYear, boolean isDemo);
 }

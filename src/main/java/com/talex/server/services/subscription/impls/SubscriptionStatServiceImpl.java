@@ -206,50 +206,6 @@ public class SubscriptionStatServiceImpl implements SubscriptionStatService {
     }
 
     @Override
-    public RuleXCalculationRequestDto getRuleXRequestFromStats(String monthYear, Subscription subscription) {
-        YearMonth yearMonth = java.time.YearMonth.parse(monthYear, MONTH_YEAR_FORMATTER);
-        LocalDateTime startOfMonth = yearMonth.atDay(1).atStartOfDay(); // 2026-08-01 00:00:00
-        LocalDateTime endOfMonth = yearMonth.atEndOfMonth().atTime(23, 59, 59, 999_999_999); // 2026-08-31 23:59:59.999999999
-
-        List<Object[]> results = subscriptionStatRepository.findGroupedStatsByMonthYear(
-                startOfMonth,
-                endOfMonth,
-                subscription.getSubscriptionId()
-        );
-
-        // Map cấu trúc: userId -> creatorId -> episodeId -> views
-        Map<String, Map<String, Map<String, Long>>> userMap = new LinkedHashMap<>();
-
-        for (Object[] row : results) {
-            Object accountIdObj = row[0];
-            String userId = accountIdObj != null ? accountIdObj.toString() : "unknown_user";
-            String creatorId = (String) row[1];
-            String episodeId = (String) row[2];
-            Long views = (Long) row[3];
-
-            userMap.computeIfAbsent(userId, k -> new LinkedHashMap<>())
-                    .computeIfAbsent(creatorId, k -> new LinkedHashMap<>())
-                    .put(episodeId, views != null ? views : 0L);
-        }
-
-        List<UserStreamRequestDto> userDtos = new ArrayList<>();
-        for (Map.Entry<String, Map<String, Map<String, Long>>> entry : userMap.entrySet()) {
-            userDtos.add(UserStreamRequestDto.builder()
-                    .userId(entry.getKey())
-                    .artistEpisodeStreams(entry.getValue())
-                    .build());
-        }
-
-        CreatorConfig config = configService.getConfigEntity();
-
-        return RuleXCalculationRequestDto.builder()
-                .alpha(1.0 - config.getBasePremiumShare())
-                .subscriptionFee(subscription.getPrice().doubleValue())
-                .users(userDtos)
-                .build();
-    }
-
-    @Override
     @Transactional(readOnly = true)
     public List<RuleXCalculationRequestDto> getRuleXRequestFromStats(String monthYear) {
         // 1. Tính toán khoảng thời gian trong tháng
@@ -257,7 +213,7 @@ public class SubscriptionStatServiceImpl implements SubscriptionStatService {
         LocalDateTime startOfMonth = yearMonth.atDay(1).atStartOfDay();
         LocalDateTime endOfMonth = yearMonth.atEndOfMonth().atTime(23, 59, 59, 999_999_999);
 
-        // 2. Lấy dữ liệu thô từ DB dạng Strongly-typed Projection
+        // 2. Lấy dữ liệu thô từ DB
         List<SubscriptionStatRawData> rawStats = subscriptionStatRepository
                 .findGroupedStatsWithOrderDetailsByMonthYear(startOfMonth, endOfMonth);
 
@@ -270,20 +226,28 @@ public class SubscriptionStatServiceImpl implements SubscriptionStatService {
 
     @Override
     @Transactional
-    public SubscriptionResult calculateAndSaveRevenue(
-            String monthYear,
-            Subscription subscription,
-            boolean isDemo
-    ) {
-        // 1. Tự động chuyển đổi dữ liệu lượt xem trong DB stats thành RuleXCalculationRequestDto
-        RuleXCalculationRequestDto requestDto = getRuleXRequestFromStats(monthYear, subscription);
+    public List<SubscriptionResult> calculateAndSaveRevenue(String monthYear, boolean isDemo) {
+        // 1. Tự động lấy danh sách RuleXCalculationRequestDto đã gom nhóm theo (Giá thực tế, Thời hạn)
+        List<RuleXCalculationRequestDto> requestDtos = getRuleXRequestFromStats(monthYear);
 
-        // 2. Thực hiện giải thuật tính toán Rule X
-        RuleXCalculationResponseDto response = calculateRuleX(requestDto);
+        if (requestDtos == null || requestDtos.isEmpty()) {
+            log.info("No subscription stats found for calculation in monthYear: {}", monthYear);
+            return Collections.emptyList();
+        }
 
-        // 3. Trích xuất mapping episodeId -> creatorId từ requestDto
-        Map<String, String> episodeToCreatorMap = new HashMap<>();
-        if (requestDto.getUsers() != null) {
+        List<SubscriptionResult> results = new ArrayList<>();
+
+        // 2. Duyệt qua từng nhóm DTO để tính toán Rule X
+        for (RuleXCalculationRequestDto requestDto : requestDtos) {
+            if (requestDto.getUsers() == null || requestDto.getUsers().isEmpty()) {
+                continue;
+            }
+
+            // Thực hiện giải thuật tính toán Rule X cho nhóm hiện tại
+            RuleXCalculationResponseDto response = calculateRuleX(requestDto);
+
+            // Trích xuất mapping episodeId -> creatorId từ requestDto
+            Map<String, String> episodeToCreatorMap = new HashMap<>();
             for (UserStreamRequestDto user : requestDto.getUsers()) {
                 if (user.getArtistEpisodeStreams() != null) {
                     user.getArtistEpisodeStreams().forEach((creatorId, epMap) -> {
@@ -293,48 +257,48 @@ public class SubscriptionStatServiceImpl implements SubscriptionStatService {
                     });
                 }
             }
+
+            // Tạo Entity SubscriptionResult cho nhóm này
+            SubscriptionResult resultEntity = SubscriptionResult.builder()
+                    .alpha(requestDto.getAlpha())
+                    .totalBudget(response.getTotalBudget())
+                    .gamma(response.getGamma())
+                    .targetBudget(response.getTargetBudget())
+                    .calculatedBudget(response.getCalculatedBudget())
+                    .monthYear(monthYear)
+                    .revenueLogs(new ArrayList<>())
+                    .build();
+
+            // Chuyển đổi episodePayouts thành danh sách SubscriptionRevenueLog
+            if (response.getEpisodePayouts() != null) {
+                response.getEpisodePayouts().forEach((episodeId, revenue) -> {
+                    String creatorId = episodeToCreatorMap.getOrDefault(episodeId, "unknown");
+
+                    SubscriptionRevenueLog logEntity = SubscriptionRevenueLog.builder()
+                            .subscriptionResult(resultEntity)
+                            .episodeId(episodeId)
+                            .creatorId(creatorId)
+                            .revenue(revenue)
+                            .monthYear(monthYear)
+                            .build();
+
+                    resultEntity.getRevenueLogs().add(logEntity);
+                });
+            }
+
+            results.add(resultEntity);
         }
 
-        // 5. Tạo Entity SubscriptionResult
-        SubscriptionResult resultEntity = SubscriptionResult.builder()
-                .subscription(subscription)
-                .alpha(requestDto.getAlpha())
-                .totalBudget(response.getTotalBudget())
-                .gamma(response.getGamma())
-                .targetBudget(response.getTargetBudget())
-                .calculatedBudget(response.getCalculatedBudget())
-                .monthYear(monthYear)
-                .revenueLogs(new ArrayList<>())
-                .build();
-
-        // 6. Chuyển đổi episodePayouts thành danh sách SubscriptionRevenueLog
-        if (response.getEpisodePayouts() != null) {
-            response.getEpisodePayouts().forEach((episodeId, revenue) -> {
-                String creatorId = episodeToCreatorMap.getOrDefault(episodeId, "unknown");
-
-                SubscriptionRevenueLog logEntity = SubscriptionRevenueLog.builder()
-                        .subscriptionResult(resultEntity)
-                        .episodeId(episodeId)
-                        .creatorId(creatorId)
-                        .revenue(revenue)
-                        .monthYear(monthYear)
-                        .build();
-
-                resultEntity.getRevenueLogs().add(logEntity);
-            });
+        // 3. Lưu toàn bộ các kết quả vào DB nếu không phải chế độ Demo
+        if (!isDemo && !results.isEmpty()) {
+            subscriptionResultRepository.saveAll(results);
+            log.info("Successfully saved {} subscription results for monthYear: {}", results.size(), monthYear);
         }
 
-        // 7. Lưu vào cơ sở dữ liệu (Cascade.ALL sẽ tự động lưu danh sách revenueLogs)
-        if (!isDemo) subscriptionResultRepository.save(resultEntity);
-
-        log.info("Saved subscription result and revenue logs for subscriptionId: {}, monthYear: {}", subscription.getSubscriptionId(), monthYear);
-
-        return resultEntity;
+        return results;
     }
 
-    // =========================================================================
-    // HELPER METHODS (CLEAN CODE / MODULAR)
-    // =========================================================================
+    // HELPER METHODS
 
     /**
      * Chuẩn hóa cấu trúc stream và tính tổng số stream (v_u) cho từng User

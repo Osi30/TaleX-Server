@@ -2,6 +2,7 @@ package com.talex.server.schedulers;
 
 import com.talex.server.dtos.revenue.request.RuleXCalculationRequestDto;
 import com.talex.server.entities.subscription.Subscription;
+import com.talex.server.entities.subscription.SubscriptionResult;
 import com.talex.server.repositories.subscription.SubscriptionRepository;
 import com.talex.server.services.subscription.SubscriptionRevenueService;
 import com.talex.server.services.subscription.SubscriptionStatService;
@@ -40,45 +41,23 @@ public class SubscriptionScheduler {
      */
     @Scheduled(cron = "0 0 0 1 * *")
     public void processMonthlyRevenueDistribution() {
-        // Lấy thời gian tháng trước
+        // Lấy thời gian tháng trước (YYYY-MM)
         String previousMonthYear = LocalDate.now()
                 .minusMonths(1).format(MONTH_YEAR_FORMATTER);
 
-        // 1. Query tất cả Subscriptions (bao gồm khi đã xóa)
-        List<Subscription> subscriptions = subscriptionRepository.findAll();
-        if (subscriptions.isEmpty()) return;
+        try {
+            // Tự động quét stats + order, tính toán Rule X cho từng nhóm gói và lưu DB
+            List<SubscriptionResult> results = subscriptionStatService.calculateAndSaveRevenue(previousMonthYear, false);
 
-        int processedCount = 0;
-        int skippedCount = 0;
-
-        // 2. Duyệt qua từng Subscription để kiểm tra và xử lý
-        for (Subscription subscription : subscriptions) {
-            try {
-                // Lấy request dto từ stats của tháng trước
-                RuleXCalculationRequestDto requestDto = subscriptionStatService.getRuleXRequestFromStats(
-                        previousMonthYear,
-                        subscription
-                );
-
-                // Nếu danh sách users không rỗng thì tiến hành tính toán và lưu
-                if (requestDto != null && requestDto.getUsers() != null && !requestDto.getUsers().isEmpty()) {
-                    subscriptionStatService.calculateAndSaveRevenue(previousMonthYear, subscription, false);
-                    processedCount++;
-                    log.info("Successfully processed revenue for subscriptionId: {}, monthYear: {}",
-                            subscription.getSubscriptionId(), previousMonthYear);
-                } else {
-                    skippedCount++;
-                    log.info("Skipped calculation for subscriptionId: {} (No user streams found for {})",
-                            subscription.getSubscriptionId(), previousMonthYear);
-                }
-            } catch (Exception e) {
-                log.error("Error calculating monthly revenue for subscriptionId: {}",
-                        subscription.getSubscriptionId(), e);
+            if (!results.isEmpty()) {
+                log.info("Successfully completed monthly Rule X revenue distribution for {}. Total order groups processed: {}",
+                        previousMonthYear, results.size());
+            } else {
+                log.info("Skipped monthly revenue distribution for {} (No user streams or stats found)", previousMonthYear);
             }
+        } catch (Exception e) {
+            log.error("Error processing monthly Rule X revenue distribution for monthYear: {}", previousMonthYear, e);
         }
-
-        log.info("Completed monthly Rule X revenue distribution for {}. Processed: {}, Skipped: {}",
-                previousMonthYear, processedCount, skippedCount);
     }
 
     /**
