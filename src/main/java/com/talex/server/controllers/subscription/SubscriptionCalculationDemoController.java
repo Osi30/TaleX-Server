@@ -14,6 +14,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/v1/subscription-calculation-demo")
 @RequiredArgsConstructor
@@ -87,6 +89,22 @@ public class SubscriptionCalculationDemoController {
                 .code(200)
                 .message("Tính toán và lưu dữ liệu phân chia doanh thu thành công")
                 .data(response)
+                .build());
+    }
+
+    @GetMapping("/export-request-data/v2")
+    @Operation(
+            summary = "Lấy dữ liệu Subscription Stat theo tháng và map thành danh sách RuleXCalculationRequestDto",
+            description = "Lấy dữ liệu thống kê từ DB theo monthYear, gom nhóm theo số tiền (total_amount - vat_amount) và thời hạn sub, trả về danh sách request đầu vào cho Rule X."
+    )
+    public ResponseEntity<BaseResponse> exportRequestData(
+            @RequestParam("monthYear") String monthYear
+    ) {
+        List<RuleXCalculationRequestDto> requestDTOs = subscriptionStatService.getRuleXRequestFromStats(monthYear);
+        return ResponseEntity.ok(BaseResponse.builder()
+                .code(200)
+                .message("Tạo danh sách RuleXCalculationRequestDto theo nhóm đơn hàng thành công")
+                .data(requestDTOs)
                 .build());
     }
 }

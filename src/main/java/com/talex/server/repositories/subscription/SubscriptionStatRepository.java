@@ -1,5 +1,6 @@
 package com.talex.server.repositories.subscription;
 
+import com.talex.server.dtos.subscription.dtos.SubscriptionStatRawData;
 import com.talex.server.entities.subscription.SubscriptionStat;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -77,5 +78,33 @@ public interface SubscriptionStatRepository extends JpaRepository<SubscriptionSt
     Page<Object[]> findStatsDetailsByAccountSubId(
             @Param("accountSubscriptionId") String accountSubscriptionId,
             Pageable pageable
+    );
+
+    @Query("SELECT new com.talex.server.dtos.subscription.dtos.SubscriptionStatRawData(" +
+            "s.accountSubscription.account.accountId, " +
+            "sub.accountSubscriptionId, " +
+            "sub.startTime, " +
+            "sub.endTime, " +
+            "o.totalAmount, " +
+            "o.vatAmount, " +
+            "s.creatorId, " +
+            "s.episodeId, " +
+            "SUM(s.views)) " +
+            "FROM SubscriptionStat s " +
+            "JOIN s.accountSubscription sub " +
+            "LEFT JOIN Order o ON sub.orderId = o.orderId " +
+            "WHERE sub.endTime >= :startOfMonth " +
+            "  AND sub.endTime <= :endOfMonth " +
+            "GROUP BY s.accountSubscription.account.accountId, " +
+            "         sub.accountSubscriptionId, " +
+            "         sub.startTime, " +
+            "         sub.endTime, " +
+            "         o.totalAmount, " +
+            "         o.vatAmount, " +
+            "         s.creatorId, " +
+            "         s.episodeId")
+    List<SubscriptionStatRawData> findGroupedStatsWithOrderDetailsByMonthYear(
+            @Param("startOfMonth") LocalDateTime startOfMonth,
+            @Param("endOfMonth") LocalDateTime endOfMonth
     );
 }

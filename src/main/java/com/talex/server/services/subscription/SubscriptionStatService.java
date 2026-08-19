@@ -8,6 +8,7 @@ import com.talex.server.entities.subscription.Subscription;
 import com.talex.server.entities.subscription.SubscriptionResult;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 public interface SubscriptionStatService {
@@ -25,6 +26,8 @@ public interface SubscriptionStatService {
 
     // For Demo - Get Request
     RuleXCalculationRequestDto getRuleXRequestFromStats(String monthYear, Subscription subscription);
+
+    List<RuleXCalculationRequestDto> getRuleXRequestFromStats(String monthYear);
 
     // For Demo - Get Response
     SubscriptionResult calculateAndSaveRevenue(String monthYear, Subscription subscription, boolean isDemo);

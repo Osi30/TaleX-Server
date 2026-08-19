@@ -5,11 +5,13 @@ import com.talex.server.dtos.revenue.request.RuleXCalculationRequestDto;
 import com.talex.server.dtos.revenue.request.UserStreamRequestDto;
 import com.talex.server.dtos.revenue.response.RuleXCalculationResponseDto;
 import com.talex.server.dtos.revenue.response.UserAllocationDto;
+import com.talex.server.dtos.subscription.dtos.SubscriptionStatRawData;
 import com.talex.server.dtos.subscription.response.SubscriptionStatResponseDto;
 import com.talex.server.entities.config.CreatorConfig;
 import com.talex.server.entities.config.SyncMetadata;
 import com.talex.server.entities.subscription.*;
 import com.talex.server.enums.SyncType;
+import com.talex.server.mappers.subscription.RuleXRequestMapper;
 import com.talex.server.records.WatchSessionResponseDto;
 import com.talex.server.repositories.SyncMetadataRepository;
 import com.talex.server.repositories.interaction.WatchSessionRepository;
@@ -44,6 +46,7 @@ public class SubscriptionStatServiceImpl implements SubscriptionStatService {
     private final WatchSessionRepository watchSessionRepository;
     private final SubscriptionStatRepository subscriptionStatRepository;
     private final EntityManager entityManager;
+    private final RuleXRequestMapper ruleXRequestMapper;
 
     private static final DateTimeFormatter MONTH_YEAR_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM");
     private static final int MAX_BINARY_SEARCH_ITERATIONS = 100;
@@ -244,6 +247,25 @@ public class SubscriptionStatServiceImpl implements SubscriptionStatService {
                 .subscriptionFee(subscription.getPrice().doubleValue())
                 .users(userDtos)
                 .build();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<RuleXCalculationRequestDto> getRuleXRequestFromStats(String monthYear) {
+        // 1. Tính toán khoảng thời gian trong tháng
+        YearMonth yearMonth = YearMonth.parse(monthYear, MONTH_YEAR_FORMATTER);
+        LocalDateTime startOfMonth = yearMonth.atDay(1).atStartOfDay();
+        LocalDateTime endOfMonth = yearMonth.atEndOfMonth().atTime(23, 59, 59, 999_999_999);
+
+        // 2. Lấy dữ liệu thô từ DB dạng Strongly-typed Projection
+        List<SubscriptionStatRawData> rawStats = subscriptionStatRepository
+                .findGroupedStatsWithOrderDetailsByMonthYear(startOfMonth, endOfMonth);
+
+        // 3. Lấy cấu hình hệ thống
+        CreatorConfig config = configService.getConfigEntity();
+
+        // 4. Ủy quyền toàn bộ việc gom nhóm và tạo DTO cho Component chuyên trách
+        return ruleXRequestMapper.aggregate(rawStats, config.getBasePremiumShare());
     }
 
     @Override
