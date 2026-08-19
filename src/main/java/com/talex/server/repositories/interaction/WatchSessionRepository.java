@@ -82,7 +82,7 @@ public interface WatchSessionRepository extends JpaRepository<WatchSession, Stri
             ") " +
             "FROM WatchSession ws " +
             "WHERE ws.watchDuration >= :minDuration " +
-            "  AND ws.episode.season.series.creator.account.role.roleName = 'CREATOR' " +
+            "  AND ws.episode.season.series.creator.account.role.code = 'CREATOR' " +
             "  AND ws.episode.season.series.creator.account.status = 'ACTIVE' " +
             "  AND ws.episode.season.series.creator.isBanned = false " +
             "  AND (cast(:lastSyncTime as timestamp) IS NULL OR ws.startTime >= :lastSyncTime)")
