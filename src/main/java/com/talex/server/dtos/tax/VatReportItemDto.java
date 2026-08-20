@@ -17,6 +17,7 @@ public class VatReportItemDto {
     private String itemType;
     private String itemId;
     private BigDecimal fiatAmount;
+    private BigDecimal totalAmount;
     private Double vatRate;
     private BigDecimal vatAmount;
     private String paymentCode;

@@ -25,7 +25,7 @@ public class StatisticController {
     private final StatisticService statisticService;
 
     @GetMapping
-//    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(
             summary = "Lấy dữ liệu thống kê tài chính",
             description = "Trả về tổng GMV, doanh thu thuần (đã trừ thuế, chưa tính phần chia sẻ cho nhà sáng tạo và tiền hoàn trả), " +

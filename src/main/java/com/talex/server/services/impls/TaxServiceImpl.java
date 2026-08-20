@@ -69,8 +69,8 @@ public class TaxServiceImpl implements TaxService {
                 orderRepository.sumVatByItemTypesAndDateRange(OrderStatus.COMPLETED, CREATOR_ITEM_TYPES, startDate, endDate)
         ).orElse(BigDecimal.ZERO);
 
-        List<CreatorMonthlySettlement> settlements = settlementRepository.findForTaxByYearAndCreator(
-                String.valueOf(year), VALID_TAX_STATUSES, null
+        List<CreatorMonthlySettlement> settlements = settlementRepository.findForTaxByQuarter(
+                startDate, endDate, VALID_TAX_STATUSES
         );
 
         BigDecimal totalGross = settlements.stream().map(CreatorMonthlySettlement::getGrossAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -105,7 +105,8 @@ public class TaxServiceImpl implements TaxService {
                 .orderId(o.getOrderId())
                 .itemType(o.getItemType())
                 .itemId(o.getItemId())
-                .fiatAmount(o.getFiatAmount())
+                .fiatAmount(o.getTotalAmount().subtract(o.getVatAmount()))
+                .totalAmount(o.getTotalAmount())
                 .vatRate(o.getVatRate())
                 .vatAmount(o.getVatAmount())
                 .paymentCode(o.getPaymentCode())
@@ -160,7 +161,7 @@ public class TaxServiceImpl implements TaxService {
         StringBuilder csv = new StringBuilder();
         // Chèn UTF-8 BOM để Excel hiển thị tiếng Việt không lỗi font
         csv.append("\uFEFF");
-        csv.append("STT,Họ và Tên,Mã Số Thuế,Số CCCD/CMND,Tổng Thu Nhập Chịu Thuế (Gross),Thuế Suất (%),Số Thuế TNCN Đã Khấu Trừ,Thu Nhập Thực Nhận (Net)\n");
+        csv.append("STT,Họ và Tên,Mã Số Thuế,Số CCCD/CMND,Tổng Thu Nhập Chịu Thuế (Gross),Thuế Suất (%),Số Thuế TNCN Đã Khấu Trừ,Thu Nhập Thực Nhận (Net),Trạng Thái\n");
 
         int index = 1;
         for (CreatorMonthlySettlement s : settlements) {
@@ -169,12 +170,14 @@ public class TaxServiceImpl implements TaxService {
             String taxId = identity != null && !ValidationUtils.isNullOrEmpty(identity.getTaxId()) ? identity.getTaxId() : "N/A";
             String idNum = identity != null && !ValidationUtils.isNullOrEmpty(identity.getIdNumber()) ? identity.getIdNumber() : "N/A";
 
-            csv.append(String.format("%d,\"%s\",\"%s\",\"%s\",%.2f,%.2f,%.2f,%.2f\n",
+            csv.append(String.format("%d,\"%s\",\"%s\",\"%s\",%.2f,%.2f,%.2f,%.2f,\"%s\"\n",
                     index++, name, taxId, idNum,
                     s.getGrossAmount(),
                     Optional.ofNullable(s.getTaxRate()).orElse(10.0),
                     Optional.ofNullable(s.getTaxWithheldAmount()).orElse(BigDecimal.ZERO),
-                    Optional.ofNullable(s.getNetPayoutAmount()).orElse(BigDecimal.ZERO)));
+                    Optional.ofNullable(s.getNetPayoutAmount()).orElse(BigDecimal.ZERO),
+                    s.getStatus().name()
+                    ));
         }
 
         return csv.toString().getBytes(StandardCharsets.UTF_8);
@@ -193,17 +196,15 @@ public class TaxServiceImpl implements TaxService {
 
         StringBuilder csv = new StringBuilder();
         csv.append("\uFEFF");
-        csv.append("Mã Đơn Hàng,Loại Sản Phẩm,Nhóm Doanh Thu,Tổng Doanh Thu,Thuế Suất VAT (%),Tiền Thuế VAT,Số Coin Quy Đổi,Doanh Thu Rong,Ngày Tạo\n");
+        csv.append("Mã Đơn Hàng,Loại Sản Phẩm,Tổng Doanh Thu,Thuế Suất VAT (%),Tiền Thuế VAT,Số Coin Quy Đổi,Doanh Thu Rong,Ngày Tạo\n");
 
         for (Order o : orders.getContent()) {
-            String group = PLATFORM_ITEM_TYPES.contains(o.getItemType()) ? "PLATFORM" : "CREATOR";
-            csv.append(String.format("\"%s\",\"%s\",\"%s\",%.2f,%.2f,%.2f,%d,%.2f,\"%s\"\n",
-                    o.getOrderId(), o.getItemType(), group,
-                    o.getTotalAmount(),
+            csv.append(String.format("\"%s\",\"%s\",%.2f,%.2f,%.2f,%d,%.2f,\"%s\"\n",
+                    o.getOrderId(), o.getItemType(), o.getTotalAmount(),
                     Optional.ofNullable(o.getVatRate()).orElse(0.0),
                     Optional.ofNullable(o.getVatAmount()).orElse(BigDecimal.ZERO),
                     o.getCoinAmount(),
-                    o.getFiatAmount().subtract(Optional.ofNullable(o.getVatAmount()).orElse(BigDecimal.ZERO)),
+                    o.getTotalAmount().subtract(Optional.ofNullable(o.getVatAmount()).orElse(BigDecimal.ZERO)),
                     o.getCreatedAt()));
         }
 

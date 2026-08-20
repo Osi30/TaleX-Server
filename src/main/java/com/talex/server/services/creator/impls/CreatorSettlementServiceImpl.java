@@ -306,13 +306,13 @@ public class CreatorSettlementServiceImpl implements CreatorSettlementService {
 
             case APPROVED -> EnumSet.of(
                     SettlementStatus.PAID,
-                    SettlementStatus.UNDER_REVIEW,
-                    SettlementStatus.FORFEITED
+                    SettlementStatus.UNDER_REVIEW
             ).contains(target);
 
             case UNDER_REVIEW -> EnumSet.of(
                     SettlementStatus.APPROVED,
-                    SettlementStatus.FORFEITED
+                    SettlementStatus.FORFEITED,
+                    SettlementStatus.FROZEN_PENALTY
             ).contains(target);
 
             default -> false;

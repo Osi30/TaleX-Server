@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -24,11 +25,21 @@ public interface CreatorMonthlySettlementRepository extends
     @Query("SELECT s FROM CreatorMonthlySettlement s " +
             "WHERE s.settlementMonth LIKE CONCAT(:year, '-%') " +
             "AND s.status IN :statuses " +
-            "AND (:creatorId IS NULL OR s.creator.creatorId = :creatorId)")
+            "AND s.creator.creatorId = :creatorId")
     List<CreatorMonthlySettlement> findForTaxByYearAndCreator(
             @Param("year") String year,
             @Param("statuses") List<SettlementStatus> statuses,
             @Param("creatorId") String creatorId
+    );
+
+    @Query("SELECT s FROM CreatorMonthlySettlement s " +
+            "WHERE s.status IN :statuses " +
+            "AND s.cutoffDate <= :endTime " +
+            "AND s.cutoffDate >= :startTime ")
+    List<CreatorMonthlySettlement> findForTaxByQuarter(
+            @Param("startTime")LocalDateTime startTime,
+            @Param("endTime")LocalDateTime endTime,
+            @Param("statuses") List<SettlementStatus> statuses
     );
 
     @Query("SELECT s FROM CreatorMonthlySettlement s " +
