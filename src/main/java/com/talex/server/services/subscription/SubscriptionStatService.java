@@ -5,7 +5,6 @@ import com.talex.server.dtos.revenue.request.RuleXCalculationRequestDto;
 import com.talex.server.dtos.revenue.response.RuleXCalculationResponseDto;
 import com.talex.server.dtos.subscription.response.SubscriptionStatDetailResponseDto;
 import com.talex.server.dtos.subscription.response.SubscriptionStatResponseDto;
-import com.talex.server.entities.subscription.Subscription;
 import com.talex.server.entities.subscription.SubscriptionResult;
 
 import java.time.LocalDateTime;

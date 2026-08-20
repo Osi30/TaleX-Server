@@ -23,6 +23,7 @@ public class OrderResponseDto {
     private BigDecimal walletAmount;
     private OrderStatus status;
     private LocalDateTime expiresAt;
+    private LocalDateTime createdAt;
     // Chỉ có giá trị khi mua Combo và đã sở hữu 1 phần tập trong combo trước đó
     private BigDecimal comboOriginalPrice;
     private Integer comboOwnedEpisodeCount;

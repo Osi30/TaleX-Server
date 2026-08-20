@@ -368,6 +368,7 @@ public class OrderServiceImpl implements OrderService {
                 .walletAmount(order.getCampaignWalletAmount())
                 .status(order.getStatus())
                 .expiresAt(order.getExpiresAt())
+                .createdAt(order.getCreatedAt())
                 .comboOriginalPrice(comboDiscount != null ? comboDiscount.originalPrice() : null)
                 .comboOwnedEpisodeCount(comboDiscount != null ? comboDiscount.ownedEpisodeCount() : null)
                 .comboTotalEpisodeCount(comboDiscount != null ? comboDiscount.totalEpisodeCount() : null)
