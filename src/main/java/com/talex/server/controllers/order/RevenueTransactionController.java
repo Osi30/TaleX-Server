@@ -7,6 +7,7 @@ import com.talex.server.dtos.revenue.response.RevenueSummaryResponseDto;
 import com.talex.server.dtos.revenue.response.RevenueTimeSeriesResponseDto;
 import com.talex.server.dtos.revenue.response.RevenueTransactionDto;
 import com.talex.server.dtos.settlement.UnsettledEpisodeRevenueDto;
+import com.talex.server.dtos.settlement.UnsettledEpisodeSubscriptionRevenueDto;
 import com.talex.server.services.creator.CreatorService;
 import com.talex.server.services.creator.RevenueTransactionService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -106,6 +107,23 @@ public class RevenueTransactionController {
         return ResponseEntity.ok(BaseResponse.builder()
                 .code(200)
                 .message("Lấy doanh thu chưa quyết toán của tập thành công")
+                .data(data)
+                .build());
+    }
+
+    @GetMapping("/{episodeId}/unsettled-subscription-revenue")
+//    @PreAuthorize("hasAnyRole('ADMIN', 'CREATOR')")
+    @Operation(
+            summary = "Lấy tổng doanh thu gói Subscription chưa quyết toán của Episode",
+            description = "Tính tổng revenue từ SubscriptionRevenueLog ghép nối với SubscriptionResult và RevenueTransaction chưa quyết toán (creatorMonthlySettlement IS NULL) có ReferenceType = PREMIUM_RESULT và RevenueTransactionType = PREMIUM_SHARE."
+    )
+    public ResponseEntity<BaseResponse> getUnsettledSubscriptionRevenue(@PathVariable String episodeId) {
+        UnsettledEpisodeSubscriptionRevenueDto data = revenueTransactionService
+                .getUnsettledSubscriptionRevenueByEpisodeId(episodeId);
+
+        return ResponseEntity.ok(BaseResponse.builder()
+                .code(200)
+                .message("Lấy doanh thu Subscription chưa quyết toán của tập thành công")
                 .data(data)
                 .build());
     }

@@ -7,6 +7,7 @@ import com.talex.server.dtos.revenue.response.RevenueSummaryResponseDto;
 import com.talex.server.dtos.revenue.response.RevenueTimeSeriesResponseDto;
 import com.talex.server.dtos.revenue.response.RevenueTransactionDto;
 import com.talex.server.dtos.settlement.UnsettledEpisodeRevenueDto;
+import com.talex.server.dtos.settlement.UnsettledEpisodeSubscriptionRevenueDto;
 import com.talex.server.entities.config.CreatorConfig;
 import com.talex.server.entities.creator.Creator;
 import com.talex.server.entities.creator.RevenueTransaction;
@@ -17,6 +18,7 @@ import com.talex.server.enums.creator.RevenueTransactionType;
 import com.talex.server.enums.transaction.ReferenceType;
 import com.talex.server.mappers.settlement.RevenueTransactionMapper;
 import com.talex.server.repositories.series.EpisodeRepository;
+import com.talex.server.repositories.subscription.SubscriptionRevenueLogRepository;
 import com.talex.server.repositories.transaction.RevenueTransactionRepository;
 import com.talex.server.services.config.CreatorConfigService;
 import com.talex.server.services.creator.CreatorService;
@@ -48,6 +50,7 @@ public class RevenueTransactionServiceImpl implements RevenueTransactionService 
     private final CreatorService creatorService;
     private final CreatorConfigService creatorConfigService;
     private final EpisodeRepository episodeRepository;
+    private final SubscriptionRevenueLogRepository subscriptionRevenueLogRepository;
 
     @Override
     @Transactional
@@ -77,11 +80,11 @@ public class RevenueTransactionServiceImpl implements RevenueTransactionService 
         // 5. Tỷ lệ nền tảng thu = baseUnlockShare - directPurchaseShareRatio (Dạng thập phân từ 0.0 -> 1.0)
         double platformShareRatio = baseUnlockShare - directPurchaseShareRatio;
         if (platformShareRatio < 0) {
+            directPurchaseShareRatio = platformShareRatio;
             platformShareRatio = 0.0;
         }
 
         // 6. Tính số tiền nền tảng giữ & creator nhận
-        // KHÔNG chia cho 100 ở đây vì platformShareRatio đã là dạng thập phân (VD: 0.50)
         BigDecimal platformAmount = netAmount.multiply(BigDecimal.valueOf(platformShareRatio))
                 .setScale(0, RoundingMode.HALF_UP);
 
@@ -278,6 +281,22 @@ public class RevenueTransactionServiceImpl implements RevenueTransactionService 
         BigDecimal totalUnsettled = revenueTransactionRepository.calculateUnsettledRevenueByEpisodeId(episodeId);
 
         return UnsettledEpisodeRevenueDto.builder()
+                .episodeId(episodeId)
+                .unsettledAmount(totalUnsettled)
+                .build();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public UnsettledEpisodeSubscriptionRevenueDto getUnsettledSubscriptionRevenueByEpisodeId(String episodeId) {
+        boolean exists = episodeRepository.existsById(episodeId);
+        if (!exists) {
+            throw new IllegalArgumentException("Không tìm thấy Episode với ID: " + episodeId);
+        }
+
+        BigDecimal totalUnsettled = subscriptionRevenueLogRepository.calculateUnsettledSubscriptionRevenueByEpisodeId(episodeId);
+
+        return UnsettledEpisodeSubscriptionRevenueDto.builder()
                 .episodeId(episodeId)
                 .unsettledAmount(totalUnsettled)
                 .build();

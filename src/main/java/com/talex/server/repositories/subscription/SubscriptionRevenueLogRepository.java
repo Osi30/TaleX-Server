@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @Repository
@@ -47,4 +48,24 @@ public interface SubscriptionRevenueLogRepository extends JpaRepository<Subscrip
             @Param("subscriptionResultId") String subscriptionResultId,
             Pageable pageable
     );
+
+    /**
+     * Tính tổng doanh thu Subscription chưa quyết toán của 1 episode
+     */
+    @Query(value = """
+        SELECT COALESCE(SUM(srl.revenue), 0)
+        FROM subscription_revenue_logs srl
+        INNER JOIN subscription_results sr ON srl.subscription_result_id = sr.id
+        WHERE srl.episode_id = :episodeId
+          AND EXISTS (
+              SELECT 1 
+              FROM revenue_transaction rt
+              WHERE rt.reference_id = sr.id
+                AND rt.creator_id = srl.creator_id
+                AND rt.reference_type = 'PREMIUM_RESULT'
+                AND rt.change_type = 'PREMIUM_SHARE'
+                AND rt.creator_monthly_settlement_id IS NULL
+          )
+        """, nativeQuery = true)
+    BigDecimal calculateUnsettledSubscriptionRevenueByEpisodeId(@Param("episodeId") String episodeId);
 }
