@@ -6,6 +6,7 @@ import com.talex.server.dtos.BaseResponse;
 import com.talex.server.dtos.revenue.response.RevenueSummaryResponseDto;
 import com.talex.server.dtos.revenue.response.RevenueTimeSeriesResponseDto;
 import com.talex.server.dtos.revenue.response.RevenueTransactionDto;
+import com.talex.server.dtos.settlement.UnsettledEpisodeRevenueDto;
 import com.talex.server.services.creator.CreatorService;
 import com.talex.server.services.creator.RevenueTransactionService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -91,6 +92,21 @@ public class RevenueTransactionController {
                 .code(200)
                 .message("OK")
                 .data(timeSeries)
+                .build());
+    }
+
+    @GetMapping("/{episodeId}/unsettled-revenue")
+//    @PreAuthorize("hasAnyRole('ADMIN', 'CREATOR')")
+    @Operation(
+            summary = "Lấy tổng doanh thu chưa quyết toán của Episode",
+            description = "Tính tổng amount từ RevenueTransaction chưa quyết toán (creatorMonthlySettlement IS NULL) có ReferenceType = ORDER và RevenueTransactionType = CONTENT_SHARE khớp với episodeId trong order."
+    )
+    public ResponseEntity<BaseResponse> getUnsettledRevenue(@PathVariable String episodeId) {
+        UnsettledEpisodeRevenueDto data = revenueTransactionService.getUnsettledRevenueByEpisodeId(episodeId);
+        return ResponseEntity.ok(BaseResponse.builder()
+                .code(200)
+                .message("Lấy doanh thu chưa quyết toán của tập thành công")
+                .data(data)
                 .build());
     }
 }

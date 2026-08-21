@@ -14,7 +14,6 @@ import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 
 @Repository
 public interface EpisodeRepository extends JpaRepository<Episode, String> {
@@ -22,18 +21,11 @@ public interface EpisodeRepository extends JpaRepository<Episode, String> {
     Optional<Episode> findByEpisodeIdAndIsDeletedFalse(String episodeId);
 
     @EntityGraph(attributePaths = {"season", "season.series"})
-    Optional<Episode> findByEpisodeIdAndCreatorIdAndIsDeletedFalse(String episodeId, String creatorId);
-
-    @EntityGraph(attributePaths = {"season", "season.series"})
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select e from Episode e where e.episodeId = :episodeId and e.isDeleted = false")
     Optional<Episode> lockByEpisodeIdAndIsDeletedFalse(@Param("episodeId") String episodeId);
 
     List<Episode> findAllBySeason_SeasonIdAndIsDeletedFalseOrderByEpisodeNumberAsc(String seasonId);
-
-    List<Episode> findAllBySeason_SeasonIdAndStatusAndIsDeletedFalseOrderByEpisodeNumberAsc(
-            String seasonId,
-            EpisodeStatus status);
 
     List<Episode> findAllBySeason_SeasonIdAndStatusInAndIsDeletedFalseOrderByEpisodeNumberAsc(
             String seasonId,
@@ -74,19 +66,6 @@ public interface EpisodeRepository extends JpaRepository<Episode, String> {
 
     @Query("SELECT e.season.series.seriesId FROM Episode e WHERE e.episodeId = :episodeId")
     Optional<String> findSeriesIdByEpisodeId(@Param("episodeId") String episodeId);
-
-    @Query("""
-            select count(e)
-            from Episode e
-            where e.episodeId in :episodeIds
-              and e.status = :status
-              and e.isDeleted = false
-              and e.creatorId = :creatorId
-            """)
-    long countByEpisodeIdInAndStatusAndIsDeletedFalseAndCreatorId(
-            @Param("episodeIds") Set<String> episodeIds,
-            @Param("status") EpisodeStatus status,
-            @Param("creatorId") String creatorId);
 
     @Query("SELECT e.creatorId " +
             "FROM Episode e " +

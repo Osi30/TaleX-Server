@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -36,4 +37,18 @@ public interface RevenueTransactionRepository extends JpaRepository<RevenueTrans
     List<RevenueTransaction> findByCreator_CreatorIdAndCreatedAtBetweenOrderByCreatedAtAsc(
             String creatorId, LocalDateTime startDate, LocalDateTime endDate
     );
+
+    /**
+     * Tính tổng số tiền chưa quyết toán của 1 episode
+     */
+    @Query(value = """
+        SELECT COALESCE(SUM(rt.amount), 0)
+        FROM revenue_transaction rt
+        INNER JOIN orders o ON rt.reference_id = o.order_id
+        WHERE rt.creator_monthly_settlement_id IS NULL
+          AND rt.reference_type = 'ORDER'
+          AND rt.change_type = 'CONTENT_SHARE'
+          AND o.item_id = :episodeId
+        """, nativeQuery = true)
+    BigDecimal calculateUnsettledRevenueByEpisodeId(@Param("episodeId") String episodeId);
 }

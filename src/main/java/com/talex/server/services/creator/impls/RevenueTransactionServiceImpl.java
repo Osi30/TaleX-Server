@@ -6,6 +6,7 @@ import com.talex.server.dtos.responses.creator.CreatorTierResponseDto;
 import com.talex.server.dtos.revenue.response.RevenueSummaryResponseDto;
 import com.talex.server.dtos.revenue.response.RevenueTimeSeriesResponseDto;
 import com.talex.server.dtos.revenue.response.RevenueTransactionDto;
+import com.talex.server.dtos.settlement.UnsettledEpisodeRevenueDto;
 import com.talex.server.entities.config.CreatorConfig;
 import com.talex.server.entities.creator.Creator;
 import com.talex.server.entities.creator.RevenueTransaction;
@@ -15,6 +16,7 @@ import com.talex.server.entities.transaction.Order;
 import com.talex.server.enums.creator.RevenueTransactionType;
 import com.talex.server.enums.transaction.ReferenceType;
 import com.talex.server.mappers.settlement.RevenueTransactionMapper;
+import com.talex.server.repositories.series.EpisodeRepository;
 import com.talex.server.repositories.transaction.RevenueTransactionRepository;
 import com.talex.server.services.config.CreatorConfigService;
 import com.talex.server.services.creator.CreatorService;
@@ -45,6 +47,7 @@ public class RevenueTransactionServiceImpl implements RevenueTransactionService 
     private final EpisodeService episodeService;
     private final CreatorService creatorService;
     private final CreatorConfigService creatorConfigService;
+    private final EpisodeRepository episodeRepository;
 
     @Override
     @Transactional
@@ -261,6 +264,23 @@ public class RevenueTransactionServiceImpl implements RevenueTransactionService 
         }
 
         return result;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public UnsettledEpisodeRevenueDto getUnsettledRevenueByEpisodeId(String episodeId) {
+        // Kiểm tra tồn tại của Episode
+        boolean exists = episodeRepository.existsById(episodeId);
+        if (!exists) {
+            throw new IllegalArgumentException("Không tìm thấy Episode với ID: " + episodeId);
+        }
+
+        BigDecimal totalUnsettled = revenueTransactionRepository.calculateUnsettledRevenueByEpisodeId(episodeId);
+
+        return UnsettledEpisodeRevenueDto.builder()
+                .episodeId(episodeId)
+                .unsettledAmount(totalUnsettled)
+                .build();
     }
 
     private String buildContentDetailDescription(List<EpisodeUnlockedContent> unlockedContents) {

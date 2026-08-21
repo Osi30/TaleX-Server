@@ -4,6 +4,7 @@ import com.talex.server.dtos.BasePageResponse;
 import com.talex.server.dtos.revenue.response.RevenueSummaryResponseDto;
 import com.talex.server.dtos.revenue.response.RevenueTimeSeriesResponseDto;
 import com.talex.server.dtos.revenue.response.RevenueTransactionDto;
+import com.talex.server.dtos.settlement.UnsettledEpisodeRevenueDto;
 import com.talex.server.entities.creator.RevenueTransaction;
 import com.talex.server.entities.series.EpisodeUnlockedContent;
 import com.talex.server.entities.transaction.Order;
@@ -29,4 +30,7 @@ public interface RevenueTransactionService {
 
     // API 3: Thống kê danh sách chuỗi thời gian (dynamic: HOUR, DAY, MONTH, YEAR)
     List<RevenueTimeSeriesResponseDto> getRevenueTimeSeries(String creatorId, LocalDateTime startDate, LocalDateTime endDate);
+
+    // Số tiền chưa kiểm toán của một episode
+    UnsettledEpisodeRevenueDto getUnsettledRevenueByEpisodeId(String episodeId);
 }

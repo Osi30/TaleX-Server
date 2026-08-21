@@ -160,9 +160,6 @@ public class ModerationServiceImpl implements ModerationService {
             publishPenaltyEvent(savedPenalty);
         }
 
-        // 3. Tự động kiểm tra và leo thang hình phạt (Warning/Fine Escalation Logic)
-        applyPenaltyEscalationRules(savedPenalty, ticket.getTargetId(), staffId);
-
         // 4. Ghi Audit Log
         questDBSender.table("report_logs")
                 .symbol("ticket_id", ticketId)
@@ -185,118 +182,6 @@ public class ModerationServiceImpl implements ModerationService {
                 .build());
 
         return penaltyMapper.toResponseDto(savedPenalty);
-    }
-
-    /**
-     * Logic Leo thang hình phạt dựa trên Cảnh cáo (Warning) hoặc Phạt thật (Fine)
-     */
-    private void applyPenaltyEscalationRules(Penalty currentPenalty, String targetId, String staffId) {
-        PenaltyLevel level = currentPenalty.getLevel();
-        String userId = currentPenalty.getTargetUserId();
-
-        if (isWarningLevel(level)) {
-            // Nếu người xử lý chọn Cảnh cáo (Warning) -> Kiểm tra số đợt tích lũy
-            checkAndEscalateWarning(userId, level, targetId, staffId);
-        } else if (isFineLevel(level)) {
-            // Nếu người xử lý đánh Gậy phạt trực tiếp (Fine) -> Phát 1 Cảnh cáo cấp cao hơn (nếu có)
-            issueHigherLevelWarning(userId, level, targetId, staffId);
-        }
-    }
-
-    // Xử Lý Cảnh Báo
-    private void checkAndEscalateWarning(String userId, PenaltyLevel warningLevel, String targetId, String staffId) {
-        long warningCount = penaltyRepository.countByTargetUserIdAndStatusAndLevelIn(
-                userId, PenaltyStatus.ACTIVE, List.of(warningLevel));
-
-        if (warningCount < 3) {
-            return; // Chưa đạt mốc 3 lần cảnh cáo
-        }
-
-        // Khi đủ >= 3 Cảnh cáo -> Tự động leo thang hình phạt
-        switch (warningLevel) {
-            case WARNING_COMMENT -> {
-                // 3 Warning Comment -> Phạt thẳng FINE_ACCOUNT
-                createAutoPenalty(userId, PenaltyLevel.FINE_ACCOUNT, TargetType.ACCOUNT, userId,
-                        "Tài khoản bị khóa tự động do tích lũy đủ 3 lần cảnh cáo ở Bình luận", staffId);
-            }
-            case WARNING_EPISODE -> {
-                // 3 Warning Episode -> FINE Episode + 1 WARNING Series
-                createAutoPenalty(userId, PenaltyLevel.FINE_EPISODE, TargetType.EPISODE, targetId,
-                        "Tập phim bị phạt tự động do tích lũy đủ 3 lần cảnh cáo", staffId);
-
-                createAutoPenalty(userId, PenaltyLevel.WARNING_SERIES, TargetType.SERIES, targetId,
-                        "Cảnh cáo cấp độ Series do Tập phim bị phạt đủ 3 lần", staffId);
-
-                // Tự động kiểm tra tiếp xem Series đã tích đủ 3 Warning chưa
-                checkAndEscalateWarning(userId, PenaltyLevel.WARNING_SERIES, targetId, staffId);
-            }
-            case WARNING_SERIES -> {
-                // 3 Warning Series -> FINE Series + 1 WARNING Account
-                createAutoPenalty(userId, PenaltyLevel.FINE_SERIES, TargetType.SERIES, targetId,
-                        "Series bị phạt tự động do tích lũy đủ 3 lần cảnh cáo", staffId);
-
-                createAutoPenalty(userId, PenaltyLevel.WARNING_ACCOUNT, TargetType.ACCOUNT, userId,
-                        "Cảnh cáo cấp độ Tài khoản do Series bị phạt đủ 3 lần", staffId);
-
-                // Tự động kiểm tra tiếp xem Account đã tích đủ 3 Warning chưa
-                checkAndEscalateWarning(userId, PenaltyLevel.WARNING_ACCOUNT, userId, staffId);
-            }
-            case WARNING_ACCOUNT -> {
-                // 3 Warning Account -> FINE Account
-                createAutoPenalty(userId, PenaltyLevel.FINE_ACCOUNT, TargetType.ACCOUNT, userId,
-                        "Tài khoản bị khóa tự động do tích lũy đủ 3 lần cảnh cáo cấp Tài khoản", staffId);
-            }
-            default -> {}
-        }
-    }
-
-    // Xử Lý Phạt
-    private void issueHigherLevelWarning(String userId, PenaltyLevel fineLevel, String targetId, String staffId) {
-        switch (fineLevel) {
-            case FINE_EPISODE -> {
-                // Đánh gậy Episode -> Bỏ qua check warning episode, phát 1 WARNING Series
-                createAutoPenalty(userId, PenaltyLevel.WARNING_SERIES, TargetType.SERIES, targetId,
-                        "Cảnh cáo cấp độ Series do Tập phim bị phạt gậy trực tiếp", staffId);
-
-                // Kiểm tra xem WARNING Series vừa phát có chạm mốc 3 không
-                checkAndEscalateWarning(userId, PenaltyLevel.WARNING_SERIES, targetId, staffId);
-            }
-            case FINE_SERIES -> {
-                // Đánh gậy Series -> Phát 1 WARNING Account
-                createAutoPenalty(userId, PenaltyLevel.WARNING_ACCOUNT, TargetType.ACCOUNT, userId,
-                        "Cảnh cáo cấp độ Tài khoản do Series bị phạt gậy trực tiếp", staffId);
-
-                // Kiểm tra xem WARNING Account vừa phát có chạm mốc 3 không
-                checkAndEscalateWarning(userId, PenaltyLevel.WARNING_ACCOUNT, userId, staffId);
-            }
-            case FINE_ACCOUNT -> {
-                // Cấp cuối cùng -> Không còn warning cấp cao hơn
-            }
-            default -> {}
-        }
-    }
-
-    private void createAutoPenalty(String userId, PenaltyLevel level, TargetType targetType, String targetId, String reason, String staffId) {
-        Penalty autoPenalty = Penalty.builder()
-                .targetUserId(userId)
-                .issuerId("SYSTEM_AUTO (" + staffId + ")")
-                .level(level)
-                .targetType(targetType)
-                .targetId(targetId)
-                .reason(reason)
-                .status(PenaltyStatus.ACTIVE)
-                .build();
-        autoPenalty = penaltyRepository.save(autoPenalty);
-        if (isFineLevel(level)) {
-            publishPenaltyEvent(autoPenalty);
-        }
-    }
-
-    private boolean isWarningLevel(PenaltyLevel level) {
-        return level == PenaltyLevel.WARNING_COMMENT ||
-                level == PenaltyLevel.WARNING_EPISODE ||
-                level == PenaltyLevel.WARNING_SERIES ||
-                level == PenaltyLevel.WARNING_ACCOUNT;
     }
 
     private boolean isFineLevel(PenaltyLevel level) {
