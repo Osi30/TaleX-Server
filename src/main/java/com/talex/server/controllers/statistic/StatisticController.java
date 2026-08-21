@@ -1,4 +1,4 @@
-package com.talex.server.controllers;
+package com.talex.server.controllers.statistic;
 
 import com.talex.server.dtos.BaseResponse;
 import com.talex.server.dtos.statistics.StatisticResponseDto;

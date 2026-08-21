@@ -1,4 +1,4 @@
-package com.talex.server.controllers.admin;
+package com.talex.server.controllers.statistic;
 
 import com.talex.server.dtos.BasePageResponse;
 import com.talex.server.dtos.BaseResponse;
@@ -11,7 +11,6 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;

@@ -51,7 +51,7 @@ public class TaxServiceImpl implements TaxService {
     private static final String COMPANY_TAX_CODE = "0101234567-demo";
     private static final String COMPANY_ADDRESS = "Tầng 10, Tòa nhà Talex Tower, Đường Demo, Q.1, TP.HCM";
 
-    private static final List<String> PLATFORM_ITEM_TYPES = List.of("PREMIUM", "ENGAGEMENT");
+    private static final List<String> PLATFORM_ITEM_TYPES = List.of("SUBSCRIPTION", "ENGAGEMENT");
     private static final List<String> CREATOR_ITEM_TYPES = List.of("EPISODE", "COMBO");
     private static final List<SettlementStatus> VALID_TAX_STATUSES = List.of(SettlementStatus.APPROVED, SettlementStatus.PAID);
 

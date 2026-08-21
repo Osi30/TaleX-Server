@@ -37,10 +37,10 @@ public class RevenueTransactionServiceImpl implements RevenueTransactionService 
     @Override
     @Transactional
     public RevenueTransaction createFromEpisodeOrder(Order order, List<EpisodeUnlockedContent> unlockedContents) {
-        // 1. Tính doanh thu NET = fiatAmount - vatAmount
-        BigDecimal fiatAmount = order.getFiatAmount() != null ? order.getFiatAmount() : BigDecimal.ZERO;
+        // 1. Tính doanh thu NET = totalAmount - vatAmount
+        BigDecimal totalAmount = order.getTotalAmount() != null ? order.getTotalAmount() : BigDecimal.ZERO;
         BigDecimal vatAmount = order.getVatAmount() != null ? order.getVatAmount() : BigDecimal.ZERO;
-        BigDecimal netAmount = fiatAmount.subtract(vatAmount);
+        BigDecimal netAmount = totalAmount.subtract(vatAmount);
 
         // 2. Lấy creatorId từ episodeId
         String creatorId = episodeService.getCreatorIdByEpisodeId(order.getItemId());
@@ -83,7 +83,6 @@ public class RevenueTransactionServiceImpl implements RevenueTransactionService 
         double platformPercentForDisplay = platformShareRatio * 100;
         double bonusPercentForDisplay = directPurchaseShareRatio * 100;
         String tierLevelStr = (tierDto != null && tierDto.getTierLevel() != null) ? tierDto.getTierLevel().toString() : "0";
-        BigDecimal totalAmount = order.getTotalAmount() != null ? order.getTotalAmount() : BigDecimal.ZERO;
 
         String description = String.format(
                 "Số tiền nhận khi khách mua %s (Đơn hàng %s) tổng là %s VND sau khi trừ thuế (%s VND) là %s VNĐ, trừ nền tảng %s VNĐ (Tỷ lệ: %.2f%%) và cộng bonus cho cấp %s (%.2f%%) thì creator nhận được %s VNĐ.",
