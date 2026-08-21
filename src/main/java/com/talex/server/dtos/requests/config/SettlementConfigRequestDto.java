@@ -20,4 +20,9 @@ public class SettlementConfigRequestDto {
     @Min(value = 2000, message = "Ngưỡng số dư tối thiểu phải lớn hơn hoặc bằng 2000")
     @Max(value = 1000000000, message = "Ngưỡng số dư tối thiểu phải nhỏ hơn hoặc bằng 1000000000")
     private BigDecimal minBalanceThreshold;
+
+    @NotNull(message = "Ngưỡng số dư tối thiểu không được để trống")
+    @Min(value = 2000, message = "Ngưỡng số dư tối thiểu phải lớn hơn hoặc bằng 2000")
+    @Max(value = 1000000000, message = "Ngưỡng số dư tối thiểu phải nhỏ hơn hoặc bằng 1000000000")
+    private BigDecimal minPayoutThreshold;
 }

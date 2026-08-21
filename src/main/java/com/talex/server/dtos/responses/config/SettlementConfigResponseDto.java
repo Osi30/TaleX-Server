@@ -15,5 +15,6 @@ import java.time.LocalDateTime;
 public class SettlementConfigResponseDto {
     private String id;
     private BigDecimal minBalanceThreshold;
+    private BigDecimal minPayoutThreshold;
     private LocalDateTime updatedAt;
 }

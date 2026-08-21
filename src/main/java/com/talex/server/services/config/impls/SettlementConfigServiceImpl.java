@@ -24,6 +24,7 @@ public class SettlementConfigServiceImpl implements SettlementConfigService {
 
         SettlementConfig config = SettlementConfig.builder()
                 .minBalanceThreshold(dto.getMinBalanceThreshold())
+                .minPayoutThreshold(dto.getMinPayoutThreshold())
                 .build();
 
         SettlementConfig saved = settlementConfigRepository.save(config);
@@ -35,6 +36,7 @@ public class SettlementConfigServiceImpl implements SettlementConfigService {
     public SettlementConfigResponseDto updateSettlementConfig(SettlementConfigRequestDto dto) {
         SettlementConfig config = getSettlementConfigEntity();
         config.setMinBalanceThreshold(dto.getMinBalanceThreshold());
+        config.setMinPayoutThreshold(dto.getMinPayoutThreshold());
 
         SettlementConfig updated = settlementConfigRepository.save(config);
         return mapToResponseDto(updated);
@@ -56,6 +58,7 @@ public class SettlementConfigServiceImpl implements SettlementConfigService {
         return SettlementConfigResponseDto.builder()
                 .id(config.getId())
                 .minBalanceThreshold(config.getMinBalanceThreshold())
+                .minPayoutThreshold(config.getMinPayoutThreshold())
                 .updatedAt(config.getUpdatedAt())
                 .build();
     }

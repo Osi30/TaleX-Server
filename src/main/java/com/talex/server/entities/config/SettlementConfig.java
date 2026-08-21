@@ -1,8 +1,10 @@
 package com.talex.server.entities.config;
 
 import jakarta.persistence.*;
-import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.math.BigDecimal;
@@ -22,6 +24,9 @@ public class SettlementConfig {
 
     @Column(name = "min_balance_threshold")
     private BigDecimal minBalanceThreshold;
+
+    @Column(name = "min_payout_threshold")
+    private BigDecimal minPayoutThreshold;
 
     @UpdateTimestamp
     @Column(name = "updated_at")

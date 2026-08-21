@@ -8,6 +8,7 @@ import com.talex.server.dtos.payout.request.PayoutRequestProcessDto;
 import com.talex.server.dtos.payout.response.BatchPayoutDataResponseDto;
 import com.talex.server.dtos.payout.response.PayoutRequestResponseDto;
 import com.talex.server.dtos.payout.response.PayoutTransactionResponseDto;
+import com.talex.server.dtos.responses.config.SettlementConfigResponseDto;
 import com.talex.server.dtos.responses.creator.PaymentProfileResponseDto;
 import com.talex.server.entities.campaign.CampaignWallet;
 import com.talex.server.entities.campaign.CampaignWalletTransaction;
@@ -24,6 +25,7 @@ import com.talex.server.repositories.campaign.CampaignWalletTransactionRepositor
 import com.talex.server.repositories.campaign.PayoutRequestRepository;
 import com.talex.server.repositories.campaign.WalletPayoutTransactionRepository;
 import com.talex.server.services.campaign.PayoutRequestService;
+import com.talex.server.services.config.SettlementConfigService;
 import com.talex.server.services.creator.PaymentProfileService;
 import com.talex.server.services.payout.PayoutService;
 import com.talex.server.specifications.campaign.PayoutRequestSpec;
@@ -51,9 +53,8 @@ public class PayoutRequestServiceImpl implements PayoutRequestService {
     private final CampaignWalletTransactionRepository campaignWalletTransactionRepository;
     private final WalletPayoutTransactionRepository walletPayoutTransactionRepository;
     private final PaymentProfileService paymentProfileService;
+    private final SettlementConfigService settlementConfigService;
     private final PayoutService payoutService;
-
-    private static final BigDecimal MIN_PAYOUT_AMOUNT = new BigDecimal("2000");
 
     @Override
     @Transactional
@@ -76,11 +77,12 @@ public class PayoutRequestServiceImpl implements PayoutRequestService {
 
         BigDecimal currentBalance = wallet.getBalance();
 
-        // 3. Kiểm tra số dư khả dụng >= 2.000 VNĐ
-        if (currentBalance.compareTo(MIN_PAYOUT_AMOUNT) < 0) {
+        // 3. Kiểm tra số dư khả dụng >= hạn mức rút
+        SettlementConfigResponseDto config = settlementConfigService.getSettlementConfigDto();
+        if (currentBalance.compareTo(config.getMinPayoutThreshold()) < 0) {
             throw new PaymentException(
                     PaymentErrorCode.INSUFFICIENT_BALANCE,
-                    "Số dư ví phải có từ 2,000 VNĐ trở lên mới có thể tạo yêu cầu rút tiền."
+                    "Số dư ví phải có từ " + config.getMinPayoutThreshold() + " VNĐ trở lên mới có thể tạo yêu cầu rút tiền."
             );
         }
 
