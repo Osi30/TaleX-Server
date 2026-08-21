@@ -1,7 +1,11 @@
 package com.talex.server.services.creator.impls;
 
+import com.talex.server.dtos.BasePageResponse;
 import com.talex.server.dtos.responses.creator.CreatorResponseDto;
 import com.talex.server.dtos.responses.creator.CreatorTierResponseDto;
+import com.talex.server.dtos.revenue.response.RevenueSummaryResponseDto;
+import com.talex.server.dtos.revenue.response.RevenueTimeSeriesResponseDto;
+import com.talex.server.dtos.revenue.response.RevenueTransactionDto;
 import com.talex.server.entities.config.CreatorConfig;
 import com.talex.server.entities.creator.Creator;
 import com.talex.server.entities.creator.RevenueTransaction;
@@ -10,18 +14,25 @@ import com.talex.server.entities.series.EpisodeUnlockedContent;
 import com.talex.server.entities.transaction.Order;
 import com.talex.server.enums.creator.RevenueTransactionType;
 import com.talex.server.enums.transaction.ReferenceType;
+import com.talex.server.mappers.settlement.RevenueTransactionMapper;
 import com.talex.server.repositories.transaction.RevenueTransactionRepository;
 import com.talex.server.services.config.CreatorConfigService;
 import com.talex.server.services.creator.CreatorService;
 import com.talex.server.services.creator.RevenueTransactionService;
 import com.talex.server.services.series.EpisodeService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Duration;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -29,6 +40,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class RevenueTransactionServiceImpl implements RevenueTransactionService {
 
+    private final RevenueTransactionMapper revenueTransactionMapper;
     private final RevenueTransactionRepository revenueTransactionRepository;
     private final EpisodeService episodeService;
     private final CreatorService creatorService;
@@ -122,6 +134,135 @@ public class RevenueTransactionServiceImpl implements RevenueTransactionService 
         return savedTransaction;
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public BasePageResponse<RevenueTransactionDto> getAllTransactions(String creatorId, int page, int pageSize) {
+        int validPage = Math.max(page, 1);
+        int validPageSize = pageSize < 1 ? 20 : pageSize;
+        Pageable pageable = PageRequest.of(validPage - 1, validPageSize);
+
+        Page<RevenueTransaction> pageResult;
+        if (creatorId != null && !creatorId.trim().isEmpty()) {
+            pageResult = revenueTransactionRepository.findByCreator_CreatorIdOrderByCreatedAtDesc(creatorId, pageable);
+        } else {
+            pageResult = revenueTransactionRepository.findAllByOrderByCreatedAtDesc(pageable);
+        }
+
+        List<RevenueTransactionDto> content = pageResult.stream()
+                .map(revenueTransactionMapper::toDto)
+                .toList();
+
+        return BasePageResponse.<RevenueTransactionDto>builder()
+                .content(content)
+                .pageNumber(pageResult.getNumber() + 1)
+                .pageSize(pageResult.getSize())
+                .totalElements(pageResult.getTotalElements())
+                .totalPages(pageResult.getTotalPages())
+                .isFirst(pageResult.isFirst())
+                .isLast(pageResult.isLast())
+                .build();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public RevenueSummaryResponseDto getRevenueSummary(String creatorId, LocalDateTime startDate, LocalDateTime endDate) {
+        List<RevenueTransaction> transactions = fetchTransactionsBetween(creatorId, startDate, endDate);
+
+        Map<RevenueTransactionType, BigDecimal> amountByType = new EnumMap<>(RevenueTransactionType.class);
+        for (RevenueTransactionType type : RevenueTransactionType.values()) {
+            amountByType.put(type, BigDecimal.ZERO);
+        }
+
+        for (RevenueTransaction tx : transactions) {
+            RevenueTransactionType type = tx.getRevenueTransactionType();
+            if (type != null) {
+                BigDecimal current = amountByType.getOrDefault(type, BigDecimal.ZERO);
+                BigDecimal txAmount = tx.getAmount() != null ? tx.getAmount() : BigDecimal.ZERO;
+                amountByType.put(type, current.add(txAmount));
+            }
+        }
+
+        BigDecimal premiumShare = amountByType.getOrDefault(RevenueTransactionType.PREMIUM_SHARE, BigDecimal.ZERO);
+        BigDecimal contentShare = amountByType.getOrDefault(RevenueTransactionType.CONTENT_SHARE, BigDecimal.ZERO);
+        BigDecimal totalRevenue = premiumShare.add(contentShare);
+
+        BigDecimal totalPenalty = amountByType.getOrDefault(RevenueTransactionType.PENALTY_DEDUCTION, BigDecimal.ZERO);
+        BigDecimal totalAdjustment = amountByType.getOrDefault(RevenueTransactionType.ADJUSTMENT, BigDecimal.ZERO);
+
+        return RevenueSummaryResponseDto.builder()
+                .totalRevenueAmount(totalRevenue)
+                .totalPenaltyAmount(totalPenalty)
+                .totalAdjustmentAmount(totalAdjustment)
+                .amountByType(amountByType)
+                .build();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<RevenueTimeSeriesResponseDto> getRevenueTimeSeries(String creatorId, LocalDateTime startDate, LocalDateTime endDate) {
+        List<RevenueTransaction> transactions = fetchTransactionsBetween(creatorId, startDate, endDate);
+
+        long daysDifference = Duration.between(startDate, endDate).toDays();
+
+        String groupUnit;
+        DateTimeFormatter formatter;
+
+        if (daysDifference < 7) {
+            groupUnit = "HOUR";
+            formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:00");
+        } else if (daysDifference < 30) {
+            groupUnit = "DAY";
+            formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+        } else if (daysDifference < 365) {
+            groupUnit = "MONTH";
+            formatter = DateTimeFormatter.ofPattern("yyyy-MM");
+        } else {
+            groupUnit = "YEAR";
+            formatter = DateTimeFormatter.ofPattern("yyyy");
+        }
+
+        Map<String, List<RevenueTransaction>> groupedMap = transactions.stream()
+                .filter(tx -> tx.getCreatedAt() != null)
+                .collect(Collectors.groupingBy(
+                        tx -> tx.getCreatedAt().format(formatter),
+                        LinkedHashMap::new,
+                        Collectors.toList()
+                ));
+
+        List<RevenueTimeSeriesResponseDto> result = new ArrayList<>();
+        for (Map.Entry<String, List<RevenueTransaction>> entry : groupedMap.entrySet()) {
+            String timePeriod = entry.getKey();
+            List<RevenueTransaction> txList = entry.getValue();
+
+            BigDecimal totalRevenue = BigDecimal.ZERO;
+            BigDecimal totalPenalty = BigDecimal.ZERO;
+            BigDecimal totalAdjustment = BigDecimal.ZERO;
+
+            for (RevenueTransaction tx : txList) {
+                BigDecimal txAmount = tx.getAmount() != null ? tx.getAmount() : BigDecimal.ZERO;
+                RevenueTransactionType type = tx.getRevenueTransactionType();
+
+                if (type == RevenueTransactionType.PREMIUM_SHARE || type == RevenueTransactionType.CONTENT_SHARE) {
+                    totalRevenue = totalRevenue.add(txAmount);
+                } else if (type == RevenueTransactionType.PENALTY_DEDUCTION) {
+                    totalPenalty = totalPenalty.add(txAmount);
+                } else if (type == RevenueTransactionType.ADJUSTMENT) {
+                    totalAdjustment = totalAdjustment.add(txAmount);
+                }
+            }
+
+            result.add(RevenueTimeSeriesResponseDto.builder()
+                    .timePeriod(timePeriod)
+                    .totalRevenueAmount(totalRevenue)
+                    .totalPenaltyAmount(totalPenalty)
+                    .totalAdjustmentAmount(totalAdjustment)
+                    .groupUnit(groupUnit)
+                    .build());
+        }
+
+        return result;
+    }
+
     private String buildContentDetailDescription(List<EpisodeUnlockedContent> unlockedContents) {
         if (unlockedContents == null || unlockedContents.isEmpty()) {
             return "tập phim";
@@ -170,5 +311,13 @@ public class RevenueTransactionServiceImpl implements RevenueTransactionService 
             return episode.getSeason().getSeries().getTitle();
         }
         return "N/A";
+    }
+
+    private List<RevenueTransaction> fetchTransactionsBetween(String creatorId, LocalDateTime startDate, LocalDateTime endDate) {
+        if (creatorId != null && !creatorId.trim().isEmpty()) {
+            return revenueTransactionRepository.findByCreator_CreatorIdAndCreatedAtBetweenOrderByCreatedAtAsc(
+                    creatorId, startDate, endDate);
+        }
+        return revenueTransactionRepository.findByCreatedAtBetweenOrderByCreatedAtAsc(startDate, endDate);
     }
 }

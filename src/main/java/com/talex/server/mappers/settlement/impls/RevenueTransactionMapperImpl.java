@@ -16,12 +16,17 @@ public class RevenueTransactionMapperImpl implements RevenueTransactionMapper {
         if (entity == null) return null;
 
         return RevenueTransactionDto.builder()
+                .monthYear(entity.getMonthYear())
                 .revenueTransactionId(entity.getRevenueTransactionId())
                 .amount(entity.getAmount())
+                .balanceBefore(entity.getBalanceBefore())
+                .balanceAfter(entity.getBalanceAfter())
                 .revenueTransactionType(entity.getRevenueTransactionType())
                 .description(entity.getDescription())
-                .monthYear(entity.getMonthYear())
                 .createdAt(entity.getCreatedAt())
+                .referenceType(entity.getReferenceType())
+                .referenceId(entity.getReferenceId())
+                .creatorId(entity.getCreator() != null ? entity.getCreator().getCreatorId() : null)
                 .build();
     }
 

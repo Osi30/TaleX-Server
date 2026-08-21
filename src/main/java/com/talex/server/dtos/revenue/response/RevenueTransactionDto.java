@@ -1,6 +1,7 @@
 package com.talex.server.dtos.revenue.response;
 
 import com.talex.server.enums.creator.RevenueTransactionType;
+import com.talex.server.enums.transaction.ReferenceType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -17,9 +18,13 @@ import java.time.LocalDateTime;
 public class RevenueTransactionDto {
     private String revenueTransactionId;
     private BigDecimal amount;
+    private BigDecimal balanceBefore;
+    private BigDecimal balanceAfter;
     private RevenueTransactionType revenueTransactionType;
     private String description;
-    private LocalDate monthYear;
     private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
+    private LocalDate monthYear;
+    private ReferenceType referenceType;
+    private String referenceId;
+    private String creatorId;
 }
