@@ -1,5 +1,8 @@
 package com.talex.server.repositories.transaction;
 
+import com.talex.server.dtos.statistics.campaign.CampaignStatisticData;
+import com.talex.server.dtos.statistics.content.ContentRevenueStatisticData;
+import com.talex.server.dtos.statistics.subscription.SubscriptionStatisticData;
 import com.talex.server.entities.transaction.Order;
 import com.talex.server.enums.transaction.OrderStatus;
 import com.talex.server.records.OrderStatisticData;
@@ -20,8 +23,6 @@ import java.util.UUID;
 
 @Repository
 public interface OrderRepository extends JpaRepository<Order, String> {
-
-    Optional<Order> findByPaymentCode(String paymentCode);
 
     List<Order> findTop100ByStatusAndExpiresAtLessThanEqualOrderByExpiresAtAsc(
             OrderStatus status, LocalDateTime now);
@@ -116,5 +117,166 @@ public interface OrderRepository extends JpaRepository<Order, String> {
             @Param("startDate") LocalDateTime startDate,
             @Param("endDate") LocalDateTime endDate,
             Pageable pageable
+    );
+
+    /**
+     * Lấy tổng quan doanh thu Campaign (COMPLETED)
+     */
+    @Query(value = """
+        SELECT
+            'OVERVIEW' AS period,
+            COALESCE(SUM(o.total_amount), 0) AS grossRevenue,
+            COALESCE(SUM(o.vat_amount), 0) AS vatAmount,
+            COALESCE(SUM(o.total_amount - COALESCE(o.vat_amount, 0)), 0) AS netRevenue
+        FROM orders o
+        WHERE o.status = :status
+          AND o.item_type = :itemType
+          AND o.created_at >= :startTime
+          AND o.created_at <= :endTime
+        """, nativeQuery = true)
+    CampaignStatisticData getCampaignOverviewStatistic(
+            @Param("status") String status,
+            @Param("itemType") String itemType,
+            @Param("startTime") LocalDateTime startTime,
+            @Param("endTime") LocalDateTime endTime
+    );
+
+    /**
+     * Lấy danh sách chi tiết doanh thu Campaign gom nhóm động theo chuỗi thời gian (COMPLETED)
+     */
+    @Query(value = """
+        SELECT
+            TO_CHAR(o.created_at, :dateFormatPattern) AS period,
+            COALESCE(SUM(o.total_amount), 0) AS grossRevenue,
+            COALESCE(SUM(o.vat_amount), 0) AS vatAmount,
+            COALESCE(SUM(o.total_amount - COALESCE(o.vat_amount, 0)), 0) AS netRevenue
+        FROM orders o
+        WHERE o.status = :status
+          AND o.item_type = :itemType
+          AND o.created_at >= :startTime
+          AND o.created_at <= :endTime
+        GROUP BY 1
+        ORDER BY period ASC
+        """, nativeQuery = true)
+    List<CampaignStatisticData> getCampaignGroupedStatistics(
+            @Param("status") String status,
+            @Param("itemType") String itemType,
+            @Param("startTime") LocalDateTime startTime,
+            @Param("endTime") LocalDateTime endTime,
+            @Param("dateFormatPattern") String dateFormatPattern
+    );
+
+    /**
+     * Lấy thống kê tổng quan doanh thu từ mua EPISODE và COMBO
+     */
+    @Query(value = """
+        SELECT
+            'OVERVIEW' AS period,
+            COALESCE(SUM(o.total_amount), 0) AS grossRevenue,
+            COALESCE(SUM(o.vat_amount), 0) AS vatAmount,
+            COALESCE(SUM(o.coin_amount), 0) AS coinAmount,
+            COALESCE(SUM(rt.amount), 0) AS creatorShareAmount,
+            COALESCE(SUM(
+                o.total_amount 
+                - COALESCE(o.vat_amount, 0) 
+                - COALESCE(o.coin_amount, 0) 
+                - COALESCE(rt.amount, 0)
+            ), 0) AS netRevenue
+        FROM orders o
+        LEFT JOIN revenue_transaction rt 
+            ON o.order_id = rt.reference_id 
+           AND rt.reference_type = 'ORDER' 
+           AND rt.change_type = 'CONTENT_SHARE'
+        WHERE o.status = :status
+          AND o.item_type IN ('EPISODE', 'COMBO')
+          AND o.created_at >= :startTime
+          AND o.created_at <= :endTime
+        """, nativeQuery = true)
+    ContentRevenueStatisticData getContentOverviewStatistic(
+            @Param("status") String status,
+            @Param("startTime") LocalDateTime startTime,
+            @Param("endTime") LocalDateTime endTime
+    );
+
+    /**
+     * Lấy chi tiết doanh thu EPISODE và COMBO gom nhóm theo thời gian (Biểu đồ)
+     */
+    @Query(value = """
+        SELECT
+            TO_CHAR(o.created_at, :dateFormatPattern) AS period,
+            COALESCE(SUM(o.total_amount), 0) AS grossRevenue,
+            COALESCE(SUM(o.vat_amount), 0) AS vatAmount,
+            COALESCE(SUM(o.coin_amount), 0) AS coinAmount,
+            COALESCE(SUM(rt.amount), 0) AS creatorShareAmount,
+            COALESCE(SUM(
+                o.total_amount 
+                - COALESCE(o.vat_amount, 0) 
+                - COALESCE(o.coin_amount, 0) 
+                - COALESCE(rt.amount, 0)
+            ), 0) AS netRevenue
+        FROM orders o
+        LEFT JOIN revenue_transaction rt 
+            ON o.order_id = rt.reference_id 
+           AND rt.reference_type = 'ORDER' 
+           AND rt.change_type = 'CONTENT_SHARE'
+        WHERE o.status = :status
+          AND o.item_type IN ('EPISODE', 'COMBO')
+          AND o.created_at >= :startTime
+          AND o.created_at <= :endTime
+        GROUP BY 1
+        ORDER BY period ASC
+        """, nativeQuery = true)
+    List<ContentRevenueStatisticData> getContentGroupedStatistics(
+            @Param("status") String status,
+            @Param("startTime") LocalDateTime startTime,
+            @Param("endTime") LocalDateTime endTime,
+            @Param("dateFormatPattern") String dateFormatPattern
+    );
+
+    /**
+     * Lấy tổng quan doanh thu Premium / Subscription (COMPLETED)
+     */
+    @Query(value = """
+        SELECT
+            'OVERVIEW' AS period,
+            COALESCE(SUM(o.total_amount), 0) AS grossRevenue,
+            COALESCE(SUM(o.vat_amount), 0) AS vatAmount,
+            COALESCE(SUM(o.total_amount - COALESCE(o.vat_amount, 0)), 0) AS netRevenue
+        FROM orders o
+        WHERE o.status = :status
+          AND o.item_type = :itemType
+          AND o.created_at >= :startTime
+          AND o.created_at <= :endTime
+        """, nativeQuery = true)
+    SubscriptionStatisticData getSubscriptionOverviewStatistic(
+            @Param("status") String status,
+            @Param("itemType") String itemType,
+            @Param("startTime") LocalDateTime startTime,
+            @Param("endTime") LocalDateTime endTime
+    );
+
+    /**
+     * Lấy chi tiết doanh thu Premium / Subscription gom nhóm động theo chuỗi thời gian (COMPLETED)
+     */
+    @Query(value = """
+        SELECT
+            TO_CHAR(o.created_at, :dateFormatPattern) AS period,
+            COALESCE(SUM(o.total_amount), 0) AS grossRevenue,
+            COALESCE(SUM(o.vat_amount), 0) AS vatAmount,
+            COALESCE(SUM(o.total_amount - COALESCE(o.vat_amount, 0)), 0) AS netRevenue
+        FROM orders o
+        WHERE o.status = :status
+          AND o.item_type = :itemType
+          AND o.created_at >= :startTime
+          AND o.created_at <= :endTime
+        GROUP BY 1
+        ORDER BY period ASC
+        """, nativeQuery = true)
+    List<SubscriptionStatisticData> getSubscriptionGroupedStatistics(
+            @Param("status") String status,
+            @Param("itemType") String itemType,
+            @Param("startTime") LocalDateTime startTime,
+            @Param("endTime") LocalDateTime endTime,
+            @Param("dateFormatPattern") String dateFormatPattern
     );
 }
