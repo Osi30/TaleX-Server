@@ -1,4 +1,4 @@
-package com.talex.server.repositories;
+package com.talex.server.repositories.config;
 
 import com.talex.server.entities.config.SyncMetadata;
 import com.talex.server.enums.SyncType;

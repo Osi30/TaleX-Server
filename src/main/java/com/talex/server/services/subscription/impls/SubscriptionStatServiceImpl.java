@@ -14,7 +14,7 @@ import com.talex.server.entities.subscription.*;
 import com.talex.server.enums.SyncType;
 import com.talex.server.mappers.subscription.RuleXRequestMapper;
 import com.talex.server.records.WatchSessionResponseDto;
-import com.talex.server.repositories.SyncMetadataRepository;
+import com.talex.server.repositories.config.SyncMetadataRepository;
 import com.talex.server.repositories.interaction.WatchSessionRepository;
 import com.talex.server.repositories.subscription.SubscriptionResultRepository;
 import com.talex.server.repositories.subscription.SubscriptionStatRepository;

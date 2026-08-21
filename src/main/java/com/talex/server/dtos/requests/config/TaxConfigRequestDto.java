@@ -1,4 +1,4 @@
-package com.talex.server.dtos.requests;
+package com.talex.server.dtos.requests.config;
 
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;

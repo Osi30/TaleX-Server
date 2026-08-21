@@ -11,7 +11,7 @@ import com.talex.server.enums.SyncType;
 import com.talex.server.exceptions.codes.MongoDocumentErrorCode;
 import com.talex.server.exceptions.details.MongoDocumentException;
 import com.talex.server.records.SeriesLogData;
-import com.talex.server.repositories.SyncMetadataRepository;
+import com.talex.server.repositories.config.SyncMetadataRepository;
 import com.talex.server.repositories.mongo.SeriesMetadataRepository;
 import com.talex.server.repositories.series.SeriesLogRepository;
 import com.talex.server.services.mongo.SeriesFeatureService;

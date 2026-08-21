@@ -2,7 +2,7 @@ package com.talex.server.services.config.impls;
 
 import com.talex.server.dtos.responses.config.SyncMetadataResponseDto;
 import com.talex.server.enums.SyncType;
-import com.talex.server.repositories.SyncMetadataRepository;
+import com.talex.server.repositories.config.SyncMetadataRepository;
 import com.talex.server.services.config.SyncMetadataService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;

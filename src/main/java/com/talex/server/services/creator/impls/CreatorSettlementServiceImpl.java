@@ -6,6 +6,7 @@ import com.talex.server.dtos.requests.filters.CreatorSettlementFilterRequestDto;
 import com.talex.server.dtos.settlement.request.UpdateSettlementStatusRequestDto;
 import com.talex.server.dtos.settlement.response.CreatorSettlementDetailResponseDto;
 import com.talex.server.dtos.settlement.response.CreatorSettlementResponseDto;
+import com.talex.server.entities.config.SettlementConfig;
 import com.talex.server.entities.config.TaxConfig;
 import com.talex.server.entities.creator.Creator;
 import com.talex.server.entities.creator.CreatorMonthlySettlement;
@@ -17,6 +18,7 @@ import com.talex.server.mappers.settlement.CreatorSettlementMapper;
 import com.talex.server.repositories.creator.CreatorMonthlySettlementRepository;
 import com.talex.server.repositories.creator.CreatorRepository;
 import com.talex.server.repositories.transaction.RevenueTransactionRepository;
+import com.talex.server.services.config.SettlementConfigService;
 import com.talex.server.services.config.TaxConfigService;
 import com.talex.server.services.creator.CreatorSettlementService;
 import com.talex.server.specifications.CreatorMonthlySettlementSpec;
@@ -47,9 +49,9 @@ public class CreatorSettlementServiceImpl implements CreatorSettlementService {
     private final RevenueTransactionRepository revenueTransactionRepository;
     private final CreatorMonthlySettlementRepository settlementRepository;
     private final TaxConfigService taxConfigService;
+    private final SettlementConfigService settlementConfigService;
     private final CreatorSettlementMapper settlementMapper;
 
-    private static final BigDecimal MIN_BALANCE_THRESHOLD = BigDecimal.valueOf(2000);
     private static final DateTimeFormatter MONTH_YEAR_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM");
 
     @Override
@@ -88,6 +90,12 @@ public class CreatorSettlementServiceImpl implements CreatorSettlementService {
         double pitRate = taxConfig.getPit() != null ? taxConfig.getPit() : 0.0;
         long minPitAmount = taxConfig.getMinPitAmount();
 
+        // 4.1 Lấy ngưỡng tối thiểu hạn mức
+        SettlementConfig settlementConfig = settlementConfigService.getSettlementConfigEntity();
+        BigDecimal minBalanceThreshold = settlementConfig.getMinBalanceThreshold() != null
+                ? settlementConfig.getMinBalanceThreshold()
+                : BigDecimal.ZERO;
+
         List<CreatorMonthlySettlement> settlements = new ArrayList<>();
 
         // 5. Duyệt từng Creator để tính toán sổ sách
@@ -119,9 +127,9 @@ public class CreatorSettlementServiceImpl implements CreatorSettlementService {
             boolean isFrozen = Boolean.TRUE.equals(creator.getIsBanned()) || isAccountNotActive;
 
             // NẾU KHÔNG BỊ KHÓA VÀ grossAmount < Ngưỡng tối thiểu (2.000 VNĐ) -> DỒN SỔ sang tháng sau
-            if (!isFrozen && grossAmount.compareTo(MIN_BALANCE_THRESHOLD) < 0) {
+            if (!isFrozen && grossAmount.compareTo(minBalanceThreshold) < 0) {
                 log.info("Creator [{}] có số dư chốt ({}) < ngưỡng tối thiểu ({}). Tự động dồn sổ sang kỳ sau.",
-                        creator.getCreatorId(), grossAmount, MIN_BALANCE_THRESHOLD);
+                        creator.getCreatorId(), grossAmount, minBalanceThreshold);
                 continue;
             }
 

@@ -1,4 +1,4 @@
-package com.talex.server.repositories;
+package com.talex.server.repositories.config;
 
 import com.talex.server.entities.config.TaxConfig;
 import org.springframework.data.jpa.repository.JpaRepository;

@@ -1,7 +1,7 @@
 package com.talex.server.controllers.config;
 
 import com.talex.server.dtos.BaseResponse;
-import com.talex.server.dtos.requests.TaxConfigRequestDto;
+import com.talex.server.dtos.requests.config.TaxConfigRequestDto;
 import com.talex.server.dtos.responses.config.TaxConfigResponseDto;
 import com.talex.server.services.config.TaxConfigService;
 import io.swagger.v3.oas.annotations.Operation;

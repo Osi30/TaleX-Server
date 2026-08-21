@@ -8,7 +8,7 @@ import com.talex.server.entities.mongo.userfeatures.DeepEngagementStats;
 import com.talex.server.entities.mongo.userfeatures.DynamicPreferences;
 import com.talex.server.entities.mongo.userfeatures.InteractionStats;
 import com.talex.server.enums.SyncType;
-import com.talex.server.repositories.SyncMetadataRepository;
+import com.talex.server.repositories.config.SyncMetadataRepository;
 import com.talex.server.repositories.mongo.UserFeatureRepository;
 import com.talex.server.repositories.series.CategoryRepository;
 import com.talex.server.repositories.series.TagRepository;
