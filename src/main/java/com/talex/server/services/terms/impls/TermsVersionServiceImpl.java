@@ -52,6 +52,7 @@ public class TermsVersionServiceImpl implements com.talex.server.services.terms.
     }
 
     @Override
+    @Transactional
     @CacheEvict(value = "active_terms", allEntries = true, cacheManager = "redisCacheManager")
     public TermsVersionResponseDto update(String id, TermsVersionRequestDto dto) {
         TermsVersion existing = findById(id);
@@ -74,6 +75,7 @@ public class TermsVersionServiceImpl implements com.talex.server.services.terms.
     }
 
     @Override
+    @Transactional
     @CacheEvict(value = "active_terms", allEntries = true, cacheManager = "redisCacheManager")
     public void delete(String id) {
         TermsVersion existing = findById(id);
