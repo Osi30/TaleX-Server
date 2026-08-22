@@ -36,7 +36,7 @@ public class TermsVersionServiceImpl implements com.talex.server.services.terms.
     @CacheEvict(value = "active_terms", allEntries = true, cacheManager = "redisCacheManager")
     public TermsVersionResponseDto create(TermsVersionRequestDto dto) {
         TermsVersion entity = mapper.toEntity(dto);
-        if (Boolean.TRUE.equals(entity.getIsActive())){
+        if (Boolean.TRUE.equals(entity.getIsActive())) {
             repository.bulkUpdateStatus(
                     entity.getType(), true, false
             );
@@ -60,6 +60,14 @@ public class TermsVersionServiceImpl implements com.talex.server.services.terms.
         Optional.ofNullable(dto.getTitle()).ifPresent(existing::setTitle);
         Optional.ofNullable(dto.getType()).ifPresent(existing::setType);
         Optional.ofNullable(dto.getContent()).ifPresent(existing::setContent);
+        Optional.ofNullable(dto.getIsActive()).ifPresent(t -> {
+            if (!existing.getIsActive().equals(t) && t.equals(Boolean.TRUE)) {
+                repository.bulkUpdateStatus(
+                        existing.getType(), true, false
+                );
+                existing.setIsActive(t);
+            }
+        });
 
         TermsVersion saved = repository.save(existing);
         return mapper.toResponseDto(saved);
