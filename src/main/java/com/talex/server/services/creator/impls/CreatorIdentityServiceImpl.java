@@ -76,7 +76,12 @@ public class CreatorIdentityServiceImpl implements CreatorIdentityService {
         Optional.ofNullable(dto.getSex()).ifPresent(existing::setSex);
         Optional.ofNullable(dto.getAddress()).ifPresent(existing::setAddress);
         Optional.ofNullable(dto.getDoe()).ifPresent(existing::setDoe);
-        Optional.ofNullable(dto.getTaxId()).ifPresent(existing::setTaxId);
+        Optional.ofNullable(dto.getTaxId()).ifPresent(e -> {
+            if (!e.equals(existing.getTaxId())) {
+                existing.setTaxId(e);
+                existing.setStatus(CreatorIdentityStatus.PENDING);
+            }
+        });
 
         CreatorIdentity saved = repository.save(existing);
         return mapper.toResponseDto(saved);

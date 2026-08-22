@@ -32,7 +32,7 @@ public class CreatorSettlementController {
     private final CreatorService creatorService;
 
     @GetMapping("/search")
-//    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(
             summary = "Tìm kiếm & Lọc danh sách quyết toán (Dành cho Admin)",
             description = "Lọc linh hoạt theo creatorMonthlySettlementId, settlementMonth, creatorId, danh sách statuses, phân trang và sắp xếp theo grossAmount, netPayoutAmount, status."
