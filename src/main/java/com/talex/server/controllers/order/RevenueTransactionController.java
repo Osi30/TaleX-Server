@@ -6,8 +6,8 @@ import com.talex.server.dtos.BaseResponse;
 import com.talex.server.dtos.revenue.response.RevenueSummaryResponseDto;
 import com.talex.server.dtos.revenue.response.RevenueTimeSeriesResponseDto;
 import com.talex.server.dtos.revenue.response.RevenueTransactionDto;
-import com.talex.server.dtos.settlement.UnsettledEpisodeRevenueDto;
-import com.talex.server.dtos.settlement.UnsettledEpisodeSubscriptionRevenueDto;
+import com.talex.server.dtos.settlement.episode.TotalEpisodeRevenueDto;
+import com.talex.server.dtos.settlement.series.TotalSeriesRevenueDto;
 import com.talex.server.services.creator.CreatorService;
 import com.talex.server.services.creator.RevenueTransactionService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -96,14 +96,14 @@ public class RevenueTransactionController {
                 .build());
     }
 
-    @GetMapping("/{episodeId}/unsettled-revenue")
-//    @PreAuthorize("hasAnyRole('ADMIN', 'CREATOR')")
+    @GetMapping("/episodes/{episodeId}/unsettled-revenue")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CREATOR')")
     @Operation(
-            summary = "Lấy tổng doanh thu chưa quyết toán của Episode",
-            description = "Tính tổng amount từ RevenueTransaction chưa quyết toán (creatorMonthlySettlement IS NULL) có ReferenceType = ORDER và RevenueTransactionType = CONTENT_SHARE khớp với episodeId trong order."
+            summary = "Lấy tổng doanh thu chưa quyết toán của Episode (Bao gồm mua lẻ & Premium)",
+            description = "Tính tổng doanh thu chưa quyết toán của Episode từ cả đơn mua lẻ (ORDER) và gói chia sẻ Subscription (PREMIUM_RESULT)."
     )
-    public ResponseEntity<BaseResponse> getUnsettledRevenue(@PathVariable String episodeId) {
-        UnsettledEpisodeRevenueDto data = revenueTransactionService.getUnsettledRevenueByEpisodeId(episodeId);
+    public ResponseEntity<BaseResponse> getEpisodesUnsettledRevenue(@PathVariable String episodeId) {
+        TotalEpisodeRevenueDto data = revenueTransactionService.getTotalUnsettledRevenueByEpisodeId(episodeId);
         return ResponseEntity.ok(BaseResponse.builder()
                 .code(200)
                 .message("Lấy doanh thu chưa quyết toán của tập thành công")
@@ -111,19 +111,17 @@ public class RevenueTransactionController {
                 .build());
     }
 
-    @GetMapping("/{episodeId}/unsettled-subscription-revenue")
-//    @PreAuthorize("hasAnyRole('ADMIN', 'CREATOR')")
+    @GetMapping("/series/{seriesId}/unsettled-revenue")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CREATOR')")
     @Operation(
-            summary = "Lấy tổng doanh thu gói Subscription chưa quyết toán của Episode",
-            description = "Tính tổng revenue từ SubscriptionRevenueLog ghép nối với SubscriptionResult và RevenueTransaction chưa quyết toán (creatorMonthlySettlement IS NULL) có ReferenceType = PREMIUM_RESULT và RevenueTransactionType = PREMIUM_SHARE."
+            summary = "Lấy tổng doanh thu chưa quyết toán của Series (Bao gồm mua lẻ & Premium)",
+            description = "Tính tổng doanh thu chưa quyết toán của Series từ cả đơn mua lẻ (ORDER) và gói chia sẻ Subscription (PREMIUM_RESULT)."
     )
-    public ResponseEntity<BaseResponse> getUnsettledSubscriptionRevenue(@PathVariable String episodeId) {
-        UnsettledEpisodeSubscriptionRevenueDto data = revenueTransactionService
-                .getUnsettledSubscriptionRevenueByEpisodeId(episodeId);
-
+    public ResponseEntity<BaseResponse> getSeriesUnsettledRevenue(@PathVariable String seriesId) {
+        TotalSeriesRevenueDto data = revenueTransactionService.getTotalUnsettledRevenueBySeriesId(seriesId);
         return ResponseEntity.ok(BaseResponse.builder()
                 .code(200)
-                .message("Lấy doanh thu Subscription chưa quyết toán của tập thành công")
+                .message("Lấy doanh thu chưa quyết toán của tập thành công")
                 .data(data)
                 .build());
     }

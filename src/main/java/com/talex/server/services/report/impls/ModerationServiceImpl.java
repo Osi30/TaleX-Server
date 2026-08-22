@@ -1,17 +1,23 @@
 package com.talex.server.services.report.impls;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.talex.server.dtos.BaseFilterRequestDto;
 import com.talex.server.dtos.BasePageResponse;
 import com.talex.server.dtos.report.request.TicketProcessRequestDto;
 import com.talex.server.dtos.report.response.PenaltyResponseDto;
 import com.talex.server.dtos.report.response.TicketResponseDto;
+import com.talex.server.dtos.settlement.episode.TotalEpisodeRevenueDto;
+import com.talex.server.dtos.settlement.series.TotalSeriesRevenueDto;
 import com.talex.server.entities.Notification;
+import com.talex.server.entities.creator.Creator;
+import com.talex.server.entities.creator.RevenueTransaction;
 import com.talex.server.entities.report.ModerationTicket;
 import com.talex.server.entities.report.Penalty;
 import com.talex.server.entities.report.Report;
+import com.talex.server.entities.series.Series;
 import com.talex.server.enums.NotificationType;
+import com.talex.server.enums.creator.RevenueTransactionType;
 import com.talex.server.enums.report.*;
+import com.talex.server.enums.transaction.ReferenceType;
 import com.talex.server.exceptions.codes.report.ModerationErrorCode;
 import com.talex.server.exceptions.details.report.ModerationException;
 import com.talex.server.mappers.report.ModerationTicketMapper;
@@ -24,7 +30,14 @@ import com.talex.server.repositories.report.PenaltyRepository;
 import com.talex.server.repositories.report.ReportRepository;
 import com.talex.server.repositories.series.EpisodeRepository;
 import com.talex.server.repositories.series.SeriesRepository;
+import com.talex.server.repositories.transaction.RevenueTransactionRepository;
+import com.talex.server.services.auth.AdminAccountService;
+import com.talex.server.services.creator.CreatorService;
+import com.talex.server.services.creator.RevenueTransactionService;
+import com.talex.server.services.interaction.AccountCommentService;
 import com.talex.server.services.report.ModerationService;
+import com.talex.server.services.series.EpisodeService;
+import com.talex.server.services.series.SeriesService;
 import com.talex.server.specifications.report.ModerationTicketSpec;
 import com.talex.server.utils.PageUtils;
 import io.questdb.client.Sender;
@@ -33,11 +46,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
@@ -57,8 +71,14 @@ public class ModerationServiceImpl implements ModerationService {
     private final ModerationTicketMapper ticketMapper;
     private final PenaltyMapper penaltyMapper;
     private final Sender questDBSender;
-    private final KafkaTemplate<String, String> kafkaTemplate;
-    private final ObjectMapper objectMapper;
+
+    private final EpisodeService episodeService;
+    private final SeriesService seriesService;
+    private final AdminAccountService adminAccountService;
+    private final AccountCommentService accountCommentService;
+    private final RevenueTransactionService revenueTransactionService;
+    private final CreatorService creatorService;
+    private final RevenueTransactionRepository revenueTransactionRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -157,7 +177,7 @@ public class ModerationServiceImpl implements ModerationService {
                 .build();
         Penalty savedPenalty = penaltyRepository.save(penalty);
         if (isFineLevel(requestDto.getPenaltyLevel())) {
-            publishPenaltyEvent(savedPenalty);
+            processPenalty(savedPenalty, staffId);
         }
 
         // 4. Ghi Audit Log
@@ -190,13 +210,136 @@ public class ModerationServiceImpl implements ModerationService {
                 level == PenaltyLevel.FINE_ACCOUNT;
     }
 
-    private void publishPenaltyEvent(Penalty penalty) {
-        try {
-            String payload = objectMapper.writeValueAsString(penalty);
-            kafkaTemplate.send("penalty-event-topic", penalty.getTargetUserId(), payload);
-        } catch (Exception e) {
-            log.error("Lỗi khi gửi Kafka message cho PenaltyId: {}", penalty.getPenaltyId(), e);
+    private void processPenalty(Penalty penalty, String staffId) {
+        if (penalty == null || penalty.getTargetType() == null) {
+            return;
         }
+
+        switch (penalty.getTargetType()) {
+            case EPISODE -> processEpisode(penalty, staffId);
+            case SERIES -> processSeries(penalty, staffId);
+            case ACCOUNT -> processAccount(penalty);
+            case COMMENT -> processComment(penalty);
+            default -> log.warn("Chưa hỗ trợ xử lý phạt tự động cho TargetType: {}", penalty.getTargetType());
+        }
+    }
+
+    private void processEpisode(Penalty penalty, String staffId) {
+        String episodeId = penalty.getTargetId();
+
+        // 1. Gọi forceHide Episode
+        episodeService.forceHide(episodeId, staffId);
+
+        // 2. Lấy số tiền chưa quyết toán (Mua lẻ + Premium)
+        TotalEpisodeRevenueDto unsettledRevenue = revenueTransactionService.getTotalUnsettledRevenueByEpisodeId(episodeId);
+        BigDecimal directFine = unsettledRevenue.getUnsettledDirectAmount();
+        BigDecimal subFine = unsettledRevenue.getUnsettledSubscriptionAmount();
+        BigDecimal totalFineAmount = unsettledRevenue.getTotalUnsettledAmount();
+
+        if (totalFineAmount.equals(BigDecimal.ZERO)) return;
+
+        // 3. Lấy thông tin Creator
+        String creatorId = episodeService.getCreatorIdByEpisodeId(episodeId);
+        Creator creatorEntity = creatorService.getEntityById(creatorId);
+
+        // 4. Tính toán số dư ví trước và sau khi trừ phạt
+        BigDecimal balanceBefore = creatorEntity.getCurrentBalance() != null
+                ? creatorEntity.getCurrentBalance()
+                : BigDecimal.ZERO;
+        BigDecimal balanceAfter = balanceBefore.subtract(totalFineAmount);
+
+        // 5. Tạo mới RevenueTransaction khấu trừ tiền phạt
+        String description = String.format(
+                "Khấu trừ phạt vi phạm cho Episode %s (Án phạt %s): Tiền phạt mua lẻ: %s VNĐ, Tiền phạt chia gói Premium: %s VNĐ. Tổng trừ: %s VNĐ.",
+                episodeId,
+                penalty.getPenaltyId(),
+                directFine.toPlainString(),
+                subFine.toPlainString(),
+                totalFineAmount.toPlainString()
+        );
+
+        RevenueTransaction penaltyTransaction = RevenueTransaction.builder()
+                .amount(totalFineAmount)
+                .balanceBefore(balanceBefore)
+                .balanceAfter(balanceAfter)
+                .revenueTransactionType(RevenueTransactionType.PENALTY_DEDUCTION)
+                .referenceType(ReferenceType.PENALTY)
+                .referenceId(penalty.getPenaltyId())
+                .description(description)
+                .creator(creatorEntity)
+                .creatorMonthlySettlement(null)
+                .monthYear(LocalDate.now())
+                .build();
+
+        revenueTransactionRepository.save(penaltyTransaction);
+
+        // 6. Trừ số dư thực tế của Creator
+        creatorService.updateBalance(creatorId, totalFineAmount.negate());
+    }
+
+    private void processSeries(Penalty penalty, String staffId) {
+        String seriesId = penalty.getTargetId();
+
+        // 1. Force hide Series
+        seriesService.forceHide(seriesId, staffId);
+
+        // 2. Lấy tổng doanh thu chưa quyết toán của tất cả các Episode thuộc Series này
+        TotalSeriesRevenueDto unsettledRevenue = revenueTransactionService.getTotalUnsettledRevenueBySeriesId(seriesId);
+        BigDecimal directFine = unsettledRevenue.getUnsettledDirectAmount();
+        BigDecimal subFine = unsettledRevenue.getUnsettledSubscriptionAmount();
+        BigDecimal totalFineAmount = unsettledRevenue.getTotalUnsettledAmount();
+
+        if (totalFineAmount.compareTo(BigDecimal.ZERO) == 0) return;
+
+        // 3. Lấy Creator của Series
+        Series series = seriesRepository.findById(seriesId)
+                .orElseThrow(() -> new ModerationException(ModerationErrorCode.TARGET_NOT_FOUND));
+        Creator creatorEntity = series.getCreator();
+        String creatorId = creatorEntity.getCreatorId();
+
+        // 4. Tính toán số dư ví trước và sau khi phạt
+        BigDecimal balanceBefore = creatorEntity.getCurrentBalance() != null
+                ? creatorEntity.getCurrentBalance()
+                : BigDecimal.ZERO;
+        BigDecimal balanceAfter = balanceBefore.subtract(totalFineAmount);
+
+        // 5. Tạo giao dịch khấu trừ phạt (PENALTY_DEDUCTION)
+        String description = String.format(
+                "Khấu trừ phạt vi phạm cho Series %s (Án phạt %s): Tiền phạt mua lẻ: %s VNĐ, Tiền phạt chia gói Premium: %s VNĐ. Tổng trừ: %s VNĐ.",
+                seriesId,
+                penalty.getPenaltyId(),
+                directFine.toPlainString(),
+                subFine.toPlainString(),
+                totalFineAmount.toPlainString()
+        );
+
+        RevenueTransaction penaltyTransaction = RevenueTransaction.builder()
+                .amount(totalFineAmount)
+                .balanceBefore(balanceBefore)
+                .balanceAfter(balanceAfter)
+                .revenueTransactionType(RevenueTransactionType.PENALTY_DEDUCTION)
+                .referenceType(ReferenceType.PENALTY)
+                .referenceId(penalty.getPenaltyId())
+                .description(description)
+                .creator(creatorEntity)
+                .creatorMonthlySettlement(null)
+                .monthYear(LocalDate.now())
+                .build();
+
+        revenueTransactionRepository.save(penaltyTransaction);
+
+        // 6. Cập nhật số dư thực tế của Creator
+        creatorService.updateBalance(creatorId, totalFineAmount.negate());
+    }
+
+    private void processAccount(Penalty penalty) {
+        String accountIdStr = penalty.getTargetId();
+        adminAccountService.banAccount(UUID.fromString(accountIdStr));
+    }
+
+    private void processComment(Penalty penalty) {
+        String commentId = penalty.getTargetId();
+        accountCommentService.hideCommentByAdmin(commentId);
     }
 
     /**

@@ -1,6 +1,8 @@
 package com.talex.server.repositories.transaction;
 
 import com.talex.server.entities.creator.RevenueTransaction;
+import com.talex.server.enums.creator.RevenueTransactionType;
+import com.talex.server.enums.transaction.ReferenceType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -12,9 +14,14 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface RevenueTransactionRepository extends JpaRepository<RevenueTransaction, String> {
+    Optional<RevenueTransaction> findByReferenceTypeAndReferenceIdAndRevenueTransactionType(
+            ReferenceType referenceType, String referenceId, RevenueTransactionType revenueTransactionType
+    );
+
     @Query("SELECT r FROM RevenueTransaction r " +
             "JOIN FETCH r.creator c " +
             "LEFT JOIN FETCH c.account a " +
@@ -42,13 +49,13 @@ public interface RevenueTransactionRepository extends JpaRepository<RevenueTrans
      * Tính tổng số tiền chưa quyết toán của 1 episode
      */
     @Query(value = """
-        SELECT COALESCE(SUM(rt.amount), 0)
-        FROM revenue_transaction rt
-        INNER JOIN orders o ON rt.reference_id = o.order_id
-        WHERE rt.creator_monthly_settlement_id IS NULL
-          AND rt.reference_type = 'ORDER'
-          AND rt.change_type = 'CONTENT_SHARE'
-          AND o.item_id = :episodeId
-        """, nativeQuery = true)
+            SELECT COALESCE(SUM(rt.amount), 0)
+            FROM revenue_transaction rt
+            INNER JOIN orders o ON rt.reference_id = o.order_id
+            WHERE rt.creator_monthly_settlement_id IS NULL
+              AND rt.reference_type = 'ORDER'
+              AND rt.change_type = 'CONTENT_SHARE'
+              AND o.item_id = :episodeId
+            """, nativeQuery = true)
     BigDecimal calculateUnsettledRevenueByEpisodeId(@Param("episodeId") String episodeId);
 }

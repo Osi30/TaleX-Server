@@ -6,8 +6,8 @@ import com.talex.server.dtos.responses.creator.CreatorTierResponseDto;
 import com.talex.server.dtos.revenue.response.RevenueSummaryResponseDto;
 import com.talex.server.dtos.revenue.response.RevenueTimeSeriesResponseDto;
 import com.talex.server.dtos.revenue.response.RevenueTransactionDto;
-import com.talex.server.dtos.settlement.UnsettledEpisodeRevenueDto;
-import com.talex.server.dtos.settlement.UnsettledEpisodeSubscriptionRevenueDto;
+import com.talex.server.dtos.settlement.episode.TotalEpisodeRevenueDto;
+import com.talex.server.dtos.settlement.series.TotalSeriesRevenueDto;
 import com.talex.server.entities.config.CreatorConfig;
 import com.talex.server.entities.creator.Creator;
 import com.talex.server.entities.creator.RevenueTransaction;
@@ -18,6 +18,7 @@ import com.talex.server.enums.creator.RevenueTransactionType;
 import com.talex.server.enums.transaction.ReferenceType;
 import com.talex.server.mappers.settlement.RevenueTransactionMapper;
 import com.talex.server.repositories.series.EpisodeRepository;
+import com.talex.server.repositories.series.SeriesRepository;
 import com.talex.server.repositories.subscription.SubscriptionRevenueLogRepository;
 import com.talex.server.repositories.transaction.RevenueTransactionRepository;
 import com.talex.server.services.config.CreatorConfigService;
@@ -50,6 +51,7 @@ public class RevenueTransactionServiceImpl implements RevenueTransactionService 
     private final CreatorService creatorService;
     private final CreatorConfigService creatorConfigService;
     private final EpisodeRepository episodeRepository;
+    private final SeriesRepository seriesRepository;
     private final SubscriptionRevenueLogRepository subscriptionRevenueLogRepository;
 
     @Override
@@ -271,34 +273,62 @@ public class RevenueTransactionServiceImpl implements RevenueTransactionService 
 
     @Override
     @Transactional(readOnly = true)
-    public UnsettledEpisodeRevenueDto getUnsettledRevenueByEpisodeId(String episodeId) {
-        // Kiểm tra tồn tại của Episode
+    public TotalEpisodeRevenueDto getTotalUnsettledRevenueByEpisodeId(String episodeId) {
         boolean exists = episodeRepository.existsById(episodeId);
         if (!exists) {
             throw new IllegalArgumentException("Không tìm thấy Episode với ID: " + episodeId);
         }
 
-        BigDecimal totalUnsettled = revenueTransactionRepository.calculateUnsettledRevenueByEpisodeId(episodeId);
+        // 1. Doanh thu mua lẻ (Order) chưa quyết toán
+        BigDecimal directAmount = revenueTransactionRepository.calculateUnsettledRevenueByEpisodeId(episodeId);
+        if (directAmount == null) directAmount = BigDecimal.ZERO;
 
-        return UnsettledEpisodeRevenueDto.builder()
+        // 2. Doanh thu chia sẻ gói Premium (Subscription) chưa quyết toán
+        BigDecimal subAmount = subscriptionRevenueLogRepository.calculateUnsettledSubscriptionRevenueByEpisodeId(episodeId);
+        if (subAmount == null) subAmount = BigDecimal.ZERO;
+
+        // 3. Tổng tiền chưa quyết toán
+        BigDecimal totalAmount = directAmount.add(subAmount);
+
+        return TotalEpisodeRevenueDto.builder()
                 .episodeId(episodeId)
-                .unsettledAmount(totalUnsettled)
+                .unsettledDirectAmount(directAmount)
+                .unsettledSubscriptionAmount(subAmount)
+                .totalUnsettledAmount(totalAmount)
                 .build();
     }
 
     @Override
     @Transactional(readOnly = true)
-    public UnsettledEpisodeSubscriptionRevenueDto getUnsettledSubscriptionRevenueByEpisodeId(String episodeId) {
-        boolean exists = episodeRepository.existsById(episodeId);
+    public TotalSeriesRevenueDto getTotalUnsettledRevenueBySeriesId(String seriesId) {
+        boolean exists = seriesRepository.existsById(seriesId);
         if (!exists) {
-            throw new IllegalArgumentException("Không tìm thấy Episode với ID: " + episodeId);
+            throw new IllegalArgumentException("Không tìm thấy Series với ID: " + seriesId);
         }
 
-        BigDecimal totalUnsettled = subscriptionRevenueLogRepository.calculateUnsettledSubscriptionRevenueByEpisodeId(episodeId);
+        // Lấy danh sách ID của tất cả các Episode thuộc Series
+        List<String> episodeIds = episodeRepository.findEpisodeIdsBySeriesId(seriesId);
 
-        return UnsettledEpisodeSubscriptionRevenueDto.builder()
-                .episodeId(episodeId)
-                .unsettledAmount(totalUnsettled)
+        BigDecimal totalDirectAmount = BigDecimal.ZERO;
+        BigDecimal totalSubscriptionAmount = BigDecimal.ZERO;
+
+        for (String episodeId : episodeIds) {
+            TotalEpisodeRevenueDto episodeRevenue = getTotalUnsettledRevenueByEpisodeId(episodeId);
+            if (episodeRevenue.getUnsettledDirectAmount() != null) {
+                totalDirectAmount = totalDirectAmount.add(episodeRevenue.getUnsettledDirectAmount());
+            }
+            if (episodeRevenue.getUnsettledSubscriptionAmount() != null) {
+                totalSubscriptionAmount = totalSubscriptionAmount.add(episodeRevenue.getUnsettledSubscriptionAmount());
+            }
+        }
+
+        BigDecimal totalUnsettledAmount = totalDirectAmount.add(totalSubscriptionAmount);
+
+        return TotalSeriesRevenueDto.builder()
+                .seriesId(seriesId)
+                .unsettledDirectAmount(totalDirectAmount)
+                .unsettledSubscriptionAmount(totalSubscriptionAmount)
+                .totalUnsettledAmount(totalUnsettledAmount)
                 .build();
     }
 

@@ -1,4 +1,4 @@
-package com.talex.server.dtos.settlement;
+package com.talex.server.dtos.settlement.episode;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

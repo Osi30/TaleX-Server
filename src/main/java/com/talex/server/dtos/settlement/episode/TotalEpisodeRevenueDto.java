@@ -1,0 +1,19 @@
+package com.talex.server.dtos.settlement.episode;
+
+import java.math.BigDecimal;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class TotalEpisodeRevenueDto {
+    private String episodeId;
+    private BigDecimal unsettledDirectAmount;
+    private BigDecimal unsettledSubscriptionAmount;
+    private BigDecimal totalUnsettledAmount;
+}

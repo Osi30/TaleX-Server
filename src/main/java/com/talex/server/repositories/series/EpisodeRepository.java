@@ -25,6 +25,14 @@ public interface EpisodeRepository extends JpaRepository<Episode, String> {
     @Query("select e from Episode e where e.episodeId = :episodeId and e.isDeleted = false")
     Optional<Episode> lockByEpisodeIdAndIsDeletedFalse(@Param("episodeId") String episodeId);
 
+    @Query("""
+            SELECT e.episodeId 
+            FROM Episode e 
+            WHERE e.season.series.seriesId = :seriesId 
+              AND e.status <> com.talex.server.enums.series.EpisodeStatus.FORCE_HIDDEN 
+            """)
+    List<String> findEpisodeIdsBySeriesId(@Param("seriesId") String seriesId);
+
     List<Episode> findAllBySeason_SeasonIdAndIsDeletedFalseOrderByEpisodeNumberAsc(String seasonId);
 
     List<Episode> findAllBySeason_SeasonIdAndStatusInAndIsDeletedFalseOrderByEpisodeNumberAsc(
