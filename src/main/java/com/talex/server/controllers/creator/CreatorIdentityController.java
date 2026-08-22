@@ -68,7 +68,7 @@ public class CreatorIdentityController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('STAFF', 'ADMIN')")
+    @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Cập nhật danh tính creator", description = "Cập nhật thông tin định danh creator theo ID.")
     public ResponseEntity<BaseResponse> update(
             @PathVariable String id,
@@ -82,7 +82,7 @@ public class CreatorIdentityController {
     }
 
     @PutMapping("/verification/{id}")
-    @PreAuthorize("hasAnyRole('STAFF', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('CREATOR', 'STAFF', 'ADMIN')")
     @Operation(summary = "Cập nhật kết quả kiểm tra danh tính creator", description = "Cập nhật kết quả kiếm tra danh tính creator theo ID.")
     public ResponseEntity<BaseResponse> updateVerifyResult(
             @PathVariable String id,
