@@ -755,11 +755,10 @@ public class SeriesChannelServiceImpl implements SeriesChannelService {
 
         try {
             if (currentOffsetStr != null) {
-                currentOffset = Long.parseLong(currentOffsetStr);
+                currentOffset = Long.parseLong(currentOffsetStr) + 1;
             }
         } catch (NumberFormatException e) {
             log.warn("[getIdsWithOffset] Format offset không hợp lệ cho key {}: {}", offsetKey, currentOffsetStr);
-            currentOffset = 0L;
         }
 
         if (currentOffset >= poolSize || currentOffset < 0) {
