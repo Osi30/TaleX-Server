@@ -17,6 +17,7 @@ import com.talex.server.entities.transaction.Order;
 import com.talex.server.enums.creator.RevenueTransactionType;
 import com.talex.server.enums.transaction.ReferenceType;
 import com.talex.server.mappers.settlement.RevenueTransactionMapper;
+import com.talex.server.repositories.series.ComboEpisodeRepository;
 import com.talex.server.repositories.series.EpisodeRepository;
 import com.talex.server.repositories.series.SeriesRepository;
 import com.talex.server.repositories.subscription.SubscriptionRevenueLogRepository;
@@ -51,6 +52,7 @@ public class RevenueTransactionServiceImpl implements RevenueTransactionService 
     private final CreatorService creatorService;
     private final CreatorConfigService creatorConfigService;
     private final EpisodeRepository episodeRepository;
+    private final ComboEpisodeRepository comboEpisodeRepository;
     private final SeriesRepository seriesRepository;
     private final SubscriptionRevenueLogRepository subscriptionRevenueLogRepository;
 
@@ -62,8 +64,12 @@ public class RevenueTransactionServiceImpl implements RevenueTransactionService 
         BigDecimal vatAmount = order.getVatAmount() != null ? order.getVatAmount() : BigDecimal.ZERO;
         BigDecimal netAmount = totalAmount.subtract(vatAmount);
 
-        // 2. Lấy creatorId từ episodeId
-        String creatorId = episodeService.getCreatorIdByEpisodeId(order.getItemId());
+        // 2. Lấy creatorId — order.getItemId() là episodeId khi mua lẻ, nhưng là comboId khi mua combo,
+        // hai bảng khác nhau nên phải route theo itemType, không thể tra thẳng qua Episode trong mọi trường hợp.
+        String creatorId = "COMBO".equalsIgnoreCase(order.getItemType())
+                ? comboEpisodeRepository.findCreatorIdByComboId(order.getItemId())
+                        .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy Creator cho Combo ID: " + order.getItemId()))
+                : episodeService.getCreatorIdByEpisodeId(order.getItemId());
 
         // 3. Lấy thông tin Creator & CreatorTier (Ratio dạng thập phân 0.0 -> 1.0)
         CreatorResponseDto creatorDto = creatorService.getById(creatorId);
