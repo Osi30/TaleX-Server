@@ -755,7 +755,7 @@ public class SeriesChannelServiceImpl implements SeriesChannelService {
 
         try {
             if (currentOffsetStr != null) {
-                currentOffset = Long.parseLong(currentOffsetStr) + 1;
+                currentOffset = Long.parseLong(currentOffsetStr);
             }
         } catch (NumberFormatException e) {
             log.warn("[getIdsWithOffset] Format offset không hợp lệ cho key {}: {}", offsetKey, currentOffsetStr);
