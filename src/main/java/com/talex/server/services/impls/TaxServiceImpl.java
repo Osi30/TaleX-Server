@@ -220,7 +220,7 @@ public class TaxServiceImpl implements TaxService {
         CreatorIdentity identity = creator.getCreatorIdentity();
 
         List<CreatorMonthlySettlement> settlements = settlementRepository.findForTaxByYearAndCreator(
-                String.valueOf(year), VALID_TAX_STATUSES, creatorId
+                String.valueOf(year), List.of(SettlementStatus.PAID), creatorId
         );
 
         BigDecimal totalGross = settlements.stream().map(CreatorMonthlySettlement::getGrossAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
