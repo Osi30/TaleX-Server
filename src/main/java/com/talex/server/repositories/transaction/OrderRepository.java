@@ -120,6 +120,50 @@ public interface OrderRepository extends JpaRepository<Order, String> {
     );
 
     /**
+     * Admin tra cứu order — mọi param filter đều nullable (bỏ qua nếu null). Keyword khớp
+     * paymentCode/orderId/username/email, không phân biệt hoa thường. JOIN FETCH account vì
+     * DTO admin cần hiển thị username/email người mua (tránh N+1).
+     */
+    @Query("SELECT o FROM Order o LEFT JOIN FETCH o.account a " +
+            "WHERE (:status IS NULL OR o.status = :status) " +
+            "AND (:itemType IS NULL OR o.itemType = :itemType) " +
+            "AND (:startDate IS NULL OR o.createdAt >= :startDate) " +
+            "AND (:endDate IS NULL OR o.createdAt <= :endDate) " +
+            "AND (:keyword IS NULL OR " +
+            "     LOWER(o.paymentCode) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+            "     LOWER(o.orderId) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+            "     LOWER(a.username) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+            "     LOWER(a.email) LIKE LOWER(CONCAT('%', :keyword, '%'))) " +
+            "ORDER BY o.createdAt DESC")
+    Page<Order> searchForAdmin(
+            @Param("status") OrderStatus status,
+            @Param("itemType") String itemType,
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate,
+            @Param("keyword") String keyword,
+            Pageable pageable
+    );
+
+    /** Đơn có tiền thừa (overpaidAmount > amount) để Admin đối soát hoàn tay. */
+    Page<Order> findByOverpaidAmountGreaterThanOrderByCreatedAtDesc(BigDecimal amount, Pageable pageable);
+
+    /** Đếm số đơn theo từng status trong khoảng thời gian — dùng cho AdminOrderStatsDto. */
+    @Query("SELECT o.status, COUNT(o) FROM Order o " +
+            "WHERE o.createdAt BETWEEN :from AND :to " +
+            "GROUP BY o.status")
+    List<Object[]> countByStatusGrouped(@Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
+
+    /** Doanh thu đơn COMPLETED gom nhóm theo itemType trong khoảng thời gian. */
+    @Query("SELECT o.itemType, SUM(o.totalAmount), COUNT(o) FROM Order o " +
+            "WHERE o.status = :status AND o.createdAt BETWEEN :from AND :to " +
+            "GROUP BY o.itemType")
+    List<Object[]> sumRevenueByItemTypeGrouped(
+            @Param("status") OrderStatus status,
+            @Param("from") LocalDateTime from,
+            @Param("to") LocalDateTime to
+    );
+
+    /**
      * Lấy tổng quan doanh thu Campaign (COMPLETED)
      */
     @Query(value = """
