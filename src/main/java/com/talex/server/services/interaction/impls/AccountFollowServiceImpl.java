@@ -48,14 +48,14 @@ public class AccountFollowServiceImpl implements com.talex.server.services.inter
         } catch (DataIntegrityViolationException ex) {
             String lowerMessage = ex.getMessage() != null ? ex.getMessage().toLowerCase() : "";
 
-            // Trùng khóa chính hoặc vi phạm UNIQUE (Đã từng follow từ trước)
-            if (lowerMessage.contains("unique") || lowerMessage.contains("constraint") || lowerMessage.contains("account_follow_pkey")) {
-                throw new InteractionException(InteractionErrorCode.FOLLOW_ALREADY_EXISTS);
-            }
-
             // Lỗi liên kết khóa ngoại (Tài khoản follower hoặc followed không có thực)
             if (lowerMessage.contains("foreign key") || lowerMessage.contains("violates fk") || lowerMessage.contains("fk_")) {
                 throw new InteractionException(InteractionErrorCode.ACCOUNT_NOT_FOUND);
+            }
+
+            // Trùng khóa chính hoặc vi phạm UNIQUE (Đã từng follow từ trước)
+            if (lowerMessage.contains("unique") || lowerMessage.contains("duplicate") || lowerMessage.contains("account_follow_pkey") || lowerMessage.contains("primary")) {
+                throw new InteractionException(InteractionErrorCode.FOLLOW_ALREADY_EXISTS);
             }
 
             throw new InteractionException(InteractionErrorCode.SAVING_DATABASE_ERROR, "Lỗi hệ thống database khi lưu tương tác follow.");

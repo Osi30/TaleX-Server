@@ -23,10 +23,11 @@ public class AccountShareServiceImpl implements com.talex.server.services.intera
     @Async("interactionExecutor")
     @Override
     public void shareEpisode(ShareRequest shareRequest) {
+        if (ValidationUtils.isNullOrEmpty(shareRequest.getEpisodeId())) {
+            throw new InteractionException(InteractionErrorCode.SAVING_DATABASE_ERROR, "Tập phim không để trống!");
+        }
+
         try {
-            if (ValidationUtils.isNullOrEmpty(shareRequest.getEpisodeId())) {
-                throw new InteractionException(InteractionErrorCode.SAVING_DATABASE_ERROR, "Tập phim không để trống!");
-            }
 
             Map<String, Object> shareEvent = Map.of(
                     "account_id", shareRequest.getAccountId() == null ? "" : shareRequest.getAccountId().toString(),
