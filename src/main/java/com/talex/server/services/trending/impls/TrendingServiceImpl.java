@@ -130,7 +130,7 @@ public class TrendingServiceImpl implements TrendingService {
                 isBlacklistEmpty,
                 ImpressionStatus.ON_GOING,
                 pageable
-        ).stream().map(s -> toTrendingDto(s, config.getGravity())).toList();
+        ).stream().map(s -> toTrendingDto(s, config.getGravity(), false)).toList();
     }
 
     @Override
@@ -146,7 +146,7 @@ public class TrendingServiceImpl implements TrendingService {
         TrendingSampleConfigRes config = configService.getConfig();
 
         return series.stream()
-                .map(s -> toTrendingDto(s, config.getGravity()))
+                .map(s -> toTrendingDto(s, config.getGravity(), false))
                 .toList();
     }
 
@@ -162,7 +162,7 @@ public class TrendingServiceImpl implements TrendingService {
         TrendingSampleConfigRes config = configService.getConfig();
 
         return series.stream()
-                .map(s -> toTrendingDto(s, config.getGravity()))
+                .map(s -> toTrendingDto(s, config.getGravity(), false))
                 .toList();
     }
 
@@ -188,7 +188,7 @@ public class TrendingServiceImpl implements TrendingService {
         );
 
         List<SeriesTrendingResponseDto> content = seriesPage.getContent().stream()
-                .map(s -> toTrendingDto(s, config.getGravity()))
+                .map(s -> toTrendingDto(s, config.getGravity(), true))
                 .toList();
 
         return BasePageResponse.<SeriesTrendingResponseDto>builder()
@@ -228,7 +228,7 @@ public class TrendingServiceImpl implements TrendingService {
         log.info("[RankingScore] Đã cập nhật Ranking Score cho {} series SUCCESS thành công.", successSeriesList.size());
     }
 
-    private SeriesTrendingResponseDto toTrendingDto(Series series, Double gravity) {
+    private SeriesTrendingResponseDto toTrendingDto(Series series, Double gravity, boolean isAlreadyCalculatedWilson) {
         if (series == null) {
             return null;
         }
@@ -240,7 +240,8 @@ public class TrendingServiceImpl implements TrendingService {
         double sampleRatio = totalImpression > 0 ? (double) engageClick / totalImpression : 0.0;
 
         // Tính điểm Realtime khi Admin gọi API xem danh sách
-        double realtimeWilsonScore = calculateWilsonScore(
+        double realtimeWilsonScore = isAlreadyCalculatedWilson ? series.getTrendingAnalyticData().getWilsonScore()
+                : calculateWilsonScore(
                 engageClick, totalImpression,
                 configService.getConfig().getConfidenceScore()
         );

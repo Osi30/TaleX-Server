@@ -260,15 +260,15 @@ public class TaxServiceImpl implements TaxService {
             byte[] regularFontBytes;
             byte[] boldFontBytes;
 
-            try (InputStream regStream = new ClassPathResource("fonts/Arial.ttf").getInputStream();
-                 InputStream boldStream = new ClassPathResource("fonts/Arial-Bold.ttf").getInputStream()) {
+            try (InputStream regStream = new ClassPathResource("fonts/Arial.TTF").getInputStream();
+                 InputStream boldStream = new ClassPathResource("fonts/Arial-Bold.TTF").getInputStream()) {
                 regularFontBytes = regStream.readAllBytes();
                 boldFontBytes = boldStream.readAllBytes();
             }
 
             // 2. Khởi tạo BaseFont hỗ trợ UTF-8 (IDENTITY_H) và EMBEDDED (nhúng font vào PDF)
-            BaseFont baseRegular = BaseFont.createFont("Arial.ttf", BaseFont.IDENTITY_H, BaseFont.EMBEDDED, true, regularFontBytes, null);
-            BaseFont baseBold = BaseFont.createFont("Arial-Bold.ttf", BaseFont.IDENTITY_H, BaseFont.EMBEDDED, true, boldFontBytes, null);
+            BaseFont baseRegular = BaseFont.createFont("Arial.TTF", BaseFont.IDENTITY_H, BaseFont.EMBEDDED, true, regularFontBytes, null);
+            BaseFont baseBold = BaseFont.createFont("Arial-Bold.TTF", BaseFont.IDENTITY_H, BaseFont.EMBEDDED, true, boldFontBytes, null);
 
             Font titleFont = new Font(baseBold, 13);
             Font headerFont = new Font(baseBold, 10);
