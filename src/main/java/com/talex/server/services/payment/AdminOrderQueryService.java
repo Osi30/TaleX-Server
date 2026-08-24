@@ -17,10 +17,8 @@ public interface AdminOrderQueryService {
 
     AdminOrderDetailDto getDetail(String orderId);
 
-    BasePageResponse<AdminOrderListItemDto> listOverpaid(int page, int pageSize);
-
     AdminOrderStatsDto getStats(LocalDateTime from, LocalDateTime to);
 
-    /** Map trực tiếp entity đã có sẵn (VD kết quả cancel/force-complete) — tránh fetch lại DB. */
+    /** Map trực tiếp entity đã có sẵn — tránh fetch lại DB. */
     AdminOrderDetailDto toDetailDto(Order order);
 }

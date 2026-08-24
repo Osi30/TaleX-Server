@@ -52,15 +52,6 @@ public class AdminOrderQueryServiceImpl implements AdminOrderQueryService {
 
     @Override
     @Transactional(readOnly = true)
-    public BasePageResponse<AdminOrderListItemDto> listOverpaid(int page, int pageSize) {
-        Pageable pageable = PageRequest.of(Math.max(page - 1, 0), pageSize);
-        Page<Order> result = orderRepository.findByOverpaidAmountGreaterThanOrderByCreatedAtDesc(
-                BigDecimal.ZERO, pageable);
-        return toListPageResponse(result);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
     public AdminOrderStatsDto getStats(LocalDateTime from, LocalDateTime to) {
         Map<String, Long> countByStatus = new LinkedHashMap<>();
         for (OrderStatus status : OrderStatus.values()) {
@@ -147,7 +138,6 @@ public class AdminOrderQueryServiceImpl implements AdminOrderQueryService {
                 .coinAmount(order.getCoinAmount())
                 .fiatAmount(order.getFiatAmount())
                 .campaignWalletAmount(order.getCampaignWalletAmount())
-                .overpaidAmount(order.getOverpaidAmount())
                 .vatAmount(order.getVatAmount())
                 .createdAt(order.getCreatedAt())
                 .expiresAt(order.getExpiresAt())

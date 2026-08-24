@@ -120,9 +120,6 @@ public interface OrderRepository extends JpaRepository<Order, String>, JpaSpecif
             Pageable pageable
     );
 
-    /** Đơn có tiền thừa (overpaidAmount > amount) để Admin đối soát hoàn tay. */
-    Page<Order> findByOverpaidAmountGreaterThanOrderByCreatedAtDesc(BigDecimal amount, Pageable pageable);
-
     /** Đếm số đơn theo từng status trong khoảng thời gian — dùng cho AdminOrderStatsDto. */
     @Query("SELECT o.status, COUNT(o) FROM Order o " +
             "WHERE o.createdAt BETWEEN :from AND :to " +
