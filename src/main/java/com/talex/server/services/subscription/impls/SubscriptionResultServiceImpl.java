@@ -27,23 +27,20 @@ public class SubscriptionResultServiceImpl implements SubscriptionResultService 
 
     @Override
     @Transactional(readOnly = true)
-    public SubscriptionResultResponseDto getSubscriptionResultByMonthYear(int year, int month) {
+    public List<SubscriptionResultResponseDto> getSubscriptionResultByMonthYear(int year, int month) {
         String monthYear = String.format("%d-%02d", year, month);
+        List<SubscriptionResult> results = subscriptionResultRepository.findAllByMonthYear(monthYear);
 
-        SubscriptionResult result = subscriptionResultRepository.findByMonthYear(monthYear)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Không tìm thấy SubscriptionResult cho thời gian: " + monthYear));
-
-        return SubscriptionResultResponseDto.builder()
-                .id(result.getId())
-                .alpha(result.getAlpha())
-                .gamma(result.getGamma())
-                .subscriptionFee(result.getSubscriptionFee())
-                .totalBudget(result.getTotalBudget())
-                .targetBudget(result.getTargetBudget())
-                .calculatedBudget(result.getCalculatedBudget())
-                .monthYear(result.getMonthYear())
-                .build();
+        return results.stream().map(s -> SubscriptionResultResponseDto.builder()
+                .id(s.getId())
+                .alpha(s.getAlpha())
+                .gamma(s.getGamma())
+                .subscriptionFee(s.getSubscriptionFee())
+                .totalBudget(s.getTotalBudget())
+                .targetBudget(s.getTargetBudget())
+                .calculatedBudget(s.getCalculatedBudget())
+                .monthYear(s.getMonthYear())
+                .build()).toList();
     }
 
     @Override

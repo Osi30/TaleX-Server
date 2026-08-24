@@ -5,11 +5,13 @@ import com.talex.server.dtos.BasePageResponse;
 import com.talex.server.dtos.requests.creator.CreatorTierRequestDto;
 import com.talex.server.dtos.requests.filters.CreatorTierFilterRequestDto;
 import com.talex.server.dtos.responses.creator.CreatorTierResponseDto;
+import com.talex.server.entities.config.CreatorConfig;
 import com.talex.server.entities.creator.CreatorTier;
 import com.talex.server.exceptions.codes.creator.CreatorTierErrorCode;
 import com.talex.server.exceptions.details.creator.CreatorTierException;
 import com.talex.server.mappers.creator.CreatorTierMapper;
 import com.talex.server.repositories.creator.CreatorTierRepository;
+import com.talex.server.services.config.CreatorConfigService;
 import com.talex.server.services.creator.CreatorTierService;
 import com.talex.server.specifications.creator.CreatorTierSpec;
 import com.talex.server.utils.PageUtils;
@@ -33,6 +35,7 @@ import java.util.Optional;
 public class CreatorTierServiceImpl implements CreatorTierService {
     private final CreatorTierRepository repository;
     private final CreatorTierMapper mapper;
+    private final CreatorConfigService creatorConfigService;
 
     @Override
     @Transactional
@@ -47,6 +50,7 @@ public class CreatorTierServiceImpl implements CreatorTierService {
 
         CreatorTier entity = mapper.toEntity(dto);
         validateMonotonicConstraints(entity);
+        validateShareRatios(entity);
 
         CreatorTier saved = repository.save(entity);
 
@@ -113,6 +117,7 @@ public class CreatorTierServiceImpl implements CreatorTierService {
 
         mapper.updateEntity(dto, existing);
         validateMonotonicConstraints(existing);
+        validateShareRatios(existing);
 
         CreatorTier saved = repository.save(existing);
 
@@ -219,6 +224,31 @@ public class CreatorTierServiceImpl implements CreatorTierService {
                         String.format("Yêu cầu thời gian xem của cấp độ %d (%.1f) phải cao hơn cấp độ %d (%.1f).",
                                 higher.getTierLevel(), higher.getMinWatchTimeRequired(),
                                 lower.getTierLevel(), lower.getMinWatchTimeRequired()));
+            }
+        }
+    }
+
+    private void validateShareRatios(CreatorTier target) {
+        CreatorConfig config = creatorConfigService.getConfigEntity();
+        if (config == null) {
+            return;
+        }
+
+        if (target.getPremiumFundShareRatio() != null && config.getBasePremiumShare() != null) {
+            double maxPremiumRatioAllowed = 1.0 - config.getBasePremiumShare();
+            if (target.getPremiumFundShareRatio() >= maxPremiumRatioAllowed) {
+                throw new CreatorTierException(CreatorTierErrorCode.INVALID_REQUEST,
+                        String.format("Tỉ lệ chia quỹ Premium của tier (%.2f) không được lớn hơn hoặc bằng giới hạn cho phép (1 - basePremiumShare = %.2f).",
+                                target.getPremiumFundShareRatio(), maxPremiumRatioAllowed));
+            }
+        }
+
+        if (target.getDirectPurchaseShareRatio() != null && config.getBaseUnlockShare() != null) {
+            double maxPurchaseRatioAllowed = 1.0 - config.getBaseUnlockShare();
+            if (target.getDirectPurchaseShareRatio() >= maxPurchaseRatioAllowed) {
+                throw new CreatorTierException(CreatorTierErrorCode.INVALID_REQUEST,
+                        String.format("Tỉ lệ chia doanh thu trực tiếp của tier (%.2f) không được lớn hơn hoặc bằng giới hạn cho phép (1 - baseUnlockShare = %.2f).",
+                                target.getDirectPurchaseShareRatio(), maxPurchaseRatioAllowed));
             }
         }
     }

@@ -4,6 +4,7 @@ import com.talex.server.entities.transaction.Order;
 import com.talex.server.enums.coin.CoinReferenceType;
 import com.talex.server.enums.transaction.OrderStatus;
 import com.talex.server.repositories.transaction.OrderRepository;
+import com.talex.server.services.campaign.CampaignWalletService;
 import com.talex.server.services.coin.CoinWalletService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,6 +27,7 @@ public class OrderExpiryProcessor {
 
     private final OrderRepository orderRepository;
     private final CoinWalletService coinWalletService;
+    private final CampaignWalletService campaignWalletService;
 
     @Transactional
     public void expireIfStillAwaiting(String orderId) {
@@ -41,6 +43,7 @@ public class OrderExpiryProcessor {
         order.setStatus(OrderStatus.OUT_OF_TIME);
         orderRepository.save(order);
         refundUnusedCoin(order);
+        refundUnusedCampaignWallet(order);
     }
 
     private void refundUnusedCoin(Order order) {
@@ -53,5 +56,14 @@ public class OrderExpiryProcessor {
                 CoinReferenceType.ORDER,
                 order.getOrderId(),
                 "Hoàn Coin do đơn hàng hết hạn");
+    }
+
+    private void refundUnusedCampaignWallet(Order order) {
+        if (order.getCampaignWalletAmount() != null
+                && order.getCampaignWalletAmount().compareTo(BigDecimal.ZERO) > 0
+        ) {
+            campaignWalletService.creditWallet(order.getAccount().getAccountId(), order.getCampaignWalletAmount(),
+                    "Hoàn tiền ví do hủy đơn hàng " + order.getPaymentCode(), order.getOrderId());
+        }
     }
 }

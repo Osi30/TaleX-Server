@@ -12,6 +12,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/v1/subscription-results")
 @RequiredArgsConstructor
@@ -21,7 +23,7 @@ public class SubscriptionResultController {
     private final SubscriptionResultService subscriptionResultService;
 
     @GetMapping("/by-month-year")
-//    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
+//    @PreAuthorize("hasRole('ADMIN')")
     @Operation(
             summary = "Lấy thông tin SubscriptionResult theo Tháng và Năm",
             description = "Truyền vào year và month (vd: 2026, 7 -> 2026-07) để lấy ra thông tin tổng quan SubscriptionResult bao gồm ID."
@@ -30,7 +32,7 @@ public class SubscriptionResultController {
             @RequestParam int year,
             @RequestParam int month
     ) {
-        SubscriptionResultResponseDto data = subscriptionResultService.getSubscriptionResultByMonthYear(year, month);
+        List<SubscriptionResultResponseDto> data = subscriptionResultService.getSubscriptionResultByMonthYear(year, month);
 
         return ResponseEntity.ok(BaseResponse.builder()
                 .code(200)
