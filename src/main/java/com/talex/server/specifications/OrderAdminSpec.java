@@ -4,6 +4,7 @@ import com.talex.server.entities.auth.Account;
 import com.talex.server.entities.transaction.Order;
 import com.talex.server.enums.transaction.OrderStatus;
 import com.talex.server.utils.ValidationUtils;
+import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Predicate;
@@ -48,12 +49,21 @@ public class OrderAdminSpec {
                 predicates.add(builder.lessThanOrEqualTo(root.get("createdAt"), endDate));
             }
             if (!ValidationUtils.isNullOrEmpty(keyword)) {
-                String pattern = "%" + keyword.trim().toLowerCase() + "%";
+                String trimmedKeyword = keyword.trim().toLowerCase();
+                String pattern = "%" + trimmedKeyword + "%";
+                // fullName can hold Vietnamese diacritics (e.g. buyer's real name "Nguyễn Văn A"),
+                // so match it accent-insensitively via Postgres unaccent() — same approach as
+                // SeriesSpec — while paymentCode/orderId/username/email stay plain LOWER() since
+                // those are always ASCII identifiers.
+                String unaccentPattern = "%" + ValidationUtils.stripVietnameseAccents(trimmedKeyword) + "%";
+                Expression<String> unaccentFullName =
+                        builder.function("unaccent", String.class, builder.lower(account.get("fullName")));
                 predicates.add(builder.or(
                         builder.like(builder.lower(root.get("paymentCode")), pattern),
                         builder.like(builder.lower(root.get("orderId")), pattern),
                         builder.like(builder.lower(account.get("username")), pattern),
-                        builder.like(builder.lower(account.get("email")), pattern)
+                        builder.like(builder.lower(account.get("email")), pattern),
+                        builder.like(unaccentFullName, unaccentPattern)
                 ));
             }
 

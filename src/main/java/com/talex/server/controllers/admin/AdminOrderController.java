@@ -32,7 +32,7 @@ public class AdminOrderController {
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Danh sách đơn hàng (tìm kiếm/lọc)",
-            description = "Lọc theo trạng thái, loại đơn, khoảng ngày tạo, từ khóa (mã đơn/paymentCode/username/email người mua).")
+            description = "Lọc theo trạng thái, loại đơn, khoảng ngày tạo, từ khóa (mã đơn/paymentCode/username/email/họ tên người mua — họ tên tìm không phân biệt dấu).")
     public ResponseEntity<BaseResponse> search(
             @RequestParam(required = false) OrderStatus status,
             @RequestParam(required = false) String itemType,
