@@ -18,7 +18,9 @@ public enum PaymentErrorCode {
     ORDER_NOT_FULLY_COVERED_BY_COIN(4006, HttpStatus.BAD_REQUEST,
             "Số Coin hiện tại chưa đủ trả hết đơn hàng, vui lòng thanh toán phần còn lại qua SePay"),
     INSUFFICIENT_BALANCE(4007, HttpStatus.BAD_REQUEST,
-            "Số dư không đủ")
+            "Số dư không đủ"),
+    ORDER_NOT_INTERVENABLE(4008, HttpStatus.BAD_REQUEST,
+            "Chỉ có thể can thiệp đơn hàng đang chờ thanh toán hoặc đã hết hạn")
     ;
 
     private final int code;

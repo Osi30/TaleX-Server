@@ -10,6 +10,7 @@ import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -22,7 +23,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 @Repository
-public interface OrderRepository extends JpaRepository<Order, String> {
+public interface OrderRepository extends JpaRepository<Order, String>, JpaSpecificationExecutor<Order> {
 
     List<Order> findTop100ByStatusAndExpiresAtLessThanEqualOrderByExpiresAtAsc(
             OrderStatus status, LocalDateTime now);
@@ -117,6 +118,25 @@ public interface OrderRepository extends JpaRepository<Order, String> {
             @Param("startDate") LocalDateTime startDate,
             @Param("endDate") LocalDateTime endDate,
             Pageable pageable
+    );
+
+    /** Đơn có tiền thừa (overpaidAmount > amount) để Admin đối soát hoàn tay. */
+    Page<Order> findByOverpaidAmountGreaterThanOrderByCreatedAtDesc(BigDecimal amount, Pageable pageable);
+
+    /** Đếm số đơn theo từng status trong khoảng thời gian — dùng cho AdminOrderStatsDto. */
+    @Query("SELECT o.status, COUNT(o) FROM Order o " +
+            "WHERE o.createdAt BETWEEN :from AND :to " +
+            "GROUP BY o.status")
+    List<Object[]> countByStatusGrouped(@Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
+
+    /** Doanh thu đơn COMPLETED gom nhóm theo itemType trong khoảng thời gian. */
+    @Query("SELECT o.itemType, SUM(o.totalAmount), COUNT(o) FROM Order o " +
+            "WHERE o.status = :status AND o.createdAt BETWEEN :from AND :to " +
+            "GROUP BY o.itemType")
+    List<Object[]> sumRevenueByItemTypeGrouped(
+            @Param("status") OrderStatus status,
+            @Param("from") LocalDateTime from,
+            @Param("to") LocalDateTime to
     );
 
     /**
