@@ -10,6 +10,7 @@ import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -22,7 +23,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 @Repository
-public interface OrderRepository extends JpaRepository<Order, String> {
+public interface OrderRepository extends JpaRepository<Order, String>, JpaSpecificationExecutor<Order> {
 
     List<Order> findTop100ByStatusAndExpiresAtLessThanEqualOrderByExpiresAtAsc(
             OrderStatus status, LocalDateTime now);
@@ -116,31 +117,6 @@ public interface OrderRepository extends JpaRepository<Order, String> {
             @Param("itemType") String itemType,
             @Param("startDate") LocalDateTime startDate,
             @Param("endDate") LocalDateTime endDate,
-            Pageable pageable
-    );
-
-    /**
-     * Admin tra cứu order — mọi param filter đều nullable (bỏ qua nếu null). Keyword khớp
-     * paymentCode/orderId/username/email, không phân biệt hoa thường. JOIN FETCH account vì
-     * DTO admin cần hiển thị username/email người mua (tránh N+1).
-     */
-    @Query("SELECT o FROM Order o LEFT JOIN FETCH o.account a " +
-            "WHERE (:status IS NULL OR o.status = :status) " +
-            "AND (:itemType IS NULL OR o.itemType = :itemType) " +
-            "AND (:startDate IS NULL OR o.createdAt >= :startDate) " +
-            "AND (:endDate IS NULL OR o.createdAt <= :endDate) " +
-            "AND (:keyword IS NULL OR " +
-            "     LOWER(o.paymentCode) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
-            "     LOWER(o.orderId) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
-            "     LOWER(a.username) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
-            "     LOWER(a.email) LIKE LOWER(CONCAT('%', :keyword, '%'))) " +
-            "ORDER BY o.createdAt DESC")
-    Page<Order> searchForAdmin(
-            @Param("status") OrderStatus status,
-            @Param("itemType") String itemType,
-            @Param("startDate") LocalDateTime startDate,
-            @Param("endDate") LocalDateTime endDate,
-            @Param("keyword") String keyword,
             Pageable pageable
     );
 

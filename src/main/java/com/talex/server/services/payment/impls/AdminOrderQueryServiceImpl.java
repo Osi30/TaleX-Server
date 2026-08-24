@@ -10,10 +10,12 @@ import com.talex.server.exceptions.codes.payment.PaymentErrorCode;
 import com.talex.server.exceptions.details.payment.PaymentException;
 import com.talex.server.repositories.transaction.OrderRepository;
 import com.talex.server.services.payment.AdminOrderQueryService;
+import com.talex.server.specifications.OrderAdminSpec;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,9 +36,9 @@ public class AdminOrderQueryServiceImpl implements AdminOrderQueryService {
     public BasePageResponse<AdminOrderListItemDto> search(
             OrderStatus status, String itemType, LocalDateTime createdAtFrom, LocalDateTime createdAtTo,
             String keyword, int page, int pageSize) {
-        Pageable pageable = PageRequest.of(Math.max(page - 1, 0), pageSize);
-        Page<Order> result = orderRepository.searchForAdmin(
-                status, itemType, createdAtFrom, createdAtTo, keyword, pageable);
+        Pageable pageable = PageRequest.of(Math.max(page - 1, 0), pageSize, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Page<Order> result = orderRepository.findAll(
+                OrderAdminSpec.searchForAdmin(status, itemType, createdAtFrom, createdAtTo, keyword), pageable);
         return toListPageResponse(result);
     }
 
