@@ -23,7 +23,6 @@ public class AdminOrderListItemDto {
     private Long coinAmount;
     private BigDecimal fiatAmount;
     private BigDecimal campaignWalletAmount;
-    private BigDecimal overpaidAmount;
     private BigDecimal vatAmount;
     private LocalDateTime createdAt;
     private LocalDateTime expiresAt;
