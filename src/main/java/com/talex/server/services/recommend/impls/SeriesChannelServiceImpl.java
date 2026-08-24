@@ -459,7 +459,8 @@ public class SeriesChannelServiceImpl implements SeriesChannelService {
         String poolKey = REDIS_KEY_SUBSCRIBED_CREATORS_POOL_PREFIX + accountId;
         Long poolSize = redisTemplate.opsForList().size(poolKey);
         if (poolSize == null || poolSize == 0) {
-            refreshSubscribedCreatorsPool(accountId, blacklistIds, 1, 20);
+            List<String> refreshed = refreshSubscribedCreatorsPool(accountId, blacklistIds, 1, 20);
+            poolSize = (long) refreshed.size();
         }
 
         return getIdsWithOffset(
