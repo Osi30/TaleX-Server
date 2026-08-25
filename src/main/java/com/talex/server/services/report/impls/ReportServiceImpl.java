@@ -80,6 +80,7 @@ public class ReportServiceImpl implements ReportService {
                     .symbol("target_id", requestDto.getTargetId())
                     .symbol("payload", "Submitted report: " + requestDto.getReason())
                     .at(Instant.now());
+            questDBSender.flush();
         }
 
         return reportMapper.toResponseDto(savedReport);
