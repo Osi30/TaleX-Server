@@ -19,6 +19,7 @@ import com.talex.server.services.report.ReportService;
 import com.talex.server.utils.PageUtils;
 import io.questdb.client.Sender;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -28,6 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ReportServiceImpl implements ReportService {
@@ -70,17 +72,21 @@ public class ReportServiceImpl implements ReportService {
         Report savedReport = reportRepository.save(report);
 
         // 4. Ghi Audit Log
-        synchronized (questDBSender) {
-            questDBSender.table("report_logs")
-                    .symbol("ticket_id", ticket.getTicketId())
-                    .symbol("actor_id", currentUserId)
-                    .symbol("report_role", role)
-                    .symbol("action_type", AuditActionType.REPORT_SUBMITTED.toString())
-                    .symbol("target_type", requestDto.getTargetType().toString())
-                    .symbol("target_id", requestDto.getTargetId())
-                    .symbol("payload", "Submitted report: " + requestDto.getReason())
-                    .at(Instant.now());
-            questDBSender.flush();
+        try {
+            synchronized (questDBSender) {
+                questDBSender.table("report_logs")
+                        .symbol("ticket_id", ticket.getTicketId())
+                        .symbol("actor_id", currentUserId)
+                        .symbol("report_role", role)
+                        .symbol("action_type", AuditActionType.REPORT_SUBMITTED.toString())
+                        .symbol("target_type", requestDto.getTargetType().toString())
+                        .symbol("target_id", requestDto.getTargetId())
+                        .symbol("payload", "Submitted report: " + requestDto.getReason())
+                        .at(Instant.now());
+                questDBSender.flush();
+            }
+        } catch (Exception e){
+            log.warn("Failed to save report", e);
         }
 
         return reportMapper.toResponseDto(savedReport);
