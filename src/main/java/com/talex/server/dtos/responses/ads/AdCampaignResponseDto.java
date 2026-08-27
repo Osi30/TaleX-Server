@@ -13,6 +13,9 @@ import java.util.UUID;
 public class AdCampaignResponseDto {
     private UUID campaignId;
     private UUID profileId;
+    private String companyName;
+    private String advertiserEmail;
+    private String advertiserUsername;
     private UUID slotId;
     private String slotCodeName;
     private String slotType;

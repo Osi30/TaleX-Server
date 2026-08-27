@@ -50,6 +50,10 @@ public class AdvertiseProfile {
     @Builder.Default
     private Boolean isSetupCompleted = false;
 
+    @Column(name = "is_locked", columnDefinition = "boolean default false")
+    @Builder.Default
+    private Boolean isLocked = false;
+
     @OneToMany(mappedBy = "profile", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<AdTransaction> transactions = new ArrayList<>();

@@ -371,8 +371,8 @@ public class ExceptionGlobalHandler {
         throw ex;
     }
 
-    @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<BaseResponse> handleIllegalArgument(IllegalArgumentException ex, WebRequest request) {
+    @ExceptionHandler({IllegalArgumentException.class, IllegalStateException.class})
+    public ResponseEntity<BaseResponse> handleIllegalArgument(RuntimeException ex, WebRequest request) {
         log.warn("Client error [400]: {}", ex.getMessage());
         BaseResponse exceptionResponse = BaseResponse.builder()
                 .message(ex.getMessage())
