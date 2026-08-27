@@ -81,7 +81,8 @@ public interface AccountSubscriptionRepository extends JpaRepository<AccountSubs
             "sub.totalViews AS totalViews, " +
             "sub.account.accountId AS accountId, " +
             "sub.account.username AS username, " +
-            "sub.account.email AS email " +
+            "sub.account.email AS email, " +
+            "CASE WHEN SIZE(sub.subscriptionStats) > 0 THEN true ELSE false END AS isHasStat " +
             "FROM AccountSubscription sub " +
             "LEFT JOIN Order o ON sub.orderId = o.orderId " +
             "WHERE sub.endTime >= :startOfMonth " +

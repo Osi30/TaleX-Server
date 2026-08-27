@@ -168,6 +168,7 @@ public class AccountSubscriptionServiceImpl implements AccountSubscriptionServic
                     Double totalAmount = row[3] != null ? ((Number) row[3]).doubleValue() : 0.0;
                     Double vatAmount = row[4] != null ? ((Number) row[4]).doubleValue() : 0.0;
                     Double amount = totalAmount - vatAmount; // Tính toán amount = total - vat
+                    Boolean isHasStat = row[11] != null && Boolean.TRUE.equals(row[11]);
 
                     return MonthlyAccountSubscriptionResponseDto.builder()
                             .accountSubscriptionId((String) row[0])
@@ -182,6 +183,7 @@ public class AccountSubscriptionServiceImpl implements AccountSubscriptionServic
                             .accountId(Objects.toString(row[8], null))
                             .username((String) row[9])
                             .email((String) row[10])
+                            .isHasStat(isHasStat)
                             .build();
                 })
                 .toList();

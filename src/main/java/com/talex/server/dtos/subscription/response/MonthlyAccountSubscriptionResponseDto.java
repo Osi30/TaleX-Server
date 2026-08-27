@@ -24,4 +24,5 @@ public class MonthlyAccountSubscriptionResponseDto {
     private LocalDateTime startTime;
     private LocalDateTime endTime;
     private Long totalViews;
+    private Boolean isHasStat;
 }
