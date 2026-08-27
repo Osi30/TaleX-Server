@@ -21,6 +21,7 @@ public class EpisodeResponseDto {
     // Cần cho FE dựng URL điều hướng sâu (vd từ thông báo "episode bị ẩn" -> đi thẳng tới
     // đúng episode) — route dashboard yêu cầu đủ seriesId+seasonId+episodeId trên query string.
     private String seriesId;
+    private String seriesTitle;
     private String creatorId;
     private Integer episodeNumber;
     private String title;

@@ -482,6 +482,7 @@ public class EpisodeServiceImpl implements EpisodeService {
                 .episodeId(episode.getEpisodeId())
                 .seasonId(episode.getSeason().getSeasonId())
                 .seriesId(episode.getSeason().getSeries().getSeriesId())
+                .seriesTitle(episode.getSeason().getSeries().getTitle())
                 .creatorId(episode.getCreatorId())
                 .episodeNumber(episode.getEpisodeNumber())
                 .title(episode.getTitle())
