@@ -27,6 +27,9 @@ public interface AccountRepository extends JpaRepository<Account, UUID>, JpaSpec
 
     Optional<Account> findByUsername(String username);
 
+    @Query("SELECT c.account FROM Creator c WHERE c.creatorId = :creatorId")
+    Optional<Account> findByCreatorId(@Param("creatorId") String creatorId);
+
     boolean existsByEmail(String email);
 
     Optional<Account> findByGoogleSubId(String googleSubId);

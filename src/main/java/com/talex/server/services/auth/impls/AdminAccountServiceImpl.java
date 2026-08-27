@@ -46,6 +46,14 @@ public class AdminAccountServiceImpl implements AdminAccountService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public AdminAccountResponseDto getAccountByCreatorId(String creatorId) {
+        Account account = accountRepository.findByCreatorId(creatorId)
+                .orElseThrow(() -> new AdminAccountException(AdminAccountErrorCode.ACCOUNT_NOT_FOUND));
+        return toResponse(account);
+    }
+
+    @Override
     @Transactional
     public AdminAccountResponseDto createStaff(CreateStaffRequestDto request) {
         if (accountRepository.existsByEmail(request.getEmail())) {

@@ -13,6 +13,8 @@ public interface AdminAccountService {
 
     AdminAccountResponseDto getAccountById(UUID accountId);
 
+    AdminAccountResponseDto getAccountByCreatorId(String creatorId);
+
     AdminAccountResponseDto createStaff(CreateStaffRequestDto request);
 
     AdminAccountResponseDto banAccount(UUID accountId);

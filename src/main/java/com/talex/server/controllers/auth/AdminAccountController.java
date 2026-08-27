@@ -63,6 +63,18 @@ public class AdminAccountController {
                 .build());
     }
 
+    @GetMapping("/creator/{creatorId}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
+    @Operation(summary = "Lấy thông tin tài khoản theo Creator ID")
+    public ResponseEntity<BaseResponse> getAccountByCreatorId(@PathVariable String creatorId) {
+        AdminAccountResponseDto account = adminAccountService.getAccountByCreatorId(creatorId);
+        return ResponseEntity.ok(BaseResponse.builder()
+                .code(200)
+                .message("Lấy tài khoản thành công")
+                .data(account)
+                .build());
+    }
+
     @PostMapping("/staff")
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Tạo tài khoản Staff")
