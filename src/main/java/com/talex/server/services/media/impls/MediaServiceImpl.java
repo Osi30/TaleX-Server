@@ -16,11 +16,13 @@ import com.talex.server.dtos.responses.media.CreatorViolationsSummaryDto;
 import com.talex.server.entities.auth.Account;
 import com.talex.server.entities.auth.Role;
 import com.talex.server.entities.creator.Creator;
+import com.talex.server.entities.Notification;
 import com.talex.server.entities.media.ContentCensorship;
 import com.talex.server.entities.series.Episode;
 import com.talex.server.entities.series.Season;
 import com.talex.server.entities.media.Media;
 import com.talex.server.entities.media.MediaCopyright;
+import com.talex.server.enums.NotificationType;
 import com.talex.server.enums.media.CensorshipStatus;
 import com.talex.server.enums.series.ContentApprovalStatus;
 import com.talex.server.enums.series.ContentType;
@@ -37,6 +39,7 @@ import com.talex.server.repositories.media.ContentCensorshipRepository;
 import com.talex.server.repositories.series.EpisodeRepository;
 import com.talex.server.repositories.media.MediaCopyrightRepository;
 import com.talex.server.repositories.media.MediaRepository;
+import com.talex.server.repositories.NotificationRepository;
 import com.talex.server.services.media.impls.ContentOwnershipService;
 import com.talex.server.services.media.ContentPipelineService;
 import com.talex.server.services.media.MediaPackagingService;
@@ -91,6 +94,7 @@ public class MediaServiceImpl implements MediaService {
     private final ContentPipelineService contentPipelineService;
     private final MediaCopyrightRepository mediaCopyrightRepository;
     private final ContentCensorshipRepository contentCensorshipRepository;
+    private final NotificationRepository notificationRepository;
     private final ContentOwnershipService contentOwnershipService;
     private final AccountRepository accountRepository;
     private final MediaSystemConfigService systemConfigService;
@@ -585,7 +589,11 @@ public class MediaServiceImpl implements MediaService {
             // approvalStatus==APPROVED từ trước).
         }
         media.markUpdatedBy(actorId);
-        return toResponse(mediaRepository.save(media));
+        Media approved = mediaRepository.save(media);
+        notifyCreatorOfModerationDecision(approved, NotificationType.CONTENT_APPROVED,
+                "Nội dung của bạn đã được duyệt",
+                "Tập \"" + approved.getEpisode().getTitle() + "\" đã được đội ngũ kiểm duyệt phê duyệt. Bạn có thể xuất bản tập này để hiển thị công khai.");
+        return toResponse(approved);
     }
 
     @Transactional
@@ -644,8 +652,36 @@ public class MediaServiceImpl implements MediaService {
         // được lý do Staff từ chối, vì luồng duyệt tay này không bắn SSE như luồng AI
         // tự động flag lúc upload.
         contentPipelineService.notifyStaffRejected(media, reason);
+        // Lưu thêm vào chuông thông báo — SSE ở trên chỉ tới nếu creator đang online,
+        // còn bản ghi này giữ lại để creator xem lại sau, giống pattern EPISODE_FORCE_HIDDEN.
+        notifyCreatorOfModerationDecision(media, NotificationType.CONTENT_REJECTED,
+                "Nội dung của bạn bị từ chối",
+                "Tập \"" + media.getEpisode().getTitle() + "\" đã bị đội ngũ kiểm duyệt từ chối."
+                        + (reason.isBlank() ? "" : " Lý do: " + reason));
 
         return toResponse(media);
+    }
+
+    // Media.episode là nullable=false nên luôn resolve được, nhưng vẫn best-effort
+    // (try/catch) để không làm fail transaction approve/reject chính chỉ vì lỗi thông báo
+    // phụ — cùng cách EpisodeServiceImpl.notifyCreatorOfVisibilityChange() đang làm.
+    private void notifyCreatorOfModerationDecision(Media media, NotificationType type, String title, String content) {
+        try {
+            String recipientAccountId = media.getEpisode().getSeason().getSeries().getCreator().getAccount().getAccountId().toString();
+            notificationRepository.save(Notification.builder()
+                    .recipientId(recipientAccountId)
+                    .title(title)
+                    .content(content)
+                    .type(type)
+                    // FE (notification-bell.tsx resolveNotificationTarget) chỉ biết mở
+                    // referenceType "EPISODE"/"SERIES" — dùng episodeId để bấm vào thông
+                    // báo nhảy thẳng tới episode, giống pattern EPISODE_FORCE_HIDDEN.
+                    .referenceType("EPISODE")
+                    .referenceId(media.getEpisode().getEpisodeId())
+                    .build());
+        } catch (Exception e) {
+            log.warn("Failed to persist moderation-decision notification: mediaId={}", media.getMediaId(), e);
+        }
     }
 
     @Transactional

@@ -216,6 +216,12 @@ public class EpisodeServiceImpl implements EpisodeService {
     @Override
     public EpisodeResponseDto publish(String id, String actorId) {
         Episode episode = findManageableEntity(id, actorId);
+        // Episode bị Admin ép ẩn chỉ được gỡ qua forceUnhide() (thao tác riêng của Admin) —
+        // nếu không chặn ở đây, Creator có thể tự bấm "Xuất bản Ngay" để tự vô hiệu hoá
+        // quyết định ép ẩn của Admin.
+        if (episode.getStatus() == EpisodeStatus.FORCE_HIDDEN) {
+            throw ContentModuleException.badRequest("Episode is force-hidden by admin and cannot be republished by the creator");
+        }
         ensureReadyMediaForPublish(episode);
         publishParentsImmediately(episode, actorId);
 
@@ -549,6 +555,10 @@ public class EpisodeServiceImpl implements EpisodeService {
         }
         if (episode.getStatus() == EpisodeStatus.DELETED) {
             throw ContentModuleException.badRequest("A deleted episode cannot be scheduled");
+        }
+        // Cùng lý do chặn ở publish(): chỉ Admin (forceUnhide) mới được gỡ FORCE_HIDDEN.
+        if (episode.getStatus() == EpisodeStatus.FORCE_HIDDEN) {
+            throw ContentModuleException.badRequest("Episode is force-hidden by admin and cannot be scheduled by the creator");
         }
         ensureParentsAreNotDeleted(episode);
     }
