@@ -324,6 +324,7 @@ public class OrderServiceImpl implements OrderService {
         Order order = factory.get();
         order.setPaymentCode(generatePaymentCode());
         order.setCoinAmount(0L);
+        order.setCampaignWalletAmount(BigDecimal.ZERO);
         order.setStatus(OrderStatus.AWAITING_PAYMENT);
         order.setExpiresAt(now.plusMinutes(sePayProperties.getOrderExpiryMinutes()));
 
