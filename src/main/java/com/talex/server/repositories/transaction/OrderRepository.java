@@ -80,7 +80,7 @@ public interface OrderRepository extends JpaRepository<Order, String>, JpaSpecif
         SELECT
             TO_CHAR(o.created_at, :dateFormatPattern) AS period,
             COALESCE(SUM(o.total_amount), 0) AS gmv,
-            COALESCE(SUM(o.fiat_amount - o.vat_amount), 0) AS netRevenue,
+            COALESCE(SUM(o.fiat_amount + o.campaign_wallet_amount - o.vat_amount), 0) AS netRevenue,
             COALESCE(SUM(o.vat_amount), 0) AS vatAmount,
             COALESCE(SUM(o.coin_amount), 0) AS totalCoin
         FROM orders o
