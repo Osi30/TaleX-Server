@@ -12,4 +12,6 @@ public interface AdWalletService {
     void chargeHeldFunds(UUID profileId, Long amount, UUID campaignId);
     void refundHeldFunds(UUID profileId, Long amount, UUID campaignId, String note);
     java.util.List<com.talex.server.dtos.responses.ads.AdTransactionResponseDto> getWalletTransactions(UUID accountId);
+    java.util.List<AdvertiseProfileResponseDto> getAllProfilesForAdmin();
+    AdvertiseProfileResponseDto toggleLockProfile(UUID profileId, boolean isLocked);
 }

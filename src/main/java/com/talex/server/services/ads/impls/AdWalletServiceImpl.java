@@ -166,16 +166,35 @@ public class AdWalletServiceImpl implements AdWalletService {
                 .build();
     }
 
+    @Override
+    public java.util.List<AdvertiseProfileResponseDto> getAllProfilesForAdmin() {
+        return profileRepository.findAll(org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "createdAt"))
+                .stream().map(this::toDto).collect(java.util.stream.Collectors.toList());
+    }
+
+    @Override
+    @Transactional
+    public AdvertiseProfileResponseDto toggleLockProfile(UUID profileId, boolean isLocked) {
+        AdvertiseProfile profile = profileRepository.findById(profileId)
+                .orElseThrow(() -> new RuntimeException("Profile not found"));
+        profile.setIsLocked(isLocked);
+        return toDto(profileRepository.save(profile));
+    }
+
     private AdvertiseProfileResponseDto toDto(AdvertiseProfile profile) {
         return AdvertiseProfileResponseDto.builder()
                 .profileId(profile.getProfileId())
-                .accountId(profile.getAccount().getAccountId())
+                .accountId(profile.getAccount() != null ? profile.getAccount().getAccountId() : null)
+                .username(profile.getAccount() != null ? profile.getAccount().getUsername() : null)
+                .email(profile.getAccount() != null ? profile.getAccount().getEmail() : null)
                 .walletBalance(profile.getWalletBalance())
                 .billingInfo(profile.getBillingInfo())
                 .companyName(profile.getCompanyName())
                 .phone(profile.getPhone())
                 .website(profile.getWebsite())
                 .isSetupCompleted(profile.getIsSetupCompleted())
+                .isLocked(Boolean.TRUE.equals(profile.getIsLocked()))
+                .campaignsCount(profile.getCampaigns() != null ? profile.getCampaigns().size() : 0)
                 .createdAt(profile.getCreatedAt())
                 .updatedAt(profile.getUpdatedAt())
                 .build();

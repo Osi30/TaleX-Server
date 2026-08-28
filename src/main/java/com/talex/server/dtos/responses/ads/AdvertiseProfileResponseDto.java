@@ -17,6 +17,10 @@ public class AdvertiseProfileResponseDto {
     private String phone;
     private String website;
     private Boolean isSetupCompleted;
+    private String username;
+    private String email;
+    private Boolean isLocked;
+    private Integer campaignsCount;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

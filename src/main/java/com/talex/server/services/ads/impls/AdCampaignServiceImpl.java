@@ -73,8 +73,12 @@ public class AdCampaignServiceImpl implements AdCampaignService {
             throw new RuntimeException("Ad slot is not active");
         }
 
+        if (Boolean.TRUE.equals(profile.getIsLocked())) {
+            throw new IllegalArgumentException("Tài khoản quảng cáo của bạn đã bị quản trị viên khóa. Không thể tạo chiến dịch mới.");
+        }
+
         if (profile.getWalletBalance() < request.getCampaignBudget()) {
-            throw new RuntimeException("Số dư Ví tổng không đủ để cấp ngân sách cho chiến dịch này.");
+            throw new IllegalArgumentException("Số dư Ví tổng không đủ để cấp ngân sách cho chiến dịch này.");
         }
 
         long cpm = 0;
@@ -281,9 +285,17 @@ public class AdCampaignServiceImpl implements AdCampaignService {
     }
 
     private AdCampaignResponseDto toDto(AdCampaign campaign, List<AdCreative> creatives) {
+        AdvertiseProfile profile = campaign.getProfile();
+        String companyName = profile != null ? profile.getCompanyName() : null;
+        String email = (profile != null && profile.getAccount() != null) ? profile.getAccount().getEmail() : null;
+        String username = (profile != null && profile.getAccount() != null) ? profile.getAccount().getUsername() : null;
+
         return AdCampaignResponseDto.builder()
                 .campaignId(campaign.getCampaignId())
-                .profileId(campaign.getProfile().getProfileId())
+                .profileId(profile != null ? profile.getProfileId() : null)
+                .companyName(companyName)
+                .advertiserEmail(email)
+                .advertiserUsername(username)
                 .slotId(campaign.getSlot().getSlotId())
                 .slotCodeName(campaign.getSlot().getCodeName())
                 .slotType(campaign.getSlot().getType().name())
@@ -414,8 +426,12 @@ public class AdCampaignServiceImpl implements AdCampaignService {
 
         AdvertiseProfile profile = oldCampaign.getProfile();
 
+        if (Boolean.TRUE.equals(profile.getIsLocked())) {
+            throw new IllegalArgumentException("Tài khoản quảng cáo của bạn đã bị quản trị viên khóa. Không thể tạo lại chiến dịch.");
+        }
+
         if (profile.getWalletBalance() < newBudget) {
-            throw new RuntimeException("Số dư Ví tổng không đủ để cấp ngân sách cho chiến dịch clone này.");
+            throw new IllegalArgumentException("Số dư Ví tổng không đủ để cấp ngân sách cho chiến dịch clone này.");
         }
 
         AdCampaign newCampaign = AdCampaign.builder()
