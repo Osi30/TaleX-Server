@@ -64,8 +64,8 @@ spring:
       timeout: ${REDIS_TIMEOUT:5000ms}
       lettuce:
         pool:
-          max-active: 4
-          max-idle: 2
+          max-active: 8
+          max-idle: 4
           min-idle: 0
           max-wait: 2000ms
   threads:
