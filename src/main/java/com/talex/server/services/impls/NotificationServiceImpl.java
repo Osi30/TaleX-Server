@@ -74,4 +74,10 @@ public class NotificationServiceImpl implements NotificationService {
         unreadNotifications.forEach(n -> n.setIsRead(true));
         notificationRepository.saveAll(unreadNotifications);
     }
+
+    @Override
+    @Transactional
+    public int deleteReadNotifications(String recipientId) {
+        return notificationRepository.deleteByRecipientIdAndIsReadTrue(recipientId);
+    }
 }

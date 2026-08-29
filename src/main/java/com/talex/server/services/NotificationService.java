@@ -9,4 +9,5 @@ public interface NotificationService {
     long getUnreadCount(String recipientId);
     void markAsRead(String notificationId, String recipientId);
     void markAllAsRead(String recipientId);
+    int deleteReadNotifications(String recipientId);
 }

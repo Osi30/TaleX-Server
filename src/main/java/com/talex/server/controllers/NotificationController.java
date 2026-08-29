@@ -95,4 +95,17 @@ public class NotificationController {
                 .data(null)
                 .build());
     }
+
+    @DeleteMapping("/read")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Xoá các thông báo đã đọc", description = "Xoá vĩnh viễn các thông báo đã đọc của người dùng hiện tại, giữ lại thông báo chưa đọc.")
+    public ResponseEntity<BaseResponse> deleteReadNotifications(@CurrentAccountId UUID accountId) {
+        int deletedCount = notificationService.deleteReadNotifications(accountId.toString());
+
+        return ResponseEntity.ok(BaseResponse.builder()
+                .code(200)
+                .message("Đã xoá " + deletedCount + " thông báo đã đọc")
+                .data(deletedCount)
+                .build());
+    }
 }
