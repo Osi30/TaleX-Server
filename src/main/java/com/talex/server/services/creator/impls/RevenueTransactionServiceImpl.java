@@ -224,10 +224,10 @@ public class RevenueTransactionServiceImpl implements RevenueTransactionService 
         if (daysDifference < 7) {
             groupUnit = "HOUR";
             formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:00");
-        } else if (daysDifference < 30) {
+        } else if (daysDifference <= 31) {
             groupUnit = "DAY";
             formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-        } else if (daysDifference < 365) {
+        } else if (daysDifference <= 365) {
             groupUnit = "MONTH";
             formatter = DateTimeFormatter.ofPattern("yyyy-MM");
         } else {

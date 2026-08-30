@@ -22,5 +22,6 @@ public class VatReportItemDto {
     private BigDecimal vatAmount;
     private String paymentCode;
     private LocalDateTime createdAt;
-    private String revenueGroup; // "PLATFORM" hoặc "CREATOR"
+    // "PLATFORM" or "CREATOR"
+    private String revenueGroup;
 }
