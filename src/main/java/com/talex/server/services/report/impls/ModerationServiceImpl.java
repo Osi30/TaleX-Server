@@ -113,15 +113,15 @@ public class ModerationServiceImpl implements ModerationService {
         ticket.setStatus(TicketStatus.IN_PROGRESS);
         ModerationTicket updated = ticketRepository.save(ticket);
 
-        questDBSender.table("report_logs")
-                .symbol("ticket_id", ticketId)
-                .symbol("actor_id", staffId)
-                .symbol("report_role", role)
-                .symbol("action_type", AuditActionType.TICKET_ASSIGNED.toString())
-                .symbol("target_type", ticket.getTargetType().toString())
-                .symbol("target_id", ticket.getTargetId())
-                .symbol("payload", "Assigned ticket: " + ticketId)
-                .at(Instant.now());
+//        questDBSender.table("report_logs")
+//                .symbol("ticket_id", ticketId)
+//                .symbol("actor_id", staffId)
+//                .symbol("report_role", role)
+//                .symbol("action_type", AuditActionType.TICKET_ASSIGNED.toString())
+//                .symbol("target_type", ticket.getTargetType().toString())
+//                .symbol("target_id", ticket.getTargetId())
+//                .symbol("payload", "Assigned ticket: " + ticketId)
+//                .at(Instant.now());
 
         return ticketMapper.toResponseDto(updated);
     }
@@ -142,15 +142,15 @@ public class ModerationServiceImpl implements ModerationService {
             reports.forEach(r -> r.setStatus(ReportStatus.REJECTED));
             reportRepository.saveAll(reports);
 
-            questDBSender.table("report_logs")
-                    .symbol("ticket_id", ticketId)
-                    .symbol("actor_id", staffId)
-                    .symbol("report_role", role)
-                    .symbol("action_type", AuditActionType.TICKET_DISMISSED.toString())
-                    .symbol("target_type", ticket.getTargetType().toString())
-                    .symbol("target_id", ticket.getTargetId())
-                    .symbol("payload", "Dismissed ticket with reason: " + requestDto.getReason())
-                    .at(Instant.now());
+//            questDBSender.table("report_logs")
+//                    .symbol("ticket_id", ticketId)
+//                    .symbol("actor_id", staffId)
+//                    .symbol("report_role", role)
+//                    .symbol("action_type", AuditActionType.TICKET_DISMISSED.toString())
+//                    .symbol("target_type", ticket.getTargetType().toString())
+//                    .symbol("target_id", ticket.getTargetId())
+//                    .symbol("payload", "Dismissed ticket with reason: " + requestDto.getReason())
+//                    .at(Instant.now());
 
             return null;
         }
@@ -181,15 +181,15 @@ public class ModerationServiceImpl implements ModerationService {
         }
 
         // 4. Ghi Audit Log
-        questDBSender.table("report_logs")
-                .symbol("ticket_id", ticketId)
-                .symbol("actor_id", staffId)
-                .symbol("report_role", role)
-                .symbol("action_type", AuditActionType.PENALTY_ISSUED.toString())
-                .symbol("target_type", ticket.getTargetType().toString())
-                .symbol("target_id", ticket.getTargetId())
-                .symbol("payload", "Issued penalty level: " + requestDto.getPenaltyLevel())
-                .at(Instant.now());
+//        questDBSender.table("report_logs")
+//                .symbol("ticket_id", ticketId)
+//                .symbol("actor_id", staffId)
+//                .symbol("report_role", role)
+//                .symbol("action_type", AuditActionType.PENALTY_ISSUED.toString())
+//                .symbol("target_type", ticket.getTargetType().toString())
+//                .symbol("target_id", ticket.getTargetId())
+//                .symbol("payload", "Issued penalty level: " + requestDto.getPenaltyLevel())
+//                .at(Instant.now());
 
         // 5. Gửi Thông Báo cho người bị phạt
         notificationRepository.save(Notification.builder()

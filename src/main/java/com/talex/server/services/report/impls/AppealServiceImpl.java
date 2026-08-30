@@ -83,15 +83,15 @@ public class AppealServiceImpl implements AppealService {
         Appeal savedAppeal = appealRepository.save(appeal);
 
         // 3. Ghi Audit Log
-        questDBSender.table("penalty_logs")
-                .symbol("penalty_id", penaltyId)
-                .symbol("actor_id", currentUserId)
-                .symbol("report_role", role)
-                .symbol("action_type", AuditActionType.APPEAL_SUBMITTED.toString())
-                .symbol("target_type", penalty.getTargetType().toString())
-                .symbol("target_id", penalty.getTargetId())
-                .symbol("payload", "Submitted appeal for penalty: " + penaltyId)
-                .at(Instant.now());
+//        questDBSender.table("penalty_logs")
+//                .symbol("penalty_id", penaltyId)
+//                .symbol("actor_id", currentUserId)
+//                .symbol("report_role", role)
+//                .symbol("action_type", AuditActionType.APPEAL_SUBMITTED.toString())
+//                .symbol("target_type", penalty.getTargetType().toString())
+//                .symbol("target_id", penalty.getTargetId())
+//                .symbol("payload", "Submitted appeal for penalty: " + penaltyId)
+//                .at(Instant.now());
 
         return appealMapper.toResponseDto(savedAppeal);
     }
@@ -127,15 +127,15 @@ public class AppealServiceImpl implements AppealService {
             penaltyRepository.save(penalty);
             processPenalty(penalty, adminId);
 
-            questDBSender.table("penalty_logs")
-                    .symbol("penalty_id", penalty.getPenaltyId())
-                    .symbol("actor_id", adminId)
-                    .symbol("report_role", role)
-                    .symbol("action_type", AuditActionType.APPEAL_APPROVED.toString())
-                    .symbol("target_type", penalty.getTargetType().toString())
-                    .symbol("target_id", penalty.getTargetId())
-                    .symbol("payload", "Approved appeal. Penalty revoked.")
-                    .at(Instant.now());
+//            questDBSender.table("penalty_logs")
+//                    .symbol("penalty_id", penalty.getPenaltyId())
+//                    .symbol("actor_id", adminId)
+//                    .symbol("report_role", role)
+//                    .symbol("action_type", AuditActionType.APPEAL_APPROVED.toString())
+//                    .symbol("target_type", penalty.getTargetType().toString())
+//                    .symbol("target_id", penalty.getTargetId())
+//                    .symbol("payload", "Approved appeal. Penalty revoked.")
+//                    .at(Instant.now());
 
             notificationRepository.save(Notification.builder()
                     .recipientId(appeal.getAppellantId())
@@ -149,15 +149,15 @@ public class AppealServiceImpl implements AppealService {
             // Admin Bác bỏ Khiếu nại -> Giữ nguyên phạt
             appeal.setStatus(AppealStatus.REJECTED);
 
-            questDBSender.table("penalty_logs")
-                    .symbol("penalty_id", penalty.getPenaltyId())
-                    .symbol("actor_id", adminId)
-                    .symbol("report_role", role)
-                    .symbol("action_type", AuditActionType.APPEAL_REJECTED.toString())
-                    .symbol("target_type", penalty.getTargetType().toString())
-                    .symbol("target_id", penalty.getTargetId())
-                    .symbol("payload", "Rejected appeal with note: " + requestDto.getAdminNote())
-                    .at(Instant.now());
+//            questDBSender.table("penalty_logs")
+//                    .symbol("penalty_id", penalty.getPenaltyId())
+//                    .symbol("actor_id", adminId)
+//                    .symbol("report_role", role)
+//                    .symbol("action_type", AuditActionType.APPEAL_REJECTED.toString())
+//                    .symbol("target_type", penalty.getTargetType().toString())
+//                    .symbol("target_id", penalty.getTargetId())
+//                    .symbol("payload", "Rejected appeal with note: " + requestDto.getAdminNote())
+//                    .at(Instant.now());
 
             notificationRepository.save(Notification.builder()
                     .recipientId(appeal.getAppellantId())

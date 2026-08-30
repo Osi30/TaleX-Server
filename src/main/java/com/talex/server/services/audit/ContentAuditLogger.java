@@ -34,6 +34,7 @@ public class ContentAuditLogger {
                         .symbol("creator_id", creatorId)
                         .stringColumn("entity_id", entityId)
                         .at(Instant.now());
+                questDBSender.flush();
             }
         } catch (Exception e) {
             log.warn("[QuestDB] Failed to save audit log for {} {} action {}: {}", entityName, entityId, action, e.getMessage());

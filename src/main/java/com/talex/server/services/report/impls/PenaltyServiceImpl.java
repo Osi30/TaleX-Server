@@ -98,15 +98,15 @@ public class PenaltyServiceImpl implements PenaltyService {
         Penalty updated = penaltyRepository.save(penalty);
         publishPenaltyEvent(penalty);
 
-        questDBSender.table("penalty_logs")
-                .symbol("penalty_id", penalty.getPenaltyId())
-                .symbol("actor_id", adminId)
-                .symbol("report_role", role)
-                .symbol("action_type", AuditActionType.PENALTY_ISSUED.toString())
-                .symbol("target_type", penalty.getTargetType().toString())
-                .symbol("target_id", penalty.getTargetId())
-                .symbol("payload", "Manual Revoked penalty. Reason: " + reason)
-                .at(Instant.now());
+//        questDBSender.table("penalty_logs")
+//                .symbol("penalty_id", penalty.getPenaltyId())
+//                .symbol("actor_id", adminId)
+//                .symbol("report_role", role)
+//                .symbol("action_type", AuditActionType.PENALTY_ISSUED.toString())
+//                .symbol("target_type", penalty.getTargetType().toString())
+//                .symbol("target_id", penalty.getTargetId())
+//                .symbol("payload", "Manual Revoked penalty. Reason: " + reason)
+//                .at(Instant.now());
 
         return penaltyMapper.toResponseDto(updated);
     }
