@@ -8,6 +8,8 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -60,5 +62,19 @@ public class CampaignStatisticController {
                 .message("Lấy danh sách chi tiết biểu đồ Campaign thành công")
                 .data(details)
                 .build());
+    }
+
+    @GetMapping("/export-excel")
+//    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Xuất báo cáo Excel Campaign", description = "Xuất file Excel gồm tab Thống kê tổng quan và tab Chi tiết các đơn hàng Campaign.")
+    public ResponseEntity<byte[]> exportCampaignExcel(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startTime,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endTime
+    ) {
+        byte[] excelBytes = campaignStatisticService.exportCampaignExcel(startTime, endTime);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=Bao_Cao_Campaign.xlsx")
+                .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .body(excelBytes);
     }
 }

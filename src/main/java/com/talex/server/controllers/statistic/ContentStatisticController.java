@@ -8,6 +8,8 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -60,5 +62,37 @@ public class ContentStatisticController {
                 .message("Lấy danh sách chi tiết biểu đồ doanh thu nội dung thành công")
                 .data(details)
                 .build());
+    }
+
+    @GetMapping("/export-excel")
+//    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Xuất báo cáo Excel Combo & Episode", description = "Xuất file Excel gồm tab Thống kê tổng quan và tab Chi tiết các đơn hàng Episode và Combo.")
+    public ResponseEntity<byte[]> exportContentExcel(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startTime,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endTime
+    ) {
+        byte[] excelBytes = contentStatisticService.exportContentExcel(startTime, endTime);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=Bao_Cao_Combo_Episode.xlsx")
+                .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .body(excelBytes);
+    }
+
+    @GetMapping("/export-excel-by-item")
+//    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(
+            summary = "Xuất Excel các đơn hàng đã hoàn tất theo itemId (Combo hoặc Episode)",
+            description = "Lấy danh sách các đơn hàng có trạng thái COMPLETED tương ứng với itemId (EPISODE hoặc COMBO) truyền vào."
+    )
+    public ResponseEntity<byte[]> exportContentExcelByItemId(
+            @RequestParam String itemId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startTime,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endTime
+    ) {
+        byte[] excelBytes = contentStatisticService.exportContentExcelByItemId(itemId, startTime, endTime);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=Bao_Cao_Don_Hang_Item_" + itemId + ".xlsx")
+                .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .body(excelBytes);
     }
 }

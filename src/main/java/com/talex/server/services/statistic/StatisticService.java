@@ -13,16 +13,21 @@ import java.util.List;
 
 public interface StatisticService {
     StatisticResponseDto getOrderStatistics(LocalDateTime startTime, LocalDateTime endTime);
+    byte[] exportAllExcel(LocalDateTime startTime, LocalDateTime endTime);
 
     // Campaign
     CampaignRevenueOverviewDto getCampaignOverview(LocalDateTime startTime, LocalDateTime endTime);
     List<CampaignRevenueDetailDto> getCampaignDetails(LocalDateTime startTime, LocalDateTime endTime);
+    byte[] exportCampaignExcel(LocalDateTime startTime, LocalDateTime endTime);
 
     // Combo & Episode
     ContentRevenueOverviewDto getContentOverview(LocalDateTime startTime, LocalDateTime endTime);
     List<ContentRevenueDetailDto> getContentDetails(LocalDateTime startTime, LocalDateTime endTime);
+    byte[] exportContentExcel(LocalDateTime startTime, LocalDateTime endTime);
+    byte[] exportContentExcelByItemId(String itemId, LocalDateTime startTime, LocalDateTime endTime);
 
     // Premium
     SubscriptionRevenueOverviewDto getSubscriptionOverview(LocalDateTime startTime, LocalDateTime endTime);
     List<SubscriptionRevenueDetailDto> getSubscriptionDetails(LocalDateTime startTime, LocalDateTime endTime);
+    byte[] exportSubscriptionExcel(LocalDateTime startTime, LocalDateTime endTime);
 }

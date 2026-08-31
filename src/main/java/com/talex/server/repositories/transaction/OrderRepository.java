@@ -5,6 +5,7 @@ import com.talex.server.dtos.statistics.content.ContentRevenueStatisticData;
 import com.talex.server.dtos.statistics.subscription.SubscriptionStatisticData;
 import com.talex.server.entities.transaction.Order;
 import com.talex.server.enums.transaction.OrderStatus;
+import com.talex.server.records.OrderDetailStatisticProjection;
 import com.talex.server.records.OrderStatisticData;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
@@ -295,5 +296,175 @@ public interface OrderRepository extends JpaRepository<Order, String>, JpaSpecif
             @Param("startTime") LocalDateTime startTime,
             @Param("endTime") LocalDateTime endTime,
             @Param("dateFormatPattern") String dateFormatPattern
+    );
+
+    /**
+     * Lấy danh sách chi tiết đơn hàng Campaign (ENGAGEMENT) phục vụ xuất Excel
+     */
+    @Query(value = """
+        SELECT 
+            o.order_id AS orderId,
+            o.total_amount AS totalAmount,
+            COALESCE(o.coin_amount, 0) AS coinAmount,
+            COALESCE(o.vat_amount, 0) AS vatAmount,
+            0 AS shareAmount,
+            '' AS description,
+            (o.total_amount - COALESCE(o.vat_amount, 0)) AS fiatAmount,
+            o.status AS status,
+            o.created_at AS createdAt,
+            o.updated_at AS updatedAt,
+            o.item_type AS itemType,
+            o.item_id AS itemId,
+            COALESCE(es.name, '') AS itemName,
+            CAST(a.account_id AS VARCHAR) AS accountId,
+            a.email AS email,
+            COALESCE(a.full_name, '') AS fullName
+        FROM orders o
+        JOIN accounts a ON o.account_id = a.account_id
+        LEFT JOIN engagement_service es ON o.item_id = es.engagement_service_id
+        WHERE o.status = :status
+          AND o.item_type = :itemType
+          AND o.created_at >= :startTime
+          AND o.created_at <= :endTime
+        ORDER BY o.created_at DESC
+        """, nativeQuery = true)
+    List<OrderDetailStatisticProjection> getCampaignOrderDetails(
+            @Param("status") String status,
+            @Param("itemType") String itemType,
+            @Param("startTime") LocalDateTime startTime,
+            @Param("endTime") LocalDateTime endTime
+    );
+
+    /**
+     * Lấy danh sách chi tiết đơn hàng Premium (SUBSCRIPTION) phục vụ xuất Excel
+     */
+    @Query(value = """
+        SELECT 
+            o.order_id AS orderId,
+            o.total_amount AS totalAmount,
+            COALESCE(o.coin_amount, 0) AS coinAmount,
+            COALESCE(o.vat_amount, 0) AS vatAmount,
+            0 AS shareAmount,
+            '' AS description,
+            (o.total_amount - COALESCE(o.vat_amount, 0)) AS fiatAmount,
+            o.status AS status,
+            o.created_at AS createdAt,
+            o.updated_at AS updatedAt,
+            o.item_type AS itemType,
+            o.item_id AS itemId,
+            COALESCE(sub.tier, '') AS itemName,
+            CAST(a.account_id AS VARCHAR) AS accountId,
+            a.email AS email,
+            COALESCE(a.full_name, '') AS fullName
+        FROM orders o
+        JOIN accounts a ON o.account_id = a.account_id
+        LEFT JOIN subscriptions sub ON o.item_id = sub.subscription_id
+        WHERE o.status = :status
+          AND o.item_type = :itemType
+          AND o.created_at >= :startTime
+          AND o.created_at <= :endTime
+        ORDER BY o.created_at DESC
+        """, nativeQuery = true)
+    List<OrderDetailStatisticProjection> getSubscriptionOrderDetails(
+            @Param("status") String status,
+            @Param("itemType") String itemType,
+            @Param("startTime") LocalDateTime startTime,
+            @Param("endTime") LocalDateTime endTime
+    );
+
+    /**
+     * Lấy danh sách chi tiết đơn hàng Content (EPISODE & COMBO) phục vụ xuất Excel
+     */
+    @Query(value = """
+        SELECT 
+            o.order_id AS orderId,
+            o.total_amount AS totalAmount,
+            COALESCE(o.coin_amount, 0) AS coinAmount,
+            COALESCE(o.vat_amount, 0) AS vatAmount,
+            COALESCE(rt.amount, 0) AS shareAmount,
+            COALESCE(rt.description, '') AS description,
+            (o.total_amount - COALESCE(o.vat_amount, 0) - COALESCE(o.coin_amount, 0) - COALESCE(rt.amount, 0)) AS fiatAmount,
+            o.status AS status,
+            o.created_at AS createdAt,
+            o.updated_at AS updatedAt,
+            o.item_type AS itemType,
+            o.item_id AS itemId,
+            CASE 
+                WHEN o.item_type = 'EPISODE' THEN CONCAT('Tập ', ep.episode_number, ': ', ep.title, ' (Series: ', ser.title, ')')
+                WHEN o.item_type = 'COMBO' THEN cb.title
+                ELSE ''
+            END AS itemName,
+            CAST(a.account_id AS VARCHAR) AS accountId,
+            a.email AS email,
+            COALESCE(a.full_name, '') AS fullName
+        FROM orders o
+        JOIN accounts a ON o.account_id = a.account_id
+        LEFT JOIN revenue_transaction rt 
+            ON o.order_id = rt.reference_id 
+           AND rt.reference_type = 'ORDER' 
+           AND rt.change_type = 'CONTENT_SHARE'
+        LEFT JOIN episodes ep ON o.item_type = 'EPISODE' AND o.item_id = ep.episode_id
+        LEFT JOIN seasons sea ON ep.season_id = sea.season_id
+        LEFT JOIN series ser ON sea.series_id = ser.series_id
+        LEFT JOIN combo_episodes cb ON o.item_type = 'COMBO' AND o.item_id = cb.combo_id
+        WHERE o.status = :status
+          AND o.item_type IN ('EPISODE', 'COMBO')
+          AND o.created_at >= :startTime
+          AND o.created_at <= :endTime
+        ORDER BY o.created_at DESC
+        """, nativeQuery = true)
+    List<OrderDetailStatisticProjection> getContentOrderDetails(
+            @Param("status") String status,
+            @Param("startTime") LocalDateTime startTime,
+            @Param("endTime") LocalDateTime endTime
+    );
+
+    /**
+     * Lấy danh sách chi tiết đơn hàng Content (EPISODE & COMBO) lọc theo itemId cụ thể có status COMPLETED
+     */
+    @Query(value = """
+        SELECT 
+            o.order_id AS orderId,
+            o.total_amount AS totalAmount,
+            COALESCE(o.coin_amount, 0) AS coinAmount,
+            COALESCE(o.vat_amount, 0) AS vatAmount,
+            COALESCE(rt.amount, 0) AS shareAmount,
+            COALESCE(rt.description, '') AS description,
+            (o.total_amount - COALESCE(o.vat_amount, 0) - COALESCE(o.coin_amount, 0) - COALESCE(rt.amount, 0)) AS fiatAmount,
+            o.status AS status,
+            o.created_at AS createdAt,
+            o.updated_at AS updatedAt,
+            o.item_type AS itemType,
+            o.item_id AS itemId,
+            CASE 
+                WHEN o.item_type = 'EPISODE' THEN CONCAT('Tập ', ep.episode_number, ': ', ep.title, ' (Series: ', ser.title, ')')
+                WHEN o.item_type = 'COMBO' THEN cb.title
+                ELSE ''
+            END AS itemName,
+            CAST(a.account_id AS VARCHAR) AS accountId,
+            a.email AS email,
+            COALESCE(a.full_name, '') AS fullName
+        FROM orders o
+        JOIN accounts a ON o.account_id = a.account_id
+        LEFT JOIN revenue_transaction rt 
+            ON o.order_id = rt.reference_id 
+           AND rt.reference_type = 'ORDER' 
+           AND rt.change_type = 'CONTENT_SHARE'
+        LEFT JOIN episodes ep ON o.item_type = 'EPISODE' AND o.item_id = ep.episode_id
+        LEFT JOIN seasons sea ON ep.season_id = sea.season_id
+        LEFT JOIN series ser ON sea.series_id = ser.series_id
+        LEFT JOIN combo_episodes cb ON o.item_type = 'COMBO' AND o.item_id = cb.combo_id
+        WHERE o.status = :status
+          AND o.item_type IN ('EPISODE', 'COMBO')
+          AND o.item_id = :itemId
+          AND o.created_at >= :startTime
+          AND o.created_at <= :endTime
+        ORDER BY o.created_at DESC
+        """, nativeQuery = true)
+    List<OrderDetailStatisticProjection> getContentOrderDetailsByItemId(
+            @Param("itemId") String itemId,
+            @Param("status") String status,
+            @Param("startTime") LocalDateTime startTime,
+            @Param("endTime") LocalDateTime endTime
     );
 }

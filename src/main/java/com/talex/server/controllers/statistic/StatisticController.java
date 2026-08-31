@@ -7,6 +7,8 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -44,5 +46,22 @@ public class StatisticController {
                 .message("Lấy thông tin thống kê thành công")
                 .data(data)
                 .build());
+    }
+
+    @GetMapping("/export-excel")
+//    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(
+            summary = "Xuất file Excel tổng quan toàn bộ hệ thống (4 tabs)",
+            description = "Tạo file Excel gồm 4 tabs: 1 Tab tổng quan hệ thống và 3 Tabs chi tiết cho Campaign, Combo & Episode, Premium."
+    )
+    public ResponseEntity<byte[]> exportAllExcel(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startTime,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endTime
+    ) {
+        byte[] excelBytes = statisticService.exportAllExcel(startTime, endTime);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=Bao_Cao_Tong_Quan_He_Thong.xlsx")
+                .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .body(excelBytes);
     }
 }
