@@ -70,7 +70,7 @@ public class MediaConvertService {
     private final MediaConvertClient mediaConvertClient;
     private final MediaProperties mediaProperties;
 
-    private static final int SEGMENT_DURATION = 6;
+    private static final int SEGMENT_DURATION = 2;
 
     /**
      * Submit HLS transcoding job for an uploaded MP4 file.
@@ -225,7 +225,7 @@ public class MediaConvertService {
                                         .codecLevel(H264CodecLevel.AUTO)
                                         .interlaceMode(H264InterlaceMode.PROGRESSIVE)
                                         .framerateControl(H264FramerateControl.INITIALIZE_FROM_SOURCE)
-                                        .gopSize(3.0)
+                                        .gopSize(2.0)
                                         .gopSizeUnits(H264GopSizeUnits.SECONDS)
                                         .numberBFramesBetweenReferenceFrames(2)
                                         .numberReferenceFrames(3)
