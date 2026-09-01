@@ -5,6 +5,9 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
+import java.util.List;
+
 /**
  * Trạng thái điểm danh của user — dùng để frontend vẽ UI khi mở app.
  */
@@ -23,4 +26,10 @@ public class DailyCheckInStatusDto {
      * - Nếu chưa: streak của hôm qua (0 nếu hôm qua cũng không điểm danh).
      */
     private Integer currentStreak;
+
+    private Integer nextStreak;
+
+    private BigDecimal todayRewardAmount;
+
+    private List<CheckInMilestoneDto> milestones;
 }

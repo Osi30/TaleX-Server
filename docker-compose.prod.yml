@@ -82,7 +82,12 @@ services:
       - "127.0.0.1:9009:9009"
     # Trước đây KHÔNG giới hạn — xem ghi chú tương tự ở service `db` phía trên. QuestDB chỉ
     # dùng để ghi interaction log qua ILP, tải nhẹ nên trần thấp nhất trong 5 service.
-    mem_limit: 400m
+    # Nâng 400m -> 768m: baseline thực đo ~229MB (57% của 400m) không còn margin cho lúc
+    # nhiều Kafka worker (Like/View/Watch/Comment/Share/Bookmark) + scheduler (Trending,
+    # MongoFeatureSync) + query recommend cùng dồn vào HikariPool-2 một lúc — bị cgroup
+    # throttle mạnh, gây "Connect timed out" hàng loạt kéo theo app đơ toàn bộ (đã xảy ra
+    # thật, không phải suy đoán).
+    mem_limit: 768m
     cpus: 0.1
     environment:
       - QDB_PG_USER=${QUESTDB_USER:-admin}

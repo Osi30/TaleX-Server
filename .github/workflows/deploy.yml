@@ -117,7 +117,10 @@ jobs:
             # Post-build cleanup (remove dangling images only)
             docker image prune -f 2>/dev/null || true
 
-            # Health check — wait up to 120s for backend to start
+            # Health check — wait up to 180s for backend to start
+            # (raised from 120s: startup regularly takes ~100-130s under normal load,
+            # and runs closer to the ceiling when questdb/app are recreated together —
+            # was producing false-negative CI failures on deploys that actually succeeded)
             # Runs curl INSIDE the container (docker compose exec) instead of
             # curl-ing localhost:8080 from the host. A host-side curl goes
             # through Docker's NAT (iptables DNAT), which counts against the
@@ -128,7 +131,7 @@ jobs:
             # app was healthy and stayed up for hours, but CI still went red).
             # Exec'ing inside the container skips the host NAT path entirely.
             echo "Waiting for backend health check..."
-            for i in $(seq 1 24); do
+            for i in $(seq 1 36); do
               if docker compose -f docker-compose.prod.yml exec -T app curl -sf http://localhost:8080/api-docs > /dev/null 2>&1; then
                 echo "Backend is healthy after $((i*5))s!"
                 exit 0
@@ -137,5 +140,5 @@ jobs:
             done
             # Trước đây dừng ở dòng echo — lệnh cuối luôn thành công nên script exit 0
             # (CI báo xanh) dù backend không healthy thật. exit 1 để CI báo đỏ đúng.
-            echo "WARNING: Backend health check failed after 120s"
+            echo "WARNING: Backend health check failed after 180s"
             exit 1
