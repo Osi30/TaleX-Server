@@ -17,6 +17,8 @@ public interface AccountCommentService {
 
     Slice<CommentResponse> getCommentReplies(String parentCommentId, Pageable pageable);
 
+    CommentResponse getCommentById(String commentId);
+
     void deleteCommentByOwner(UUID accountId, String commentId);
 
     // Admin/Staff Only

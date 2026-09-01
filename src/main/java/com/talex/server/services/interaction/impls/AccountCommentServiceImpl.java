@@ -95,6 +95,20 @@ public class AccountCommentServiceImpl implements com.talex.server.services.inte
         ));
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public CommentResponse getCommentById(String commentId) {
+        AccountComment comment = commentRepository.findById(commentId)
+                .orElseThrow(() -> new InteractionException(InteractionErrorCode.SAVING_DATABASE_ERROR,
+                        "Bình luận không tồn tại"));
+
+        return mapToResponse(
+                comment,
+                comment.getAccount().getUsername(),
+                comment.getAccount().getAvatarUrl()
+        );
+    }
+
     @Transactional(readOnly = true)
     public Slice<CommentResponse> getCommentReplies(String parentCommentId, Pageable pageable) {
         Slice<AccountComment> replySlice = commentRepository.findRepliesByParentId(parentCommentId, pageable);

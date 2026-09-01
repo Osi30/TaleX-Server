@@ -87,6 +87,19 @@ public class AccountCommentController {
                 .build());
     }
 
+    @Operation(summary = "Lấy chi tiết bình luận", description = "Lấy thông tin chi tiết của một bình luận theo commentId.")
+    @GetMapping("/comments/{commentId}")
+    public ResponseEntity<BaseResponse> getCommentById(
+            @PathVariable String commentId
+    ) {
+        CommentResponse response = commentService.getCommentById(commentId);
+        return ResponseEntity.ok(BaseResponse.builder()
+                .code(200)
+                .message("Success")
+                .data(response)
+                .build());
+    }
+
     @Operation(
             summary = "Lấy danh sách bình luận gốc của tập phim (Infinite Scroll)",
             description = "Trả về một Slice dữ liệu bình luận cấp cao nhất (không có parent). Càng kéo xuống càng tăng page lên."
