@@ -16,13 +16,6 @@ import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
 
-/**
- * Append-only legal audit trail for irreversible admin media purge (hard-delete). One row per
- * purge action, written BEFORE the destructive deletes so the record survives even if later steps
- * partially fail. Stores only identifiers + storage paths + the actor/reason — NOT the erased
- * content itself. Never soft-deleted, never updated: this is the proof of what was erased, by whom,
- * when, and why (DMCA takedown / court order / illegal content / GDPR erasure).
- */
 @Entity
 @Table(
         name = "media_purge_log",

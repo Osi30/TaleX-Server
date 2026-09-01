@@ -6,12 +6,6 @@ import lombok.*;
 
 import java.util.UUID;
 
-/**
- * Cấu hình động các ngưỡng AI pipeline (kiểm duyệt + chống đạo nhái).
- * Bảng singleton 1 dòng (giống MediaSystemConfig) — Admin chỉnh qua UI, Python
- * đọc thẳng bảng này mỗi lần xử lý job. Default trùng giá trị hardcode phía
- * Python (config.py) để khi row chưa tồn tại/DB lỗi, hai bên vẫn đồng nhất.
- */
 @Entity
 @Table(name = "ai_pipeline_configs")
 @Getter
