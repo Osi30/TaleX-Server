@@ -1,6 +1,7 @@
 package com.talex.server.services.coin.impls;
 
 import com.talex.server.dtos.responses.coin.CoinEconomyConfigResponseDto;
+import com.talex.server.dtos.responses.coin.CheckInMilestoneDto;
 import com.talex.server.dtos.responses.coin.DailyCheckInResponseDto;
 import com.talex.server.dtos.responses.coin.DailyCheckInStatusDto;
 import com.talex.server.entities.coin.DailyCheckIn;
@@ -22,6 +23,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.LocalDate;
+import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -85,26 +88,35 @@ public class DailyCheckInServiceImpl implements DailyCheckInService {
         LocalDate today     = LocalDate.now();
         LocalDate yesterday = today.minusDays(1);
 
-        boolean isCheckedIn = checkInRepository.existsByAccountIdAndCheckInDate(accountId, today);
+        Optional<DailyCheckIn> todayRecord = checkInRepository.findByAccountIdAndCheckInDate(accountId, today);
+        boolean isCheckedIn = todayRecord.isPresent();
+        CoinEconomyConfigResponseDto currentConfig = configService.getConfig();
 
         int currentStreak;
+        int nextStreak;
+        BigDecimal todayRewardAmount;
+
         if (isCheckedIn) {
-            // Đã điểm danh hôm nay → lấy streak của hôm nay
-            currentStreak = checkInRepository
-                    .findByAccountIdAndCheckInDate(accountId, today)
-                    .map(DailyCheckIn::getConsecutiveDays)
-                    .orElse(1);
+            DailyCheckIn checkIn = todayRecord.get();
+            currentStreak = checkIn.getConsecutiveDays();
+            nextStreak = currentStreak;
+            todayRewardAmount = checkIn.getRewardAmount();
         } else {
             // Chưa điểm danh hôm nay → streak hiện tại = streak của hôm qua (0 nếu không có)
             currentStreak = checkInRepository
                     .findByAccountIdAndCheckInDate(accountId, yesterday)
                     .map(DailyCheckIn::getConsecutiveDays)
                     .orElse(0);
+            nextStreak = currentStreak + 1;
+            todayRewardAmount = calculateReward(nextStreak, currentConfig);
         }
 
         return DailyCheckInStatusDto.builder()
                 .isCheckedInToday(isCheckedIn)
                 .currentStreak(currentStreak)
+                .nextStreak(nextStreak)
+                .todayRewardAmount(todayRewardAmount)
+                .milestones(buildMilestones(currentConfig))
                 .build();
     }
 
@@ -211,5 +223,26 @@ public class DailyCheckInServiceImpl implements DailyCheckInService {
         if (streak % 14 == 0) return config.getMilestone14Reward();
         if (streak % 7  == 0) return config.getMilestone7Reward();
         return config.getDailyCheckInBase();
+    }
+
+    private List<CheckInMilestoneDto> buildMilestones(CoinEconomyConfigResponseDto config) {
+        return List.of(
+                CheckInMilestoneDto.builder()
+                        .day(1)
+                        .rewardAmount(config.getDailyCheckInBase())
+                        .build(),
+                CheckInMilestoneDto.builder()
+                        .day(7)
+                        .rewardAmount(config.getMilestone7Reward())
+                        .build(),
+                CheckInMilestoneDto.builder()
+                        .day(14)
+                        .rewardAmount(config.getMilestone14Reward())
+                        .build(),
+                CheckInMilestoneDto.builder()
+                        .day(30)
+                        .rewardAmount(config.getMilestone30Reward())
+                        .build()
+        );
     }
 }
