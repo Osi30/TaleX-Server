@@ -7,6 +7,7 @@ import com.talex.server.dtos.report.response.PenaltyResponseDto;
 import com.talex.server.dtos.report.response.TicketResponseDto;
 
 public interface ModerationService {
+    TicketResponseDto getTicketById(String ticketId);
     BasePageResponse<TicketResponseDto> filterTickets(BaseFilterRequestDto filterRequest);
     TicketResponseDto assignTicketToStaff(String ticketId, String role, String staffId);
     PenaltyResponseDto processTicket(String ticketId, String staffId, String role, TicketProcessRequestDto requestDto);

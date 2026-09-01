@@ -10,18 +10,16 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Repository;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 
 @Repository
 public interface PenaltyRepository
         extends JpaRepository<Penalty, String>, JpaSpecificationExecutor<Penalty> {
 
-    // Đếm số gậy đang active theo cấp độ của User (dùng để kiểm tra mốc 3 Gậy -> Auto Ban)
-    long countByTargetUserIdAndStatusAndLevelIn(
-            String targetUserId, PenaltyStatus status, Collection<PenaltyLevel> levels);
-
-    // Lấy lịch sử bị phạt của User (có phân trang)
     Page<Penalty> findByTargetUserId(String targetUserId, Pageable pageable);
+
+    List<Penalty> findByTicketId(String ticketId);
 
     Optional<Penalty> findByPenaltyIdAndStatus(String penaltyId, PenaltyStatus status);
 }

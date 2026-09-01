@@ -82,6 +82,15 @@ public class ModerationServiceImpl implements ModerationService {
 
     @Override
     @Transactional(readOnly = true)
+    public TicketResponseDto getTicketById(String ticketId) {
+        ModerationTicket ticket = ticketRepository.findById(ticketId)
+                .orElseThrow(() -> new ModerationException(ModerationErrorCode.TICKET_NOT_FOUND));
+
+        return ticketMapper.toResponseDto(ticket);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public BasePageResponse<TicketResponseDto> filterTickets(BaseFilterRequestDto filterRequest) {
         Pageable pageable = PageUtils.buildPageable(
                 filterRequest.getPage(), filterRequest.getPageSize(),

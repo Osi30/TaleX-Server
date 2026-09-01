@@ -14,6 +14,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -107,6 +108,21 @@ public class PenaltyController {
         return ResponseEntity.ok(BaseResponse.builder()
                 .code(200)
                 .message("Thu hồi hình phạt thành công")
+                .data(response)
+                .build());
+    }
+
+    @GetMapping("/ticket/{ticketId}")
+    @PreAuthorize("hasAnyRole('STAFF', 'ADMIN')")
+    @Operation(
+            summary = "Lấy danh sách hình phạt theo Ticket ID",
+            description = "Trả về danh sách các gậy/hình phạt được ban hành từ một ticket kiểm duyệt cụ thể."
+    )
+    public ResponseEntity<BaseResponse> getPenaltiesByTicketId(@PathVariable String ticketId) {
+        List<PenaltyResponseDto> response = penaltyService.getPenaltiesByTicketId(ticketId);
+        return ResponseEntity.ok(BaseResponse.builder()
+                .code(200)
+                .message("OK")
                 .data(response)
                 .build());
     }

@@ -111,6 +111,15 @@ public class PenaltyServiceImpl implements PenaltyService {
         return penaltyMapper.toResponseDto(updated);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<PenaltyResponseDto> getPenaltiesByTicketId(String ticketId) {
+        List<Penalty> penalties = penaltyRepository.findByTicketId(ticketId);
+        return penalties.stream()
+                .map(penaltyMapper::toResponseDto)
+                .toList();
+    }
+
     private void publishPenaltyEvent(Penalty penalty) {
         try {
             String payload = objectMapper.writeValueAsString(penalty);

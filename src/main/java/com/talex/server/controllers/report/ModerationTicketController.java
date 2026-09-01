@@ -28,6 +28,24 @@ public class ModerationTicketController {
 
     private final ModerationService moderationService;
 
+    @GetMapping("/{ticketId}")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(
+            summary = "Lấy thông tin chi tiết Ticket kiểm duyệt",
+            description = "Lấy chi tiết một Ticket kiểm duyệt theo ticketId bao gồm danh sách các báo cáo liên quan."
+    )
+    public ResponseEntity<BaseResponse> getTicketById(
+            @PathVariable String ticketId
+    ) {
+        TicketResponseDto response = moderationService.getTicketById(ticketId);
+
+        return ResponseEntity.ok(BaseResponse.builder()
+                .code(200)
+                .message("OK")
+                .data(response)
+                .build());
+    }
+
     @GetMapping("/search")
     @PreAuthorize("hasAnyRole('STAFF', 'ADMIN')")
     @Operation(
