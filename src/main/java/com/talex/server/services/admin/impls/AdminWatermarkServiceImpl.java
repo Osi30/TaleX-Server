@@ -282,13 +282,12 @@ public class AdminWatermarkServiceImpl implements AdminWatermarkService {
         }
         
         // Với SEGMENT_DURATION = 2s: 1 bit = 2 giây video
-        // - Video 10s = 5 bit -> cần khớp 5/5 bit
-        // - Video 20s = 10 bit -> cần khớp 7/10 bit
-        // - Video 30s = 15 bit -> cần khớp 11/15 bit
-        // - Video dài (>30s) -> cần khớp tối thiểu 12 bit liên tiếp (1/4096 tỷ lệ ngẫu nhiên, định danh chính xác)
-        int requiredMatch = Math.max(5, (int) Math.ceil(extractedBinary.length() * 0.7));
-        if (requiredMatch > 12) {
-            requiredMatch = 12;
+        // - Chuỗi ngắn (< 12 bit / < 24s): cần khớp >= 80% độ dài và >= 5 bit
+        // - Chuỗi dài (>= 12 bit): cần khớp tối thiểu 60% độ dài (ví dụ 64 bit cần khớp >= 39 bit liên tiếp, 30 bit cần >= 18 bit)
+        //   để đảm bảo tính chính xác tuyệt đối, tránh nhận diện nhầm tài khoản khác khi chuỗi bit bị nhiễu.
+        int requiredMatch = Math.max(5, (int) Math.ceil(extractedBinary.length() * 0.6));
+        if (extractedBinary.length() < 12) {
+            requiredMatch = Math.max(5, (int) Math.ceil(extractedBinary.length() * 0.8));
         }
 
         if (maxMatchedLength >= requiredMatch) {
