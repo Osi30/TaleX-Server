@@ -154,8 +154,8 @@ public class TaxServiceImpl implements TaxService {
     @Override
     @Transactional(readOnly = true)
     public byte[] exportBk052PitExcel(int taxYear) {
-        List<CreatorMonthlySettlement> settlements = settlementRepository.findForTaxByYearAndCreator(
-                String.valueOf(taxYear), VALID_TAX_STATUSES, null
+        List<CreatorMonthlySettlement> settlements = settlementRepository.findForTaxByYear(
+                String.valueOf(taxYear), VALID_TAX_STATUSES
         );
 
         StringBuilder csv = new StringBuilder();

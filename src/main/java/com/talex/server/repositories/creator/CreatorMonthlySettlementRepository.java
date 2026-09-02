@@ -33,6 +33,14 @@ public interface CreatorMonthlySettlementRepository extends
     );
 
     @Query("SELECT s FROM CreatorMonthlySettlement s " +
+            "WHERE s.settlementMonth LIKE CONCAT(:year, '-%') " +
+            "AND s.status IN :statuses")
+    List<CreatorMonthlySettlement> findForTaxByYear(
+            @Param("year") String year,
+            @Param("statuses") List<SettlementStatus> statuses
+    );
+
+    @Query("SELECT s FROM CreatorMonthlySettlement s " +
             "WHERE s.status IN :statuses " +
             "AND s.cutoffDate <= :endTime " +
             "AND s.cutoffDate >= :startTime ")
