@@ -497,8 +497,8 @@ public interface OrderRepository extends JpaRepository<Order, String>, JpaSpecif
         JOIN series ser ON sea.series_id = ser.series_id
         WHERE o.status = :status
           AND ser.series_id = :seriesId
-          AND (:startTime IS NULL OR o.created_at >= :startTime)
-          AND (:endTime IS NULL OR o.created_at <= :endTime)
+          AND o.created_at >= :startTime
+          AND o.created_at <= :endTime
         ORDER BY o.created_at DESC
         """, nativeQuery = true)
     List<OrderDetailStatisticProjection> getContentOrderDetailsBySeriesId(

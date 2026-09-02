@@ -86,8 +86,8 @@ public class ContentStatisticController {
     )
     public ResponseEntity<byte[]> exportContentExcelByItemId(
             @RequestParam String itemId,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startTime,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endTime
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startTime,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endTime
     ) {
         byte[] excelBytes = contentStatisticService.exportContentExcelByItemId(itemId, startTime, endTime);
         return ResponseEntity.ok()
@@ -104,8 +104,8 @@ public class ContentStatisticController {
     )
     public ResponseEntity<byte[]> exportContentExcelBySeriesId(
             @RequestParam String seriesId,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startTime,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endTime
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startTime,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endTime
     ) {
         byte[] excelBytes = contentStatisticService.exportContentExcelBySeriesId(seriesId, startTime, endTime);
         return ResponseEntity.ok()
