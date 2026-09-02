@@ -18,6 +18,17 @@ public interface CampaignSeriesRepository extends JpaRepository<CampaignSeries, 
     List<CampaignSeries> findByCampaign_CampaignId(String campaignId);
 
     @Query("""
+        SELECT DISTINCT cs.series.seriesId
+        FROM CampaignSeries cs
+        WHERE cs.series.seriesId IN :seriesIds
+          AND cs.status = :status
+    """)
+    List<String> findSeriesIdsBySeriesIdInAndStatus(
+            @Param("seriesIds") Collection<String> seriesIds,
+            @Param("status") CampaignStatus status
+    );
+
+    @Query("""
         SELECT cs.series.seriesId
         FROM CampaignSeries cs
         WHERE cs.status = :status

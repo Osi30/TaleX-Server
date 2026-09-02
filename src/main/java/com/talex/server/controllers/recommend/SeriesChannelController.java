@@ -44,7 +44,7 @@ public class SeriesChannelController {
     @Operation(summary = "1. Kênh Promoted: Lấy toàn bộ danh sách Series Cards")
     public ResponseEntity<List<SeriesCardResponseDto>> getPromotedSeriesCards() {
         List<String> ids = seriesChannelService.getPromotedPoolElements();
-        return ResponseEntity.ok(seriesService.getSeriesCardsByIds(ids));
+        return ResponseEntity.ok(seriesService.getPromotedSeriesCardsByIds(ids));
     }
 
     @PostMapping("/promoted")

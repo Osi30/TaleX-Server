@@ -32,6 +32,8 @@ public interface SeriesService {
 
     List<SeriesCardResponseDto> getSeriesCardsByIds(List<String> seriesIds);
 
+    List<SeriesCardResponseDto> getPromotedSeriesCardsByIds(List<String> seriesIds);
+
     SeriesResponseDto update(String id, SeriesRequestDto request, String accountId);
 
     SeriesResponseDto hide(String id, String actorId);

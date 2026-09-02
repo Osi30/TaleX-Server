@@ -91,11 +91,19 @@ public class SeriesChannelServiceImpl implements SeriesChannelService {
             return Collections.emptyList();
         }
 
-        return getIdsWithOffset(
+        List<String> seriesIds = getIdsWithOffset(
                 accountId, limit, poolSize,
                 REDIS_KEY_PROMOTED_POOL,
                 REDIS_KEY_PROMOTED_OFFSET_PREFIX
         );
+
+        Set<String> runningSeriesIds = new HashSet<>(
+                campaignSeriesRepository.findSeriesIdsBySeriesIdInAndStatus(seriesIds, CampaignStatus.RUNNING)
+        );
+
+        return seriesIds.stream()
+                .filter(runningSeriesIds::contains)
+                .toList();
     }
 
     @Override

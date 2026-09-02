@@ -8,12 +8,14 @@ import com.talex.server.dtos.requests.series.SeriesSearchCriteria;
 import com.talex.server.dtos.responses.series.SeriesResponseDto;
 import com.talex.server.entities.creator.Creator;
 import com.talex.server.entities.series.*;
+import com.talex.server.enums.engagement.CampaignStatus;
 import com.talex.server.enums.series.CategoryStatus;
 import com.talex.server.enums.series.SeasonStatus;
 import com.talex.server.enums.series.SeriesStatus;
 import com.talex.server.enums.series.TagStatus;
 import com.talex.server.exceptions.details.ContentModuleException;
 import com.talex.server.mappers.series.SeriesMapper;
+import com.talex.server.repositories.campaign.CampaignSeriesRepository;
 import com.talex.server.repositories.series.*;
 import com.talex.server.services.audit.ContentAuditLogger;
 import com.talex.server.services.creator.CreatorService;
@@ -41,6 +43,7 @@ public class SeriesServiceImpl implements SeriesService {
     private final SeriesTagRepository seriesTagRepository;
     private final CategoryRepository categoryRepository;
     private final TagRepository tagRepository;
+    private final CampaignSeriesRepository campaignSeriesRepository;
     private final SeriesLogRepository seriesLogRepository;
     private final ContentOwnershipService contentOwnershipService;
     private final SeriesFeatureService seriesFeatureService;
@@ -187,6 +190,50 @@ public class SeriesServiceImpl implements SeriesService {
 
         // 2. Query danh sách Series từ DB
         List<Series> seriesList = seriesRepository.findAllBySeriesIdInAndStatus(distinctIds, SeriesStatus.PUBLISHED);
+
+        // 3. Map danh sách Series theo seriesId để dễ tra cứu
+        Map<String, Series> seriesMap = seriesList.stream()
+                .collect(Collectors.toMap(Series::getSeriesId, Function.identity(), (s1, s2) -> s1));
+
+        // 4. Duyệt lại theo danh sách distinctIds ban đầu để bảo toàn đúng thứ tự thứ hạng/khuyên dùng
+        return distinctIds.stream()
+                .map(seriesMap::get)
+                .filter(Objects::nonNull)
+                .map(seriesMapper::toCardDto)
+                .toList();
+    }
+
+    @Override
+    public List<SeriesCardResponseDto> getPromotedSeriesCardsByIds(List<String> seriesIds) {
+        if (seriesIds == null || seriesIds.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        // 1. Lọc trùng ID (Deduplicate) và loại bỏ null/blank nhưng vẫn giữ nguyên thứ tự ban đầu
+        List<String> distinctIds = seriesIds.stream()
+                .filter(id -> id != null && !id.isBlank())
+                .distinct()
+                .toList();
+
+        if (distinctIds.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        // 2. Lọc danh sách seriesIds thông qua CampaignSeries (chỉ giữ các series thuộc campaign có status RUNNING)
+        Set<String> runningSeriesIds = new HashSet<>(
+                campaignSeriesRepository.findSeriesIdsBySeriesIdInAndStatus(distinctIds, CampaignStatus.RUNNING)
+        );
+
+        List<String> validIds = distinctIds.stream()
+                .filter(runningSeriesIds::contains)
+                .toList();
+
+        if (validIds.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        // 2. Query danh sách Series từ DB
+        List<Series> seriesList = seriesRepository.findAllBySeriesIdInAndStatus(validIds, SeriesStatus.PUBLISHED);
 
         // 3. Map danh sách Series theo seriesId để dễ tra cứu
         Map<String, Series> seriesMap = seriesList.stream()
