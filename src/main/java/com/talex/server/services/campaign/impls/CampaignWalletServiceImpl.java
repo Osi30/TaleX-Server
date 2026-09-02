@@ -86,7 +86,6 @@ public class CampaignWalletServiceImpl implements CampaignWalletService {
 
         // 3. Cancellation is permitted only when the campaign is RUNNING or PAUSED.
         CampaignStatus campaignStatus = campaign.getCampaignStatus();
-        log.info("Campaign Status: {}", campaignStatus.toString());
         if (campaignStatus.equals(CampaignStatus.RUNNING) || campaignStatus.equals(CampaignStatus.PAUSED)) {
             long current = campaign.getCurrentImpression() != null ? campaign.getCurrentImpression() : 0L;
             long target = campaign.getTargetImpression() != null ? campaign.getTargetImpression() : 0L;
@@ -153,7 +152,6 @@ public class CampaignWalletServiceImpl implements CampaignWalletService {
 
             campaignWalletTransactionRepository.save(transaction);
         } else {
-            log.error("Campaign Error: {}", campaignStatus.toString());
             throw new CampaignException(
                     CampaignErrorCode.NOT_FOUND,
                     "Chiến dịch đã phân phối xong hoặc đã bị hủy. Không thể hủy và hoàn tiền."

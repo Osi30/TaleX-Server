@@ -158,9 +158,9 @@ public class CampaignServiceImpl implements CampaignService {
         if (campaign.getCampaignStatus().equals(CampaignStatus.RUNNING)
                 || campaign.getCampaignStatus().equals(CampaignStatus.PAUSED)
         ) {
+            campaignWalletService.refundCampaign(campaign);
             campaign.updateStatus(CampaignStatus.CANCELLED);
             campaignRepository.save(campaign);
-            campaignWalletService.refundCampaign(campaign);
         }
     }
 
