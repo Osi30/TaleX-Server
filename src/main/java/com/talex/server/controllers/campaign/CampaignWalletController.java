@@ -69,4 +69,20 @@ public class CampaignWalletController {
                 .data(response)
                 .build());
     }
+
+    @GetMapping("/campaigns/{campaignId}/wallet-transactions")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Lấy Wallet Transaction của Campaign",
+            description = "Lấy vết giao dịch khấu trừ/hoàn tiền ví Campaign Wallet tương ứng với Campaign.")
+    public ResponseEntity<BaseResponse> getWalletTransactionsByCampaign(
+            @PathVariable String campaignId
+    ) {
+        List<CampaignWalletTransactionDto> response = campaignWalletService.getTransactionsByCampaignId(campaignId);
+
+        return ResponseEntity.ok(BaseResponse.builder()
+                .code(200)
+                .message("OK")
+                .data(response)
+                .build());
+    }
 }

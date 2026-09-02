@@ -33,5 +33,7 @@ public interface CampaignWalletService {
 
     List<CampaignWalletTransactionDto> getTransactionsByOrderId(String orderId);
 
+    List<CampaignWalletTransactionDto> getTransactionsByCampaignId(String campaignId);
+
     BasePageResponse<CampaignWalletTransactionDto> getWalletHistory(UUID accountId, Pageable pageable);
 }

@@ -8,6 +8,7 @@ import com.talex.server.entities.campaign.CampaignWallet;
 import com.talex.server.entities.campaign.CampaignWalletTransaction;
 import com.talex.server.entities.creator.Creator;
 import com.talex.server.entities.transaction.Order;
+import com.talex.server.enums.engagement.CampaignStatus;
 import com.talex.server.enums.engagement.WalletReferenceType;
 import com.talex.server.enums.engagement.WalletTransactionType;
 import com.talex.server.enums.transaction.OrderStatus;
@@ -27,6 +28,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -64,58 +66,111 @@ public class CampaignWalletServiceImpl implements CampaignWalletService {
     @Override
     @Transactional
     public void refundCampaign(Campaign campaign) {
-        // 1. Kiểm tra campaign có đơn hàng hợp lệ hay không
+        // 1. Check if the campaign has valid orders
         if (campaign.getOrderId() == null || campaign.getOrderId().isBlank()) {
             return;
         }
 
-        // 2. Lấy Order tương ứng để lấy giá trị thanh toán gốc (totalAmount)
+        // 2. Retrieve the order to get totalAmount
         Order order = orderRepository.findById(campaign.getOrderId())
                 .orElseThrow(() -> new CampaignException(
                         CampaignErrorCode.NOT_FOUND,
                         "Không tìm thấy thông tin đơn hàng với ID: " + campaign.getOrderId()
                 ));
-
         BigDecimal totalAmount = order.getTotalAmount();
         if (totalAmount == null || totalAmount.compareTo(BigDecimal.ZERO) <= 0) {
             return;
         }
 
-        // 3. Ràng buộc: Chỉ cho phép hủy/hoàn tiền 100% khi chiến dịch CHƯA PHÂN PHỐI (currentImpression == 0)
-        long current = campaign.getCurrentImpression() != null ? campaign.getCurrentImpression() : 0L;
-        if (current > 0) {
+        // 3. Cancellation is permitted only when the campaign is RUNNING or PAUSED.
+        CampaignStatus campaignStatus = campaign.getCampaignStatus();
+        if (campaignStatus.equals(CampaignStatus.RUNNING) || campaignStatus.equals(CampaignStatus.PAUSED)) {
+            long current = campaign.getCurrentImpression() != null ? campaign.getCurrentImpression() : 0L;
+            long target = campaign.getTargetImpression() != null ? campaign.getTargetImpression() : 0L;
+            BigDecimal refundAmount;
+
+            if (current == 0) {
+                // For orders NOT YET DISTRIBUTED: 100% refund and order cancellation.
+                refundAmount = totalAmount;
+                order.setStatus(OrderStatus.CANCELLED);
+                orderRepository.save(order);
+            } else {
+                // Case where a portion has already been distributed:
+                validateRefund(current, target);
+
+                BigDecimal currentBd = BigDecimal.valueOf(current);
+                BigDecimal targetBd = BigDecimal.valueOf(target);
+
+                // Actual amount spent = totalAmount * (current / target)
+                BigDecimal consumedTotalAmount = totalAmount
+                        .multiply(currentBd)
+                        .divide(targetBd, 2, RoundingMode.HALF_UP);
+
+                // Amount refunded to wallet = totalAmount - Amount spent
+                refundAmount = totalAmount.subtract(consumedTotalAmount);
+
+                // Update the actual totalAmount of the Order.
+                order.setTotalAmount(consumedTotalAmount);
+
+                // Update the actual VAT amount for the Order.
+                if (order.getVatAmount() != null) {
+                    BigDecimal consumedVatAmount = order.getVatAmount()
+                            .multiply(currentBd)
+                            .divide(targetBd, 2, RoundingMode.HALF_UP);
+                    order.setVatAmount(consumedVatAmount);
+                }
+
+                orderRepository.save(order);
+            }
+
+            // 4. Get or create an Ad Wallet for Creators.
+            CampaignWallet wallet = getOrCreateWalletByAccountId(campaign.getAccountId());
+
+            // 5. Update wallet balance.
+            BigDecimal balanceBefore = wallet.getBalance();
+            BigDecimal balanceAfter = balanceBefore.add(refundAmount);
+            wallet.setBalance(balanceAfter);
+            campaignWalletRepository.save(wallet);
+
+            // 6. Ghi nhật ký giao dịch (CampaignWalletTransaction)
+            String description = (current == 0)
+                    ? "Hoàn tiền 100% cho chiến dịch #" + campaign.getCampaignId() + " do hủy khi chưa phân phối"
+                    : "Hoàn tiền số lượt chưa sử dụng (" + (target - current) + "/" + target + " lượt) cho chiến dịch #" + campaign.getCampaignId();
+
+            CampaignWalletTransaction transaction = CampaignWalletTransaction.builder()
+                    .campaignWallet(wallet)
+                    .amount(refundAmount)
+                    .balanceBefore(balanceBefore)
+                    .balanceAfter(balanceAfter)
+                    .transactionType(WalletTransactionType.REFUND)
+                    .referenceType(WalletReferenceType.CAMPAIGN)
+                    .referenceId(campaign.getCampaignId())
+                    .description(description)
+                    .build();
+
+            campaignWalletTransactionRepository.save(transaction);
+        } else {
             throw new CampaignException(
                     CampaignErrorCode.NOT_FOUND,
-                    "Chiến dịch đã bắt đầu phân phối (" + current + " lượt hiển thị). Không thể hủy và hoàn tiền."
+                    "Chiến dịch đã phân phối xong hoặc đã bị hủy. Không thể hủy và hoàn tiền."
+            );
+        }
+    }
+
+    private void validateRefund(long current, long target) {
+        if (target <= 0) {
+            throw new CampaignException(
+                    CampaignErrorCode.NOT_FOUND,
+                    "Số lượt hiển thị mục tiêu (targetImpression) không hợp lệ"
             );
         }
 
-        // 4. Lấy hoặc tạo Ví Quảng Cáo cho Creator
-        CampaignWallet wallet = getOrCreateWalletByAccountId(campaign.getAccountId());
-
-        // 5. Cập nhật số dư trong ví
-        BigDecimal balanceBefore = wallet.getBalance();
-        BigDecimal balanceAfter = balanceBefore.add(totalAmount);
-        wallet.setBalance(balanceAfter);
-        campaignWalletRepository.save(wallet);
-
-        // 6. Ghi nhật ký giao dịch (CampaignWalletTransaction)
-        CampaignWalletTransaction transaction = CampaignWalletTransaction.builder()
-                .campaignWallet(wallet)
-                .amount(totalAmount)
-                .balanceBefore(balanceBefore)
-                .balanceAfter(balanceAfter)
-                .transactionType(WalletTransactionType.REFUND)
-                .referenceType(WalletReferenceType.CAMPAIGN)
-                .referenceId(campaign.getCampaignId())
-                .description("Hoàn tiền 100% cho chiến dịch #" + campaign.getCampaignId() + " do hủy khi chưa phân phối")
-                .build();
-
-        campaignWalletTransactionRepository.save(transaction);
-
-        // 7. Cập nhật trạng thái Order thành CANCELLED
-        order.setStatus(OrderStatus.CANCELLED);
-        orderRepository.save(order);
+        if (current >= target) {
+            throw new CampaignException(
+                    CampaignErrorCode.NOT_FOUND,
+                    "Chiến dịch đã hoàn tất phân phối. Không thể hoàn tiền."
+            );
+        }
     }
 
     @Override
@@ -209,6 +264,15 @@ public class CampaignWalletServiceImpl implements CampaignWalletService {
     public List<CampaignWalletTransactionDto> getTransactionsByOrderId(String orderId) {
         return campaignWalletTransactionRepository
                 .findByReferenceTypeAndReferenceIdOrderByCreatedAtDesc(WalletReferenceType.ORDER, orderId)
+                .stream()
+                .map(this::toTransactionDto)
+                .toList();
+    }
+
+    @Override
+    public List<CampaignWalletTransactionDto> getTransactionsByCampaignId(String campaignId) {
+        return campaignWalletTransactionRepository
+                .findByReferenceTypeAndReferenceIdOrderByCreatedAtDesc(WalletReferenceType.CAMPAIGN, campaignId)
                 .stream()
                 .map(this::toTransactionDto)
                 .toList();

@@ -69,12 +69,11 @@ public class CreatorSettlementServiceImpl implements CreatorSettlementService {
 
         // 1. Xác định mốc thời gian chốt sổ (Cutoff Date)
         YearMonth yearMonth = YearMonth.parse(targetMonthStr, MONTH_YEAR_FORMATTER);
-        LocalDate targetMonthYearLocalDate = yearMonth.atDay(1); // YYYY-MM-01
         LocalDateTime cutoffDate = yearMonth.atEndOfMonth().atTime(23, 59, 59);
 
         // 2. Query tất cả RevenueTransaction chưa đối soát từ targetMonthYear trở về trước
         List<RevenueTransaction> unSettledTransactions =
-                revenueTransactionRepository.findUnsettledTransactionsUpToMonth(targetMonthYearLocalDate);
+                revenueTransactionRepository.findUnsettledTransactionsUpToMonth(cutoffDate.toLocalDate());
 
         if (unSettledTransactions.isEmpty()) {
             log.info("Không tìm thấy giao dịch doanh thu nào chưa đối soát cho tháng {}", targetMonthStr);
@@ -116,24 +115,23 @@ public class CreatorSettlementServiceImpl implements CreatorSettlementService {
                     grossRevenue = grossRevenue.add(txAmount);
                 }
             }
-
-            // grossAmount (Doanh thu trước thuế) = Gross Revenue - Total Penalty
             BigDecimal grossAmount = grossRevenue.subtract(totalPenaltyAmount);
 
-            // Kiểm tra trạng thái đóng đóng băng/khóa tài khoản:
-            // 1. Creator bị banned
-            // 2. Hoặc Account bị null / Status không phải là ACTIVE
+            // Check account freeze/lock status:
+            // 1. Creator is banned
+            // 2. Or Account is null / Status is not ACTIVE
             boolean isAccountNotActive = creator.getAccount() == null || creator.getAccount().getStatus() != AccountStatus.ACTIVE;
             boolean isFrozen = Boolean.TRUE.equals(creator.getIsBanned()) || isAccountNotActive;
 
-            // NẾU KHÔNG BỊ KHÓA VÀ grossAmount < Ngưỡng tối thiểu (2.000 VNĐ) -> DỒN SỔ sang tháng sau
+            // If not freeze and grossAmount < min threshold (2.000 VNĐ)
+            // -> Carry the balance over to next month.
             if (!isFrozen && grossAmount.compareTo(minBalanceThreshold) < 0) {
                 log.info("Creator [{}] có số dư chốt ({}) < ngưỡng tối thiểu ({}). Tự động dồn sổ sang kỳ sau.",
                         creator.getCreatorId(), grossAmount, minBalanceThreshold);
                 continue;
             }
 
-            // 5.2 Tính thuế TNCN (Khấu trừ tại nguồn)
+            // 5.2 Calculate PIT
             double appliedTaxRate = 0.0;
             if (grossAmount.compareTo(BigDecimal.valueOf(minPitAmount)) >= 0) {
                 appliedTaxRate = pitRate;
