@@ -33,6 +33,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.YearMonth;
@@ -136,7 +137,8 @@ public class CreatorSettlementServiceImpl implements CreatorSettlementService {
             if (grossAmount.compareTo(BigDecimal.valueOf(minPitAmount)) >= 0) {
                 appliedTaxRate = pitRate;
             }
-            BigDecimal taxWithheldAmount = grossAmount.multiply(BigDecimal.valueOf(appliedTaxRate));
+            BigDecimal taxWithheldAmount = grossAmount.multiply(BigDecimal.valueOf(appliedTaxRate))
+                    .setScale(0, RoundingMode.HALF_UP);
             BigDecimal netPayoutAmount = grossAmount.subtract(taxWithheldAmount);
 
             // 5.3 Xác định trạng thái Settlement
