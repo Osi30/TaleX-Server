@@ -60,6 +60,19 @@ public class SeriesController {
                 seriesService.listByCreator(accountId, statuses, page, pageSize)));
     }
 
+    @GetMapping("/by-creator/campaign")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Danh sách series của creator hiện tại (trừ campaign)", description = "Lấy danh sách phân trang các series thuộc về profile creator được liên kết với tài khoản đang đăng nhập.")
+    public ResponseEntity<BaseResponse> listByCreatorAndCampaign(
+            @RequestParam(required = false) List<SeriesStatus> statuses,
+            @RequestParam(defaultValue = "1") Integer page,
+            @RequestParam(defaultValue = "20") Integer pageSize,
+            @CurrentAccountId UUID accountId
+    ) {
+        return ResponseEntity.ok(response(200, "OK",
+                seriesService.listByCreatorAndCampaign(accountId, statuses, page, pageSize)));
+    }
+
     @GetMapping("/{id}")
     @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Lấy chi tiết series theo ID", description = "Lấy toàn bộ thông tin chi tiết của một series cụ thể. Người dùng yêu cầu phải có quyền sở hữu hoặc đủ quyền hạn (role) để xem.")

@@ -28,6 +28,8 @@ public interface SeriesService {
 
     BasePageResponse<SeriesResponseDto> listByCreator(UUID accountId, List<SeriesStatus> statuses, Integer page, Integer pageSize);
 
+    BasePageResponse<SeriesResponseDto> listByCreatorAndCampaign(UUID accountId, List<SeriesStatus> statuses, Integer page, Integer pageSize);
+
     Slice<SeriesCardResponseDto> searchPublicSeries(SeriesSearchCriteria criteria, Pageable pageable);
 
     List<SeriesCardResponseDto> getSeriesCardsByIds(List<String> seriesIds);

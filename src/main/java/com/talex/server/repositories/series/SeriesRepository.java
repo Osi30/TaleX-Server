@@ -2,6 +2,7 @@ package com.talex.server.repositories.series;
 
 import com.talex.server.dtos.recommend.response.SeriesCardResponseDto;
 import com.talex.server.entities.series.Series;
+import com.talex.server.enums.engagement.CampaignStatus;
 import com.talex.server.enums.interaction.ImpressionStatus;
 import com.talex.server.enums.series.SeriesStatus;
 import org.springframework.data.domain.Page;
@@ -36,6 +37,46 @@ public interface SeriesRepository extends JpaRepository<Series, String>, JpaSpec
     );
 
     List<Series> findAllBySeriesIdInAndStatus(Collection<String> seriesIds, SeriesStatus status);
+
+    /**
+     * Lấy danh sách Series của Creator không nằm trong Campaign đang ở trạng thái RUNNING hoặc PAUSED
+     */
+    @Query("""
+            SELECT s FROM Series s
+            WHERE s.creator.creatorId = :creatorId
+              AND s.isDeleted = false
+              AND NOT EXISTS (
+                  SELECT 1 FROM CampaignSeries cs
+                  WHERE cs.series = s
+                    AND cs.status IN :activeCampaignStatuses
+              )
+            """)
+    Page<Series> findAllByCreatorAndNotInActiveCampaign(
+            @Param("creatorId") String creatorId,
+            @Param("activeCampaignStatuses") Collection<CampaignStatus> activeCampaignStatuses,
+            Pageable pageable
+    );
+
+    /**
+     * Lấy danh sách Series của Creator theo danh sách status và không nằm trong Campaign đang ở trạng thái RUNNING hoặc PAUSED[cite: 16, 18]
+     */
+    @Query("""
+            SELECT s FROM Series s
+            WHERE s.creator.creatorId = :creatorId
+              AND s.status IN :statuses
+              AND s.isDeleted = false
+              AND NOT EXISTS (
+                  SELECT 1 FROM CampaignSeries cs
+                  WHERE cs.series = s
+                    AND cs.status IN :activeCampaignStatuses
+              )
+            """)
+    Page<Series> findAllByCreatorAndStatusInAndNotInActiveCampaign(
+            @Param("creatorId") String creatorId,
+            @Param("statuses") Collection<SeriesStatus> statuses,
+            @Param("activeCampaignStatuses") Collection<CampaignStatus> activeCampaignStatuses,
+            Pageable pageable
+    );
 
     @Query("SELECT s " +
             "FROM Series s " +

@@ -142,6 +142,31 @@ public class SeriesServiceImpl implements SeriesService {
         return toPageResponse(result);
     }
 
+    @Override
+    public BasePageResponse<SeriesResponseDto> listByCreatorAndCampaign(UUID accountId, List<SeriesStatus> statuses, Integer page, Integer pageSize) {
+        String creatorId = creatorService.getEntityByAccountId(accountId).getCreatorId();
+
+        // Định nghĩa các trạng thái CampaignSeries được coi là đang hoạt động[cite: 18]
+        List<CampaignStatus> activeCampaignStatuses = List.of(CampaignStatus.RUNNING, CampaignStatus.PAUSED);
+
+        Page<Series> result;
+        if (statuses != null && !statuses.isEmpty()) {
+            result = seriesRepository.findAllByCreatorAndStatusInAndNotInActiveCampaign(
+                    creatorId,
+                    statuses,
+                    activeCampaignStatuses,
+                    PageUtils.buildPageable(page, pageSize)
+            );
+        } else {
+            result = seriesRepository.findAllByCreatorAndNotInActiveCampaign(
+                    creatorId,
+                    activeCampaignStatuses,
+                    PageUtils.buildPageable(page, pageSize)
+            );
+        }
+        return toPageResponse(result);
+    }
+
     @Transactional(readOnly = true)
     @Override
     public BasePageResponse<SeriesResponseDto> listPublic(Integer page, Integer pageSize) {
