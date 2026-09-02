@@ -18,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -70,7 +71,9 @@ public class SubscriptionRevenueServiceImpl implements SubscriptionRevenueServic
             // Tỉ lệ chia sẻ thực tế = min(1.0, basePremiumShare + bonusRatio)
             double effectiveRatio = 1.0 + bonusRatio;
             double finalRevenueAmount = rawRevenue * effectiveRatio;
-            BigDecimal amountToAdd = BigDecimal.valueOf(finalRevenueAmount);
+            BigDecimal amountToAdd = BigDecimal.valueOf(finalRevenueAmount).setScale(
+                    0, RoundingMode.HALF_UP
+            );
 
             // Lấy entity Creator để cộng dồn số dư
             Creator creator = creatorService.getEntityById(creatorId);
