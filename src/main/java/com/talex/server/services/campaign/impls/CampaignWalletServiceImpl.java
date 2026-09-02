@@ -106,7 +106,7 @@ public class CampaignWalletServiceImpl implements CampaignWalletService {
                 // Actual amount spent = totalAmount * (current / target)
                 BigDecimal consumedTotalAmount = totalAmount
                         .multiply(currentBd)
-                        .divide(targetBd, 2, RoundingMode.HALF_UP);
+                        .divide(targetBd, 0, RoundingMode.HALF_UP);
 
                 // Amount refunded to wallet = totalAmount - Amount spent
                 refundAmount = totalAmount.subtract(consumedTotalAmount);
@@ -118,7 +118,7 @@ public class CampaignWalletServiceImpl implements CampaignWalletService {
                 if (order.getVatAmount() != null) {
                     BigDecimal consumedVatAmount = order.getVatAmount()
                             .multiply(currentBd)
-                            .divide(targetBd, 2, RoundingMode.HALF_UP);
+                            .divide(targetBd, 0, RoundingMode.HALF_UP);
                     order.setVatAmount(consumedVatAmount);
                 }
 

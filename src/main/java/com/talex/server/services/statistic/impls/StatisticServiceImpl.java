@@ -315,6 +315,29 @@ public class StatisticServiceImpl implements StatisticService {
 
     @Override
     @Transactional(readOnly = true)
+    public byte[] exportContentExcelBySeriesId(String seriesId, LocalDateTime startTime, LocalDateTime endTime) {
+        if (seriesId == null || seriesId.isBlank()) {
+            throw new IllegalArgumentException("seriesId không được để trống!");
+        }
+        if (startTime != null && endTime != null && startTime.isAfter(endTime)) {
+            throw new IllegalArgumentException("startTime phải nhỏ hơn hoặc bằng endTime!");
+        }
+
+        List<OrderDetailStatisticProjection> details = orderRepository.getContentOrderDetailsBySeriesId(
+                seriesId, OrderStatus.COMPLETED.name(), startTime, endTime
+        );
+
+        String title = "BÁO CÁO ĐƠN HÀNG EPISODE THEO SERIES (SERIES ID: " + seriesId + ")";
+        Object[][] overviewRows = new Object[][]{
+                {"Mã Series (Series ID)", seriesId},
+                {"Tổng số đơn hoàn tất", details.size()}
+        };
+
+        return buildExcelWorkbook(title, overviewRows, details);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public SubscriptionRevenueOverviewDto getSubscriptionOverview(LocalDateTime startTime, LocalDateTime endTime) {
         validateTimeRange(startTime, endTime);
 

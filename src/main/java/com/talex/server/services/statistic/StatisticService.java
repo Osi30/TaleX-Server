@@ -25,6 +25,7 @@ public interface StatisticService {
     List<ContentRevenueDetailDto> getContentDetails(LocalDateTime startTime, LocalDateTime endTime);
     byte[] exportContentExcel(LocalDateTime startTime, LocalDateTime endTime);
     byte[] exportContentExcelByItemId(String itemId, LocalDateTime startTime, LocalDateTime endTime);
+    byte[] exportContentExcelBySeriesId(String seriesId, LocalDateTime startTime, LocalDateTime endTime);
 
     // Premium
     SubscriptionRevenueOverviewDto getSubscriptionOverview(LocalDateTime startTime, LocalDateTime endTime);

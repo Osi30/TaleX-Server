@@ -467,4 +467,44 @@ public interface OrderRepository extends JpaRepository<Order, String>, JpaSpecif
             @Param("startTime") LocalDateTime startTime,
             @Param("endTime") LocalDateTime endTime
     );
+
+    @Query(value = """
+        SELECT 
+            o.order_id AS orderId,
+            o.total_amount AS totalAmount,
+            COALESCE(o.coin_amount, 0) AS coinAmount,
+            COALESCE(o.vat_amount, 0) AS vatAmount,
+            COALESCE(rt.amount, 0) AS shareAmount,
+            COALESCE(rt.description, '') AS description,
+            (o.total_amount - COALESCE(o.vat_amount, 0) - COALESCE(o.coin_amount, 0) - COALESCE(rt.amount, 0)) AS fiatAmount,
+            o.status AS status,
+            o.created_at AS createdAt,
+            o.updated_at AS updatedAt,
+            o.item_type AS itemType,
+            o.item_id AS itemId,
+            CONCAT('Tập ', ep.episode_number, ': ', ep.title, ' (Series: ', ser.title, ')') AS itemName,
+            CAST(a.account_id AS VARCHAR) AS accountId,
+            a.email AS email,
+            COALESCE(a.full_name, '') AS fullName
+        FROM orders o
+        JOIN accounts a ON o.account_id = a.account_id
+        LEFT JOIN revenue_transaction rt 
+            ON o.order_id = rt.reference_id 
+           AND rt.reference_type = 'ORDER' 
+           AND rt.change_type = 'CONTENT_SHARE'
+        JOIN episodes ep ON o.item_type = 'EPISODE' AND o.item_id = ep.episode_id
+        JOIN seasons sea ON ep.season_id = sea.season_id
+        JOIN series ser ON sea.series_id = ser.series_id
+        WHERE o.status = :status
+          AND ser.series_id = :seriesId
+          AND (:startTime IS NULL OR o.created_at >= :startTime)
+          AND (:endTime IS NULL OR o.created_at <= :endTime)
+        ORDER BY o.created_at DESC
+        """, nativeQuery = true)
+    List<OrderDetailStatisticProjection> getContentOrderDetailsBySeriesId(
+            @Param("seriesId") String seriesId,
+            @Param("status") String status,
+            @Param("startTime") LocalDateTime startTime,
+            @Param("endTime") LocalDateTime endTime
+    );
 }

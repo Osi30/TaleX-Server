@@ -95,4 +95,22 @@ public class ContentStatisticController {
                 .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
                 .body(excelBytes);
     }
+
+    @GetMapping("/export-excel-by-series")
+//    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(
+            summary = "Xuất Excel các đơn hàng đã hoàn tất theo seriesId",
+            description = "Lấy danh sách các đơn hàng đã hoàn tất (COMPLETED) của tất cả các Episode thuộc Series ID truyền vào."
+    )
+    public ResponseEntity<byte[]> exportContentExcelBySeriesId(
+            @RequestParam String seriesId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startTime,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endTime
+    ) {
+        byte[] excelBytes = contentStatisticService.exportContentExcelBySeriesId(seriesId, startTime, endTime);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=Bao_Cao_Don_Hang_Series_" + seriesId + ".xlsx")
+                .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .body(excelBytes);
+    }
 }
