@@ -22,6 +22,7 @@ import com.talex.server.repositories.creator.CreatorRepository;
 import com.talex.server.repositories.transaction.OrderRepository;
 import com.talex.server.services.campaign.CampaignWalletService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -34,6 +35,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class CampaignWalletServiceImpl implements CampaignWalletService {
@@ -84,6 +86,7 @@ public class CampaignWalletServiceImpl implements CampaignWalletService {
 
         // 3. Cancellation is permitted only when the campaign is RUNNING or PAUSED.
         CampaignStatus campaignStatus = campaign.getCampaignStatus();
+        log.info("Campaign Status: {}", campaignStatus.toString());
         if (campaignStatus.equals(CampaignStatus.RUNNING) || campaignStatus.equals(CampaignStatus.PAUSED)) {
             long current = campaign.getCurrentImpression() != null ? campaign.getCurrentImpression() : 0L;
             long target = campaign.getTargetImpression() != null ? campaign.getTargetImpression() : 0L;
@@ -150,6 +153,7 @@ public class CampaignWalletServiceImpl implements CampaignWalletService {
 
             campaignWalletTransactionRepository.save(transaction);
         } else {
+            log.error("Campaign Error: {}", campaignStatus.toString());
             throw new CampaignException(
                     CampaignErrorCode.NOT_FOUND,
                     "Chiến dịch đã phân phối xong hoặc đã bị hủy. Không thể hủy và hoàn tiền."
