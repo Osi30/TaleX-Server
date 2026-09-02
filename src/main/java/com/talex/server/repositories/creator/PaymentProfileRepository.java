@@ -23,6 +23,10 @@ public interface PaymentProfileRepository
             UUID accountId, PaymentProfileStatus status
     );
 
+    Optional<PaymentProfile> findByCreator_CreatorIdAndIsPrimaryTrueAndIsDeletedFalseAndStatus(
+            String creatorId, PaymentProfileStatus status
+    );
+
     List<PaymentProfile> findByCreator_Account_AccountIdAndIsDeletedFalse(UUID accountId);
 
     @Modifying

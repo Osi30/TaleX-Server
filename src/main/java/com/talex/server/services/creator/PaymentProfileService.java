@@ -18,6 +18,8 @@ public interface PaymentProfileService {
 
     PaymentProfileResponseDto getPrimaryProfile(UUID accountId);
 
+    PaymentProfileResponseDto getPrimaryProfileByCreatorId(String creatorId);
+
     List<PaymentProfileResponseDto> getOwnProfiles(UUID accountId);
 
     PaymentProfileResponseDto update(String id, PaymentProfileRequestDto dto);

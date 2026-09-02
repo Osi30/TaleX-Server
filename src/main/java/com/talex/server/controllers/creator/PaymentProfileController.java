@@ -72,6 +72,20 @@ public class PaymentProfileController {
     }
 
     @PreAuthorize("isAuthenticated()")
+    @GetMapping("/{creatorId}/primary")
+    @Operation(summary = "Lấy hồ sơ thanh toán chính theo creator", description = "Trả về hồ sơ thanh toán chính cho creator")
+    public ResponseEntity<BaseResponse> getPrimaryByCreatorId(
+            @PathVariable String creatorId
+    ) {
+        PaymentProfileResponseDto resp = paymentProfileService.getPrimaryProfileByCreatorId(creatorId);
+        return ResponseEntity.ok(BaseResponse.builder()
+                .code(200)
+                .message("OK")
+                .data(resp)
+                .build());
+    }
+
+    @PreAuthorize("isAuthenticated()")
     @GetMapping("/own")
     @Operation(summary = "Lấy tất cả hồ sơ thanh toán của creator", description = "Trả về danh sách tất cả hồ sơ thanh toán của creator")
     public ResponseEntity<BaseResponse> getOwnerProfiles(

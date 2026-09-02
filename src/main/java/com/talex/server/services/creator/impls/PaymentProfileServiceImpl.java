@@ -81,6 +81,16 @@ public class PaymentProfileServiceImpl implements PaymentProfileService {
     }
 
     @Override
+    public PaymentProfileResponseDto getPrimaryProfileByCreatorId(String creatorId) {
+        return repository.findByCreator_CreatorIdAndIsPrimaryTrueAndIsDeletedFalseAndStatus(creatorId, PaymentProfileStatus.VERIFIED)
+                .map(mapper::toResponseDto)
+                .orElseThrow(() -> new PaymentProfileException(
+                        PaymentProfileErrorCode.NOT_FOUND,
+                        "Không tìm thấy hồ sơ thanh toán chính cho tài khoản nhà sáng tạo: " + creatorId
+                ));
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public List<PaymentProfileResponseDto> getOwnProfiles(UUID accountId) {
         return repository.findByCreator_Account_AccountIdAndIsDeletedFalse(accountId)
