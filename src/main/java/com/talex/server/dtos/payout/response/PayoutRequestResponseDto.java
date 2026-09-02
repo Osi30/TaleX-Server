@@ -18,6 +18,7 @@ import java.util.UUID;
 public class PayoutRequestResponseDto {
     private String payoutRequestId;
     private UUID accountId;
+    private String username;
     private BigDecimal amount;
     private PayoutRequestStatus status;
     private String paymentProfileId;

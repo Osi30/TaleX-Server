@@ -10,16 +10,19 @@ import com.talex.server.dtos.payout.response.PayoutRequestResponseDto;
 import com.talex.server.dtos.payout.response.PayoutTransactionResponseDto;
 import com.talex.server.dtos.responses.config.SettlementConfigResponseDto;
 import com.talex.server.dtos.responses.creator.PaymentProfileResponseDto;
+import com.talex.server.entities.auth.Account;
 import com.talex.server.entities.campaign.CampaignWallet;
 import com.talex.server.entities.campaign.CampaignWalletTransaction;
 import com.talex.server.entities.campaign.PayoutRequest;
 import com.talex.server.entities.campaign.WalletPayoutTransaction;
+import com.talex.server.enums.AccountStatus;
 import com.talex.server.enums.PayoutStatus;
 import com.talex.server.enums.engagement.PayoutRequestStatus;
 import com.talex.server.enums.engagement.WalletReferenceType;
 import com.talex.server.enums.engagement.WalletTransactionType;
 import com.talex.server.exceptions.codes.payment.PaymentErrorCode;
 import com.talex.server.exceptions.details.payment.PaymentException;
+import com.talex.server.repositories.auth.AccountRepository;
 import com.talex.server.repositories.campaign.CampaignWalletRepository;
 import com.talex.server.repositories.campaign.CampaignWalletTransactionRepository;
 import com.talex.server.repositories.campaign.PayoutRequestRepository;
@@ -55,6 +58,7 @@ public class PayoutRequestServiceImpl implements PayoutRequestService {
     private final PaymentProfileService paymentProfileService;
     private final SettlementConfigService settlementConfigService;
     private final PayoutService payoutService;
+    private final AccountRepository accountRepository;
 
     @Override
     @Transactional
@@ -321,9 +325,12 @@ public class PayoutRequestServiceImpl implements PayoutRequestService {
     }
 
     private PayoutRequestResponseDto toResponseDto(PayoutRequest entity) {
+        Account account = accountRepository.findByAccountIdAndStatus(entity.getAccountId(), AccountStatus.ACTIVE).orElse(null);
+
         return PayoutRequestResponseDto.builder()
                 .payoutRequestId(entity.getPayoutRequestId())
                 .accountId(entity.getAccountId())
+                .username(account == null ? "N/A" : account.getUsername())
                 .amount(entity.getAmount())
                 .status(entity.getStatus())
                 .paymentProfileId(entity.getPaymentProfileId())
