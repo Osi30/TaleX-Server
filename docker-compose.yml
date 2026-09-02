@@ -6,8 +6,6 @@ services:
     env_file:
       - .env
     environment:
-      # Log theo giờ Việt Nam thay vì UTC mặc định của container — dễ đối chiếu log
-      # lúc test local với thời điểm thao tác thật trên FE.
       - TZ=Asia/Ho_Chi_Minh
       # Override DB host for Docker internal networking
       - DB_HOST=db

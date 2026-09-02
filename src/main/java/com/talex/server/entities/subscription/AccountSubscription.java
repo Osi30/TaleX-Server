@@ -24,11 +24,6 @@ public class AccountSubscription {
     @Column(name = "account_subscription_id")
     private String accountSubscriptionId;
 
-    // Order gốc khi subscription được cấp qua thanh toán — null nếu Admin/Staff cấp thủ
-    // công (xem AccountSubscriptionRequestDto). Dùng để tra Invoice hiển thị ở lịch sử mua
-    // Premium — trước đây field này bị SubscriptionOrderFulfillmentService truyền vào rồi
-    // âm thầm rơi mất vì entity không có cột lưu, khiến lịch sử Premium không bao giờ hiện
-    // hóa đơn dù Invoice vẫn được tạo bình thường trong DB.
     @Column(name = "order_id")
     private String orderId;
 

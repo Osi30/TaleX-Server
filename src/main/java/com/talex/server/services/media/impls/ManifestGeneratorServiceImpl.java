@@ -67,15 +67,16 @@ public class ManifestGeneratorServiceImpl implements ManifestGeneratorService {
         int chunkIndex = 0;
 
         for (String line : lines) {
-            if (line.trim().isEmpty()) {
+            String trimmedLine = line.trim();
+            if (trimmedLine.isEmpty()) {
                 continue;
             }
-            if (line.startsWith("#") || line.contains(".key")) {
-                dynamicManifest.append(line).append("\n");
-            } else if (line.endsWith(".ts")) {
+            if (trimmedLine.startsWith("#") || trimmedLine.contains(".key")) {
+                dynamicManifest.append(trimmedLine).append("\n");
+            } else if (trimmedLine.endsWith(".ts") || trimmedLine.contains(".ts")) {
                 // Là dòng chứa link tới chunk
                 char bit = binaryPattern.charAt(chunkIndex % binaryPattern.length());
-                String chunkName = line.trim();
+                String chunkName = trimmedLine;
 
                 String chunkUrl;
                 if (bit == '1') {
@@ -89,7 +90,7 @@ public class ManifestGeneratorServiceImpl implements ManifestGeneratorService {
                 dynamicManifest.append(signedChunkUrl).append("\n");
                 chunkIndex++;
             } else {
-                dynamicManifest.append(line).append("\n");
+                dynamicManifest.append(trimmedLine).append("\n");
             }
         }
 

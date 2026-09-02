@@ -269,10 +269,11 @@ public class AdminWatermarkServiceImpl implements AdminWatermarkService {
         for (java.util.UUID id : allIds) {
             String hashBinary = convertToBinaryPattern(id.toString());
             
-            // Tìm chuỗi con dài nhất khớp nhau (Longest Common Substring)
-            // hoặc kiểm tra độ tương đồng. Vì video có thể bị nhiễu 1-2 bit, ta cho phép sai số nhỏ.
-            // Cách đơn giản nhất: Kiểm tra xem có chuỗi con nào >= 80% độ dài của extractedBinary nằm trong hash không.
-            int matchScore = calculateMaxConsecutiveMatch(hashBinary, extractedBinary);
+            // Nhân chuỗi hash (ví dụ hash 128 bit lặp 3 lần) để xử lý hoàn hảo trường hợp
+            // kẻ gian cắt video vắt ngang ranh giới giữa 2 chu kỳ (ví dụ cắt từ giây 25s đến 50s:
+            // đuôi của chu kỳ 1 nối liền với đầu của chu kỳ 2 sẽ khớp 100% trong chuỗi lặp).
+            String repeatedHash = hashBinary.repeat(3);
+            int matchScore = calculateMaxConsecutiveMatch(repeatedHash, extractedBinary);
             
             if (matchScore > maxMatchedLength) {
                 maxMatchedLength = matchScore;
@@ -280,13 +281,23 @@ public class AdminWatermarkServiceImpl implements AdminWatermarkService {
             }
         }
         
-        // Nếu độ dài khớp liên tiếp >= 5 bit, ta coi như tìm thấy
-        if (maxMatchedLength >= 5) {
-            log.info("TÌM THẤY! UUID: {} (Độ dài khớp: {}/{} bit)", bestMatchId, maxMatchedLength, extractedBinary.length());
+        // Với SEGMENT_DURATION = 2s: 1 bit = 2 giây video
+        // - Chuỗi ngắn (< 12 bit / < 24s): cần khớp >= 80% độ dài và >= 5 bit
+        // - Chuỗi dài (>= 12 bit): cần khớp tối thiểu 60% độ dài (ví dụ 64 bit cần khớp >= 39 bit liên tiếp, 30 bit cần >= 18 bit)
+        //   để đảm bảo tính chính xác tuyệt đối, tránh nhận diện nhầm tài khoản khác khi chuỗi bit bị nhiễu.
+        int requiredMatch = Math.max(5, (int) Math.ceil(extractedBinary.length() * 0.6));
+        if (extractedBinary.length() < 12) {
+            requiredMatch = Math.max(5, (int) Math.ceil(extractedBinary.length() * 0.8));
+        }
+
+        if (maxMatchedLength >= requiredMatch) {
+            log.info("TÌM THẤY! UUID: {} (Độ dài khớp: {}/{} bit, yêu cầu tối thiểu: {} bit)", 
+                    bestMatchId, maxMatchedLength, extractedBinary.length(), requiredMatch);
             return bestMatchId;
         }
         
-        log.warn("Không tìm thấy UUID nào khớp đủ điều kiện (Max khớp: {} bit)", maxMatchedLength);
+        log.warn("Không tìm thấy UUID nào khớp đủ điều kiện (Max khớp: {}/{} bit, cần tối thiểu {} bit)", 
+                maxMatchedLength, extractedBinary.length(), requiredMatch);
         return null;
     }
 
