@@ -1066,7 +1066,8 @@ public class MediaServiceImpl implements MediaService {
                 .deletedBy(media.getDeletedBy())
                 .isDeleted(media.getIsDeleted())
                 .contentId(media.getContentId())
-                .hasWatermark(media.getHasWatermark());
+                .hasWatermark(media.getHasWatermark())
+                .hlsReadyAt(media.getHlsReadyAt());
     }
 
     private MediaCopyrightResponseDto mapCopyrightToDto(MediaCopyright entity, boolean privileged) {
