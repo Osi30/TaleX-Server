@@ -16,4 +16,6 @@ public class AdTrackRequestDto {
     private UUID campaignId;
 
     private String source; // "IN_VIDEO", "POPUP", "MISSION"
+
+    private String deviceId;
 }

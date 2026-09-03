@@ -19,7 +19,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/v1/ads")
 @RequiredArgsConstructor
-@Tag(name = "Ad Serving", description = "API công khai để phân phối quảng cáo và tracking")
+@Tag(name = "Ad Serving", description = "API serving and tracking ads")
 public class AdServingController {
 
     private final AdCampaignService campaignService;
@@ -27,7 +27,7 @@ public class AdServingController {
     private final AdSlotService slotService;
 
     @GetMapping("/slots")
-    @Operation(summary = "Lấy danh sách Slot đang kích hoạt", description = "Dùng bởi Frontend để User chọn vị trí muốn quảng cáo.")
+    @Operation(summary = "Get active slots")
     public ResponseEntity<BaseResponse> getActiveSlots() {
         return ResponseEntity.ok(BaseResponse.builder()
                 .code(200)
@@ -37,7 +37,7 @@ public class AdServingController {
     }
 
     @GetMapping("/serve")
-    @Operation(summary = "Lấy quảng cáo để hiển thị", description = "Dùng bởi Frontend để load quảng cáo ngẫu nhiên cho một vị trí.")
+    @Operation(summary = "Get ad for serving")
     public ResponseEntity<BaseResponse> serveAd(@RequestParam String slotCode) {
         return ResponseEntity.ok(BaseResponse.builder()
                 .code(200)
@@ -47,7 +47,7 @@ public class AdServingController {
     }
 
     @GetMapping("/serve/all")
-    @Operation(summary = "Lấy tất cả quảng cáo để hiển thị", description = "Dùng bởi Frontend để load toàn bộ quảng cáo cho một vị trí (ví dụ: Carousel).")
+    @Operation(summary = "Get all ads for serving")
     public ResponseEntity<BaseResponse> serveAllAds(@RequestParam String slotCode) {
         return ResponseEntity.ok(BaseResponse.builder()
                 .code(200)
@@ -57,13 +57,13 @@ public class AdServingController {
     }
 
     @PostMapping("/track/impression")
-    @Operation(summary = "Đếm View (Impression)", description = "Gọi ngầm khi quảng cáo hiển thị thành công (Async).")
+    @Operation(summary = "Track impression")
     public ResponseEntity<BaseResponse> trackImpression(
             @Valid @RequestBody AdTrackRequestDto request,
             @CurrentAccountId UUID accountId,
             HttpServletRequest httpRequest
     ) {
-        String clientFingerprint = extractClientFingerprint(httpRequest);
+        String clientFingerprint = extractClientFingerprint(httpRequest, request);
         trackingService.trackImpressionAsync(request, accountId, clientFingerprint);
         return ResponseEntity.ok(BaseResponse.builder()
                 .code(200)
@@ -72,13 +72,13 @@ public class AdServingController {
     }
 
     @PostMapping("/track/view-6s")
-    @Operation(summary = "Đếm View 6s", description = "Gọi ngầm khi quảng cáo video phát được 6 giây (Async).")
+    @Operation(summary = "Track 6s view")
     public ResponseEntity<BaseResponse> track6sView(
             @Valid @RequestBody AdTrackRequestDto request,
             @CurrentAccountId UUID accountId,
             HttpServletRequest httpRequest
     ) {
-        String clientFingerprint = extractClientFingerprint(httpRequest);
+        String clientFingerprint = extractClientFingerprint(httpRequest, request);
         trackingService.track6sViewAsync(request, accountId, clientFingerprint);
         return ResponseEntity.ok(BaseResponse.builder()
                 .code(200)
@@ -87,13 +87,13 @@ public class AdServingController {
     }
 
     @PostMapping("/track/click")
-    @Operation(summary = "Đếm Click", description = "Gọi ngầm khi người dùng click vào quảng cáo (Async).")
+    @Operation(summary = "Track click")
     public ResponseEntity<BaseResponse> trackClick(
             @Valid @RequestBody AdTrackRequestDto request,
             @CurrentAccountId UUID accountId,
             HttpServletRequest httpRequest
     ) {
-        String clientFingerprint = extractClientFingerprint(httpRequest);
+        String clientFingerprint = extractClientFingerprint(httpRequest, request);
         trackingService.trackClickAsync(request, accountId, clientFingerprint);
         return ResponseEntity.ok(BaseResponse.builder()
                 .code(200)
@@ -101,7 +101,7 @@ public class AdServingController {
                 .build());
     }
 
-    private String extractClientFingerprint(HttpServletRequest request) {
+    private String extractClientFingerprint(HttpServletRequest request, AdTrackRequestDto dto) {
         String xfHeader = request.getHeader("X-Forwarded-For");
         if (xfHeader == null || xfHeader.isEmpty() || "unknown".equalsIgnoreCase(xfHeader)) {
             xfHeader = request.getHeader("X-Real-IP");
@@ -111,6 +111,16 @@ public class AdServingController {
         }
         String ip = xfHeader.split(",")[0].trim();
 
+        // 1. Priority: Extract hardware deviceId from DTO body or X-Device-Id header
+        String deviceId = (dto != null && dto.getDeviceId() != null && !dto.getDeviceId().isBlank())
+                ? dto.getDeviceId().trim()
+                : request.getHeader("X-Device-Id");
+
+        if (deviceId != null && !deviceId.isBlank()) {
+            return ip + "_" + deviceId.trim();
+        }
+
+        // 2. Fallback: User-Agent hash
         String userAgent = request.getHeader("User-Agent");
         int uaHash = (userAgent != null) ? userAgent.hashCode() : 0;
 
